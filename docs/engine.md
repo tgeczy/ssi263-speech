@@ -1,12 +1,12 @@
-# SSI-263 chip engine, v0.10
+# SSI-263 chip engine, v0.12
 
-Paths on this page are relative to `src/`; run the tools from there.
+Paths on this page are relative to `src/`, except `tools/`, which sits at the repository root. Run the tools from the root. How the engine got here, and who found what, is in [history.md](history.md).
 
 This is a sound-generating model of the SSI-263 chip, built from its documented architecture. **It is not a verified recreation.** v0 exists to put the whole pipeline in place: registers → controller → switched-capacitor vocal tract → output stage → WAV. That lets each part be measured against the Braille Lite recordings and replaced.
 
-The chip knows phoneme codes and register values, never words. Front ends drive it through `ssi263/drivers.py`: the data book's register streams now, and Blazie, Speakout or Accent adapters later.
+The chip knows phoneme codes and register values, never words. Front ends drive it through `ssi263/drivers.py` (the data book's register streams and the MASTER lines) and through the four firmware hosts in `hosts/` ([front-ends.md](front-ends.md)).
 
-## Since v0.5 (details: `HOLDOUT.md`, `../investigation/engine-v09-for-astra.md`, `../investigation/message-from-claude-3.md`)
+## Since v0.5 (details: `HOLDOUT.md` and [history.md](history.md))
 
 - **v0.6:** per-path noise glides.
 - **v0.7:** stop order. The tract closes, then the stop's own noise waits for the release.
@@ -17,6 +17,8 @@ The chip knows phoneme codes and register values, never words. Front ends drive 
   - closure timing scaled to the phoneme's length, so a 2-frame D′2 closes as it does on the unit (`tools/closure_check.py`);
   - the Speak-Out host steps at 0.5 ms (`tools/speakout_timing.py`);
   - tag and note corrections from Astra's Reply 27.
+- **v0.11:** a b01 stop releases early only when the next phoneme is open (a vowel, R, L, W, M, N): `release_lookahead`, with the held stop's noise as its burst at the next load (`late_release_burst`). The extra soft G in "program" and the "d" before the J in "manager" went away. How the chip could know the next phoneme is not established; the model's device is an early A/R with the host's writes held to the stop's end (see Astra's Reply 28 for a load-triggered alternative).
+- **v0.12:** a closure that loads onto silence closes at once (`closure_onto_silence`). The one-frame delay voiced B and D after every pause; on the unit that first frame is silent (`tools/stop_after_pause.py`).
 
 ## Layout
 
@@ -27,7 +29,7 @@ The chip knows phoneme codes and register values, never words. Front ends drive 
 | `ssi263/rom.py` | Raw ROM bits, plus a swappable reading of them (the candidate decode) |
 | `ssi263/drivers.py` | Hosts: data-book Hello rows, and MASTER lines from the emulated Blazie stream |
 | `data/rom_bits.csv` | Built by `tools/make_rom_bits.py` from Astra's reconciled reading of the P die. It matches Casso's table in all 1856 cells |
-| `tools/render.py` | Renders the milestone WAVs, each with a JSON sidecar, into `out/` |
+| `tools/render.py` | Renders the milestone WAVs, each with a JSON sidecar, into `investigation/out/` |
 | `tools/compare_dev.py` | Engine against the real unit, on development lines only |
 | `HOLDOUT.md`, `holdout_lines.txt` | The frozen hold-out set, and the rules for it |
 | `ssi263/dsp.py` | The host-rate stage (4x FIR, decimation, PCM): numpy reference, or the C one |
@@ -110,7 +112,7 @@ Firmware is never stored here; each host reads the user's own file.
 - XCK is 1 MHz, so its default tone register E4 gives fc = 17.9 kHz.
 - **Checked against a real Speak-Out recording** (H4, `HOLDOUT.md`). The words are identical, F0 is 88.72 against 88.78 Hz (confirming 1 MHz to 0.07 %), and Tomi hears "the exact tone of the speakout".
 
-## Development comparison (60 lines; `out/compare_dev_v0.3.txt`)
+## Development comparison (60 lines; `investigation/out/compare_dev_v0.3.txt`)
 
 **Vowels** sit within 0–3 dB of the real unit, relative to each line's loudest phoneme. **So do most consonants** since v0.2 and v0.3: SCH, HF, Z, J, F, D′2, M and N are within about 4 dB.
 
@@ -136,7 +138,7 @@ Most of these involve the unfinished closure.
   - K → T and P → T ("act", "kept") are untested on the unit.
 - **Spectrum.** In the speech bands the engine is 6 dB short at 100–300 Hz and 5 dB over at 3.5–4.5 kHz.
   - The overall spectrum above about 5 kHz is dominated by vowels, and there it sits near the line-in floor.
-  - Fricative segments on their own do carry real energy at 6–9 kHz, and bursts up to 14 kHz. See `out/fricative_spectra_v0.3.txt`.
+  - Fricative segments on their own do carry real energy at 6–9 kHz, and bursts up to 14 kHz. See `investigation/out/fricative_spectra_v0.3.txt`.
 - **The capture path is not modelled yet.** The real side includes the Braille Lite's output path, which must go in a separate stage, not into the chip. The tone ladder (tones 1, 7, 13, 25) is what separates the two: chip features move with fc, the output path's do not.
 
 ## Not modelled yet

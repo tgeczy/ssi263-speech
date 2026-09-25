@@ -26,7 +26,8 @@ that ever drove it can talk again, and each one sounds like itself, because its 
 are doing the talking. So the chip comes first. It's built from the evidence, not by ear
 alone:
 
-- the phoneme ROM, read off the die by Astra, and checked against Rob Elmer's Casso;
+- the phoneme ROM, read by Astra from [Visual6502.org's die shots](http://www.visual6502.org/images/pages/Silicon_Systems_SSI_263P_die_shots.html),
+  and checked against Rob Elmer's Casso;
 - the data sheet and the chip family's ISSCC paper;
 - 78 minutes of my own Braille Lite 2000 recorded from its line out, used for development;
 - a frozen hold-out set of other recordings that nothing is ever tuned on.
@@ -71,7 +72,7 @@ The README in each folder says which files, with their checksums.
 | `src/hosts/` | The firmware hosts: `speakout.py`, `blazie.py`, `accent.py`, `accent_sa.py` with `i8085.py`, and `ucmini.py` |
 | `src/data/rom_bits.csv` | The phoneme ROM |
 | `src/HOLDOUT.md` | The hold-out rules, and a log of every change to the chip and every look at the hold-out |
-| `docs/engine.md` | What the model does, part by part, and what it doesn't do yet |
+| `docs/` | [How the chip came to speak](docs/history.md), [reading the die](docs/die.md), [measuring a real chip](docs/measurements.md), [the engine](docs/engine.md), [the four front ends](docs/front-ends.md), [open questions](docs/open-questions.md) and [sources](docs/sources.md) |
 | `tools/` | Research and check tools: comparisons against the recordings, the C/Python gate, renders |
 | `nvda/` | The three NVDA drivers, their builds, and the driver test rig |
 | `firmware/` | Aicom's software, and the places the other firmware goes |
@@ -107,8 +108,13 @@ Blazie add-on as `z180emu-source.zip`.
 ## Credits
 
 - **Engine, hosts and drivers:** Tamas Geczy (tgeczy), with Claude.
-- **The die:** Astra read the SSI-263's phoneme ROM from the die, reviews the engine, and
-  found the Windows-on-ARM fix.
+- **Visual6502.org:** the [SSI-263P die shots](http://www.visual6502.org/images/pages/Silicon_Systems_SSI_263P_die_shots.html)
+  that everything here was read from. Greg James photographed the die in 203 images, and
+  Christian Sattler corrected and stitched them into one 17265 × 14313 picture, from chips
+  an anonymous donor sent them. The same page keeps the SSI-263A data sheets and
+  programming guide. Without it there would be no ROM, and no chip.
+- **The die:** Astra read the SSI-263's phoneme ROM from those shots, reviews the engine,
+  and found the Windows-on-ARM fix.
 - **Casso:** Rob Elmer, MIT (`third_party/casso/LICENSE`).
 - **Unicorn 2.1.4:** GPLv2. Its source is pinned in `src/csrc/`.
 - **z180emu:** GPLv2. The Braille Lite add-on ships its complete source.
@@ -116,6 +122,7 @@ Blazie add-on as `z180emu-source.zip`.
 - **The firmware belongs to its makers:** the Speak-Out to GW Micro (hardware by Daniel
   Weirich, software by Douglas Geoffray), the Braille Lite to Blazie Engineering, the
   Accent to Aicom Corporation.
+- The whole story, day by day and with who found what, is in [docs/history.md](docs/history.md).
 - And thanks to everyone listening, testing and telling me what sounds wrong. That's how
   a chip model turns into a voice you can read with.
 

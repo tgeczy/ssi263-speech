@@ -140,7 +140,7 @@ DEFAULTS = {
                             "gate opens.  Dev (tools/affricate_onset.py, D -> J, 2-6 kHz): the unit "
                             "goes from -33 to -2 dB within ~5 ms of the release; without it ours "
                             "reached -6 dB 15 ms after the load.  Tomi first heard that as 'zsh' for 'dzs', but in the A/B/C "
-                            "(2026-09-26) chose B, held WITHOUT the precharge: 'the B held one gets it'.  "
+                            "(2026-09-25) chose B, held WITHOUT the precharge: 'the B held one gets it'.  "
                             "Off; the ear over the onset metric"),
     "late_release_burst": (True, "BL",
                            "a stop held to its end (release_lookahead) releases at the next load if "

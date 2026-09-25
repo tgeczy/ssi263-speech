@@ -1,5 +1,5 @@
 """D -> J (the "dge" of manager, storage, judge): how fast does the J's frication arrive after
-the D's closure?  Dev only.  Tomi (2026-09-26): ours is "more like a zsh", the unit's a fuller
+the D's closure?  Dev only.  Tomi (2026-09-25): ours is "more like a zsh", the unit's a fuller
 glottal stop then "dzs".
 
 For every dev D -> J pair: the broadband and 2-6 kHz levels in 2.5 ms steps around the

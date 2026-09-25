@@ -1,6 +1,6 @@
 """Cut the real Braille Lite's own words out of the Reclaim recording, beside ours, for listening.
 
-The recording (Tomi, 2026-09-26): the unit reading reclaim.txt off the line, 9.7 min, at the
+The recording (Tomi, 2026-09-25): the unit reading reclaim.txt off the line, 9.7 min, at the
 factory settings (F0 81.5 Hz = r1 45h, the warm-reset pitch), one section skipped.  It is
 DEV material.  Each target word is rendered through the emulated unit (bns_live, factory
 menu) and slid along the recording's log-mel spectrum; the best non-overlapping matches

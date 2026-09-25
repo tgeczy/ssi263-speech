@@ -1,6 +1,6 @@
 """Is there voicing under the voiced fricatives?  Dev only.
 
-Tomi (2026-09-26): the unit's "dzs" in "storage" is harder and harsher than ours.  On the
+Tomi (2026-09-25): the unit's "dzs" in "storage" is harder and harsher than ours.  On the
 Reclaim token the unit's J had ~13 dB more energy below 1.5 kHz than ours; the ROM gives
 J, Z and THV a VA of 1 (V: 3), so ours are all but unvoiced.  For every dev segment of
 a fricative, the middle half: the 80-600 Hz level (voicing) minus the 1.5-6 kHz level

@@ -164,18 +164,18 @@ The Accent puts glide field 7 on 2/3 of its pitch writes, and fields 3 and 6 on 
 
 **2026-09-25, Claude: repository layout only, no change to the sound.** `engine/` became `src/`, and its README became `docs/engine.md`. The Accent demo render is bit-identical before and after. All three add-ons build, with `check_native_core` passing on both Pythons, and `driver_sim.py` passes on NVDA 2026 and 2021.1 with all three add-ons in one process.
 
-**2026-09-26, Claude: Accent host fix (add-on 0.3.6), no change to the chip.**
+**2026-09-25, Claude: Accent host fix (add-on 0.3.6), no change to the chip.**
 - **The freeze.** Tomi's Accent went silent at random while he scrolled through Mastodon. `say()` far-called into the driver from wherever the CPU was, and about 1 `run()` block in 400 ends inside the driver's IRQ handler, which runs from the EMS page at D000 and was then partway through its register writes. The far call abandoned the handler: its page map stayed swapped in, the chip's registers were half written, and its frame was left on the stack. The card never spoke again.
 - **Reproduced:** 300 scroll-like say/run/cancel cycles, 3 seeds. Every run went silent after its one mid-handler cancel. With `_settle()`, which lets the handler run to its IRET before `say()` touches a register, all 3 keep talking.
 - **Checks:** the demo render is bit-identical before and after.
 - **Also in the add-on:** "~" becomes a space. "~/" opens the Accent's phoneme input (manual 4.2), which swallowed everything until the next "~".
 
-**2026-09-26, Claude: Accent host, the stale-IRQ freeze (add-on 0.3.8), no change to the chip.** 0.3.6 did not fix Tomi's freeze. 0.3.7's log caught it: the CPU was idle and the card "speaking", with IRQ2 in service and another latched.
+**2026-09-25, Claude: Accent host, the stale-IRQ freeze (add-on 0.3.8), no change to the chip.** 0.3.6 did not fix Tomi's freeze. 0.3.7's log caught it: the CPU was idle and the card "speaking", with IRQ2 in service and another latched.
 - **The sequence.** Long Mastodon items (380-1,070 characters) fill the driver's buffer, so INT 17h blocks and serves the card by polling. The host's PIC kept an edge latched after that request had been served, and delivered it later. The handler read status, found no request, and returned without an EOI (3AF4 -> 3B6A), so IRQ2 stayed in service for good.
 - **The fix.** A real 8259 needs the request held until acknowledged; a dropped one is a spurious IRQ 7. `_try_irq` now drops the latch when the line is low.
 - **Checks.** Before the fix, long items with quick cancels froze 4 of 5 seeded runs on the first item. After it, all 5 runs got through 200 items. The demo render is bit-identical.
 
-**2026-09-26, Claude: v0.11, stop release, prompted by Tomi.** Tomi heard an extra soft G in "program" (K HVC) and a "d" before the J of "manager" (D'2 J) on the Braille Lite add-on. Measured on dev only.
+**2026-09-25, Claude: v0.11, stop release, prompted by Tomi.** Tomi heard an extra soft G in "program" (K HVC) and a "d" before the J of "manager" (D'2 J) on the Braille Lite add-on. Measured on dev only.
 - **The firmware writes are identical either way.** K in "kit" and in "give" is the same DP 29 / RE 28 / TA 54 / FF ED.
 - **The unit releases a stop early only into an open phoneme** (`tools/early_release_table.py`). Early-window rise over the closure floor, unit / engine v0.10:
 
@@ -199,7 +199,7 @@ The Accent puts glide field 7 on 2/3 of its pitch writes, and fields 3 and 6 on 
   - the unit's voiced closures leak a voice bar (about -14 to -19 dB), ours are silent.
 - **Hold-out:** not read.
 
-**2026-09-26, Claude: v0.12, a stop that starts on silence, prompted by a listener.** A listener heard a click in the T of "still" on the Accent ("Well, that was better, but I still don't like your robotic intonation", from accent-demo.wav, now DEV). This is a sound change, so the renders are not bit-identical.
+**2026-09-25, Claude: v0.12, a stop that starts on silence, prompted by a listener.** A listener heard a click in the T of "still" on the Accent ("Well, that was better, but I still don't like your robotic intonation", from accent-demo.wav, now DEV). This is a sound change, so the renders are not bit-identical.
 - **What it was** (`tools/accent_spec.py`, waveform and spectrogram pictures, no listening). The Accent spells the T as D'3 D'3 PA'3 D'0, with the PA's amplitude at 0. A closure phoneme runs `closure_delay_frames` (1) of open tract before it shuts, so a vowel can fade into it. After that silent PA there is no vowel, and the open tract voiced D's own target for 10 ms at the vowel's level: a "tock" between the S and the I. The real card is silent there.
 - **Not only the Accent** (`tools/stop_after_pause.py`, first-frame peak in dB re the line's loud level, dev only):
 

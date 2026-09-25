@@ -1,7 +1,7 @@
 """A phrase from the Accent demo, real recording against the emulated Accent-mini, as a
 spectrogram PNG with the emulated phoneme loads marked (for looking, not listening).
 
-accent-demo.wav's opening was declared DEV (2026-09-25); on 2026-09-26 the line "I still
+accent-demo.wav's opening was declared DEV (2026-09-25); on 2026-09-25 the line "I still
 don't like your robotic intonation" joined it, after a listener pointed at a click in the
 T of "still".  accent.wav (H9) is never read here.
 

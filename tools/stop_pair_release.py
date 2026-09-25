@@ -1,6 +1,6 @@
 """A stop followed by another closure: does the first one release?  Dev lines only.
 
-Tomi (2026-09-26), on the Braille Lite add-on against his memory of the unit: "program" has
+Tomi (2026-09-25), on the Braille Lite add-on against his memory of the unit: "program" has
 a glottal stop between prog and gram, with one hard G on the "gram" side, where ours adds a
 softer G before the stop too; and the "ge" of "manager" and "image" is a Hungarian "dzs"
 with a glottal stop before it.  The firmware writes the hard g as K + HVC and "ge" as D'2 + J,

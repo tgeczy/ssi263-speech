@@ -379,7 +379,7 @@ class Accent:
             # gone (a spurious IRQ 7 that sets no in-service bit).  The driver's INT 17h serves
             # the card by polling while it waits, and a stale edge delivered after that found
             # no request: the handler returned without an EOI, and IRQ2 stayed in service for
-            # good -- Tomi's freeze scrolling long Mastodon posts (2026-09-26)
+            # good -- Tomi's freeze scrolling long Mastodon posts (2026-09-25)
             self.irq_latched = False
             return False
         if not self.irq_latched:
@@ -489,7 +489,7 @@ class Accent:
         driver.  A far call from mid-handler abandons it: its EMS page map stays swapped in,
         the chip's registers half written, its frame left on the stack, and the driver then
         runs on the wrong pages and the card stays silent.  That was the freeze Tomi met
-        scrolling Mastodon (2026-09-26): about 1 run() block in 400 ends inside the handler."""
+        scrolling Mastodon (2026-09-25): about 1 run() block in 400 ends inside the handler."""
         if self.r("cs") == IDLE_SEG:
             return
         where = "%04X:%04X" % (self.r("cs"), self.r("ip"))
