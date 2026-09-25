@@ -63,6 +63,23 @@ from. The Speak-Out and Braille Lite firmware stay out of git: to build those tw
 yourself, put your own copies in `firmware/gw-micro-speakout/` and `firmware/blazie/`.
 The README in each folder says which files, with their checksums.
 
+## Documentation
+
+- [How the SSI-263 learned to speak again](docs/history.md): the whole story, day by day,
+  from the first ROM read to this release, and who found what along the way.
+- [Reading the chip off its die](docs/die.md): how the phoneme ROM was read three separate
+  ways from Visual6502's photographs, and what those bits do and don't tell us.
+- [Measuring a real SSI-263](docs/measurements.md): how my own Braille Lite 2000 was
+  recorded and measured, and the lessons that cost the most to learn.
+- [The chip engine](docs/engine.md): what the model does, part by part, and what it
+  doesn't do yet.
+- [The four front ends](docs/front-ends.md): each device's own firmware, and the emulated
+  machine it runs on.
+- [Open questions](docs/open-questions.md): what we still don't know, and where the
+  answer would come from.
+- [Sources and credits](docs/sources.md): every data sheet, paper, patent, program and
+  person this work stands on.
+
 ## Layout
 
 | Path | What it is |
@@ -72,7 +89,7 @@ The README in each folder says which files, with their checksums.
 | `src/hosts/` | The firmware hosts: `speakout.py`, `blazie.py`, `accent.py`, `accent_sa.py` with `i8085.py`, and `ucmini.py` |
 | `src/data/rom_bits.csv` | The phoneme ROM |
 | `src/HOLDOUT.md` | The hold-out rules, and a log of every change to the chip and every look at the hold-out |
-| `docs/` | [How the chip came to speak](docs/history.md), [reading the die](docs/die.md), [measuring a real chip](docs/measurements.md), [the engine](docs/engine.md), [the four front ends](docs/front-ends.md), [open questions](docs/open-questions.md) and [sources](docs/sources.md) |
+| `docs/` | The documentation (see above) |
 | `tools/` | Research and check tools: comparisons against the recordings, the C/Python gate, renders |
 | `nvda/` | The three NVDA drivers, their builds, and the driver test rig |
 | `firmware/` | Aicom's software, and the places the other firmware goes |
