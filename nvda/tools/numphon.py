@@ -1,11 +1,15 @@
 """Phoneme strings (ROM names) the Braille Lite firmware sends for numbers, full-numbers mode."""
+import os
 import sys
 
-sys.path.insert(0, r"C:\git\ssi263-speech\src")
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.join(REPO, "src"))
+from tools import repo_paths             # noqa: E402
 from hosts.blazie import Blazie  # noqa: E402
 from ssi263 import SSI263        # noqa: E402
 
-B = r"C:\git\ssi263-speech\nvda\dist\blazie-build\synthDrivers\_ssi263_blazie"
+B = repo_paths.engine_dir("blazie")
 NUMS = sys.argv[1:] or ["21", "263", "4294967296", "999999999999", "1000000000000", "1234567890123",
                         "100000000000000"]
 chip = SSI263(dsp="c")

@@ -9,12 +9,14 @@ synthDrivers.__path__.  "both" loads all three add-ons in one process after a st
 `ssi263` has been imported (the 0.3.0 failure) and has each speak.
 """
 import os
-import os
 import sys
 
 WHICH, NVDA_DIR, TAG = sys.argv[1], sys.argv[2], sys.argv[3]
 HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
-BUILDS = {w: r"C:\git\ssi263-speech\nvda\dist\%s-build\synthDrivers" % w for w in ("speakout", "blazie", "accent")}
+# nvda/dist/<name>-build/synthDrivers, found from here (as tools/repo_paths.synth_drivers
+# does; this script can't import it: sys.path is replaced with NVDA's own library below)
+DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dist")
+BUILDS = {w: os.path.join(DIST, "%s-build" % w, "synthDrivers") for w in ("speakout", "blazie", "accent")}
 MODULE = {"speakout": "speakout", "blazie": "blazie", "accent": "accentmini"}
 SA = WHICH == "accentsa"            # the Accent add-on with its "Accent SA" voice
 if SA:

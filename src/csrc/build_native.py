@@ -15,15 +15,20 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.dirname(HERE)
 SOURCES = [os.path.join(HERE, "ssi263.c"), os.path.join(HERE, "ssi263dsp.c")]
-TOOLCHAINS = {"x64": (r"C:\w64devkit\bin", []),
-              "x86": (r"C:\w64devkit-x86\w64devkit\bin", ["-msse2", "-mfpmath=sse"])}
+sys.path.insert(0, os.path.dirname(ENGINE))
+from tools import repo_paths  # noqa: E402  (the compilers' folders come from paths.local)
+
+# arch -> (paths.local key, extra flags); the i686 compiler is never taken from the PATH
+TOOLCHAINS = {"x64": ("W64DEVKIT", []),
+              "x86": ("W64DEVKIT_X86", ["-msse2", "-mfpmath=sse"])}
 CFLAGS = ["-O2", "-std=c99", "-ffp-contract=off", "-Wall", "-Wextra", "-Wno-unused-parameter"]
-OBJDUMP = r"C:\w64devkit\bin\objdump.exe"
 ALLOWED = {"KERNEL32.dll", "msvcrt.dll"}
 
 
 def main():
-    for arch, (bindir, extra) in TOOLCHAINS.items():
+    objdump = repo_paths.program("W64DEVKIT", "objdump")
+    for arch, (key, extra) in TOOLCHAINS.items():
+        bindir = repo_paths.bin_dir(key, path_fallback=(arch == "x64"))
         out_dir = os.path.join(ENGINE, "ssi263", "_bin", arch)
         os.makedirs(out_dir, exist_ok=True)
         out = os.path.join(out_dir, "ssi263.dll")
@@ -31,7 +36,7 @@ def main():
         cmd = ([os.path.join(bindir, "gcc.exe")] + CFLAGS + extra
                + ["-shared", "-static", "-static-libgcc", "-s", "-o", out] + SOURCES)
         subprocess.run(cmd, check=True, env=env)
-        dump = subprocess.run([OBJDUMP, "-p", out], capture_output=True, text=True, check=True).stdout
+        dump = subprocess.run([objdump, "-p", out], capture_output=True, text=True, check=True).stdout
         dlls = {ln.split(":", 1)[1].strip() for ln in dump.splitlines() if "DLL Name:" in ln}
         if not dlls <= ALLOWED:
             sys.exit("%s imports %s" % (out, sorted(dlls - ALLOWED)))

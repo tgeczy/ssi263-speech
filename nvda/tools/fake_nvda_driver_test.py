@@ -1,5 +1,6 @@
 """Drive the real add-on driver files against stand-in NVDA modules."""
 import importlib
+import os
 import sys
 import threading
 import time
@@ -7,8 +8,12 @@ import types
 
 import numpy as np
 
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO)
+from tools import repo_paths             # noqa: E402
+
 WHICH = sys.argv[1]            # speakout | blazie | accent
-BUILD = r"C:\git\ssi263-speech\nvda\dist\%s-build\synthDrivers" % WHICH
+BUILD = repo_paths.synth_drivers(WHICH)
 
 
 # ---- stand-ins ------------------------------------------------------------------

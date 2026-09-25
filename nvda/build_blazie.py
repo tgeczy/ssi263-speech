@@ -2,7 +2,7 @@
 
 Carries the Braille Lite's firmware and a RAM snapshot containing it, which are not in the
 repository: put your own copies in firmware/blazie/.  z180emu (GPLv2, with this project's
-bns.c front end; set Z180 below) ships with its complete source in the add-on.
+bns.c front end; set Z180EMU in paths.local) ships with its complete source in the add-on.
 Output: nvda/dist/blazie-ssi263-<version>.nvda-addon
 
 bns_live.exe is built here, 32-bit (i686, static), so the one binary runs on 32- and
@@ -14,16 +14,16 @@ import subprocess
 import sys
 import zipfile
 
-from build_common import NVDA_RANGE, check_native, copy_engine, rm, zip_build
+from build_common import NVDA_RANGE, check_native, copy_engine, repo_paths, rm, zip_build
 
 VERSION = "0.5.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 ENGINE = os.path.join(REPO, "src")
-Z180 = r"C:\git\z180emu"
+Z180 = repo_paths.external("Z180EMU")
 FIRMWARE = os.path.join(REPO, "firmware", "blazie", "BL2ENG.BNS")
 STATE = os.path.join(REPO, "firmware", "blazie", "bl2_2003_warm.state")
-GCC32 = r"C:\w64devkit-x86\w64devkit\bin"
+GCC32 = repo_paths.bin_dir("W64DEVKIT_X86", path_fallback=False)   # never the PATH's x86_64 gcc
 CORE = ("z180", "z180dasm", "z80daisy", "z80scc", "z180asci")
 CFLAGS = ["-O3", "-fcommon", "-DSOCKETCONSOLE", "-std=gnu89"]
 LINK = ["-O3", "-fcommon", "-std=gnu89", "-static", "-s"]

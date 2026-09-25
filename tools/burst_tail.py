@@ -23,11 +23,13 @@ import soundfile as sf
 
 ENGINE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
 sys.path.insert(0, ENGINE)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tools import repo_paths             # noqa: E402
 from ssi263 import SSI263, Params, drivers  # noqa: E402
 from noise_decay import VOWELS  # noqa: E402
 
-PRED = r"C:\git\blite_sweep\scripts\MASTER_predictions.jsonl"
-MASTER = r"C:\git\blite_sweep\sessions\MASTER"
+PRED = repo_paths.master_predictions()
+MASTER = repo_paths.master_session()
 SR = 44100
 NFFT = 2048
 F = np.fft.rfftfreq(NFFT, 1 / SR)

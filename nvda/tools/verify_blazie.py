@@ -6,11 +6,15 @@ import sys
 import time
 from array import array
 
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO)
+from tools import repo_paths             # noqa: E402
+
 HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
-OLD = r"C:\git\ssi263-speech\nvda\dist\blazie-build\synthDrivers\_ssi263_blazie"
-NEW = r"C:\git\ssi263-speech\src"
-EXE64 = r"C:\git\z180emu\bns_live.exe"
-EXE32 = os.path.join(r"C:\git\ssi263-speech\nvda\dist\blazie-build\synthDrivers\_ssi263_blazie", "bns_live.exe")
+OLD = repo_paths.engine_dir("blazie")
+NEW = repo_paths.SRC
+EXE64 = os.path.join(repo_paths.external("Z180EMU"), "bns_live.exe")
+EXE32 = os.path.join(repo_paths.engine_dir("blazie"), "bns_live.exe")
 FW = os.path.join(OLD, "BL2ENG.BNS")
 STATE = os.path.join(OLD, "bl2_2003_warm.state")
 TEXTS = [["Hello there."], ["Select, press, two sixty three.", "Is this a question?"],

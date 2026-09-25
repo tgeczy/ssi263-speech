@@ -11,7 +11,11 @@ import stat
 import subprocess
 import sys
 
-OBJDUMP = r"C:\w64devkit\bin\objdump.exe"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO not in sys.path:
+    sys.path.insert(0, REPO)
+from tools import repo_paths  # noqa: E402  (paths outside the repo come from paths.local)
+
 ALLOWED_IMPORTS = {"KERNEL32.dll", "msvcrt.dll"}
 FORMATS = {"x64": "pei-x86-64", "x86": "pei-i386"}
 # research-only modules left out of the add-ons (drivers.py needs csv, absent from NVDA 2021-2023)
@@ -29,7 +33,8 @@ def rm(path):
 
 
 def check_native(path, arch):
-    dump = subprocess.run([OBJDUMP, "-p", path], capture_output=True, text=True, check=True).stdout
+    objdump = repo_paths.program("W64DEVKIT", "objdump")
+    dump = subprocess.run([objdump, "-p", path], capture_output=True, text=True, check=True).stdout
     if FORMATS[arch] not in dump:
         sys.exit("%s is not %s" % (path, FORMATS[arch]))
     dlls = {ln.split(":", 1)[1].strip() for ln in dump.splitlines() if "DLL Name:" in ln}
@@ -39,16 +44,20 @@ def check_native(path, arch):
 
 # The C chip must match chip.py before anything ships: tools/check_native_core.py on
 # each architecture's Python (A/R timing and chip time exact, PCM identical).
-CHECK_PYTHONS = (r"C:\Python313\python.exe", r"C:\Python313-32\python.exe")
+CHECK_PYTHONS = ("PYTHON64", "PYTHON32")          # keys in paths.local; both are required
 _checked = []
 
 
 def check_core(engine):
     if _checked:
         return
-    for py in CHECK_PYTHONS:
-        if not os.path.isfile(py):
-            sys.exit("missing %s for the native-core check" % py)
+    # nothing ships from a tree that names someone's own folders
+    r = subprocess.run([sys.executable, os.path.join(REPO, "tools", "check_no_machine_paths.py")],
+                       capture_output=True, text=True)
+    if r.returncode:
+        sys.exit("machine paths in tracked files:\n" + r.stdout[-2000:])
+    for key in CHECK_PYTHONS:
+        py = repo_paths.python(key)
         r = subprocess.run([py, os.path.join(os.path.dirname(engine), "tools", "check_native_core.py")],
                            capture_output=True, text=True)
         print(r.stdout.strip())
@@ -80,3 +89,12 @@ def zip_build(build, out):
                 p = os.path.join(root, fn)
                 z.write(p, os.path.relpath(p, build))
     print("wrote %s (%.1f MB)" % (out, os.path.getsize(out) / 1e6))
+
+
+def copy_unicorn_license(eng):
+    """Unicorn's GPLv2 text, as COPYING.unicorn, taken from the pinned source tarball itself."""
+    import tarfile
+    with tarfile.open(os.path.join(REPO, "src", "csrc", "unicorn-2.1.4.tar.gz")) as t:
+        text = t.extractfile("unicorn-2.1.4/src/qemu/COPYING").read()
+    with open(os.path.join(eng, "COPYING.unicorn"), "wb") as f:
+        f.write(text)

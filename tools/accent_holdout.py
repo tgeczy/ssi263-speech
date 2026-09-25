@@ -9,10 +9,12 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "src"))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tools import repo_paths             # noqa: E402
 from hosts.accent import Accent          # noqa: E402
 from ssi263.native import SSI263C        # noqa: E402
 
-HOLDOUT = r"Y:\content from streamers\DecTalk archive\Synthesizers\accent.wav"
+HOLDOUT = repo_paths.archive_audio("accent.wav")
 DVC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "firmware", "aicom-accent-mini", "SPKEMS.DVC")
 
 

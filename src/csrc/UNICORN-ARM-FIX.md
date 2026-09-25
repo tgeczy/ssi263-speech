@@ -16,11 +16,11 @@ compatible with the CRT's: both sides must stay paired. Unicorn's x86-core jump 
 are all 1 and jump back to caller frames.
 Reference: https://gcc.gnu.org/onlinedocs/gcc/Nonlocal-Gotos.html
 
-Build (needs C:\w64devkit\bin with GCC, CMake and Ninja; checks the pinned tarball's
-SHA-256; stages under build/):
+Build (needs w64devkit's x86_64 bin folder, with GCC, CMake and Ninja, in
+`SSI263_W64DEVKIT` or on the PATH; checks the pinned tarball's SHA-256; stages under build/):
 
 ```
-C:\Python313\python.exe src\csrc\build_unicorn_candidate.py
+python src/csrc/build_unicorn_candidate.py
 ```
 
 Output: `build/unicorn-no-crt-unwind/libunicorn.dll`, shipped as `bin/x64/unicorn.dll`

@@ -5,10 +5,14 @@ import os
 import sys
 import time
 
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO)
+from tools import repo_paths             # noqa: E402
+
 HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
-OLD = r"C:\git\ssi263-speech\nvda\dist\speakout-build\synthDrivers\_ssi263_speakout"
-NEW = r"C:\git\ssi263-speech\src"
-HEX = r"C:\git\ssi263-speech\nvda\dist\speakout-build\synthDrivers\_ssi263_speakout\SPEAKOUT.HEX"
+OLD = repo_paths.engine_dir("speakout")
+NEW = repo_paths.SRC
+HEX = os.path.join(OLD, "SPEAKOUT.HEX")
 TEXTS = ["\x05Mn\x05R5\x05P3\x05Ti", "Hello there. Select, press, two sixty three.\r",
          "Is this a question?\r", "\x05R9\x05Tq", "ETI-Eloquence at rate nine.\r", "\x05R2\x05P7\x05Tc",
          "Slow and high, tone c.\r"]

@@ -3,11 +3,14 @@ busy() is false; 'complete' = every line's ^F came back."""
 import os
 import sys
 
-sys.path.insert(0, r"C:\git\ssi263-speech\src")
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.join(REPO, "src"))
+from tools import repo_paths             # noqa: E402
 from hosts.blazie import Blazie          # noqa: E402
 from ssi263.native import SSI263C        # noqa: E402
 
-B = r"C:\git\ssi263-speech\nvda\dist\blazie-build\synthDrivers\_ssi263_blazie"
+B = repo_paths.engine_dir("blazie")
 L1 = "Alex Sample left paren (at samplebird110127 at examplesite dot space right paren ) boosted"
 L2 = "your post colon aha. So here's where we are with the SSI263."
 L3 = "six:forty two:nine PM"

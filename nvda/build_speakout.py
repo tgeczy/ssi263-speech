@@ -10,14 +10,13 @@ import os
 import shutil
 import sys
 
-from build_common import IGN, NVDA_RANGE, check_native, copy_engine, rm, zip_build
+from build_common import IGN, NVDA_RANGE, check_native, copy_engine, copy_unicorn_license, rm, zip_build
 
 VERSION = "0.5.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 ENGINE = os.path.join(REPO, "src")
 FIRMWARE = os.path.join(REPO, "firmware", "gw-micro-speakout", "SPEAKOUT.HEX")
-GPL2 = r"C:\git\z180emu\COPYING"          # the GPLv2 text, as Unicorn's core is licensed
 
 BUILD = os.path.join(HERE, "dist", "speakout-build")
 OUT = os.path.join(HERE, "dist", "speakout-ssi263-%s.nvda-addon" % VERSION)
@@ -80,7 +79,7 @@ def main():
     for arch in ("x64", "x86"):
         check_native(os.path.join(eng, "bin", arch, "unicorn.dll"), arch)
     shutil.copy2(FIRMWARE, os.path.join(eng, "SPEAKOUT.HEX"))
-    shutil.copy2(GPL2, os.path.join(eng, "COPYING.unicorn"))
+    copy_unicorn_license(eng)
     for name in ("unicorn-2.1.4-no-crt-unwind.patch", "build_unicorn_candidate.py"):
         shutil.copy2(os.path.join(ENGINE, "csrc", name), eng)
     with open(os.path.join(eng, "UNICORN-BUILD.txt"), "w", encoding="utf-8") as f:

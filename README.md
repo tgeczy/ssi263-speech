@@ -97,9 +97,13 @@ The README in each folder says which files, with their checksums.
 
 ## Building
 
-You'll need 64-bit Python 3.13 at `C:\Python313`, 32-bit at `C:\Python313-32`, and
-w64devkit GCC (x86_64 at `C:\w64devkit`, i686 at `C:\w64devkit-x86\w64devkit`). The
-research tools also want numpy, scipy, soundfile and librosa.
+You'll need 64-bit and 32-bit Python 3.13, and w64devkit GCC in both its x86_64 and i686
+builds. The research tools also want numpy, scipy, soundfile and librosa.
+
+Nothing in the repository assumes where those live. Copy `paths.local.example` to
+`paths.local` (it stays out of git) and fill in the keys you need, or set the same keys as
+`SSI263_<KEY>` environment variables. A script that needs a missing key says which one.
+`python tools/check_no_machine_paths.py` makes sure no one's own paths get committed.
 
 ```
 python src/csrc/build_native.py      # ssi263.dll, 64- and 32-bit, static
@@ -119,6 +123,7 @@ Blazie add-on as `z180emu-source.zip`.
 | Command | What it checks |
 |---|---|
 | `python tools/check_native_core.py` | The C chip against `chip.py`: internal state exact, PCM identical, under every parameter switch |
+| `python tools/check_no_machine_paths.py` | No tracked file names a folder on anyone's own machine |
 | `python -S nvda/tools/driver_sim.py speakout\|blazie\|accent\|accentsa\|both "C:\Program Files\NVDA" tag` | A built driver against stand-in NVDA modules, importing only from NVDA's own library |
 | `python nvda/tools/pitch_bug.py speakout\|blazie\|accent` | Capital pitch is never left raised |
 

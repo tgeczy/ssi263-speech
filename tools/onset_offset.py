@@ -26,10 +26,12 @@ from scipy.signal import butter, sosfilt
 
 ENGINE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
 sys.path.insert(0, ENGINE)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tools import repo_paths             # noqa: E402
 from ssi263 import SSI263, Params, drivers  # noqa: E402
 
-PRED = r"C:\git\blite_sweep\scripts\MASTER_predictions.jsonl"
-MASTER = r"C:\git\blite_sweep\sessions\MASTER"
+PRED = repo_paths.master_predictions()
+MASTER = repo_paths.master_session()
 SR = 44100
 VOWELS = {"E", "E1", "Y", "YI", "AY", "IE", "I", "A", "AI", "EH", "EH1", "AE", "AE1", "AH", "AH1", "AW",
           "O", "OU", "OO", "IU", "IU1", "U", "U1", "UH", "UH1", "UH2", "UH3", "ER"}

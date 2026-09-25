@@ -20,12 +20,14 @@ import librosa.display                           # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(os.path.dirname(HERE), "src")
 sys.path.insert(0, ENGINE)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tools import repo_paths             # noqa: E402
 sys.path.insert(0, HERE)
 from hosts.accent import Accent                  # noqa: E402
 from ssi263 import SSI263                        # noqa: E402
 import wave                                      # noqa: E402
 
-REAL = r"Y:\content from streamers\DecTalk archive\Synthesizers\accent-demo.wav"
+REAL = repo_paths.archive_audio("accent-demo.wav")
 DVC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "firmware", "aicom-accent-mini", "SPKEMS.DVC")
 
 

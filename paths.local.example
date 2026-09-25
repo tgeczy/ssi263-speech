@@ -1,0 +1,17 @@
+# Copy this file to paths.local (gitignored) and fill in what you have.
+# Each line is KEY = path.  An environment variable SSI263_<KEY> overrides it.
+# Only the keys a script needs have to be set; it tells you which one is missing.
+# tools/repo_paths.py reads this file; its KEYS table describes each key.
+
+# Research tools: recordings of real units (not in the repo)
+# RECORDINGS = <folder with scripts/ and sessions/MASTER/ of the Braille Lite capture>
+# ARCHIVE_AUDIO = <folder with accent-demo.wav, accent.wav, speakout.wav>
+# RECLAIM_WAV = <the Braille Lite reading reclaim.txt>
+# RECLAIM_TXT = <reclaim.txt>
+
+# Builds
+# W64DEVKIT = <w64devkit x86_64 bin folder; else gcc and objdump on the PATH>
+# W64DEVKIT_X86 = <w64devkit i686 bin folder>
+# PYTHON64 = <64-bit Python 3.13 python.exe>
+# PYTHON32 = <32-bit Python 3.13 python.exe>
+# Z180EMU = <z180emu checkout with this project's bns.c; the Braille Lite add-on only>

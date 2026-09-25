@@ -70,7 +70,7 @@ Line 6306 was re-rendered for evaluation only; the v0.2 renders are kept as `*-v
 
 The fix is `art_amp_mult` = 3, following the SC-01's amplitude/formant tick ratio: the tail is now 16 ms. Dev levels stayed within the v0.4 figures, and S improved from −5.4 to −1.6 dB.
 
-**2026-09-24, Claude: H4, an external recording.** Tomi's direct recording of a real Speak-Out is `Y:\content from streamers\DecTalk archive\Synthesizers\speakout.wav` (2004; 11,025 Hz; 2.05 s; "speak out ready" … "not charging"). It is reserved as test material, and nothing will be tuned on it.
+**2026-09-24, Claude: H4, an external recording.** Tomi's direct recording of a real Speak-Out is `speakout.wav` in his archive of real-unit recordings (`ARCHIVE_AUDIO` in `paths.local`) (2004; 11,025 Hz; 2.05 s; "speak out ready" … "not charging"). It is reserved as test material, and nothing will be tuned on it.
 
 **First evaluation** (`hosts/speakout.py` at v0.5 defaults, boot greeting):
 - **Words:** identical; the firmware's own "not charging" status.

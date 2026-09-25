@@ -3,11 +3,14 @@ import os
 import sys
 import time
 
-sys.path.insert(0, r"C:\git\ssi263-speech\src")
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.join(REPO, "src"))
+from tools import repo_paths             # noqa: E402
 from hosts.blazie import Blazie          # noqa: E402
 from ssi263.native import SSI263C        # noqa: E402
 
-B = r"C:\git\ssi263-speech\nvda\dist\blazie-build\synthDrivers\_ssi263_blazie"
+B = repo_paths.engine_dir("blazie")
 TURBO = float(sys.argv[1]) if len(sys.argv) > 1 else 32.0
 chip = SSI263C()
 events = []

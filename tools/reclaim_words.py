@@ -22,12 +22,14 @@ import soundfile as sf
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(os.path.dirname(HERE), "src")
 sys.path.insert(0, ENGINE)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tools import repo_paths             # noqa: E402
 from hosts.blazie import Blazie          # noqa: E402
 from ssi263 import SSI263                # noqa: E402
 
-REC = r"C:\git\os2\reclaim-full.wav"
-TXT = r"C:\git\bns_backup\reclaim.txt"
-B = r"C:\git\ssi263-speech\nvda\dist\blazie-build\synthDrivers\_ssi263_blazie"
+REC = repo_paths.external("RECLAIM_WAV")
+TXT = repo_paths.external("RECLAIM_TXT")
+B = repo_paths.engine_dir("blazie")
 OUT = os.path.join(os.path.dirname(ENGINE), "investigation", "out")
 SR = 44100
 HOP = 0.01

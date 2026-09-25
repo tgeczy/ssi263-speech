@@ -4,11 +4,14 @@ measured from each line's first phoneme; only the silence before it may shrink."
 import os
 import sys
 
-sys.path.insert(0, r"C:\git\ssi263-speech\src")
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.join(REPO, "src"))
+from tools import repo_paths             # noqa: E402
 from hosts.blazie import Blazie          # noqa: E402
 from ssi263.native import SSI263C        # noqa: E402
 
-B = r"C:\git\ssi263-speech\nvda\dist\blazie-build\synthDrivers\_ssi263_blazie"
+B = repo_paths.engine_dir("blazie")
 LINES = [["Custom number processing left paren (fix digits above a trillion right paren ) check",
           "box not checked Alt plus u"],
          ["Select synthesizer dialog.", "Synthesizer: combo box."], ["Is this a question?"],

@@ -7,6 +7,7 @@ import difflib
 import hashlib
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tarfile
 
@@ -14,7 +15,10 @@ ROOT = Path(__file__).resolve().parents[2]
 ARCHIVE = Path(__file__).with_name("unicorn-2.1.4.tar.gz")
 SOURCE = ROOT / "build/unicorn-source/unicorn-2.1.4/src"
 BUILD = ROOT / "build/unicorn-no-crt-unwind"
-GCC = Path(r"C:\w64devkit\bin")
+# w64devkit's x86_64 bin folder (gcc, cmake, ninja): SSI263_W64DEVKIT, else wherever gcc is
+# on the PATH.  This script also ships inside the add-ons, away from the repo's tools/,
+# so it doesn't read paths.local.
+GCC = Path(os.environ.get("SSI263_W64DEVKIT") or os.path.dirname(shutil.which("gcc") or "gcc"))
 
 OLD = """#define sigjmp_buf jmp_buf
 #define sigsetjmp(env, savemask) setjmp(env)

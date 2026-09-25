@@ -12,7 +12,7 @@ import os
 import shutil
 import sys
 
-from build_common import IGN, NVDA_RANGE, check_native, copy_engine, rm, zip_build
+from build_common import IGN, NVDA_RANGE, check_native, copy_engine, copy_unicorn_license, rm, zip_build
 from build_speakout import UNICORN_BUILD
 
 VERSION = "0.5.0"
@@ -21,7 +21,6 @@ REPO = os.path.dirname(HERE)
 ENGINE = os.path.join(REPO, "src")
 DRIVER = os.path.join(REPO, "firmware", "aicom-accent-mini", "SPKEMS.DVC")
 SA_ROMS = os.path.join(REPO, "firmware", "aicom-accent-sa")
-GPL2 = r"C:\git\z180emu\COPYING"          # the GPLv2 text, as Unicorn's core is licensed
 
 BUILD = os.path.join(HERE, "dist", "accent-build")
 OUT = os.path.join(HERE, "dist", "accent-ssi263-%s.nvda-addon" % VERSION)
@@ -80,7 +79,7 @@ def main():
         check_native(os.path.join(eng, "bin", arch, "unicorn.dll"), arch)
     shutil.copy2(DRIVER, os.path.join(eng, "SPKEMS.DVC"))
     write_state(os.path.join(eng, "SPKEMS.state"))
-    shutil.copy2(GPL2, os.path.join(eng, "COPYING.unicorn"))
+    copy_unicorn_license(eng)
     for name in ("unicorn-2.1.4-no-crt-unwind.patch", "build_unicorn_candidate.py"):
         shutil.copy2(os.path.join(ENGINE, "csrc", name), eng)
     with open(os.path.join(eng, "UNICORN-BUILD.txt"), "w", encoding="utf-8") as f:

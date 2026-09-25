@@ -13,12 +13,14 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(os.path.dirname(HERE), "src")
 sys.path.insert(0, ENGINE)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tools import repo_paths             # noqa: E402
 from hosts.blazie import Blazie          # noqa: E402
 from hosts.speakout import SpeakOut      # noqa: E402
 from ssi263 import SSI263                # noqa: E402
 from ssi263.native import SSI263C        # noqa: E402
 
-B = r"C:\git\ssi263-speech\nvda\dist\blazie-build\synthDrivers\_ssi263_blazie"
+B = repo_paths.engine_dir("blazie")
 HEX = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "firmware", "gw-micro-speakout", "SPEAKOUT.HEX")
 WORDS = ["manager.", "storage.", "image.", "message.", "judge.", "pages.", "large.", "changing.",
          "management.", "knowledge.", "program."]

@@ -1,11 +1,15 @@
 """Phonemes for NVDA's 'most' punctuation text, unit punctuation some (factory) vs none."""
+import os
 import sys
 
-sys.path.insert(0, r"C:\git\ssi263-speech\src")
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.join(REPO, "src"))
+from tools import repo_paths             # noqa: E402
 from hosts.blazie import Blazie  # noqa: E402
 from ssi263 import SSI263        # noqa: E402
 
-B = r"C:\git\ssi263-speech\nvda\dist\blazie-build\synthDrivers\_ssi263_blazie"
+B = repo_paths.engine_dir("blazie")
 TEXTS = ["eti dash-eloquence.", "left paren (test right paren ) done."]
 for tag, menu in (("factory", ()), ("none", ("punct_none", "numbers_toggle"))):
     chip = SSI263(dsp="c")

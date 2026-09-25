@@ -2,6 +2,10 @@
 # It stays on this machine and never shows as tracked.
 investigation/
 
+# Where this machine keeps things outside the repo (tools/repo_paths.py reads it;
+# paths.local.example is the tracked template).
+paths.local
+
 # Firmware is not committed; the released add-ons carry it (Tomi's decision, 2026-09-26).
 # Anyone building from source puts their own copies in firmware/<device>/ (see the README
 # there).  The rule is blunt on purpose, so nothing lands here by accident.
