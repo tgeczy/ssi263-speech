@@ -1,0 +1,60 @@
+# Our playground: correspondence, Astra's die review, experiments and the attic.
+# It stays on this machine and never shows as tracked.
+investigation/
+
+# Firmware is not committed; the released add-ons carry it (Tomi's decision, 2026-09-26).
+# Anyone building from source puts their own copies in firmware/<device>/ (see the README
+# there).  The rule is blunt on purpose, so nothing lands here by accident.
+*.hex
+*.HEX
+*.bns
+*.BNS
+*.dvc
+*.DVC
+*.sys
+*.SYS
+*.rom
+*.bin
+*.state
+firmware/gw-micro-speakout/*
+!firmware/gw-micro-speakout/README.txt
+firmware/blazie/*
+!firmware/blazie/README.txt
+
+# The exception: Aicom's software, kept in the tree with its notice (firmware/AICOM.txt).
+!firmware/aicom-accent-sa/*.BIN
+!firmware/aicom-accent-mini/SPKEMS.DVC
+
+# Built add-ons bundle that firmware: they go out as release assets, never committed.
+nvda/dist/
+*.nvda-addon
+
+# The old-NVDA test rig holds NV Access's binaries (nvda2021app, nvda2023app) and the
+# embeddable Python: local only.  Its script and README are tracked.
+nvda/tools/win7/*
+!nvda/tools/win7/README.txt
+!nvda/tools/win7/run37.py
+
+# Renders and test output
+investigation/out/
+nvda/tools/out/
+*.wav
+
+# Native build output: python src/csrc/build_native.py makes ssi263.dll, and the
+# Unicorn recipe (nvda/build_speakout.py, UNICORN_BUILD) makes unicorn.dll.
+build/
+build-*/
+*.dll
+*.exe
+*.o
+*.obj
+*.lib
+*.exp
+*.pdb
+*.log
+prof.out
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

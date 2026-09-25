@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/relmer/Casso",
+  "commit": "7a1089445df9ccd5efe464bae5312ac538fe943c",
+  "files": {
+    "LICENSE": "7928edf477c7aeedfced82bd7266de38c3030ef9646150f36f4b999790f0ba26",
+    "CassoEmuCore/Devices/Ssi263.cpp": "1d043a909b94a3aec99c6332d4889cd27de0b09fc242fc35e3c2301b94aa1506",
+    "CassoEmuCore/Devices/Ssi263.h": "02f0991d52049a9be61ba41446f6a5b101c3ebf54adb217e37c5afe6aabbde82",
+    "specs/024-mockingboard-speech/rom-extraction/README.md": "07a60a1b9b5ba8f5018563bced812edbcdf55c4bf29e7d0b73946fe37d7e6f58",
+    "specs/024-mockingboard-speech/rom-extraction/decoded-data.md": "804fbcb6fd2bcbc3ec801fe938b51ebf74a7a19e1237687059c9ea834a5e9c7d",
+    "specs/024-mockingboard-speech/rom-extraction/rom-bits-by-column.txt": "6e2e66e485ab3e8f33b4df1e7fe968c20c9a9599bec50a2483bfa7b2d279f947",
+    "specs/024-mockingboard-speech/rom-extraction/rom-bits-by-phoneme.txt": "964e152811e8800304315c4be6f5c1fc7acf3e1fc92b6b141fce9a8d67807039",
+    "specs/024-mockingboard-speech/rom-extraction/rom-bits.csv": "73b7a6adeabaa1976e0d2b1eba500da72e4908453a66b5e718e69e7ba4ac6d8d",
+    "specs/024-mockingboard-speech/rom-extraction/rom-decoded-params.csv": "f3b58878a780ac07caad88b4527ff64143aba134d0ca1a442dcd88df54c76a6f",
+    "specs/024-mockingboard-speech/source-tilt-experiment.md": "1ff115c2d4f27a4837cc4339c5a612eff3d50de648a6994fa450d0af7766e050"
+  }
+}

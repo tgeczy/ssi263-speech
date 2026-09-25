@@ -1,0 +1,13 @@
+# The pinned Unicorn source is binary as far as git is concerned, and its configure patch
+# must apply to the tarball's LF sources byte for byte.
+*.tar.gz binary
+*.patch text eol=lf
+*.sh text eol=lf
+
+# Kept byte-exact, never line-ending converted: HOLDOUT.md fingerprints holdout_lines.txt
+# by sha256, rom_bits.csv is the ROM reading as built, and UPSTREAM.json records the
+# hashes of the vendored Casso files.
+src/holdout_lines.txt -text
+src/data/rom_bits.csv -text
+third_party/** -text
+firmware/** -text

@@ -1,0 +1,49 @@
+Aicom software in this repository -- notice
+============================================
+
+Aicom Corporation, of San Jose, California, made the Accent line of speech synthesizers:
+the serial Accent SA, the internal Accent PC, the Accent-mini and the Messenger-IC (a
+PCMCIA card).  The Accent's speech chip, which Aicom called the AI901, is the Silicon
+Systems SSI-263 that this project models.  This repository carries two pieces of Aicom's
+software, so that both can run again on that model:
+
+  aicom-accent-sa/    the Accent SA's own firmware, run on an emulated Intel 8085
+    u2.BIN  64 KB  8085 program ROM
+                   "AICOM CORPORATION COPYRIGHT, WORLD, 1986, 1987, 1988, 1989."
+                   sha256 8d6aa48880d1efd02f8dc759741c16b8902db33dcc2856d1f0db4776149992ad
+    u3.BIN  32 KB  pronunciation dictionary, part 1 ("AICOM COPYRIGHT1")
+                   sha256 248dd6fb6d08f6b4316ce38f83fd330e55dde80ead4b26a652ba228e6b46859a
+    u4.BIN  32 KB  pronunciation dictionary, part 2 ("AICOM COPYRIGHT2")
+                   sha256 7c12a8cf56a573cd83c928d61cd49e90b3afc810279e8ee54852d7b90042d155
+    Found in an old archive of text-to-speech ROMs and passed to us by spacepup, who is
+    credited here with permission.  The dictionaries store letters as ASCII minus 21h
+    ("5 -3 &$.42" = VANTAGEOUS).
+
+  aicom-accent-mini/  the Accent-mini's DOS device driver, run under an emulated PC
+    SPKEMS.DVC     "Accent-EMS" V4.5
+                   sha256 6b99fea4cc5534ee1f693b141df9d734057f116d0a36972e3949d86db00cbe79
+    From messenger-ic_update_v1.04.ima in the preserved Aicom Messenger IC archive,
+    https://id10t-tech.com/filedump/Aicom%20Messenger%20IC.zip
+
+These files are Aicom's work: copyright Aicom Corporation and any other original rights
+holders.  They are not ours, and this repository's MIT license does not cover them.  No
+license to redistribute them has been granted.  We include them because, as far as we can
+find, there is no one left to ask:
+
+  - 1993: a University of North Carolina survey of virtual-environment technology
+    (Holloway and Lastra, TR93-033) lists the "AICOM Accent SA", $500 and up.
+  - January 1998: the Library of Congress's assistive-device catalogue still lists the
+    products and Aicom as a supplier
+    (https://files.eric.ed.gov/fulltext/ED420140.pdf, printed pages 14 and 24).
+  - 8 September 2000: a post to the Speakup mailing list ("Voice Synthesizers") reports
+    that Aicom had stopped making the Accent SA, Accent PC, Messenger and Accent-mini; its
+    owner said it could not compete with software synthesizers.
+  - 1 March 2001: on the same list ("Accent Messenger IC synthesizer"), a Messenger owner
+    looking for drivers did not know how to reach Aicom.  No one who replied knew whether
+    its owner was still in business, and a web search found nothing.  The thread ends there.
+  - We have found no later trace: no trademark, no corporate filing, no closure date, no
+    buyer, and no word of what became of Aicom's engineering archive.  (The Japanese game
+    developer also named Aicom, which closed in 2001, is a different company.)
+
+Calling this software abandoned describes the preservation problem; it is not a license.
+If you hold rights to it and want it removed, open an issue and it will be removed.

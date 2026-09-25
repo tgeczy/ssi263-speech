@@ -1,0 +1,25 @@
+--- a/qemu/include/sysemu/os-win32.h
++++ b/qemu/include/sysemu/os-win32.h
+@@ -56,8 +56,22 @@
+  * in terms of setjmp/longjmp on Win32.
+  */
+ #define sigjmp_buf jmp_buf
++#if defined(UC_NO_CRT_UNWIND) && defined(__x86_64__) && defined(__GNUC__) && !defined(__clang__)
++/* Unicorn's two x86 siglongjmp sites both return 1 to a caller frame. Keep
++ * these paired internal jumps inside GCC instead of asking the Windows CRT
++ * to unwind through TCG-generated code under x64-on-ARM emulation.
++ * Existing jmp_buf storage is larger and at least as aligned as the five
++ * pointer-sized words GCC requires. Do NOT mix this buffer with CRT jumps.
++ * The constant value restriction is enforced by __builtin_longjmp itself.
++ * This build option is a candidate until validated on the affected ARM host.
++ */
++typedef char uc_gcc_jmp_storage_check[(sizeof(jmp_buf) >= 5 * sizeof(void *)) ? 1 : -1];
++#define sigsetjmp(env, savemask) __builtin_setjmp((void *)(env))
++#define siglongjmp(env, val) __builtin_longjmp((void *)(env), (val))
++#else
+ #define sigsetjmp(env, savemask) setjmp(env)
+ #define siglongjmp(env, val) longjmp(env, val)
++#endif
+ 
+ int getpagesize(void);
+ 

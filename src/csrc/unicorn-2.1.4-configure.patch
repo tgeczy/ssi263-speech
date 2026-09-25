@@ -1,0 +1,11 @@
+--- orig/unicorn-2.1.4/src/qemu/configure	2025-09-09 10:57:23.000000000 -0600
++++ src/unicorn-2.1.4/src/qemu/configure	2026-09-24 21:24:18.936667000 -0600
+@@ -198,7 +198,7 @@
+ # make source path absolute
+ source_path=$(cd "$(dirname -- "$0")"; pwd)
+ 
+-if printf %s\\n "$source_path" "$PWD" | grep -q "[[:space:]:]";
++if printf %s\\n "$source_path" "$PWD" | grep -q "[[:space:]]";
+ then
+   error_exit "main directory cannot contain spaces nor colons"
+ fi
