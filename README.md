@@ -29,7 +29,7 @@ alone:
 - the phoneme ROM, read by Astra from [Visual6502.org's die shots](http://www.visual6502.org/images/pages/Silicon_Systems_SSI_263P_die_shots.html),
   and checked against Rob Elmer's Casso;
 - the data sheet and the chip family's ISSCC paper;
-- 78 minutes of my own Braille Lite 2000 recorded from its line out, used for development;
+- 63 minutes of my own Braille Lite 2000 recorded from its line out, used for development;
 - a frozen hold-out set of other recordings that nothing is ever tuned on.
 
 Where a measurement and my ears disagree, my ears win. So far they've been right every time.

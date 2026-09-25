@@ -200,6 +200,28 @@ study the analog side on a real chip.
 | v0.11 | Tomi: "program", "manager" | Early release only into an open phoneme |
 | v0.12 | A listener: a click in "still" | A stop that starts on silence closes at once |
 
+## Add-on releases at a glance
+
+The add-ons have version numbers of their own, apart from the engine's. Both tables grow
+with each release.
+
+| Release | Asked for or heard by | Change |
+|---|---|---|
+| 0.1.0 | Tomi, for the first testers | Speak-Out and Braille Lite add-ons: each device's own firmware, emulated, driving the chip model |
+| 0.1.2 | Tomi's first try in NVDA: "they work!" | The Braille Lite starts at the unit's factory settings; no scraps of earlier speech when tabbing fast |
+| 0.1.3 | Tomi: gaps between NVDA's phrases | Capital pitch change; "Join phrases" |
+| 0.1.4 | Tomi: a pause at "Synthesizer:" | Lines split only at sentence ends; "Shorten pauses between sentences" |
+| 0.2.0 | Tomi: NVDA 2021.1 and Windows 7, no runtime | No numpy: 1 MB instead of 13; NVDA 2021.1 and later, 32- and 64-bit |
+| 0.2.1 | Tomi | Capital pitch never left raised after a cancel; symbols read once, not twice; **custom number processing** for the Braille Lite, whose own reading stops short of trillions |
+| 0.3.0 | Tomi: "the entire thing in portable C" | The chip in C, identical to the Python in state and sound (engine v0.10); 12–15 times real time on old NVDA |
+| 0.3.1 | Tomi: the Braille Lite wouldn't load beside the Speak-Out | Each add-on keeps its own copy of the engine |
+| 0.3.2 | Tomi | The Braille Lite speaks 0.3 s after it's picked, down from 1.1 s |
+| 0.3.3 | Withdrawn: Tomi liked 0.3.2 better | A faster rules pass that made the gaps longer |
+| 0.3.4 | Tomi: "fixed it in 0.3.4" | Leading silence dropped; the Braille Lite answers a key in 12–22 ms |
+| 0.3.5 | Tomi: the Braille Lite stopped mid-post | Long lines no longer end speech early; **the Accent-mini joins** as a third add-on |
+| 0.3.6–0.4.0 | Tomi: the Accent-mini froze while scrolling, and went silent after a variant change | Accent-mini only: both freezes fixed, numbers as words, faster long items, first sound in about 25 ms instead of 600 |
+| 0.5.0 | Tomi, and listeners | **The Accent SA** as a second Accent voice; engine v0.11 and v0.12; Windows on ARM fixed; the repository goes public |
+
 ## Withdrawn along the way
 
 Being wrong in writing, and saying so, was part of the method. A few of each:

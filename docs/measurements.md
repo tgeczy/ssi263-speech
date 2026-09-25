@@ -26,8 +26,9 @@ what was measured, how, and the lessons that cost the most to learn.
   unit has 32 pitches.
 - **Tone:** a global stretch of every resonance, about 4.1× from tone 1 to 25. A 96 kHz
   capture showed the voice imaged on both sides of the switched-capacitor clock, at
-  fc = 500 kHz / (32 − tone), within about 0.1 % for tones 1–20: so tone t writes
-  FF = 224 + t, and the whole vocal tract follows fc.
+  fc = 500 kHz / (32 − tone): 16 of tones 1–20 agree within about 0.15 %, and the other
+  four (5, 11, 14 and 20) are conditional selections. So tone t writes FF = 224 + t, and
+  the whole vocal tract follows fc.
 - **In-chip aliasing:** at the highest pitches, excitation harmonics fold around the filter
   clock back into the audio band (at pitch 62/63, about 57 % of the 100–6000 Hz power sits
   on the predicted clock lines). A candidate for the "grit" of very high pitches.
@@ -41,7 +42,7 @@ what was measured, how, and the lessons that cost the most to learn.
 ## The MASTER capture (2026-09-24)
 
 The unit's battery lasts one session, and recharging wears the unit, so everything went into
-one unattended run: 2243 lines, about 78 minutes, recorded 2026-09-24 from 07:35 to 08:38 with
+one unattended run: 2243 lines, about 63 minutes (3,774.9 s), recorded 2026-09-24 from 07:35 to 08:38 with
 every line confirmed and no missed markers. Sections, in order: a frozen reference set;
 reset-default material; a phoneme inventory at rate 2 (55 audible code and duration cases in
 121 words, four repetitions); the H words; rate 10; timing at rates 1–15; pitch; tones 1, 7,

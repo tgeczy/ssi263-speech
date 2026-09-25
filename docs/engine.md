@@ -83,9 +83,9 @@ python tools/compare_dev.py --lines 60 [--set name=value ...]
   - The unit's times scale roughly with (16 − R).
   - Other articulation settings are guesses.
   - v0.1 used a fixed 20 ms and stepped audibly; Tomi heard a wobble.
-- **Amplitude glides (v0.5).** VA and FA glide 3× faster than formants, as in the SC-01's tick structure.
-  - At 1× the S noise ran 116 ms into the next vowel (`tools/noise_decay.py`); Tomi heard it as "extra breath underneath" the T.
-  - At 3× the tail is 16 ms.
+- **Amplitude glides (v0.5, v0.9).** VA and FA glide 6× faster than formants. This is a fitted global slew, not an identified 6:1 clock.
+  - v0.5 set 3×, the SC-01's tick ratio. At 1× the S noise ran 116 ms into the next vowel (`tools/noise_decay.py`); Tomi heard it as "extra breath underneath" the T. At 3× the tail is 16 ms.
+  - v0.9 raised it to 6×, from the T and P burst width (`tools/stop_profile.py`): the unit's burst lasts about one frame, and 3× left about two, Tomi's "thick" T.
 - **Host interface (v0.4).**
   - Output is block-size invariant: a pending held sample carries over between calls.
   - `request` means A/R is asserted (the pin is active-low). It is gated by power and mode; mode 0 never requests.
