@@ -228,6 +228,22 @@ if WHICH == "accent":
         for v in values:
             scenario("%s %s" % (name, v), ["Hello there."], setter(name, v))
 
+rate_ok = True
+if WHICH == "blazie":
+    # The firmware takes ^E n E modulo 16, so unit rate 16 speaks at rate 10: NVDA's
+    # fastest settings must stop at 15, and speaking at 100 must really be faster.
+    units = [d._unit_rate(r) for r in range(101)]
+    rate_ok = (min(units) >= 1 and max(units) == 15 and units[50] == drv.DEFAULT_RATE
+               and all(a <= b for a, b in zip(units, units[1:])))
+    line = ["The quick brown fox jumps over the lazy dog, and then it runs away."]
+    scenario("rate 50", line, lambda: d._set_rate(50))
+    scenario("rate 100", line, lambda: d._set_rate(100))
+    rate_ok = rate_ok and results[-1]["audio_s"] < 0.6 * results[-2]["audio_s"]
+    print("blazie rate map: units %d..%d, 50 -> %d, rate 100 %.2f s vs rate 50 %.2f s: %s"
+          % (min(units), max(units), units[50], results[-1]["audio_s"], results[-2]["audio_s"],
+             "ok" if rate_ok else "FAILED"))
+    d._set_rate(50)
+
 # cancel mid-sentence, then speak again
 mark = len(notified)
 n0 = len(d._player.chunks)
@@ -246,7 +262,9 @@ json.dump({"which": WHICH, "tag": TAG, "python": sys.version.split()[0], "bits":
            "player_kwargs": player_kwargs, "modules": sorted(m for m in sys.modules if m.split(".")[0] in
                                                              ("numpy", "unicorn", "csv"))},
           open(os.path.join(HERE, "sim_%s_%s.json" % (WHICH, TAG)), "w"), indent=1)
+all_ok = all(r["ok"] for r in results) and rate_ok
 print("%s %s: python %s %d-bit, %d scenarios, all ok %s, player kwargs %s, numpy/unicorn/csv loaded: %s"
       % (WHICH, TAG, sys.version.split()[0], 8 * struct.calcsize("P"), len(results),
-         all(r["ok"] for r in results), player_kwargs,
+         all_ok, player_kwargs,
          sorted(m for m in sys.modules if m.split(".")[0] in ("numpy", "unicorn", "csv"))))
+sys.exit(0 if all_ok else 1)

@@ -43,6 +43,9 @@ MAKEUP = 2.0            # +6 dB so volume 6 sits at a normal level
 # r1 = 45h (81.4 Hz, the pitch of Tomi's Braille 'n Speak 2000 recording).  NVDA's slider
 # midpoints map onto them, and nothing is sent until a slider moves.
 DEFAULT_RATE, DEFAULT_PITCH, DEFAULT_TONE = 11, 16, 7
+# The firmware takes ^E n E modulo 16 (measured on the unit, and the same emulated): rate 16
+# speaks at rate 10's speed, so the fastest rate is 15.
+MAX_RATE = 15
 
 
 def _clean(text):
@@ -293,13 +296,14 @@ class SynthDriver(SynthDriver):
         return 1 + int(p * (DEFAULT_PITCH - 1) / 50 + 0.5) if p <= 50 else \
             DEFAULT_PITCH + int((p - 50) * (63 - DEFAULT_PITCH) / 50 + 0.5)
 
+    @staticmethod
+    def _unit_rate(r):
+        r = max(0, min(100, r))
+        return 1 + int(r * (DEFAULT_RATE - 1) / 50 + 0.5) if r <= 50 else \
+            DEFAULT_RATE + int((r - 50) * (MAX_RATE - DEFAULT_RATE) / 50 + 0.5)
+
     def _unit_settings(self):
-        r, p = self._rate, self._pitch
-        rate = 1 + int(r * (DEFAULT_RATE - 1) / 50 + 0.5) if r <= 50 else \
-            DEFAULT_RATE + int((r - 50) * (16 - DEFAULT_RATE) / 50 + 0.5)
-        pitch = 1 + int(p * (DEFAULT_PITCH - 1) / 50 + 0.5) if p <= 50 else \
-            DEFAULT_PITCH + int((p - 50) * (63 - DEFAULT_PITCH) / 50 + 0.5)
-        return rate, pitch, int(self._tone)
+        return self._unit_rate(self._rate), self._unit_pitch(self._pitch), int(self._tone)
 
     # -- worker: the only thread that talks to the emulated unit --------------------
     def _boot(self):
