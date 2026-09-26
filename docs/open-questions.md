@@ -46,7 +46,34 @@ recordings, or the ear.
 - **The bass:** the engine is 2.7–6 dB short below 300 Hz against three different units.
   The glottal pulse or the high-pass stage.
 - **Transitions:** constant slew or fixed duration? Articulation settings other than 5 are
-  unmeasured, and the glide fields 3, 6 and 7 are a fit from the Accent.
+  unmeasured.
+- **The pitch glide.** Listeners hear the Blazie add-on as flatter than the unit, and the "?"
+  stacks plateau. Every piece of the glide, with its source and what would settle it:
+  - *Which bits do what* (settled): in transitioned inflection, I10–I6 (R1 bits 7–3) set one of
+    32 targets and I5–I3 (R1 bits 2–0) the rate of change; I11 and I2–I0 (R2's low bits) always
+    act at once. Source: the A data sheet, and the 1986 User Guide's "Slope of Inflection (I5–I3),
+    0 to 7". The recordings agree: changing only R1's lowest bit changes the glide speed and not
+    where it ends (G02). The Byte 1984 article's parameter list puts "the rate of inflection
+    transition" in the speech-rate register's low bits; its own register table and G02 contradict
+    that, so it is set aside.
+  - *Rate scales with speech rate* (measured, R01: slope × (16 − R) ≈ 62 ms/s). The data sheet's
+    "speech rate does not affect inflection" is read as the pitch *value*; "all internal
+    attribute transitioning is performed relative to the Speech Rate Register" covers the speed.
+  - *Speed of each setting* (partly measured): settings 0, 1, 2, 4 and 5 were measured at rate 2,
+    with the direction of travel confounded. Settings 3, 6 and 7 are set to setting 5's speed,
+    fitted on the Accent. The Braille Lite's own "?" stacks step through all eight settings, and
+    its sentence-final fall uses setting 2: the F01 recording (stacked "?" at rate 10 and rate 2,
+    "Battery low." at two rates) measures them.
+  - *Target 0*: the User Guide gives the target range as "0 to 1F (lowest to highest,
+    0 = silent)". The engine plays target 0 as a very low pitch. The Braille Lite's fifth stacked
+    "?" wraps to target 0, so F01 tests it.
+  - *Constant slope or fixed time, and the counter behind it* (open): the die path from R1's
+    latch through the rate divider to the 12-bit pitch counter is not traced.
+- **Amplitude transitions.** The data sheet says amplitude moves "at rate dependent on the
+  phoneme duration setting"; the engine does that for the amplitude register, but moves the
+  phonemes' own voice and noise amplitudes at a fitted 6× the formant speed. Stop bursts and
+  the T that listeners hear as a flap depend on it. Next: development T tokens grouped by their
+  duration bits, unit against engine; then the die (what clocks the amplitude counters).
 - **The engine's floor** is digital silence, where the unit has a capture floor.
 
 ## On the front ends
