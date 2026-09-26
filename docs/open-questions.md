@@ -60,13 +60,15 @@ recordings, or the ear.
     "speech rate does not affect inflection" is read as the pitch *value*; "all internal
     attribute transitioning is performed relative to the Speech Rate Register" covers the speed.
   - *Speed of each setting* (partly measured): settings 0, 1, 2, 4 and 5 were measured at rate 2,
-    with the direction of travel confounded. Settings 3, 6 and 7 are set to setting 5's speed,
-    fitted on the Accent. The Braille Lite's own "?" stacks step through all eight settings, and
-    its sentence-final fall uses setting 2: the F01 recording (stacked "?" at rate 10 and rate 2,
-    "Battery low." at two rates) measures them.
+    with the direction of travel confounded. Setting 3 falling now measures about 7.5 ms/s at
+    rate 2 (F01's stacked "?", two independent fits), where the engine borrows setting 5's 11.
+    Settings 6 and 7 are still set to setting 5's speed, fitted on the Accent; setting 7 rising is
+    fast, but its speed isn't measured yet.
   - *Target 0*: the User Guide gives the target range as "0 to 1F (lowest to highest,
-    0 = silent)". The engine plays target 0 as a very low pitch. The Braille Lite's fifth stacked
-    "?" wraps to target 0, so F01 tests it.
+    0 = silent)". The recordings disagree so far: an old pitch-command-1 take (target 0) is voiced
+    at 61 Hz, and in F01 the fifth stacked "?" (which wraps to target 0) sends the pitch steeply
+    down to about 104 Hz, voiced, before the next target takes over. Neither shows silence, and the
+    guide's wording is unexplained.
   - *Constant slope, not fixed time* (measured for setting 0): in G01 the distance did not change
     the slope (16↔32 arrives in 0.75 s at rate 2, 16↔48 in 1.65 s). The other settings are
     assumed to behave the same. Still open: the die path from R1's latch through the rate
