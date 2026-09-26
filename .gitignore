@@ -6,6 +6,10 @@ investigation/
 # paths.local.example is the tracked template).
 paths.local
 
+# The coding assistants' own per-project folders (settings, memory, notes): local only.
+.claude/
+.codex/
+
 # Firmware is not committed; the released add-ons carry it (Tomi's decision, 2026-09-26).
 # Anyone building from source puts their own copies in firmware/<device>/ (see the README
 # there).  The rule is blunt on purpose, so nothing lands here by accident.
