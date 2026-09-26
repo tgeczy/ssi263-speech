@@ -67,8 +67,10 @@ recordings, or the ear.
   - *Target 0*: the User Guide gives the target range as "0 to 1F (lowest to highest,
     0 = silent)". The engine plays target 0 as a very low pitch. The Braille Lite's fifth stacked
     "?" wraps to target 0, so F01 tests it.
-  - *Constant slope or fixed time, and the counter behind it* (open): the die path from R1's
-    latch through the rate divider to the 12-bit pitch counter is not traced.
+  - *Constant slope, not fixed time* (measured for setting 0): in G01 the distance did not change
+    the slope (16↔32 arrives in 0.75 s at rate 2, 16↔48 in 1.65 s). The other settings are
+    assumed to behave the same. Still open: the die path from R1's latch through the rate
+    divider to the 12-bit pitch counter, which would explain how the chip does it.
 - **Amplitude transitions.** The data sheet says amplitude moves "at rate dependent on the
   phoneme duration setting"; the engine does that for the amplitude register, but moves the
   phonemes' own voice and noise amplitudes at a fitted 6× the formant speed. Stop bursts and
