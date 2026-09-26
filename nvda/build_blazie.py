@@ -40,7 +40,7 @@ Settings map to the unit's own: rate 1-16, pitch 1-63, tone 1-25 as the variant;
 
 Runs on NVDA 2021.1 and later, 32- or 64-bit, Windows 7 and later; no numpy and no Visual C++ runtime needed.
 
-This add-on carries the Braille Lite's own firmware (Blazie Engineering). It is not ours; it is here so the unit can speak again, and it will be removed if its rights holders ask. z180emu is GPLv2; its complete source for this build is included as z180emu-source.zip. Source: https://github.com/tgeczy/ssi263-speech"""
+This add-on carries the Braille Lite's own firmware, shared with permission. It is not ours; it is here so the unit can speak again, and it will be removed if its rights holders ask. z180emu is GPLv2; its complete source for this build is included as z180emu-source.zip. Source: https://github.com/tgeczy/ssi263-speech"""
 author = "tgeczy (SSI-263 chip engine and driver, with Claude)"
 url = "https://github.com/tgeczy/ssi263-speech"
 version = {VERSION}

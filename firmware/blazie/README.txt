@@ -1,7 +1,7 @@
 Braille Lite firmware -- not included
 =====================================
 
-The Blazie add-on runs a Braille Lite 2000's own firmware (Blazie Engineering; this build
+The Blazie add-on runs a Braille Lite 2000's own firmware (shared with permission; this build
 is the June 2003 release) in z180emu.  It is not in this repository.  The released add-on
 carries it; to build the add-on yourself, put your own copies here:
 

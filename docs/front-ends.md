@@ -38,7 +38,7 @@ document labels.
 - **Open:** real Speak-Out phrases run 11–13 % longer than ours, while the Braille Lite
   matches the data sheet to 0.5 %. Host scheduling was measured and does not explain it.
 
-## Braille Lite 2000, speech-box mode (Blazie Engineering)
+## Braille Lite 2000, speech-box mode
 
 - **The unit:** an 18-cell Braille Lite 2000 from before the Millennium, the model with the
   SSI-263 (the Millennium used a DoubleTalk). In speech-box mode it speaks what arrives on

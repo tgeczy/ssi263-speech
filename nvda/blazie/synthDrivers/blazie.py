@@ -7,7 +7,7 @@ register writes drive a register-level SSI-263 model here, and the model's A/R r
 drives the firmware back, so its rules, number reading and inflection are the
 originals, live.  Nothing is recorded or concatenated.
 
-This add-on carries the Braille Lite's firmware (Blazie Engineering), which is not ours.
+This add-on carries the Braille Lite's firmware, shared with permission; it is not ours.
 """
 
 import os

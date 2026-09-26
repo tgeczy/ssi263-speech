@@ -142,8 +142,8 @@ Blazie add-on as `z180emu-source.zip`.
 - **z180emu:** GPLv2. The Braille Lite add-on ships its complete source.
 - **The Accent SA ROMs** were shared by spacepup.
 - **The firmware belongs to its makers:** the Speak-Out to GW Micro (hardware by Daniel
-  Weirich, software by Douglas Geoffray), the Braille Lite to Blazie Engineering, the
-  Accent to Aicom Corporation.
+  Weirich, software by Douglas Geoffray), the Accent to Aicom Corporation. The Braille
+  Lite's firmware is shared with permission.
 - The whole story, day by day and with who found what, is in [docs/history.md](docs/history.md).
 - And thanks to everyone listening, testing and telling me what sounds wrong. That's how
   a chip model turns into a voice you can read with.
