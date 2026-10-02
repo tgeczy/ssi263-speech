@@ -83,11 +83,12 @@ void bt_hand_over(int no_bt, const char *setting, const char *unit, const char *
         setting = "auto";
         unit = NULL;
     }
-    if (no_bt || !strcmp(setting, "off") || !strcmp(setting, "0") || !bt_detect())
+    /* native: blazie_emu uses the device's keyboard and display itself; off: the terminal only */
+    if (no_bt || !strcmp(setting, "off") || !strcmp(setting, "0") || !strcmp(setting, "native") || !bt_detect())
         return;
     if (!bt_frontend(exe, sizeof exe)) {
         printf("BT Speak or BT Braille detected, but blazie_emu_bt is not installed beside blazie_emu: "
-               "running in the terminal instead.\n");
+               "using the device's keyboard and display from blazie_emu itself.\n");
         fflush(stdout);
         return;
     }

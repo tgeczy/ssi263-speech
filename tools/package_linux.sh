@@ -118,6 +118,15 @@ EOF
 else
     echo "note: build/linux/blazie_emu_gtk not built (no GTK 3 headers), so not packaged"
 fi
+# the BT Speak and BT Braille (src/platforms/btspeak/README-btspeak.md): their installer, no root needed, with the
+# User Menu's entries; the program and firmware are the ones above.  A BT Speak runs Debian 12 (glibc 2.36): package
+# from a build made there, or on anything no newer
+if [ -f "$ROOT/build/linux/blazie_emu" ]; then
+    cp "$ROOT/src/platforms/btspeak/install.sh" "$STAGE/install-btspeak.sh"
+    cp "$ROOT/src/platforms/btspeak/uninstall.sh" "$STAGE/uninstall-btspeak.sh"
+    cp "$ROOT/src/platforms/btspeak/README-btspeak.md" "$STAGE/README-btspeak.md"
+    chmod +x "$STAGE/install-btspeak.sh" "$STAGE/uninstall-btspeak.sh"
+fi
 # blazie_files: a saved unit's files from the command line (README-blazie-emu.md, "Files in and out"); no sound needed
 if [ -f "$ROOT/build/linux/blazie_files" ]; then
     cp "$ROOT/build/linux/blazie_files" "$STAGE/bin/"

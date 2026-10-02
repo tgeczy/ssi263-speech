@@ -58,6 +58,8 @@ static int is_keyboard(int fd)
     return (has_bit(keys, KEY_F) && has_bit(keys, KEY_J) && has_bit(keys, KEY_SPACE)) || has_bit(keys, KEY_BRL_DOT1);
 }
 
+int evdev_skip_bt;
+
 static int add_device(evdev_set *s, const char *path, int must, char *msg, int msglen)
 {
     int fd;
@@ -73,6 +75,20 @@ static int add_device(evdev_set *s, const char *path, int must, char *msg, int m
     if (!must && !is_keyboard(fd)) {
         close(fd);
         return 0;
+    }
+    if (!must) {
+        char name[80] = "";
+        if (ioctl(fd, EVIOCGNAME(sizeof name), name) < 0)
+            name[0] = 0;
+        /* BRLTTY's own keyboards (the keys it types into the console): grabbed, nothing BRLTTY types would reach the
+           console while the program runs -- not even the menu, typed on a braille keyboard */
+        if (!strncmp(name, "BRLTTY", 6)
+                /* the BT keypad and the keyboard its server makes for BRLTTY: the server's keys come to the program
+                   already (btkb_linux.h) */
+                || (evdev_skip_bt && (!strcmp(name, "4x3braille") || !strcmp(name, "braille_keyboard")))) {
+            close(fd);
+            return 0;
+        }
     }
     /* another program holding it for itself (BRLTTY can): it would give nothing, and its keys would never reach the
        terminal either -- left alone, so the terminal's keys are used */

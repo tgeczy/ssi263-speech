@@ -4,6 +4,9 @@ A Braille Lite 2000 or a Type 'n Speak in a terminal: Blazie's own firmware on t
 SSI-263 as its voice -- the same unit as the Windows app (`emu_unit.c`), on a Raspberry Pi's console, a desktop's
 terminal, or a BTSpeak, Blazie Technologies' Linux notetaker on ARM: the old Blazie units running on the new one.
 
+On a BTSpeak or BT Braille it reads the device's own braille keys and shows the Braille Lite's display on the BT
+Braille's: [README-btspeak.md](../../platforms/btspeak/README-btspeak.md).
+
 It boots to the unit's own main menu and behaves as the unit does. What you type goes to the unit as its keys; what
 the program itself says (its menu, its messages) is plain lines of text, which the console's screen reader reads
 (Speakup, Orca, BRLTTY's speech on the BTSpeak).
@@ -38,21 +41,24 @@ some version -- build it on the machine itself (the three commands above), which
 ## BT Speak and BT Braille
 
 Run `blazie_emu`; on a BT Speak or BT Braille it uses the device automatically. It says "BT Speak or BT Braille
-detected: using its keyboard, speech and braille display." and hands over to `blazie_emu_bt` beside it, which
-provides the native Blazie Mode dialogs, direct six-dot keyboard input, and the firmware's braille display
-(`bt_handover.c`; `--unit`, `--firmware`, `--config` and `--rate` are passed on, `--config` as its `--state-dir`).
-The device is recognised when the system's `python3` imports the device's `BTSpeak` library and its keyboard
-service answers -- what the frontend itself needs; an ordinary PC or Raspberry Pi has no `BTSpeak` library, so
-`blazie_emu` stays in the terminal there (`blazie_emu --bt-probe` says what it finds). `--no-bt`, or
-`bt = off` under `[input]` in the settings, keeps the terminal emulator on the device; if `blazie_emu_bt` is not
-installed beside `blazie_emu`, one line says so and the terminal emulator runs. The desktop app (`blazie_emu_gtk`)
-never hands over: the BT devices have no desktop.
+detected: using its keyboard, speech and braille display." and hands over to `blazie_emu_bt` beside it, the BT front
+end (#4, Leo), with the device's own dialogs for its menus, direct six-dot keyboard input and the firmware's braille
+display (`bt_handover.c`; `--unit`, `--firmware`, `--config` and `--rate` are passed on, `--config` as its
+`--state-dir`). The device is recognised when the system's `python3` imports the device's `BTSpeak` library and its
+keyboard service answers; an ordinary PC or Raspberry Pi has no `BTSpeak` library, so `blazie_emu` stays in the
+terminal there (`blazie_emu --bt-probe` says what it finds). See [the BT front end's guide](../../platforms/btspeak/README.md),
+or `README-blazie-bt.md` in the package.
 
-`blazie_emu_bt` is built alongside `blazie_emu` and `blazie_emu_gtk`. The Linux release includes
-`bin/blazie_emu_bt` and its companion worker `bin/blazie_bt`; keep both. The frontend needs Python 3.11+ and the
-device's installed BTSpeak libraries. It keeps its memory and preferences in the BT user directory, separate from
-the terminal/GTK emulator's settings (unless `--config` is given).
-See [the BT guide](../../platforms/btspeak/README.md) in the source tree, or `README-blazie-bt.md` in the package.
+`bt = native` under `[input]` in the settings keeps `blazie_emu` itself on the device, with no Python needed: it
+takes the keyboard from the device's keyboard server and shows the unit's display on any braille display BRLTTY
+drives, its menu as plain lines BRLTTY reads ([README-btspeak.md](../../platforms/btspeak/README-btspeak.md)). It does
+the same when `blazie_emu_bt` is not installed beside it (one line says so). `--no-bt`, or `bt = off`, leaves the
+device's keyboard and display alone: the terminal emulator, as everywhere else. The desktop app (`blazie_emu_gtk`)
+never uses them: the BT devices have no desktop.
+
+`blazie_emu_bt` is built alongside `blazie_emu` and `blazie_emu_gtk`; the Linux release includes it and its worker
+`bin/blazie_bt` (keep both). It needs Python 3.11+ and the device's BTSpeak libraries, and keeps its memory and
+preferences in the BT user directory (unless `--config` is given).
 
 ## Run
 
@@ -62,7 +68,7 @@ See [the BT guide](../../platforms/btspeak/README.md) in the source tree, or `RE
     blazie_emu --show-keys        what this keyboard sends: the terminal's bytes and the keys they are, and the
                                   input devices' keys going down and up (for the key settings; q q stops it)
     blazie_emu --no-sound         no sound card: the unit runs on silent, paced by the system clock
-    blazie_emu --no-bt            on a BT Speak or BT Braille: the terminal emulator all the same (above)
+    blazie_emu --no-bt            on a BT Speak or BT Braille: the terminal emulator, the device's keys left alone
     blazie_emu --bt-probe         is this a BT Speak or BT Braille? (yes: exit 0)
     blazie_emu --help
 
@@ -130,8 +136,8 @@ the desktop session ends (GTK's query-end), and on SIGTERM or SIGHUP.
 **Keys.** GTK says when each key goes down and when it comes up, so the keys are as on Windows (and as the input
 devices in a terminal) -- no hold key:
 
-- **Braille Lite**: F D S = dots 1 2 3, J K L = dots 4 5 6, the space bar, A or ; = the advance bar (`[keys]`
-  `dot1` .. `advance` in the settings). A chord goes to the unit when its last key comes up, and the keys held down
+- **Braille Lite**: F D S = dots 1 2 3, J K L = dots 4 5 6, the space bar, ; = the advance bar, A = the back bar
+  (the Braille Lite 2000's two advance bars; `[keys]` `dot1` .. `advance`, `back` in the settings). A chord goes to the unit when its last key comes up, and the keys held down
   are held on the unit while you hold them: p-chord, l, then hold i-chord at once -- the cold reset ("initialize file
   system?"). Every other key is the program's: Alt and a letter for the menus, Tab, and so on.
 - **Type 'n Speak**: the whole keyboard is the unit's (`tns_keys.h`, the one table Windows and the terminal use),
@@ -201,10 +207,11 @@ saved unit's files from the command line, as on Windows (README.md, "Files in an
 ### Braille Lite: three ways in
 
 A terminal says when a key goes down, never when it comes up, and BRLTTY (the BTSpeak's keyboard driver) hands a
-program characters, not keys. So the program takes the Braille Lite's six keys, space bar and advance bar three ways:
+program characters, not keys. So the program takes the Braille Lite's six keys, space bar and advance bars three ways
+(and a fourth on a BTSpeak or BT Braille, the device's keyboard server: README-btspeak.md):
 
 **Keys mode** (`[keys] mode = keys`, the default; a PC keyboard in a terminal): F D S = dots 1 2 3, J K L = dots
-4 5 6, the space bar, A or ; = the advance bar. The keys you type close together are one chord: it goes to the unit
+4 5 6, the space bar, ; = the advance bar, A = the back bar. The keys you type close together are one chord: it goes to the unit
 80 ms after the last (`chord_ms`). Holding a chord down does not repeat it (a key typed again within 150 ms,
 `repeat_ms`, is the keyboard's auto-repeat). The keys are set in `[keys]` (`dot1 = f brl_dot1` ...).
 
@@ -220,8 +227,13 @@ Each chord goes to the unit at once. Chords with the space bar, which BRLTTY kee
   Keyboard Navigation"): Up = dot-1 chord, Down = 4, Left = 3, Right = 6, Ctrl+Left = 2, Ctrl+Right = 5,
   Page Up = 2-3, Page Down = 5-6, Home = 1-3, End = 4-6, Ctrl+Home = 1-2-3, Ctrl+End = 4-5-6, Tab = 4-5,
   Shift+Tab = 1-2, Insert = 3-5, Delete = 2-5-6, Esc = 2-6 chord; and Enter (dot 8) = e-chord, Backspace (dot 7) =
-  b-chord, the unit's own Enter and Backspace; Ctrl+A = the advance bar. Each is a line in `[letters]`, key = chord:
-  `up = 1-chord`, `f9 = dots 1 3`, `ctrl-a = advance`, `delete = none`.
+  b-chord, the unit's own Enter and Backspace; Ctrl+A = the advance bar, Ctrl+B = the back bar. Each is a line in
+  `[letters]`, key = chord: `up = 1-chord`, `f9 = dots 1 3`, `ctrl-a = advance`, `delete = none`.
+
+**The advance bars.** The Braille Lite 2000 has two, advance and back, which its firmware reads on its own port (not
+with the chords): pressed from a terminal a bar is tapped -- held long enough for the unit to see it -- and typed
+with a chord's keys it is the unit's bar-and-chord command; from an input device it is down as long as it is held.
+Before this, the emulator's advance bar went where the firmware never looks, and did nothing.
 
 **Input devices** (`[input] evdev`): Linux's `/dev/input` devices report each key going down and coming up, so the
 chords work as on Windows -- the chord when the last key comes up, and the keys held down seen as held. `auto` (the
@@ -333,7 +345,9 @@ is given):
   device's keys down and up, the Type 'n Speak's strokes, the settings file. Its control (`BLAZIE_KEYS_BREAK=1`,
   dots 1 and 4 swapped) must fail its Braille Lite checks and only those.
 - `test_emu_unit`, `test_clock` -- the unit headless as on Windows, here on MAME's Z180: the boot, a chord answered,
-  key latency, saving; the clock controller, the date and time set and read with the units' own commands, i-chord
+  key latency, saving; the Braille Lite's display (its cells after the boot) and its two advance bars panning it
+  forward and back (the Braille 'n Speak: no display), whose control (`TEST_EMU_BARS_BREAK=1`, the bars sent where
+  the shells used to send them) must fail the panning checks; the clock controller, the date and time set and read with the units' own commands, i-chord
   held through a restart (its control drops the held keys and must fail).
 - `test_rescue` -- a Type 'n Speak made as the previews made it (no file system, no folders; a file moved to flash
   lost) is told apart and set up anew with its RAM files; its control leaves the old cold start on and must fail.
@@ -348,6 +362,12 @@ is given):
   keys; and the program run as a person runs it, in a pseudo-terminal, its serial port on another: s-chord's XON ENQ
   at 19200 bit/s, ACK answered with 'C', NAK (the control) not; and menu 17, the sound buffer chosen long, written to
   the settings and shown so the next time. Its control (`BLAZIE_KEYS_BREAK=1`) must fail the two clock checks.
+- `test_btkb` -- the BTSpeak's and BT Braille's keyboard server (`btkb_linux.c`) against a server of the test's
+  own: the hello asking for the keys alone, every key consumed within the server's 10 ms while the program is busy,
+  the keys in order, a server that is busy or absent or goes away; #4's gestures (M-chord or Z-chord with dot 7)
+  and the bars by time; the panning keys from BRLTTY's tables; the display's layout. Its control (`BTKB_BREAK=1`,
+  dots 7 and 8 never waiting for a chord's other keys) must fail the gesture typed 7 first.
+  `test_emu_linux.py`'s `btspeak` runs the whole program with such a server.
 - `test_audio` -- the sound buffer (`audio_pace.c`, as on Windows) against a simulated sound card: for the Windows
   shell's thread and this one's (the card asked how much is queued and how far it has played, the thread asleep
   until a block is wanted): a steady card, a busy machine, a remote card, a slow save; and the arithmetic alone (the
@@ -373,23 +393,13 @@ found, grabbed, a chord down and up, F11 opening the menu; and the same keyboard
 the terminal's keys used --; the menu itself in a terminal; the sound with ALSA and with the PulseAudio build,
 paced by the device (about a fifth of a core); each unit started from the unpacked package.
 
-## Not yet verified on a real BTSpeak
+## On a real BTSpeak
 
-On a BT Speak or BT Braille, `blazie_emu` now hands over to the BT frontend (above), which Leo has run on a real BT
-Braille; this section is about the terminal emulator itself there (`blazie_emu --no-bt`). None of this has run on a
-BTSpeak yet. To find out there:
-
-- which build runs (its system's glibc; 64- or 32-bit) -- else build it on the device;
-- what its braille keyboard sends in a terminal: `blazie_emu --show-keys`, in the Blazie-mode console and in Desktop
-  mode's terminal. Letters mode assumes US computer braille with dot 7 for capitals, and BTSpeak's desktop table for
-  the chords it turns into keys; whether Ctrl+C, Ctrl+K and Ctrl+O (or F11 and F12) can be typed on it at all, and
-  which chords never reach a terminal, is unknown -- `[letters]` and `[keys]` remap them;
-- whether its braille keyboard is an input device the program may read (`--show-keys` lists the devices and their
-  keys): if BRLTTY holds it, only letters mode works; if it can be read, the six keys and dots 7 and 8 work as keys
-  with keys held, which is the best way in;
-- its sound: ALSA's default device there, and whether the unit's voice and the screen reader's share the speaker
-  (then the long sound buffer, menu 17, is the safe choice; whether the automatic one settles there is untried);
-- the Type 'n Speak needs a QWERTY keyboard (a USB one on the BTSpeak's USB-C port).
+By default `blazie_emu` hands over to #4's front end there (above). With `[input] bt = native` it reads the
+device's own keyboard from its keyboard server itself, which holds the keypad for itself (so the input devices cannot
+read it, and letters mode is not needed there), and shows the unit's display on a braille display through BRLTTY:
+[README-btspeak.md](../../platforms/btspeak/README-btspeak.md). Built on the device (Debian 12, arm64), its sound
+through ALSA's default device; the braille output and the advance bars verified on a BT Braille.
 
 Not tried on any machine: WinDisk or PCDISK on the far end of the serial port (the tests answer the unit's storage
 call themselves), a real serial adapter, a real keyboard on the input devices (a virtual one was), sound actually

@@ -20,6 +20,11 @@ The checks:
   buffer         the program in a pseudo-terminal: menu 17, the sound buffer (Tomi: the emulator's speech stutters),
                  chosen long, written to the settings as the Windows app writes it ([sound] buffer = long), and
                  shown so when the program starts again
+  btspeak        the program in a pseudo-terminal with a BT Speak keyboard server of the test's own (the device's
+                 protocol: btkb_linux.h): it takes the keyboard exclusively and consumes every key; dot 1 down and up
+                 is the unit's chord; dot 8 tapped is the advance bar, down and up; R3 the advance bar too and L2
+                 the back bar (a BT Braille's); M-chord with dot 7 opens the menu and gives the keyboard back, Enter
+                 takes it again, and Z-chord with dot 7 saves and ends the program
 The control: BLAZIE_KEYS_BREAK=1 swaps dots 1 and 4 in every chord; clock-keys and clock-letters must then FAIL
 (tools/linux_tests.sh judges it by its marks).
 """
@@ -75,7 +80,7 @@ def serial_handshake(exe, fw, cfg, reply):
     import tty
     os.makedirs(cfg)
     with open(os.path.join(cfg, "blazie_emu.ini"), "w") as f:
-        f.write("[input]\nevdev = off\n\n[serial]\nport = pty\n")
+        f.write("[input]\nevdev = off\nbt = off\n\n[serial]\nport = pty\n")
     pid, fd = pty.fork()
     if pid == 0:
         os.execv(exe, [exe, "--firmware", fw, "--config", cfg, "--unit", "bl-en", "--no-sound"])
@@ -132,7 +137,7 @@ def menu_session(exe, fw, cfg, typed):
     if not os.path.isdir(cfg):
         os.makedirs(cfg)
         with open(os.path.join(cfg, "blazie_emu.ini"), "w") as f:
-            f.write("[input]\nevdev = off\n")
+            f.write("[input]\nevdev = off\nbt = off\n")
     pid, fd = pty.fork()
     if pid == 0:
         os.execv(exe, [exe, "--firmware", fw, "--config", cfg, "--unit", "bl-en", "--no-sound"])
@@ -162,6 +167,100 @@ def menu_session(exe, fw, cfg, typed):
         except OSError:
             pass
     return said.decode("utf-8", "replace").replace("\r", "")
+
+
+def btspeak_session(exe, fw, cfg):
+    """The program in a pseudo-terminal (--no-sound, --print-actions) with a keyboard server of this test's own: what
+    it said, the hellos the server got, and each key's answer."""
+    import pty
+    import select
+    import socket
+    import struct
+    import threading
+    import time
+    os.makedirs(cfg, exist_ok=True)
+    with open(os.path.join(cfg, "blazie_emu.ini"), "w") as f:
+        f.write("[input]\nevdev = off\nbt = native\n\n[btspeak]\ndisplay = off\n")   # never a real BRLTTY's display,
+                                                    # nor the BT front end (it would take a BT device's real keyboard)
+    path = os.path.join(cfg, "keyboard-socket")
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.bind(path)
+    srv.listen(2)
+    hellos, acks, conns = [], [], []
+
+    def accept():
+        while True:
+            try:
+                c, _ = srv.accept()
+            except OSError:
+                return
+            hellos.append(c.recv(8))
+            c.sendall(b"BTKB\x01\x00\x00\x00")
+            conns.append(c)
+    threading.Thread(target=accept, daemon=True).start()
+
+    def key(code, down):
+        c = conns[-1]
+        c.sendall(struct.pack("<BHB", 1, code, down))
+        c.settimeout(1.0)
+        acks.append(c.recv(2))
+    env = dict(os.environ, BLAZIE_BTKB_SOCKET=path)
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execve(exe, [exe, "--firmware", fw, "--config", cfg, "--unit", "bl-en", "--no-sound", "--print-actions"],
+                  env)
+    said = bytearray()
+
+    def pump(sec):
+        end = time.time() + sec
+        while time.time() < end:
+            r, _, _ = select.select([fd], [], [], 0.02)
+            if fd in r:
+                try:
+                    said.extend(os.read(fd, 4096))
+                except OSError:
+                    return
+    gone_after_menu = False
+    ended = False
+    try:
+        pump(3.0)
+        SPACE, DOT7, DOT8, L2, R3 = 57, 0x1F7, 0x1F8, 0x101, 0x105
+        DOT = {n: 0x1F0 + n for n in range(1, 9)}
+
+        def chord(first, rest):                # `first` down, then the rest; all up, the last of them last
+            key(first, 1); pump(0.02)
+            for c in rest:
+                key(c, 1)
+            pump(0.1)
+            for c in [first] + rest:
+                key(c, 0)
+        if conns:
+            key(DOT[1], 1); pump(0.05); key(DOT[1], 0); pump(0.5)
+            key(DOT8, 1); pump(0.03); key(DOT8, 0); pump(0.5)
+            key(R3, 1); pump(0.2); key(R3, 0); pump(0.5)
+            key(L2, 1); pump(0.2); key(L2, 0); pump(0.5)
+            chord(DOT7, [SPACE, DOT[1], DOT[3], DOT[4]])   # M-chord with dot 7: the menu
+            pump(1.5)
+            conns[-1].settimeout(1.0)
+            try:
+                gone_after_menu = conns[-1].recv(1) == b""
+            except OSError:
+                gone_after_menu = False
+            os.write(fd, b"\n")                # Enter alone: back to the unit
+            pump(1.5)
+            if len(conns) > 1:                 # Z-chord with dot 7: saved, and the program ends of itself
+                chord(SPACE, [DOT[1], DOT[3], DOT[5], DOT[6], DOT7])
+                pump(3.0)
+                ended = os.waitpid(pid, os.WNOHANG)[0] == pid
+    finally:
+        if not ended:
+            try:
+                os.kill(pid, 15)
+                os.waitpid(pid, 0)
+            except OSError:
+                pass
+        srv.close()
+    return said.decode("utf-8", "replace").replace("\r", ""), hellos, acks, gone_after_menu, ended
 
 
 def main():
@@ -262,6 +361,25 @@ def main():
             ok = 'ram has "initialize file system": yes' in out
             check("i-chord held through the restart", ok, "the unit asked \"initialize file system\": %s"
                   % ("yes" if ok else "no"))
+
+        if want("btspeak"):
+            out, hellos, acks, gone, ended = btspeak_session(exe, fw, os.path.join(tmp, "btspeak"))
+            actions = re.findall(r"^[0-9.]+ (chord|held) (0x[0-9A-F]+)", out, re.M)
+            check("BT keyboard: taken exclusively", len(hellos) >= 1 and hellos[0] == b"BTKB\x01\x03\x00\x00"
+                  and "Keys: the BT keyboard" in out, "hellos %r" % hellos)
+            check("BT keyboard: every key consumed", len(acks) == 30 and all(a == b"\x20\x00" for a in acks),
+                  "%d answers: %s" % (len(acks), " ".join(a.hex() for a in acks)))
+            seq = " ".join("%s %s" % a for a in actions)
+            check("BT keyboard: dot 1, dot 8, R3 (advance) and L2 (back)", seq.startswith(
+                "held 0x01 held 0x00 chord 0x01 held 0x80 held 0x00 held 0x80 held 0x00 held 0x100 held 0x00"),
+                "the unit got [%s]" % seq)
+            check("BT keyboard: Z-chord with dot 7 saves and ends the program", ended
+                  and "Leaving: the unit's memory is saved." in out, "ended of itself: %s" % ("yes" if ended else "no"))
+            check("BT keyboard: M-chord with dot 7 opens the menu, gives the keyboard back, Enter takes it again",
+                  re.search(r"^ +1 ", out, re.M) is not None and gone and len(hellos) == 2 and "Back to the" in out,
+                  "menu listed: %s; keyboard given back: %s; taken again: %s" % (
+                      "yes" if re.search(r"^ +1 ", out, re.M) else "no", "yes" if gone else "no",
+                      "yes" if len(hellos) == 2 else "no"))
 
         if want("buffer"):
             cfg = os.path.join(tmp, "buffer")

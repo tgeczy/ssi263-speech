@@ -68,7 +68,80 @@ struct emu_unit {
     double hurry_from;              /* chip time of that key */
     int tns_r3;                     /* the Type 'n Speak's R3 as written (a load with bit 7 clear is a phoneme) */
     int starts;                     /* the Braille Lite firmware's starts seen (bh_starts) */
+    /* the advance bars (emu_keys_down, emu_key; the board's bl_bars) */
+    int bars_held;                  /* down now through emu_keys_down */
+    int bars_from_held;             /* went down through emu_keys_down since the last chord: not pressed again */
+    int bars_tapped;                /* pressed by a chord (a terminal's keys), let go by bars_tick */
+    double bars_down_at[2];         /* chip time each bar went down */
+    int bars_up_wanted;             /* let go by the hand, still down until EMU_BAR_MIN_S has passed */
+    int bar_chord;                  /* a chord typed with a bar: given once the firmware has the bar */
 };
+
+/* the board's bars (bl_board.h bl_braille_bars): bit 0 forward (the advance bar), bit 1 back */
+#define BAR_FORWARD 1
+#define BAR_BACK 2
+
+/* EMU_ADVANCE / EMU_BACK as the board's bars */
+static int bars_of(int bits)
+{
+    return ((bits & EMU_ADVANCE) ? BAR_FORWARD : 0) | ((bits & EMU_BACK) ? BAR_BACK : 0);
+}
+
+/* The bars to the board: down while held or tapped, and each kept down at least EMU_BAR_MIN_S of chip time -- the
+   firmware polls them every 100 ms from its timer, so this is more than two polls and a tap is never missed; a chord
+   typed with a bar goes to the unit once the bar has been down EMU_BAR_CHORD_S, when the firmware has marked it
+   held. */
+static void bars_tick(emu_unit *u)
+{
+    double now = ssi263_time(u->chip);
+    int want = u->bars_held | u->bars_tapped | u->bars_up_wanted, b, down = 0;
+    if (!u->host)
+        return;
+    for (b = 0; b < 2; b++) {
+        int bit = 1 << b;
+        if (!(want & bit))
+            continue;
+        if ((u->bars_held & bit) || now - u->bars_down_at[b] < EMU_BAR_MIN_S)
+            down |= bit;
+        else {
+            u->bars_tapped &= ~bit;
+            u->bars_up_wanted &= ~bit;
+        }
+    }
+    if (u->bar_chord && down) {
+        int ready = 1;
+        for (b = 0; b < 2; b++)
+            if ((down & (1 << b)) && now - u->bars_down_at[b] < EMU_BAR_CHORD_S)
+                ready = 0;
+        if (ready) {
+            bh_key(u->host, u->bar_chord);
+            u->bar_chord = 0;
+        }
+    } else if (u->bar_chord) {      /* the bar went up first (cannot happen: it is kept down for the chord) */
+        bh_key(u->host, u->bar_chord);
+        u->bar_chord = 0;
+    }
+    bh_braille_bars(u->host, down);
+}
+
+static void bars_press(emu_unit *u, int bars)
+{
+    double now = ssi263_time(u->chip);
+    int b, down = u->bars_held | u->bars_tapped | u->bars_up_wanted;
+    for (b = 0; b < 2; b++)
+        if ((bars & (1 << b)) && !(down & (1 << b)))
+            u->bars_down_at[b] = now;
+}
+
+/* bars held down now (board bits): pressed, and let go no sooner than EMU_BAR_MIN_S after they went down */
+static void bars_hold(emu_unit *u, int bars)
+{
+    bars_press(u, bars & ~u->bars_held);
+    u->bars_up_wanted |= u->bars_held & ~bars;
+    u->bars_held = bars;
+    u->bars_from_held |= bars;
+    bars_tick(u);
+}
 
 emu_unit *emu_create(int kind, const char *firmware, const char *state, double out_rate, int whine, char *err,
                      int errlen)
@@ -199,6 +272,7 @@ static int tns_render(emu_unit *u, double seconds, const double **out)
 /* quick response ends at the first spoken phoneme (bl_host clears `preparing` there; the Type 'n Speak's lockstep
    clears hurry) or after EMU_QUICK_LIMIT_S: a key that brings no speech must not leave the unit fast */
 int emu_restart_break;
+int emu_bars_break;
 
 static void hurry_check(emu_unit *u)
 {
@@ -231,6 +305,7 @@ void emu_render(emu_unit *u, short *out, int n)
         if (!u->n_pend) {
             double sec = (double)n / u->out_rate;
             hurry_check(u);
+            bars_tick(u);
             u->n_pend = u->tns ? tns_render(u, sec, &u->pend) : bh_run(u->host, sec, STEP_S, &u->pend);
             if (u->host)
                 bh_clear_tx(u->host);   /* unplugged, what the unit sends goes nowhere (plugged, it never lands here) */
@@ -258,6 +333,26 @@ int emu_key(emu_unit *u, int key)
             bh_set_double(u->host, "turbo", EMU_QUICK_TURBO);
             bh_set_int(u->host, "preparing", 1);     /* bl_host: the CPU at `turbo` until a spoken phoneme loads */
         }
+    }
+    if (!u->tns && emu_bars_break)  /* the tests' control: the bar as port 40h bit 7, which the firmware never reads */
+        return bh_key(u->host, key & 0xFF);
+    if (!u->tns) {
+        int bars = bars_of(key) & ~u->bars_from_held;   /* a bar the device path holds is down already */
+        u->bars_from_held = u->bars_held;
+        key &= 0x7F;
+        if (bars) {                 /* a terminal's chord with a bar: the bar pressed, the dots once it is read */
+            bars_press(u, bars);
+            u->bars_tapped |= bars;
+            if (key) {
+                if (u->bar_chord)
+                    bh_key(u->host, u->bar_chord);
+                u->bar_chord = key;
+            }
+            bars_tick(u);
+            return 1;
+        }
+        if (!key)
+            return 1;               /* the bars alone, held through the device path: nothing more to send */
     }
     return u->tns ? tns_key(u->tns, key) : bh_key(u->host, key);
 }
@@ -311,8 +406,10 @@ int emu_save(emu_unit *u, const char *path)
 
 void emu_keys_down(emu_unit *u, int bits)
 {
-    if (u->host)
-        bh_keys_down(u->host, bits);
+    if (!u->host)
+        return;
+    bh_keys_down(u->host, bits & 0x7F);
+    bars_hold(u, bars_of(bits));
 }
 
 int emu_memory(const emu_unit *u, const unsigned char **ram)
@@ -327,7 +424,8 @@ int emu_braille(const emu_unit *u, unsigned char *cells, int capacity)
 
 void emu_braille_bars(emu_unit *u, int down)
 {
-    if (u->host) bh_braille_bars(u->host, down);
+    if (u->host)
+        bars_hold(u, down & 3);     /* held as emu_keys_down's bars are: a quick press is never missed */
 }
 
 int emu_clock_time(const emu_unit *u, int alarm, blc_time *t)

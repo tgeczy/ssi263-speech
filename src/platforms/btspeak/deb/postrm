@@ -1,0 +1,25 @@
+#!/bin/sh
+# blazie-emu-btspeak postrm: on removal, the User Menu entries and each user's fetched firmware go (prerm took the
+# system's); the units' saved memory and settings (~/.config/ssi263-speech/blazie-emu) stay, as any program's do.
+# BTE_HOMES: the tests' own.
+set -e
+MENU_RUN="run /usr/bin/blazie-emu-btspeak --unit "
+
+case "$1" in
+    remove|purge)
+        for home in ${BTE_HOMES:-/home/*}; do
+            um="$home/BTSpeak/user.menu"
+            if [ -f "$um" ] && grep -q -- "$MENU_RUN" "$um"; then
+                (                           # under the BT Speak's own lock (user_menu.py), written in place: the
+                    flock -x 9              # file keeps its owner and mode, and every line but ours
+                    kept="$(mktemp)"
+                    grep -v -- "$MENU_RUN" "$um" > "$kept" || true
+                    cat "$kept" > "$um"
+                    rm -f "$kept"
+                ) 9<"$um"
+            fi
+            rm -rf "$home/.local/share/blazie-emu-btspeak"
+        done
+        ;;
+esac
+exit 0

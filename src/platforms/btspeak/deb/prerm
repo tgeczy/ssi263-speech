@@ -1,0 +1,10 @@
+#!/bin/sh
+# blazie-emu-btspeak prerm: the fetched firmware goes before dpkg takes the package's own files, so its folder can go
+# with them (postrm takes the User Menu entries).  BTE_ROOT: the tests' own.
+set -e
+case "$1" in
+    remove|purge|deconfigure)
+        rm -rf "${BTE_ROOT:-}/usr/lib/blazie-emu-btspeak/share"
+        ;;
+esac
+exit 0

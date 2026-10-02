@@ -168,6 +168,44 @@ static void bl_checks(void)
         check("input device: o-chord down and up, dot 4", !strcmp(got,
               "H01 H05 H15 H55 H54 H50 H40 H00 C55 H08 H00 C08"), d);
     }
+    {   /* the Braille Lite 2000's two bars: ; advance, a back, alone and with a chord's dots (keys mode) */
+        static const typed bars[] = {{0.0, ";"}, {0.5, "a"}, {1.0, "a"}, {1.01, "f"}};
+        bl_case("keys mode: the advance bar, the back bar, back with dot 1", BLK_KEYS, bars, 4, 1.5,
+                "C80 C100 C101");
+    }
+    {   /* an input device: a bar is down while held and no part of the chord typed under it (dot 8 the advance
+           bar, dot 7 back) */
+        bl_keys k;
+        key_event e;
+        bl_action a[BLK_MAX_ACTIONS];
+        static const struct { int key, type; } moves[] = {{K_BRL8, KE_DOWN}, {'f', KE_DOWN}, {'f', KE_UP},
+            {K_BRL8, KE_UP}, {K_BRL7, KE_DOWN}, {K_BRL7, KE_UP}};
+        char got[256] = "", d[320];
+        int i, j, n, len = 0;
+        blk_defaults(&k);
+        for (i = 0; i < 6; i++) {
+            e.key = moves[i].key;
+            e.type = moves[i].type;
+            e.mods = 0;
+            blk_event(&k, &e, i * 0.05);
+            n = blk_take(&k, a, BLK_MAX_ACTIONS);
+            for (j = 0; j < n; j++)
+                len += snprintf(got + len, sizeof got - (size_t)len, "%s%c%02X", len ? " " : "",
+                                a[j].type == BLA_CHORD ? 'C' : 'H', a[j].bits);
+        }
+        snprintf(d, sizeof d, "got [%s]", got);
+        check("input device: a bar held under a chord", !strcmp(got, "H80 H81 H80 C01 H00 H100 H00"), d);
+    }
+    {   /* a settings file from before the back bar ("advance = a ;"): a is the advance bar alone, not both */
+        bl_keys k;
+        char got[64], d[160];
+        static const typed a_only[] = {{0.0, "a"}};
+        blk_defaults(&k);
+        blk_set(&k, "advance", "a ;");
+        run_bl(&k, a_only, 1, 0.5, got, sizeof got);
+        snprintf(d, sizeof d, "got [%s]", got);
+        check("settings: an old advance = a ; keeps a on one bar", !strcmp(got, "C80"), d);
+    }
     {
         char d[200], n1[48], n2[48];
         int e = blk_chord_of("e-chord"), low_d = blk_chord_of("2-5-6-chord"), dots = blk_chord_of("dots 1 3"),

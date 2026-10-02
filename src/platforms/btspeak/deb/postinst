@@ -1,0 +1,41 @@
+#!/bin/sh
+# blazie-emu-btspeak postinst: the firmware fetched (never fatal: without a network the menu entry fetches it on
+# first start), and the units added to every BT Speak user's User Menu.  BTE_ROOT and BTE_HOMES: the tests' own.
+set -e
+ROOT="${BTE_ROOT:-}"
+LIB="$ROOT/usr/lib/blazie-emu-btspeak"
+MENU_RUN="run /usr/bin/blazie-emu-btspeak --unit"
+
+case "$1" in
+    configure)
+        if [ ! -f "$LIB/share/ssi263-speech/BL2ENG.BNS" ]; then
+            if "$LIB/fetch-firmware" "$LIB/share/ssi263-speech"; then
+                echo "blazie-emu-btspeak: the firmware is fetched"
+            else
+                rm -rf "$LIB/share/ssi263-speech"
+                echo "blazie-emu-btspeak: the firmware could not be fetched now; it will be on first start"
+            fi
+        fi
+        # each line appended under the lock the BT Speak's own User Menu code takes (BTSpeak/user_menu.py: flock on
+        # the file), the title written only into an empty file, as it does
+        for dir in ${BTE_HOMES:-/home/*}/BTSpeak; do
+            [ -d "$dir" ] || continue
+            um="$dir/user.menu"
+            new=0
+            [ -f "$um" ] || new=1
+            (
+                flock -x 9
+                if [ ! -s "$um" ]; then
+                    echo "User Menu" >&9
+                elif [ -n "$(tail -c 1 "$um")" ]; then
+                    echo >&9                # the last line had no newline: ours must not join it
+                fi
+                for entry in "Braille Lite 2000|bl-en" "Braille 'n Speak 2000|bns-en" "Type 'n Speak|tns-en"; do
+                    grep -q -- "$MENU_RUN ${entry#*|}\$" "$um" || echo "${entry%|*}: $MENU_RUN ${entry#*|}" >&9
+                done
+            ) 9>>"$um"
+            [ "$new" = 0 ] || chown --reference="$dir" "$um" 2>/dev/null || true
+        done
+        ;;
+esac
+exit 0
