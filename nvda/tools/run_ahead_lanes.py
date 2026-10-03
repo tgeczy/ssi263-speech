@@ -45,6 +45,10 @@ DLL = os.path.join(REPO, "nvda", "dist", "blazie-lib", "x64" if sys.maxsize > 2 
 SPANISH = "--es" in sys.argv
 QUICK = "--quick" in sys.argv
 LANES = [int(a[7:]) for a in sys.argv if a.startswith("--lane=")] or [1, 2]
+# --hard-g-off: the chip with 0.7.6's hard G off (params hold_release False: 0.7.5's chip, bit for bit), so the writes
+# keep the times they had before it.  A test fixture only: the Spanish known failure of the paced replay's rounding
+# (run_ahead.c, `if (r->pace)`) lives at those times, and the hard G moved them off it
+HARD_G_OFF = "--hard-g-off" in sys.argv
 BREAK = os.environ.get("RUN_AHEAD_LANES_BREAK", "")
 RATE = 22050
 BLOCK = 0.03
@@ -75,7 +79,8 @@ def unit(ahead, log):
         fw, st, enc = os.path.join(ENG, "BL2SPA.BNS"), os.path.join(ENG, "bl2spa_fresh.state"), "cp850"
     else:
         fw, st, enc = os.path.join(ENG, "BL2ENG.BNS"), os.path.join(ENG, "bl2_2003_warm.state"), "latin-1"
-    chip = SSI263C(params={"closure_noise_lead_ms": 10.0}, out_rate=RATE)
+    chip = SSI263C(params=dict({"closure_noise_lead_ms": 10.0}, **({"hold_release": False} if HARD_G_OFF else {})),
+                   out_rate=RATE)
     u = NativeBlazie(DLL, fw, st, chip=chip, out_rate=RATE, menu=("punct_none", "numbers_toggle"), key_start=3000000,
                      key_gap=1500000, board_lowpass_hz=5000.0, on_write=lambda t, r, v: log.append((t, r, v)))
     u.encoding = enc

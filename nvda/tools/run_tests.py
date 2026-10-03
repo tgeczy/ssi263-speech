@@ -64,8 +64,8 @@ if os.path.isfile(AM_LIB):
                                     r"^DIFF  (?!4000 )\d+ of 4000 random texts give the driver's text$",
                                     r"^2 of 15 utterances byte-identical to the NVDA driver$"]))
 # 0.7.5's native Speak-Out and Accent drivers (ssi263speech.dll: no Python host or front end) against 0.7.0's Python
-# drivers (legacy_drivers.py), byte for byte with the index and done order: NVDA's sequences (texts with indexes between,
-# pieces, capitals alone, inside a sequence and over an index), numbers, money, punctuation, the settings' extremes,
+# drivers over this tree's chip (legacy_drivers.py: the old-driver/current-chip integration reference), byte for byte
+# with the index and done order: NVDA's sequences (texts with indexes between, pieces, capitals alone, inside a sequence and over an index), numbers, money, punctuation, the settings' extremes,
 # every sample rate, both Accents with their variants, inflection and numbers, cancels after a block and at an index.
 # Controls: the job re-begun before every text (the voices' one-text API) must fail the multi-text cases and pass the
 # first one-text case; the native cancels one block late must fail the block cuts.
@@ -75,7 +75,8 @@ NATIVE_EQ_SUM = r"^(?!99 )\d+ of 99 sequences byte-identical to 0\.7\.0's driver
 NATIVE_BUILT = all(os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "%s-build" % a, "synthDrivers",
                                                "_ssi263_%s" % a, "ssi263speech.py")) for a in ("speakout", "accent"))
 if NATIVE_BUILT:
-    CHECKS.append(check("native drivers = 0.7.0's Python drivers, byte for byte", [PY, "native_driver_equiv.py"]))
+    CHECKS.append(check("native drivers = the old-driver/current-chip reference, byte for byte",
+                        [PY, "native_driver_equiv.py"]))
     CHECKS.append(check("native drivers CONTROL (the job re-begun per text, must fail)", [PY, "native_driver_equiv.py"],
                         env={"NATIVE_EQUIV_BREAK": "per-text"}, expect_fail=True,
                         fail_marks=[r"^same  speakout plain ", r"^DIFF  speakout indexes ", r"^DIFF  mini indexes ",
@@ -190,7 +191,8 @@ CHECKS.append(check("uniform CONTROL (Linux lacks the Spanish number words, must
                                 r"Linux: dropped by SSI263_UNIFORM_DROP$", r"^uniform: 1 gap$"]))
 SAPI_SERVE_TEST = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_serve.py")
 CHECKS.append(check("SAPI pipe server", [PY, SAPI_SERVE_TEST]))
-# The three SAPI tests' reference server runs 0.7.0's Python drivers (legacy_drivers.py), not nvda/dist's, which since
+# The three SAPI tests' reference server runs 0.7.0's Python drivers over this tree's chip (legacy_drivers.py: the
+# old-driver/current-chip integration reference), not nvda/dist's, which since
 # 0.7.5 are the native ones (Astra, Reply 141); each test checks that first (sapi/reference_drivers.py).  Pointed at
 # nvda/dist, each must fail there, on the modules and the native library it then loads.
 REF_MARK = r"^FAIL reference: NOT 0\.7\.0's Python drivers: .*modules not from the legacy folder.*ssi263speech\.dll"
@@ -694,8 +696,17 @@ if os.path.isfile(os.path.join(LIB, "x64", "bl.dll")):
     # rounds to whole samples and overshoots by one when under half a sample remains.  Spanish lane 1 case 2 hit it at
     # writes 2040-2045, 22.7 us late, and was held as a KNOWN failure; since 0.7.6's hard G (hold_release) the case's
     # "luego" brings everything after its G 0.63 ms earlier, no write lands under half a sample from a pacing step and
-    # the case passes.  The rounding is still in run_ahead.c (its fix after the release), no longer exercised here.
+    # the case passes.  The rounding is still in run_ahead.c (its fix after the release), so it keeps its own fixture:
     CHECKS.append(check("run ahead lanes 1 and 2, Spanish", [PY, "run_ahead_lanes.py", "--es"]))
+    # KNOWN FAILURE, held as a fixture (Astra, Reply 151: a newly passing scenario is not a repaired bug): the same
+    # Spanish lanes with the chip's hard G off (--hard-g-off, params hold_release False = 0.7.5's chip, bit for bit)
+    # put the writes back at their old times, where the paced replay overshoots by one sample at writes 2040-2045.
+    # It must fail in exactly this way; it fails this check if it ever passes or fails anywhere else -- the day
+    # run_ahead.c's rounding is fixed, this becomes a plain check
+    CHECKS.append(check("run ahead lanes, Spanish, hard G off (KNOWN: test-only pacing rounding, after 0.7)",
+                        [PY, "run_ahead_lanes.py", "--es", "--hard-g-off"], expect_fail=True,
+                        fail_marks=[r"^ok +lane 1 case 1: ", r"^FAIL lane 1 case 2: TIME differs at write 2044: 7\.316882 -> 7\.316905 s",
+                                    r"^ok +lane 1 case 3: ", r"^run ahead lanes \(Spanish\): 1 FAILED$"]))
     LANES_SUM = r"^run ahead lanes \(English\): %d FAILED$"
     for what, brk, args, marks in (
             ("lane 1, schedule a sample late", "pace", ["--lane=1"],
