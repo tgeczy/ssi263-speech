@@ -67,6 +67,13 @@ else
     echo "skip  reference: the z180emu development build (LEGACY=1 ./build_linux.sh)"
 fi
 check "chip defaults" python3 src/csrc/gen_chip_defaults.py --check
+# issue #8: the Accent SA's text done only when said (as_voice's settle between clauses), on the library the module
+# and Android speak through; its control is the settle off (0.7.5's done) and must name the dialog's early texts
+check "Accent SA: a text done only when said (issue #8)" python3 src/csrc/accentsa/test_as_complete.py "$LIB"
+control "Accent SA completion CONTROL (the settle off, must fail)" "^EARLY  rate +60 job +'Pitch: slider 50 alt\+p'" \
+    "^EARLY  rate +75 say +'Rate: slider 75 alt\+r'" \
+    "^[1-9][0-9]* of 64 texts ended early, 0 of [0-9]* that never paused changed" "^accent sa completion: FAILED$" \
+    -- env AS_COMPLETE_BREAK=1 python3 src/csrc/accentsa/test_as_complete.py "$LIB"
 check "speech-dispatcher module" python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^stop +module .*identical" \
     "^after +module .*DIFFER" "^set +module .*DIFFER" "^key +module .*DIFFER" "^spanish +module .*identical" \

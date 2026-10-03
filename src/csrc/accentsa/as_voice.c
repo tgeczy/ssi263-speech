@@ -18,6 +18,18 @@
 #define QUIET 0.03
 #define PATIENCE 1.5
 #define STALL_S 4.0                     /* the driver's watchdog: busy, speaking, and silent this long */
+/* Issue #8: between two clauses of one text (after "Rate:", a comma, a full stop) the firmware can empty its phoneme
+   queue, drop its speaking flag (port 40h bit 4) and read the next clause, at its own pace, before it speaks again:
+   nothing on the serial line and no phoneme, ash_busy() false.  The text was called done there, and the rest stayed
+   in the unit and came out with the next speech (measured: 0.1 s for NVDA's dialog labels, past 2 s for long
+   clauses).  What tells the two apart is the 8085 itself: at a true end it is back in its waiting loops, between
+   clauses it is still running the rules: thousands of instructions a block outside its waiting loops (the host's
+   "work", as_board.c's WAITING), where closing an utterance takes about 60.  So a quiet block while it works is not
+   done: the blocks are held until it either speaks again -- they go out first, the audio unbroken -- or goes back to
+   waiting (they are dropped: the audio ends where it always did).  SETTLE_S caps that wait, should the firmware ever
+   work on without a word (the 4 s watchdog only runs while the speaking flag is up). */
+#define SETTLE_S 6.0
+#define WORK_MIN 2000                   /* instructions outside the waiting loops in one block: the rules at work */
 /* DEFAULTS = ("5", 5, 5, 0): rate, pitch, voice, intonation after power-up */
 #define DEF_RATE AT_DEF_RATE
 #define DEF_PITCH AT_DEF_PITCH
@@ -41,6 +53,9 @@ struct as_voice {
     double t_start, gain;
     short *pcm;
     int pcm_cap;
+    double settle, quiet_since;                        /* SETTLE_S; the chip time busy() went false, -1 while busy */
+    short *held;                                       /* the blocks since then, not given out yet */
+    int n_held, held_cap;
 };
 
 /* ---- _boot ---------------------------------------------------------------------------------------------------- */
@@ -92,6 +107,8 @@ AS_API as_voice *asv_create(const unsigned char *u2, size_t n2, const unsigned c
     defaults_sent(v);
     v->rate = 50; v->pitch = 50; v->inflection = 100; v->volume = 100; v->numbers = 1; v->voice = DEF_VOICE;
     v->base_pitch = v->cur_pitch = DEF_PITCH;
+    v->settle = SETTLE_S;
+    v->quiet_since = -1.0;
     return v;
 }
 
@@ -101,7 +118,38 @@ AS_API void asv_destroy(as_voice *v)
     ash_destroy(v->h);
     free_roms(v);
     free(v->pcm);
+    free(v->held);
     free(v);
+}
+
+AS_API void asv_set_settle(as_voice *v, double seconds)
+{
+    v->settle = seconds > 0.0 ? seconds : 0.0;
+}
+
+static void unsettle(as_voice *v)                      /* no wait in progress: nothing held */
+{
+    v->quiet_since = -1.0;
+    v->n_held = 0;
+}
+
+static int hold(as_voice *v, const short *s, int n)    /* a block of the wait, kept; 0 when out of memory */
+{
+    if (v->n_held + n > v->held_cap) {
+        int cap = v->held_cap ? v->held_cap : 4096;
+        short *q;
+        while (cap < v->n_held + n)
+            cap *= 2;
+        q = (short *)realloc(v->held, (size_t)cap * sizeof(short));
+        if (!q)
+            return 0;
+        v->held = q;
+        v->held_cap = cap;
+    }
+    if (n > 0)
+        memcpy(v->held + v->n_held, s, (size_t)n * sizeof(short));
+    v->n_held += n;
+    return 1;
 }
 
 AS_API as_host *asv_host(as_voice *v) { return v->h; }
@@ -133,10 +181,13 @@ AS_API int asv_say_bytes(const char *utf8, int with_numbers, char *out, int cap)
 }
 
 /* ---- faults: _run's "Accent speech failed; restarting the emulated card" (a job only) ---------------------------- */
+static void unsettle(as_voice *v);
+
 static void failed(as_voice *v)
 {
     v->fault = 1;
     v->active = 0;
+    unsettle(v);
     /* _speakJob's finally would have restored the pitch on the old unit: what is left of it is the flag */
     if (v->cur_pitch != v->base_pitch) {
         v->cur_pitch = v->base_pitch;
@@ -188,6 +239,7 @@ static void begin(as_voice *v)
     char r = at_rate_char(v->rate), cmd[64];
     int p = at_pitch_step(v->pitch), infl = at_inflection(v->inflection), k = 0;
     v->active = 0;
+    unsettle(v);
     if (r != v->sent_rate) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bR%c", r);
     if (p != v->sent_pitch) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bP%d", p);
     if (v->voice != v->sent_voice) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bV%d", v->voice);
@@ -218,6 +270,7 @@ static void text_item(as_voice *v, const unsigned char *line, int n)
     v->t_start = ash_get_double(v->h, "time");
     ash_say(v->h, line, n, -1);
     v->active = 1;
+    unsettle(v);
 }
 
 AS_API int asv_speak(as_voice *v, const char *utf8, int pitch_offset)
@@ -249,6 +302,7 @@ AS_API int asv_speak(as_voice *v, const char *utf8, int pitch_offset)
 static void finish(as_voice *v)
 {
     v->active = 0;
+    unsettle(v);
     if (!v->job)
         restore_pitch(v);
 }
@@ -266,7 +320,8 @@ static void stop(as_voice *v)
 AS_API int asv_render(as_voice *v, const short **pcm, int *done)
 {
     const double *y;
-    int n, start = 0, count;
+    double now;
+    int n, start = 0, count, working;
     *pcm = v->pcm;
     *done = 0;
     if (!v->active) { *done = 1; return 0; }
@@ -296,8 +351,38 @@ AS_API int asv_render(as_voice *v, const short **pcm, int *done)
         ssi263_set_snap_pitch(v->chip, 0);
         v->snap_until_speech = 0;
     }
+    if (count < 0)
+        count = 0;
+    now = ash_get_double(v->h, "time");
+    working = ash_get_int(v->h, "work") >= WORK_MIN;          /* reading the next clause, not waiting */
+    if (v->quiet_since >= 0.0) {                              /* a silence while it works: this block held too */
+        if (!hold(v, v->pcm, count)) { stop(v); *done = 1; return 0; }
+        if (ash_busy(v->h, QUIET, PATIENCE)) {                /* it was a pause: what was held goes out, unbroken */
+            if (v->n_held > v->pcm_cap) {
+                short *q = (short *)realloc(v->pcm, (size_t)v->n_held * sizeof(short));
+                if (!q) { stop(v); *done = 1; return 0; }
+                v->pcm = q;
+                v->pcm_cap = v->n_held;
+            }
+            memcpy(v->pcm, v->held, (size_t)v->n_held * sizeof(short));
+            *pcm = v->pcm;
+            count = v->n_held;
+            unsettle(v);
+            return count;
+        }
+        if (!working || now - v->quiet_since >= v->settle) {  /* back in its waiting loops: nothing more to say */
+            v->pitch_dirty = 0;                               /* the driver has taken everything sent so far */
+            finish(v);                                        /* the held silence is dropped with the wait */
+            *done = 1;
+        }
+        return 0;
+    }
     if (!ash_busy(v->h, QUIET, PATIENCE)) {
-        v->pitch_dirty = 0;                                   /* the driver has taken everything sent so far */
+        if (working && v->settle > 0.0) {
+            v->quiet_since = now;                             /* this block goes out as it did; then wait */
+            return count;
+        }
+        v->pitch_dirty = 0;
         finish(v);
         *done = 1;
     } else {
@@ -308,7 +393,7 @@ AS_API int asv_render(as_voice *v, const short **pcm, int *done)
             *done = 1;
         }
     }
-    return count > 0 ? count : 0;
+    return count;
 }
 
 static void resend_pitch(as_voice *v)                         /* _resend_pitch */
@@ -323,6 +408,7 @@ AS_API void asv_cancel(as_voice *v)
 {
     if (v->active)
         finish(v);
+    unsettle(v);
     ash_cancel(v->h, CANCEL_LIMIT);
     if (v->pitch_dirty)
         resend_pitch(v);
@@ -362,6 +448,7 @@ AS_API int asv_end(as_voice *v)
 {
     v->active = 0;
     v->job = 0;
+    unsettle(v);
     if (v->fault)                                             /* failed() has done what the finally could */
         return -1;
     restore_pitch(v);
@@ -372,6 +459,7 @@ AS_API int asv_flush(as_voice *v)
 {
     if (v->fault && !restart(v))
         return -1;
+    unsettle(v);
     ash_cancel(v->h, CANCEL_LIMIT);
     if (v->pitch_dirty)
         resend_pitch(v);

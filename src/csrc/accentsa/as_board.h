@@ -73,6 +73,9 @@ void as_board_set(as_board *b, const char *name, int v);
 uint64_t as_board_cycles(const as_board *b);   /* the core's T-states since power-on */
 uint64_t as_board_steps(const as_board *b);
 uint8_t as_board_peek(const as_board *b, uint16_t addr);   /* memory as the CPU reads it now (the bank in the window) */
+/* How many instructions the 8085 has run outside the firmware's waiting loops (as_board.c's WAITING: idle, polling,
+   the phoneme TRAP) since the last call -- its own work, reading text and making phonemes; then 0.  Watches only. */
+unsigned as_board_take_work(as_board *b);
 
 #ifdef __cplusplus
 }

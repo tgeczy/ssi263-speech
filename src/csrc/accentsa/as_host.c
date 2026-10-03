@@ -21,6 +21,7 @@ struct as_host {
     double cpu_hz, turbo, tick_hz, tick_acc;
     int preparing;
     double last_speech, say_time;
+    long work;                         /* instructions the firmware ran outside its waiting loops in the last ash_run */
     double *buf;
     int n_buf, cap_buf;
     int log_on;
@@ -261,6 +262,7 @@ AS_API int ash_run(as_host *h, double seconds, double step, const double **audio
 {
     double t = 0.0;
     h->n_buf = 0;
+    h->work = 0;
     *audio = h->buf;
     while (t < seconds) {
         double before, dt;
@@ -284,6 +286,7 @@ AS_API int ash_run(as_host *h, double seconds, double step, const double **audio
         if (dt < 1e-5)
             dt = 1e-5;                                     /* max(..., 1e-5) */
         run_cpu(h, dt);
+        h->work += (long)as_board_take_work(h->b);
         t += dt;
     }
     *audio = h->buf;
@@ -303,6 +306,7 @@ AS_API double ash_skip(as_host *h, double seconds, double step)
         if (dt < 1e-5)
             dt = 1e-5;
         run_cpu(h, dt);
+        as_board_take_work(h->b);                          /* skipped time is no block's */
         t += dt;
     }
     return t;
@@ -368,6 +372,7 @@ AS_API void ash_set_double(as_host *h, const char *name, double v)
 AS_API int ash_get_int(const as_host *h, const char *name)
 {
     if (!strcmp(name, "preparing")) return h->preparing;
+    if (!strcmp(name, "work")) return h->work > 0x7FFFFFFFL ? 0x7FFFFFFF : (int)h->work;
     if (!strcmp(name, "log_writes")) return h->log_on;
     if (!strcmp(name, "request")) return ssi263_request(h->chip) ? 1 : 0;
     return as_board_get(h->b, name);

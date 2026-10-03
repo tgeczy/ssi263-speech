@@ -85,6 +85,30 @@ if NATIVE_BUILT:
                         fail_marks=[r"^same  speakout plain ", r"^DIFF  speakout cancel in a sequence .*cut after",
                                     r"^DIFF  mini cancel in a sequence .*cut after",
                                     r"^DIFF  sa cancel in a sequence .*cut after", NATIVE_EQ_SUM]))
+    # Issue #8: the Accent SA called a text done in the firmware's quiet between two clauses ("Rate:" | "slider 55
+    # alt+r"), and the rest came out with the next speech.  as_voice now waits while the 8085 still runs its rules.
+    # test_as_complete.py: the library every front end shares (the job API and asv_speak), the host run on after each
+    # done -- no phoneme may come, and a text that never paused keeps its audio; dialog_stall.py: the built add-on's
+    # driver tabbed through NVDA's voice settings dialog.  Each control is the settle off (0.7.5's done).
+    AS_COMPLETE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "accentsa", "test_as_complete.py")
+    CHECKS.append(check("Accent SA: a text done only when said (issue #8)", [PY, AS_COMPLETE]))
+    CHECKS.append(check("Accent SA completion CONTROL (the settle off, must fail)", [PY, AS_COMPLETE],
+                        env={"AS_COMPLETE_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^EARLY  rate +60 job +'Pitch: slider 50 alt\+p'",
+                                    r"^EARLY  rate +75 say +'Rate: slider 75 alt\+r'",
+                                    r"^(?!0 )\d+ of 64 texts ended early, 0 of \d+ that never paused changed",
+                                    r"^accent sa completion: FAILED$"]))
+    CHECKS.append(check("dialog_stall accentsa (issue #8, the NVDA driver)", [PY, "dialog_stall.py", "accentsa", "2"],
+                        env={"SIM_SPEED": "4"}))
+    CHECKS.append(check("dialog_stall accentsa CONTROL (the settle off, must fail)",
+                        [PY, "dialog_stall.py", "accentsa", "2"], env={"SIM_SPEED": "4", "DIALOG_STALL_BREAK": "1"},
+                        expect_fail=True,
+                        fail_marks=[r"^rate +50: +0 of +8 ", r"^rate +100: +[1-8] of +8 announcements complete too early",
+                                    r"more still in the unit", r"^accent: [1-9]\d* of 40 announcements complete too "
+                                    r"early -- STALL$"]))
+    CHECKS.append(check("dialog_stall accent (the Accent-mini)", [PY, "dialog_stall.py", "accent", "2"],
+                        env={"SIM_SPEED": "4"}))
+    CHECKS.append(check("dialog_stall speakout", [PY, "dialog_stall.py", "speakout", "2"], env={"SIM_SPEED": "4"}))
 for seed in (1, 2, 3, 4):
     CHECKS.append(check("complete_fuzz seed %d" % seed, [PY, "complete_fuzz.py", "150", str(seed)], env={"SIM_SPEED": "10"}))
 for synth in ("speakout", "accent"):
