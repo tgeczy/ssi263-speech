@@ -267,6 +267,9 @@ with each release.
 | 0.3.6–0.4.0 | Tomi: the Accent-mini froze while scrolling, and went silent after a variant change | Accent-mini only: both freezes fixed, numbers as words, faster long items, first sound in about 25 ms instead of 600 |
 | 0.5.0 | Tomi, and listeners | **The Accent SA** as a second Accent voice; engine v0.11 and v0.12; Windows on ARM fixed; the repository goes public |
 | 0.6.0 | Tomi, a listener, and a tester | Engine v0.13 (with a bounded T/P/K precharge on the Braille Lite); the Braille Lite's top rates fixed, its dollar amounts read, no utterance cut short after a cancel, and a "Sample rate" setting in all three (11, 22 or 44 kHz; 22 kHz by default); the Braille Lite's tones run 0-26 (tone 0 added), its voice inflection can be switched off, an optional hiss or whine generated from the chip's clock, and **a Spanish voice** with NVDA's automatic language switching |
+| 0.7.0 | Tomi: every shipping CPU on MAME, no GPL runtime | Every unit on MAME's extracted CPU cores (BSD-3-Clause) and our own MIT code; **the Blazie emulator** (the Braille Lite 2000 and the Type 'n Speak, English and Spanish, with a Braille 'n Speak 2000 preview) for Windows and Linux; Linux, Android and Python packages |
+| 0.7.5 | Tomi: "all voices, no exceptions" | Every voice on NVDA, SAPI, Linux and Android from one native C library, checked byte for byte against 0.7.0's drivers; SAPI without Python (and on 32-bit Windows); the Speak-Out imported from `SPEAKOUT.HEX` and the Accent-mini built in on Android; the BT Speak and BT Braille front end |
+| 0.7.6 | Tomi's ear and Astra's review; Jayson (issue #3); issue #8 | The hard G (`hold_release`): "guess" no longer says "ess"; the emulator's clock keeps this year's calendar across the unit's New Year; the Accent SA's text is done only when the unit has nothing left to say, so dialog labels ending in a colon are no longer cut off |
 
 ## 0.7 migration credits (2026-09-30, release preparation)
 
