@@ -119,6 +119,11 @@ check "emulator: the clock controller" ./build/linux/test_clock unit
 check "emulator: the clock and keys held at a restart (Braille Lite)" ./build/linux/test_clock bl "$DATA/BL2ENG.BNS" \
     "$DATA/bl2_2003_warm.state"
 check "emulator: the clock (Type 'n Speak)" ./build/linux/test_clock tns "$TNS"
+control "emulator: clock year CONTROL (0.7.5's mapping, must fail)" "^FAIL the weekday after New Year +2016-02-29" \
+    "^FAIL a unit saved on the old year " "^ok +a new year " -- env TEST_CLOCK_BREAK=4 ./build/linux/test_clock unit
+control "emulator: clock year CONTROL, Braille Lite (0.7.5's mapping, must fail)" \
+    "^FAIL switched off on New Year's Eve 2026 " "^FAIL saved by 0.7.5 in September 2026 " \
+    -- env TEST_CLOCK_BREAK=4 ./build/linux/test_clock bl "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state" year
 control "emulator: held keys CONTROL (never reported held, must fail)" "^FAIL i-chord held through the restart" \
     "^FAILED$" -- env TEST_CLOCK_HOLD_BREAK=1 ./build/linux/test_clock bl "$DATA/BL2ENG.BNS" \
     "$DATA/bl2_2003_warm.state" restart

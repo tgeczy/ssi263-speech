@@ -395,6 +395,16 @@ if os.path.isfile(CLOCK):
     CHECKS.append(check("Blazie emulator: clock controller CONTROL (never moves, must fail)", [CLOCK, "unit"],
                         env={"TEST_CLOCK_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^FAIL time passes \(a leap day\) ", r"^ok +set and read over its bytes "]))
+    # Jayson's issue #3: the year 28 back, so the controller's own New Years keep the host's calendar; units saved on
+    # 0.7.0-0.7.5's year moved.  The control puts that mapping back (2026 -> 2015): 1 March 2027 is 29 February 2016
+    CHECKS.append(check("Blazie emulator: clock year CONTROL (0.7.5's mapping, must fail)", [CLOCK, "unit"],
+                        env={"TEST_CLOCK_BREAK": "4"}, expect_fail=True,
+                        fail_marks=[r"^FAIL the weekday after New Year +2016-02-29",
+                                    r"^FAIL a unit saved on the old year ", r"^ok +a new year "]))
+    CHECKS.append(check("Blazie emulator: clock year CONTROL, Braille Lite ENG (0.7.5's mapping, must fail)",
+                        [CLOCK, "bl"] + BL_ENG + ["year"], env={"TEST_CLOCK_BREAK": "4"}, expect_fail=True,
+                        fail_marks=[r"^FAIL switched off on New Year's Eve 2026 ",
+                                    r"^FAIL saved by 0.7.5 in September 2026 "]))
     # the file flash (src/apps/blazie/test_flash.c; Jayson, Timothy): the Type 'n Speak's ID check passes and its flash
     # is initialised, the erase takes a 29F016's 32 s plus its 14.4 s preprogramming (every byte to 00h first) with the
     # firmware's chirps through the chip, the initialised flash
