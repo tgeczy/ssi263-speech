@@ -13,7 +13,7 @@
 #ifndef StageDir
 #define StageDir "..\nvda\dist\sapi"
 #endif
-#define AppVer "0.7.5"
+#define AppVer "0.7.6"
 
 [Setup]
 AppId={{7C3E91A2-5B64-4D0F-9E28-A61D3F84C7B5}

@@ -1,7 +1,7 @@
 # SSInger -- JUCE 9.0.3 build: VST3 + Standalone everywhere, AU on macOS,
 # LV2 on Linux, CLAP everywhere (clap-juce-extensions). See BUILD.md.
 cmake_minimum_required(VERSION 3.22)
-project(SSInger VERSION 0.7.5 LANGUAGES C CXX)
+project(SSInger VERSION 0.7.6 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

@@ -4,7 +4,7 @@
 # the firmware lives (it never goes to GitHub).  Driven from Git Bash on Windows (gh, git, ssh, scp); the Pi runs this
 # same script's on-pi half.
 #
-#   sh tools/release_from_ci.sh all COMMIT [VERSION]        everything below, in order (VERSION: 0.7.5)
+#   sh tools/release_from_ci.sh all COMMIT [VERSION]        everything below, in order (VERSION: 0.7.6)
 #   sh tools/release_from_ci.sh download COMMIT              the CI run of COMMIT (dispatched on CI_BRANCH, default
 #                                                            main, when there is none), awaited; its two artifacts
 #                                                            into build/ci/<commit>/, their COMMIT checked
@@ -283,7 +283,7 @@ cfg() {                             # KEY: SSI263_KEY, else KEY = value in paths
 }
 C="$(git -C "$REPO" rev-parse "${2:?commit}^{commit}")" || exit 1
 c="$(echo "$C" | cut -c1-7)"
-V="${3:-0.7.5}"
+V="${3:-0.7.6}"
 CI="$REPO/build/ci/$c"
 P="ci-release/$c"                   # on the Pi, under its home
 
