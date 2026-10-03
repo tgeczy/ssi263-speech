@@ -8,12 +8,16 @@ reference server runs all three (sapi/reference_drivers.py).
     python legacy_drivers.py [speakout|accent|blazie ...]   # print each one's synthDrivers folder (making it once)
     legacy_drivers.synth_drivers("speakout")                # the same, for a test
 
-From REV (git show): the drivers, src/hosts, src/ssi263 and src/data, nvda/shared.  From this tree (not in git):
-src/ssi263/_bin (the chip), nvda/dist/speakout-lib (speakout_v40.dll), nvda/dist/blazie-lib (pc86.dll, bl.dll,
+From REV (git show): the drivers, src/hosts and src/data, nvda/shared.  From this tree: the chip -- src/ssi263's
+package and (not in git) its _bin -- since 0.7.6's hard G (params hold_release), so that the reference holds the
+drivers, not the chip version, to 0.7.0 (REV's package mirrored ssi263_params as it was, and the C struct has grown);
+the folder's name carries the chip's hash, so a chip change makes a new one.  Also from this tree (not in git):
+nvda/dist/speakout-lib (speakout_v40.dll), nvda/dist/blazie-lib (pc86.dll, bl.dll,
 bl_live_mame.exe), nvda/dist/accentsa-lib (accent_sa.dll), and firmware/.  The Accent-mini's INIT snapshot (SPKEMS.state) is made as
 build_accent.py made it, on MAME's 8086.  A test points fake_nvda_driver_test.py at a folder by
 SSI263_SYNTH_DRIVERS.  Made once, into a temporary folder renamed into place, so parallel checks can share it.
 """
+import hashlib
 import os
 import shutil
 import subprocess
@@ -23,7 +27,22 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 REV = "9bde0a76eba81be958d216c7b75edba2eb22c29f"      # main before 0.7.5's native drivers (the Python hosts' last)
-OUT = os.path.join(HERE, "out", "legacy-%s" % REV[:7])
+CHIP = ("__init__.py", "chip.py", "dsp.py", "native.py", "params.py", "rom.py")     # src/ssi263, from this tree
+
+
+def _chip_tag():
+    """this tree's chip: its Python package, its C sources and the ROM bits (line ends normalised)"""
+    h = hashlib.sha256()
+    paths = ([os.path.join("src", "ssi263", n) for n in CHIP]
+             + [os.path.join("src", "csrc", n) for n in ("ssi263.c", "ssi263.h", "ssi263_defaults.h", "ssi263dsp.c")]
+             + [os.path.join("src", "data", "rom_bits.csv")])
+    for rel in paths:
+        with open(os.path.join(REPO, rel), "rb") as f:
+            h.update(f.read().replace(b"\r\n", b"\n"))
+    return h.hexdigest()[:8]
+
+
+OUT = os.path.join(HERE, "out", "legacy-%s-chip-%s" % (REV[:7], _chip_tag()))
 DIST = os.path.join(REPO, "nvda", "dist")
 FW = os.path.join(REPO, "firmware")
 ARCHES = ("x64", "x86")
@@ -55,8 +74,9 @@ def _copy(src, dest):
 
 
 def _engine(eng):
-    """build_common.copy_engine: the chip package with its C core, the data, the package's __init__"""
-    _tree("src/ssi263", os.path.join(eng, "ssi263"))
+    """build_common.copy_engine: the chip package (this tree's) with its C core, the data, the package's __init__"""
+    for name in CHIP:
+        _copy(os.path.join(REPO, "src", "ssi263", name), os.path.join(eng, "ssi263", name))
     for arch in ARCHES:
         _copy(os.path.join(REPO, "src", "ssi263", "_bin", arch, "ssi263.dll"),
               os.path.join(eng, "ssi263", "_bin", arch, "ssi263.dll"))
