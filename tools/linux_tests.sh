@@ -146,6 +146,9 @@ control "emulator: clock year CONTROL (0.7.5's mapping, must fail)" "^FAIL the w
 control "emulator: clock year CONTROL, Braille Lite (0.7.5's mapping, must fail)" \
     "^FAIL switched off on New Year's Eve 2026 " "^FAIL saved by 0.7.5 in September 2026 " \
     -- env TEST_CLOCK_BREAK=4 ./build/linux/test_clock bl "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state" year
+control "emulator: clock alarm CONTROL (a dated alarm left on the old year, must fail)" \
+    "^FAIL a migrated unit's alarm +dated alarm \(Astra's case\): 2015-10-03, silent" "^ok +a unit saved on the old year " \
+    -- env TEST_CLOCK_BREAK=5 ./build/linux/test_clock unit
 control "emulator: held keys CONTROL (never reported held, must fail)" "^FAIL i-chord held through the restart" \
     "^FAILED$" -- env TEST_CLOCK_HOLD_BREAK=1 ./build/linux/test_clock bl "$DATA/BL2ENG.BNS" \
     "$DATA/bl2_2003_warm.state" restart

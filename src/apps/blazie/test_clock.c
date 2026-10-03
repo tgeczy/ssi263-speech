@@ -13,7 +13,8 @@
  * What the firmware says is read from its RAM: it writes the words before it speaks them ("12:35:02 pm",
  * "Wednesday September 30, 2015", "initialize file system").  The controls put one bug back and must fail:
  * TEST_CLOCK_BREAK=1 a clock that never advances, 2 year fields dropped, 3 the clock left out of a saved state,
- * 4 the year mapped as 0.7.0-0.7.5 did and saved units left on it (Jayson's issue #3) (bl_clock.h blc_break); TEST_CLOCK_HOLD_BREAK=1 keys never reported held (the app before), 2 a chord read held at
+ * 4 the year mapped as 0.7.0-0.7.5 did and saved units left on it (Jayson's issue #3), 5 a migrated unit's dated
+ * alarm left on the old year (bl_clock.h blc_break); TEST_CLOCK_HOLD_BREAK=1 keys never reported held (the app before), 2 a chord read held at
  * the start delivered again when it comes up (bl_board.h bl_keys_break), 3 quick key response left on through the
  * restart (emu_unit.h emu_restart_break).
  */
@@ -132,6 +133,55 @@ static void unit_tests(void)
         if (!bad)
             snprintf(d, sizeof d, "%d saved clocks: the old years moved, the user's and the new kept", i);
         check("a unit saved on the old year", !bad, d);
+    }
+
+    {   /* its alarm moves with it (Astra, Reply 155): a dated alarm left on 2015 never went off on 1998's clock.  Clock
+           and alarm as saved (year, month, day; the alarm's hour:minute 12:01, the clock 12:00:59), the host's date,
+           and the alarm wanted after migrating; then one second on, the 0Ah due or not */
+        static const struct {
+            int cy, cm, cd, ay, am, ad, hy, hm, hd, wy, wm, wd, fires;
+            const char *what;
+        } m[] = {
+            {2015, 10, 3, 2015, 10, 3, 2026, 10, 3, 1998, 10, 3, 1, "dated alarm (Astra's case)"},
+            {2016, 2, 29, 2016, 3, 1, 2027, 3, 1, 1999, 3, 2, 0, "dated alarm past the old leap day"},
+            {2015, 10, 3, 2000, 10, 3, 2026, 10, 3, 2000, 10, 3, 1, "any year (2000)"},
+            {2015, 10, 3, 2015, 0, 0, 2026, 10, 3, 1998, 0, 0, 1, "any month and day"},
+            {2015, 10, 3, 1989, 10, 3, 2026, 10, 3, 1989, 10, 3, 0, "no alarm set"},
+            {2015, 6, 5, 2015, 6, 5, 2026, 9, 30, 2015, 6, 5, 1, "a date the user set (not moved)"},
+        };
+        int i, bad = 0;
+        char *p = d;
+        d[0] = 0;
+        for (i = 0; i < (int)(sizeof m / sizeof m[0]); i++) {
+            blc_time host, a;
+            int fired;
+            memset(&host, 0, sizeof host);
+            host.year = m[i].hy; host.month = m[i].hm; host.day = m[i].hd; host.hour = 12; host.minute = 0;
+            blc_init(&c, 6144000.0, 0);
+            c.f[BLC_CLOCK][BLC_YEAR] = (unsigned char)(m[i].cy - BLC_YEAR0);
+            c.f[BLC_CLOCK][BLC_MONTH] = (unsigned char)m[i].cm;
+            c.f[BLC_CLOCK][BLC_DAY] = (unsigned char)m[i].cd;
+            c.f[BLC_CLOCK][BLC_HOUR] = 12;
+            c.f[BLC_CLOCK][BLC_MINUTE] = 0;
+            c.sub = 59ULL * 6144000ULL;
+            c.f[BLC_ALARM][BLC_YEAR] = (unsigned char)(m[i].ay - BLC_YEAR0);
+            c.f[BLC_ALARM][BLC_MONTH] = (unsigned char)m[i].am;
+            c.f[BLC_ALARM][BLC_DAY] = (unsigned char)m[i].ad;
+            c.f[BLC_ALARM][BLC_HOUR] = 12;
+            c.f[BLC_ALARM][BLC_MINUTE] = 1;
+            blc_migrate(&c, &host);
+            blc_get(&c, BLC_ALARM, &a);
+            blc_advance(&c, 1.0);
+            fired = blc_take(&c) == 0x0A;
+            /* the one past the leap day is a day ahead of its clock: it must not fire now */
+            if ((a.year != m[i].wy || a.month != m[i].wm || a.day != m[i].wd || fired != m[i].fires) && ++bad
+                && p - d < (int)sizeof d - 120)
+                p += snprintf(p, sizeof d - (p - d), "%s%s: %04d-%02d-%02d, %s", p == d ? "" : "; ", m[i].what,
+                              a.year, a.month, a.day, fired ? "went off" : "silent");
+        }
+        if (!bad)
+            snprintf(d, sizeof d, "%d alarms: the dated ones moved and due, the wildcards and \"none\" kept", i);
+        check("a migrated unit's alarm", !bad, d);
     }
 
     blc_init(&c, 6144000.0, 0);

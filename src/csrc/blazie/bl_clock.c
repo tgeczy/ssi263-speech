@@ -44,7 +44,7 @@ int blc_year5(int year)
 {
     if (blc_break == 4)
         return year5_nearest(year);
-    while (year >= BLC_YEAR0 + BLC_YEARS)          /* the calendar repeats every 28 years (until 2100) */
+    while (year >= BLC_YEAR0 + BLC_YEARS)          /* the calendar repeats every 28 years (2100: not a leap year) */
         year -= 28;
     while (year < BLC_YEAR0)
         year += 28;
@@ -75,6 +75,25 @@ static void from_day_number(long n, int near, int *year, int *month, int *day)
     *day = (int)n + 1;
 }
 
+/* A dated alarm moves with the clock it was set against (Astra, Reply 155): the same years apart from the clock's old
+   year, the same days from its own 1 January.  "No alarm" (year 0), any year (2000), and any month or day (0) stay as
+   they are; with any month or day only the year moves. */
+static void migrate_alarm(unsigned char *a, int clock_old, int clock_host)
+{
+    int old_year = BLC_YEAR0 + a[BLC_YEAR], host_year = clock_host + (old_year - clock_old), ty, tm, td;
+    if (blc_break == 5 || a[BLC_YEAR] == 0 || a[BLC_YEAR] == 2000 - BLC_YEAR0)
+        return;
+    if (a[BLC_MONTH] < 1 || a[BLC_MONTH] > 12 || a[BLC_DAY] < 1 || a[BLC_DAY] > 31) {
+        a[BLC_YEAR] = (unsigned char)blc_year5(host_year);
+        return;
+    }
+    from_day_number(day_number(host_year, 1, 1) + (day_number(old_year, a[BLC_MONTH], a[BLC_DAY])
+                                                   - day_number(old_year, 1, 1)), host_year, &ty, &tm, &td);
+    a[BLC_YEAR] = (unsigned char)blc_year5(ty);
+    a[BLC_MONTH] = (unsigned char)tm;
+    a[BLC_DAY] = (unsigned char)td;
+}
+
 int blc_migrate(blc_clock *c, const blc_time *host)
 {
     unsigned char *f = c->f[BLC_CLOCK];
@@ -98,6 +117,7 @@ int blc_migrate(blc_clock *c, const blc_time *host)
         f[BLC_YEAR] = (unsigned char)blc_year5(ty);
         f[BLC_MONTH] = (unsigned char)tm;
         f[BLC_DAY] = (unsigned char)td;
+        migrate_alarm(c->f[BLC_ALARM], old, h);
         return 1;
     }
     return 0;                                      /* a date the user set: not ours to change */

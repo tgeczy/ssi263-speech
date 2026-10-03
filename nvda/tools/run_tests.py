@@ -452,6 +452,11 @@ if os.path.isfile(CLOCK):
                         [CLOCK, "bl"] + BL_ENG + ["year"], env={"TEST_CLOCK_BREAK": "4"}, expect_fail=True,
                         fail_marks=[r"^FAIL switched off on New Year's Eve 2026 ",
                                     r"^FAIL saved by 0.7.5 in September 2026 "]))
+    # ... and a migrated unit's dated alarm moves with its clock (Astra, Reply 155); the control leaves it on 2015
+    CHECKS.append(check("Blazie emulator: clock alarm CONTROL (a dated alarm left on the old year, must fail)",
+                        [CLOCK, "unit"], env={"TEST_CLOCK_BREAK": "5"}, expect_fail=True,
+                        fail_marks=[r"^FAIL a migrated unit's alarm +dated alarm \(Astra's case\): 2015-10-03, silent",
+                                    r"^ok +a unit saved on the old year "]))
     # the file flash (src/apps/blazie/test_flash.c; Jayson, Timothy): the Type 'n Speak's ID check passes and its flash
     # is initialised, the erase takes a 29F016's 32 s plus its 14.4 s preprogramming (every byte to 00h first) with the
     # firmware's chirps through the chip, the initialised flash

@@ -222,10 +222,11 @@ sends a year as two digits plus 11: from 2021 on the number spills into the fiel
 does the same: typing 26 as the year sets the hour to 5 and leaves the year as it was. So the emulator starts the
 clock 28 years back (2026 is 1998, 2027 is 1999), where the calendar is the same: 1 January falls on the same day
 and the leap years line up, so the weekdays the unit gives are this year's, and stay right as the unit counts on
-into the next years (until 2100, which is not a leap year). To set the date yourself, use that year too. Thanks to
+into the next years. (Two far-off limits remain: the unit's own year wraps from 2020 back to 1989, so a unit started
+in 2048 or later loses the calendar at its next New Year, and 2100 is not a leap year.) To set the date yourself, use that year too. Thanks to
 Jayson (issue #3). Units saved by 0.7.0 to 0.7.5, which used the nearest year with the same calendar (2026 was 2015,
-and its New Year made 2027 a leap year), are moved onto the new year when they are loaded, unless you set a
-different date yourself.
+and its New Year made 2027 a leap year), are moved onto the new year when they are loaded, with an alarm set for a
+date, unless you set a different date yourself.
 
 The alarm (o-chord, s, a) is the controller's as well: it goes off at the start of the minute set, with x for any
 hour, day or month, while the unit is running.
