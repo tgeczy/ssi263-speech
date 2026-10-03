@@ -72,8 +72,21 @@ check "chip defaults" python3 src/csrc/gen_chip_defaults.py --check
 check "Accent SA: a text done only when said (issue #8)" python3 src/csrc/accentsa/test_as_complete.py "$LIB"
 control "Accent SA completion CONTROL (the settle off, must fail)" "^EARLY  rate +60 job +'Pitch: slider 50 alt\+p'" \
     "^EARLY  rate +75 say +'Rate: slider 75 alt\+r'" \
-    "^[1-9][0-9]* of 64 texts ended early, 0 of [0-9]* that never paused changed" "^accent sa completion: FAILED$" \
-    -- env AS_COMPLETE_BREAK=1 python3 src/csrc/accentsa/test_as_complete.py "$LIB"
+    "^checks: done ok, complete [0-9]+ FAILED, audio ok, latency ok, phase [0-9]+ FAILED, replace ok, limit ok$" \
+    "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=1 python3 src/csrc/accentsa/test_as_complete.py "$LIB"
+control "Accent SA completion CONTROL (never done, must fail)" \
+    "^NOT DONE after 3 render calls  rate +50 job +'Rate: slider 50 alt\+r'" \
+    "^checks: done [0-9]+ FAILED, complete ok, audio ok, latency ok, phase ok, replace ok, limit ok$" \
+    "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=never python3 src/csrc/accentsa/test_as_complete.py "$LIB"
+control "Accent SA completion CONTROL (a wait kept across a cancel, must fail)" \
+    "^HELD   rate +60 job +'Pitch: slider 50 alt\+p', cancel while held" \
+    "^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace [0-9]+ FAILED, limit ok$" \
+    "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=held python3 src/csrc/accentsa/test_as_complete.py "$LIB"
+control "Accent SA completion CONTROL (the cap as a plain done, must fail)" \
+    "^SILENT LIMIT  rate +60 job +'Pitch: slider 50 alt\+p': done with [0-9]+ of its [0-9]+ samples, and no limit" \
+    "^RECOVERY  rate +60 job +'Pitch: slider 50 alt\+p': the next text after the limit had [0-9]+ phonemes" \
+    "^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace ok, limit [0-9]+ FAILED$" \
+    "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=limit python3 src/csrc/accentsa/test_as_complete.py "$LIB"
 check "speech-dispatcher module" python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^stop +module .*identical" \
     "^after +module .*DIFFER" "^set +module .*DIFFER" "^key +module .*DIFFER" "^spanish +module .*identical" \

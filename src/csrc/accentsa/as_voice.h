@@ -44,6 +44,14 @@ AS_API int asv_render(as_voice *v, const short **pcm, int *done);
 /* The longest such pause asv_render waits through (chip seconds, default 6) before it calls the text done anyway;
    0 = done at the first quiet block, as 0.7.5 and earlier did (the tests' must-fail control). */
 AS_API void asv_set_settle(as_voice *v, double seconds);
+/* 1 when the last text was called done at that limit with the firmware still at work: not a completion.  Its held
+   audio is given out with the done and what the firmware was still making is flushed (a Ctrl-X, as a cancel), so the
+   next text starts clean; a front end should log it.  0 for a text that ended (and before any). */
+AS_API int asv_limit(const as_voice *v);
+/* The tests' must-fail controls only, never set by a front end (0, the default: none).  1: a new text, a cancel or a
+   job's end keeps a wait in progress (its held audio and pending done); 2: the limit gives a plain done and drops the
+   held audio; 3: "at work" is the first revision's 2000 instructions a block. */
+AS_API void asv_set_test_break(as_voice *v, int what);
 /* The driver's cancel: the Accent's flush (Ctrl-X), then the pitch said again if a capital's restore was pending. */
 AS_API void asv_cancel(as_voice *v);
 

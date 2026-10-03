@@ -119,7 +119,10 @@ if SA:
 _hook(unit())
 CONTROLS = [["Rate:", "slider", "%d", "alt+r"], ["Pitch:", "slider", "50", "alt+p"],
             ["Inflection:", "slider", "100", "alt+i"], ["Volume:", "slider", "100", "alt+o"],
-            ["Variant:", "combo box", "Voice 5 (default)", "alt+a"]]
+            ["Variant:", "combo box", "Voice 5 (default)", "alt+a"],
+            ["Synthesizer:", "Accent SA and Mini (SSI-263 emulation)", "Change...", "button", "alt+c"],
+            ["Punctuation/symbol level:", "combo box", "some", "alt+y"],
+            ["Capital pitch change percentage:", "spin button", "30", "alt+h"]]
 
 
 def announce(k, rate):
