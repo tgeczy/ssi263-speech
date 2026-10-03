@@ -86,18 +86,22 @@ static void out(void *ctx, uint16_t p, uint8_t v)
    (02C9h, 16DAh, 17EEh) and after speech (035Bh, 0393h), polling the serial line and the queue (0F65h, 186Ah, 191Fh,
    198Eh, 61D6h) -- and the phoneme TRAP (its vector 24h, the handler 4E68h, queue refill 4DD3h, 0663h, 0EC4h, 0F6Ah,
    the speaking flag's 4FD8h-502Bh).  Watched on u2 (Accent SA, 1986-1989): every instruction the 8085 ran in steady
-   idle, after a power-up, a cancel, settings commands and speech, and while the TRAP fed the last phonemes.  Anything
-   else is the firmware's own work: reading text and making phonemes (about 12,000 instructions a 30 ms block; between
-   two clauses with its speaking flag down and no phoneme written, which busy() cannot see) or, once, closing an
-   utterance as its last phoneme goes (about 60: 1699h, 4DEBh, 4F6Eh, 9495h). */
+   idle, after a power-up, a cancel, settings commands and speech, and while the TRAP fed the last phonemes -- and the
+   about 60 instructions, once, that close an utterance as its last phoneme goes (1699h, 4DEBh, 4F6Eh, 9495h in the
+   window's bank 0).  Anything else is the firmware's own work: reading text and making phonemes, about 12,000
+   instructions a 30 ms block, which between two clauses it does with its speaking flag down and no phoneme written,
+   where busy() cannot see it.  A range at 8000h or above is u2's upper half only (the window's bank 0). */
 static const uint16_t WAITING[][2] = {
     {0x0024, 0x0024}, {0x02C9, 0x02E4}, {0x035B, 0x0373}, {0x0393, 0x03A9}, {0x0663, 0x066D}, {0x0EC4, 0x0EC8},
-    {0x0F65, 0x0F9D}, {0x16DA, 0x16DE}, {0x17EE, 0x17F3}, {0x186A, 0x1874}, {0x191F, 0x1953}, {0x198E, 0x1992},
-    {0x4DD3, 0x4DDD}, {0x4E68, 0x4F15}, {0x4FD8, 0x502B}, {0x61D6, 0x61DB}};
+    {0x0F65, 0x0F9D}, {0x1699, 0x16BA}, {0x16DA, 0x16DE}, {0x17EE, 0x17F3}, {0x186A, 0x1874}, {0x191F, 0x1953},
+    {0x198E, 0x1992}, {0x4DD3, 0x4DDD}, {0x4DEB, 0x4E27}, {0x4E68, 0x4F15}, {0x4F6E, 0x502B}, {0x61D6, 0x61DB},
+    {0x9495, 0x95D3}};
 
-static int waiting(uint32_t pc)
+static int waiting(const as_board *b, uint32_t pc)
 {
     size_t i;
+    if (pc >= WINDOW && (b->latch40 & 3) != 0)
+        return 0;
     for (i = 0; i < sizeof WAITING / sizeof WAITING[0]; i++)
         if (pc >= WAITING[i][0] && pc <= WAITING[i][1])
             return 1;
@@ -110,7 +114,7 @@ static void boundary(void *ctx, uint32_t pc)
     as_board *b = (as_board *)ctx;
     b->d_cycles = i8085_cycles(b->cpu);
     b->d_op = rd(b, pc);
-    if (!waiting(pc & 0xFFFF))
+    if (!waiting(b, pc & 0xFFFF))
         b->work++;
 }
 

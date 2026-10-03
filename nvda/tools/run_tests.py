@@ -89,15 +89,38 @@ if NATIVE_BUILT:
     # Issue #8: the Accent SA called a text done in the firmware's quiet between two clauses ("Rate:" | "slider 55
     # alt+r"), and the rest came out with the next speech.  as_voice now waits while the 8085 still runs its rules.
     # test_as_complete.py: the library every front end shares (the job API and asv_speak), the host run on after each
-    # done -- no phoneme may come, and a text that never paused keeps its audio; dialog_stall.py: the built add-on's
-    # driver tabbed through NVDA's voice settings dialog.  Each control is the settle off (0.7.5's done).
+    # done -- no phoneme may come, and a text that never paused keeps its audio and its done's chip time; blocks shifted
+    # 0-27 ms; a cancel or new text while blocks are held; the cap reported, never a plain done (Astra, Reply 152);
+    # dialog_stall.py: the built add-on's driver tabbed through NVDA's voice settings dialog.  Controls: the settle off
+    # (0.7.5's done); a render budget no text can finish in (an exhausted loop is not a completion); a wait kept across
+    # a cancel or new text; the cap as a plain done -- each must fail its own check and only that.
     AS_COMPLETE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "accentsa", "test_as_complete.py")
+    AS_CHECKS = r"^checks: done %s, complete %s, audio ok, latency ok, phase %s, replace %s, limit %s$"
     CHECKS.append(check("Accent SA: a text done only when said (issue #8)", [PY, AS_COMPLETE]))
     CHECKS.append(check("Accent SA completion CONTROL (the settle off, must fail)", [PY, AS_COMPLETE],
                         env={"AS_COMPLETE_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^EARLY  rate +60 job +'Pitch: slider 50 alt\+p'",
                                     r"^EARLY  rate +75 say +'Rate: slider 75 alt\+r'",
-                                    r"^(?!0 )\d+ of 64 texts ended early, 0 of \d+ that never paused changed",
+                                    AS_CHECKS % ("ok", r"\d+ FAILED", r"\d+ FAILED", "ok", "ok"),
+                                    r"^accent sa completion: FAILED$"]))
+    CHECKS.append(check("Accent SA completion CONTROL (never done, must fail)", [PY, AS_COMPLETE],
+                        env={"AS_COMPLETE_BREAK": "never"}, expect_fail=True,
+                        fail_marks=[r"^NOT DONE after 3 render calls  rate +50 job +'Rate: slider 50 alt\+r'",
+                                    AS_CHECKS % (r"\d+ FAILED", "ok", "ok", "ok", "ok"),
+                                    r"^accent sa completion: FAILED$"]))
+    CHECKS.append(check("Accent SA completion CONTROL (a wait kept across a cancel, must fail)", [PY, AS_COMPLETE],
+                        env={"AS_COMPLETE_BREAK": "held"}, expect_fail=True,
+                        fail_marks=[r"^HELD   rate +60 job +'Pitch: slider 50 alt\+p', cancel while held",
+                                    r"^HELD   rate +60 say +'Pitch: slider 50 alt\+p', new text while held",
+                                    AS_CHECKS % ("ok", "ok", "ok", r"\d+ FAILED", "ok"),
+                                    r"^accent sa completion: FAILED$"]))
+    CHECKS.append(check("Accent SA completion CONTROL (the cap as a plain done, must fail)", [PY, AS_COMPLETE],
+                        env={"AS_COMPLETE_BREAK": "limit"}, expect_fail=True,
+                        fail_marks=[r"^SILENT LIMIT  rate +60 job +'Pitch: slider 50 alt\+p': done with \d+ of its \d+ "
+                                    r"samples, and no limit reported",
+                                    r"^RECOVERY  rate +60 job +'Pitch: slider 50 alt\+p': the next text after the limit "
+                                    r"had \d+ phonemes \(\d+ alone\)",
+                                    AS_CHECKS % ("ok", "ok", "ok", "ok", r"\d+ FAILED"),
                                     r"^accent sa completion: FAILED$"]))
     CHECKS.append(check("dialog_stall accentsa (issue #8, the NVDA driver)", [PY, "dialog_stall.py", "accentsa", "2"],
                         env={"SIM_SPEED": "4"}))

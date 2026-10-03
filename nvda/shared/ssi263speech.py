@@ -77,6 +77,7 @@ def load(path):
     _sig(lib, "asv_say_bytes", _I, [_S, _I, _S, _I])
     _sig(lib, "asv_host", _P, [_P])
     _sig(lib, "asv_fault", _I, [_P])
+    _sig(lib, "asv_limit", _I, [_P])
     for p in ("sov", "amv", "asv"):
         _sig(lib, p + "_destroy", None, [_P])
         _sig(lib, p + "_render", _I, [_P, ctypes.POINTER(_SHORTS), ctypes.POINTER(_I)])
@@ -306,3 +307,8 @@ class AccentSAC(_Accent):
     def set(self, rate, pitch, inflection, volume, numbers, voice):
         self._lib.asv_set(self._v, int(rate), int(pitch), int(inflection), int(volume), 1 if numbers else 0)
         self._lib.asv_set_voice(self._v, int(voice))
+
+    @property
+    def limit(self):
+        """the last text was called done at as_voice's safety limit, the firmware still at work (asv_limit)"""
+        return bool(self._lib.asv_limit(self._v))

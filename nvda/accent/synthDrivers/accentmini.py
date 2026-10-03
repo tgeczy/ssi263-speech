@@ -437,6 +437,10 @@ class SynthDriver(SynthDriver):
                         # the watchdog: the card said it was speaking but nothing came out for 4 s
                         log.warning("Accent: card stalled; restarting it. card: %s" % box.state())
                         raise RuntimeError("card stalled")
+                    if getattr(box, "limit", False):
+                        # issue #8: the Accent SA's firmware was still reading when its wait ran out
+                        log.warning("Accent: text stopped at the safety limit, the card still working (the rest flushed). card: %s"
+                                    % box.state())
                     why = "done"
                     break
             _dbg("item %s: %d blocks" % (why, blocks))
