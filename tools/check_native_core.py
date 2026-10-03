@@ -252,11 +252,11 @@ def main():
         for seed in seeds:
             compare(sw, 1000 + seed, n_ops, report)
     # the hard G's own path: these sessions must reach it (hold_open), or they test nothing
-    for sw in ({}, {"hold_release": False}, {"hold_release_frames": 1.0, "hold_release_ramp_ms": 4.0},
+    for sw in ({"hold_release": True}, {"hold_release": False}, {"hold_release_frames": 1.0, "hold_release_ramp_ms": 4.0},
                {"closure_timing": "frames"}, {"release_lookahead": False}, {"closure_release_b01": False}):
         for seed in seeds:
             compare(sw, 2000 + seed, n_ops, report, gen=g_ops_for)
-    opened = sum(1 for r in report if r[1] == {} and r[2] >= 2000 and r[9])
+    opened = sum(1 for r in report if r[1] == {"hold_release": True} and r[2] >= 2000 and r[9])
     if opened == 0:
         print("  FAIL the hard-G sessions never opened a hold: they do not exercise hold_release")
         sys.exit(1)
@@ -267,8 +267,8 @@ def main():
              time.perf_counter() - t0))
     print("  worst audio |diff| %.3g, worst state rel diff %.3g, worst PCM diff %d LSB"
           % (max(r[5] for r in report), max(r[6] for r in report), max(r[7] for r in report)))
-    print("  the hard-G sessions opened %d holds (default params)"
-          % sum(r[9] for r in report if r[1] == {} and r[2] >= 2000))
+    print("  the hard-G sessions opened %d holds (hold_release on)"
+          % sum(r[9] for r in report if r[1] == {"hold_release": True} and r[2] >= 2000))
     for ok, sw, seed, nops, samples, wa, ws, pd, fails, _opened in bad:
         print("  FAIL %r seed %d: audio %.3g, PCM %d LSB, %s" % (sw, seed, wa, pd, "; ".join(fails)[:400]))
     if bad:
