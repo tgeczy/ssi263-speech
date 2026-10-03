@@ -19,6 +19,7 @@ The chip knows phoneme codes and register values, never words. Front ends drive 
   - tag and note corrections from Astra's Reply 27.
 - **v0.11:** a b01 stop releases early only when the next phoneme is open (a vowel, R, L, W, M, N): `release_lookahead`, with the held stop's noise as its burst at the next load (`late_release_burst`). The extra soft G in "program" and the "d" before the J in "manager" went away. How the chip could know the next phoneme is not established; the model's device is an early A/R with the host's writes held to the stop's end (see Astra's Reply 28 for a load-triggered alternative).
 - **v0.12:** a closure that loads onto silence closes at once (`closure_onto_silence`). The one-frame delay voiced B and D after every pause; on the unit that first frame is silent (`tools/stop_after_pause.py`).
+- **0.7.6, the hard G (`hold_release`):** since 0.6.0 the K of the firmwares' G (K HVC on the Braille Lite, KV HVC on the Speak-Out) was held and HVC's gate stayed shut, so "guess" said "ess". Now an HVC after K or KV (the firmware's PA prime between them or not) asks early for the next phoneme through `release_lookahead`'s machinery, and opens its gate `hold_release_frames` (0.5) before its end with its own `hold_release_ramp_ms` (2 ms) ramp, only when the held writes load an open phoneme. Before D, PA, a fricative or a pause, or with no answer in time, it stays shut as before. HVC's body, noise and timing are unchanged; `releases` (the b01 stops' delay, noise and burst) is untouched. Chosen by ear (Tomi's "C_050_sharp", Astra's Replies 146-150), not traced: a modelled rule. The firmware's write values are unchanged; with the early A/R, the writes it held land together at HVC's end, so the PA prime's ~0.66 ms is gone and what follows comes that much earlier, as after every b01 stop. `tools/check_hard_g.py` watches the gate in the chip's state; `hold_release` False is the 0.7.5 engine, bit for bit.
 
 ## Layout
 
@@ -36,6 +37,7 @@ The chip knows phoneme codes and register values, never words. Front ends drive 
 | `csrc/ssi263.c`, `.h` | The chip in portable C99, a line-by-line port of `chip.py` with every parameter switch |
 | `ssi263/native.py` | `SSI263C`: the C chip behind `chip.py`'s interface (ctypes; Python 3.7-3.13, 32/64-bit) |
 | `tools/check_native_core.py` | Holds the C chip to `chip.py`; the add-on builds run it on both architectures |
+| `tools/check_hard_g.py` | The hard G (`hold_release`), watched in the chip's state: Python, C and the live Braille Lite |
 
 ## The C core
 

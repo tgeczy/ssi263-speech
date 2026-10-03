@@ -83,6 +83,11 @@ typedef struct ssi263_params {
     double glottal_wave[64];             /* levels per filter-clock tick; (1.0) = impulse */
     double closure_noise_lead_s;         /* bounded precharge before a release (s); < 0 = off */
     double noise_voice_swell;            /* v0.14: the noise swells with each pulse while voiced; depth, 0 = off */
+    double hold_release;                 /* 0.7.6, the hard G: a hold after K/KV opens before its end into an open phoneme */
+    double hold_release_frames;          /* how far before the hold's end it opens (frames, scaled as the stops') */
+    double hold_release_ramp_ms;         /* that opening's ramp */
+    double hold_release_phonemes[4];     /* the holds it applies to (HVC); -1 = unused */
+    double hold_release_after[4];        /* the phonemes before them that make the context (K, KV); -1 = unused */
 } ssi263_params;
 
 #define SSI263_GLOTTAL_MAX 64

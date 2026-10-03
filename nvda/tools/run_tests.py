@@ -1172,6 +1172,29 @@ CHECKS.append(check("idle channel table (bl_idle_table.h = blazie_idle.py)",
                      "--check"]))
 CHECKS.append(check("cp850 table", [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "blazie",
                                                      "gen_cp850.py"), "--check"]))
+# the hard G (0.7.6, params hold_release; Astra, Replies 146-150): watched in the chip's own state at every output sample,
+# Python and C, on scripted firmware-like sessions and the live Braille Lite -- an HVC after K/KV opens half a frame before
+# its end into an open phoneme, on its own stored voice with no noise, and stays shut before D, PA, a pause or a late
+# answer.  Each control must fail as named: off = the 0.7.5 suppression restored (the switch); noise = the gate opening
+# on the K's noise with the voice off (Reply 146's sustained-noise adversary); click = open 1 ms, then shut; early =
+# opening a whole frame ahead
+HARD_G = os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_hard_g.py")
+CHECKS.append(check("hard G: HVC after K opens into an open phoneme (chip state; Python, C, live unit)", [PY, HARD_G]))
+for brk, marks in (
+        ("off", [r"^FAIL  py   K HVC EH S \(guess\) +0 of 1 HVCs opened, want 1$",
+                 r"^FAIL  C    K HVC EH S \(guess\) +0 of 1 HVCs opened, want 1$",
+                 r"^FAIL  live guess +0 of 1 HVCs opened, want 1$", r"^ok    py   K HVC D \(big dog\) +stayed shut$",
+                 r"^hard G: 19 FAILED$"]),
+        ("noise", [r"^FAIL  py   K HVC EH S \(guess\) .*the voice is off while the gate is open.*noise while the gate is open",
+                   r"^FAIL  live guess .*noise while the gate is open", r"^ok    py   K HVC D \(big dog\) +stayed shut$",
+                   r"^hard G: 13 FAILED$"]),
+        ("click", [r"^FAIL  py   K HVC EH S \(guess\) .*the gate shut again before HVC's end",
+                   r"^FAIL  live guess .*the gate shut again before HVC's end", r"^hard G: 13 FAILED$"]),
+        ("early", [r"^FAIL  C    K HVC EH S \(guess\) +HVC at [\d.]+ s opened 24\.\d\d ms before its end, want 12\.29 ms$",
+                   r"^FAIL  live guess +HVC at [\d.]+ s opened 20\.\d\d ms before its end, want 10\.24 ms$",
+                   r"^hard G: 19 FAILED$"])):
+    CHECKS.append(check("hard G CONTROL (%s, must fail)" % brk, [PY, HARD_G], env={"HARD_G_BREAK": brk},
+                        expect_fail=True, fail_marks=marks))
 GEN_DEFAULTS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "gen_chip_defaults.py")
 CHECKS.append(check("chip defaults header", [PY, GEN_DEFAULTS, "--check"]))
 # and on Python 3.7 (NVDA 2021-2023): the defaults must not depend on the Python version (3.12 changed float sum())

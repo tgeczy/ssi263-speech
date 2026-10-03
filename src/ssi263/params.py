@@ -156,6 +156,30 @@ DEFAULTS = {
                               "(scaled like the release) before a releasing stop's release point, and "
                               "the host's writes are held until the stop's duration is up, so the "
                               "phoneme timeline is unchanged.  Only the release decision sees them"),
+    "hold_release": (True, "EAR",
+                     "the hard G (0.7.6; Astra, Replies 146 and 150): a hold in hold_release_phonemes (HVC) loaded "
+                     "after a phoneme in hold_release_after (K or KV, across the firmware's PA prime) asks for the "
+                     "next phoneme early, through release_lookahead's machinery (A/R lookahead_lead_frames ahead, "
+                     "writes held to the hold's end), and opens its gate hold_release_frames before its end when, and "
+                     "only when, the held writes load an open phoneme.  Before PA, a closure or a fricative, or with "
+                     "no answer in time, it stays shut as before.  HVC's own body still closes at once, its noise and "
+                     "its timing are unchanged.  False: the suppressing engine of 0.6.0-0.7.5 (the off switch and the "
+                     "restored-suppression control).  A modelled rule chosen by ear (Tomi's 'C_050_sharp'), not a "
+                     "traced circuit or a hardware fact"),
+    "hold_release_frames": (0.5, "EAR",
+                            "how far before its end an eligible hold opens, in frames, scaled like the stops' "
+                            "release (closure_timing): 0.5 of the 4-frame HVC the firmwares write.  Tomi's choice "
+                            "among 0.25 / 0.375 / 0.5 (Astra, Reply 150)"),
+    "hold_release_ramp_ms": (2.0, "EAR",
+                             "the gate's opening ramp for that release only (other stops keep closure_ramp_ms).  "
+                             "Tomi: 'sharper really helps' (Astra, Reply 147); not a measured chip ramp"),
+    "hold_release_phonemes": ((0x2B,), "BL",
+                              "the holds hold_release may open: HVC (2Bh).  At most 4 codes (the C core)"),
+    "hold_release_after": ((0x29, 0x26), "BL",
+                           "the phonemes before the hold that make it a hard G: K (29h, the Braille Lite's G = K HVC) "
+                           "and KV (26h, the Speak-Out's G = KV HVC).  A PA in between counts only while its own "
+                           "timer has not run out (the firmwares' prime); a real pause ends the context.  At most "
+                           "4 codes (the C core)"),
     "fricative_precharge": (False, "BL+EAR",
                             "a stop held before a fricative (D -> J: the 'dge' of manager, storage) "
                             "charges the fricative's noise behind its closed gate over its last "

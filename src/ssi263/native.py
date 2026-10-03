@@ -51,6 +51,8 @@ class _Params(ctypes.Structure):
         ("closure_onto_silence", _c_double),
         ("field_speed_mult", _c_double * 6), ("glottal_n", _c_double), ("glottal_wave", _c_double * 64),
         ("closure_noise_lead_s", _c_double), ("noise_voice_swell", _c_double),
+        ("hold_release", _c_double), ("hold_release_frames", _c_double), ("hold_release_ramp_ms", _c_double),
+        ("hold_release_phonemes", _c_double * 4), ("hold_release_after", _c_double * 4),
     ]
 
 
@@ -74,6 +76,16 @@ def params_struct(p):
     if p["clock_line_rel_db"] is not None:
         raise ValueError("clock_line_rel_db = %r: the C core has no clock line" % (p["clock_line_rel_db"],))
     s.closure_noise_lead_s = -1.0 if p["closure_noise_lead_ms"] is None else float(p["closure_noise_lead_ms"]) / 1000.0
+    s.hold_release = 1.0 if p["hold_release"] else 0.0
+    s.hold_release_frames = float(p["hold_release_frames"])
+    s.hold_release_ramp_ms = float(p["hold_release_ramp_ms"])
+    for name in ("hold_release_phonemes", "hold_release_after"):
+        codes = tuple(p[name])
+        if len(codes) > 4 or any(not 0 <= int(v) <= 63 for v in codes):
+            raise ValueError("%s = %r: up to 4 phoneme codes, 0-63" % (name, codes))
+        arr = getattr(s, name)
+        for i in range(4):
+            arr[i] = float(codes[i]) if i < len(codes) else -1.0      # -1: unused
     wave = tuple(p["glottal_wave"])
     if not 1 <= len(wave) <= 64:
         raise ValueError("glottal_wave: 1 to 64 levels, got %d" % len(wave))

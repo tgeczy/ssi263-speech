@@ -149,6 +149,9 @@ class SSI263:
         self.early_req = False       # A/R raised ahead of a releasing stop's end (release_lookahead)
         self.pending = []            # (addr, value) held while early_req, applied at the stop's end
         self.apply_due = False       # the stop's duration is up: apply `pending` at the next tick
+        self.hold_ok = False         # this phoneme is a hold that may open before its end (params: hold_release)
+        self.hold_open = False       # ... and the held writes loaded an open phoneme: its gate is opening
+        self.last_real = -1          # the last non-PA phoneme loaded, until a PA's own timer ends (a real pause)
         self.clo = 1.0               # closure gain on VOL
         self.w2, self.w5 = self.p["noise_into_f2"], self.p["noise_into_f5"]
         self.g2 = self.g5 = 0.0      # per-path noise levels (noise_route_mode 'per_path')
@@ -297,6 +300,14 @@ class SSI263:
             self.target[f] = e[f]
         self.closing = bool(self.p["closure_enable"]) and not e["closure_clear"]
         self.releases = self.closing and (e["class1"] == 1 or not self.p["closure_release_b01"])
+        # the hard G: a hold after K/KV, the firmware's PA prime between them or not.  Only the eligibility to ask
+        # early and to open is decided here; `releases` (the b01 stops' delay, noise and burst) is untouched
+        self.hold_ok = bool(self.p["hold_release"] and self.p["release_lookahead"] and self.closing
+                            and not self.releases and self.phoneme in self.p["hold_release_phonemes"]
+                            and self.last_real in self.p["hold_release_after"])
+        self.hold_open = False
+        if self.phoneme:
+            self.last_real = self.phoneme
         if self.p["noise_route"] == "b02":
             self.w2, self.w5 = self.p["noise_route_b02"][e["class2"]]
         if held and not self.closing:
@@ -357,6 +368,11 @@ class SSI263:
                 sc = (self.duration / (4.0 * fr)) if p["closure_timing"] == "fraction" and fr > 0 else 1.0
                 early_left = (self.duration - p["closure_release_frames"] * fr * sc
                               - p["lookahead_lead_frames"] * fr * sc - self.elapsed)
+            elif self.hold_ok and self.mode and not self.early_req and not self.timer_done:
+                fr = p["frame_xck_cycles"] * (16 - (self.regs[2] >> 4)) / self.xck
+                sc = (self.duration / (4.0 * fr)) if p["closure_timing"] == "fraction" and fr > 0 else 1.0
+                early_left = (self.duration - p["hold_release_frames"] * fr * sc
+                              - p["lookahead_lead_frames"] * fr * sc - self.elapsed)
             if early_left is not None and seconds >= early_left:
                 seconds = max(early_left, 0.0)
                 self.early_req = True
@@ -364,6 +380,8 @@ class SSI263:
             elif not self.timer_done and seconds >= left:
                 seconds = max(left, 0.0)
                 self.timer_done = True
+                if not self.phoneme:
+                    self.last_real = -1      # a PA ran its time: a real pause, not a prime
                 if not self.early_req:
                     self.log.append((round(self._time + seconds, 6), "request" if self.mode else "timer"))
                 end_now = bool(self.pending)
@@ -531,6 +549,8 @@ class SSI263:
                     self.elapsed += dt
                     if not self.timer_done and self.elapsed >= self.duration:
                         self.timer_done = True
+                        if not self.phoneme:
+                            self.last_real = -1      # a PA ran its time: a real pause, not a prime
                         if not self.early_req:
                             self.log.append((round(t, 6), "request" if self.mode else "timer"))
                         if self.pending:
@@ -570,10 +590,23 @@ class SSI263:
                     if rel_now and not self.released:
                         self.released = self._pending_open()
                     rel_now = rel_now and self.released
+                if self.hold_ok:
+                    # the hard G (params: hold_release): the same early request and held writes, its own release
+                    # point, and the gate opens only once the held writes load an open phoneme
+                    hrel = p["hold_release_frames"] * frame * scale
+                    if (self.mode and not self.early_req and not self.timer_done
+                            and self.elapsed >= self.duration - hrel - lead * frame * scale):
+                        self.early_req = True
+                        self.log.append((round(t, 6), "request"))
+                    if not self.hold_open and self.elapsed >= self.duration - hrel and self._pending_open():
+                        self.hold_open = True
+                        self.log.append((round(t, 6), "hold open"))
+                    if self.hold_open:
+                        cstep = dt * 1000.0 / p["hold_release_ramp_ms"]
                 # the GATE's own schedule; the diagnostic overrides touch only it, never the lookahead, the
                 # release decision or the noise timing (rel_now keeps its meaning everywhere else)
                 gate_cdel = 0.0 if gate_from_load else cdel
-                rel_gate = False if gate_hold else rel_now
+                rel_gate = False if gate_hold else (rel_now or self.hold_open)
                 if (self.closing and self.elapsed >= gate_cdel * frame * scale and not rel_gate):
                     self.clo = max(clo_floor, self.clo - cstep)
                 elif (p["closure_reopen"] or not self.closing or rel_gate) and self.clo < 1.0:

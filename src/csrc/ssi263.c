@@ -44,6 +44,7 @@ struct ssi263 {
     int closing, releases;
     int released, early_req, apply_due;   /* release_lookahead (as chip.py) */
     int onto_silence;                 /* loaded onto a silent tract (closure_onto_silence) */
+    int hold_ok, hold_open, last_real;    /* hold_release (as chip.py) */
     int npending;
     unsigned char pend_addr[PENDING_MAX], pend_val[PENDING_MAX];
     double clo;
@@ -204,6 +205,18 @@ static int pending_open(const ssi263 *c)
     return 0;
 }
 
+/* a code in one of hold_release's sets (-1 pads them) */
+static int code_in(const double *set, int code)
+{
+    int i;
+    if (code < 0)
+        return 0;
+    for (i = 0; i < 4; i++)
+        if (set[i] == (double)code)
+            return 1;
+    return 0;
+}
+
 static const unsigned char *pending_entry(const ssi263 *c)
 {
     int i;
@@ -298,6 +311,13 @@ static void load_phoneme(ssi263 *c)
         c->target[f] = e[f];
     c->closing = c->p.closure_enable != 0.0 && !e[6];
     c->releases = c->closing && (e[7] == 1 || c->p.closure_release_b01 == 0.0);
+    /* the hard G (as chip.py): a hold after K/KV, the firmware's PA prime between them or not; only the
+       eligibility to ask early and to open, `releases` untouched */
+    c->hold_ok = c->p.hold_release != 0.0 && c->p.release_lookahead != 0.0 && c->closing && !c->releases
+                 && code_in(c->p.hold_release_phonemes, c->phoneme) && code_in(c->p.hold_release_after, c->last_real);
+    c->hold_open = 0;
+    if (c->phoneme)
+        c->last_real = c->phoneme;
     if (c->p.noise_route_b02 != 0.0) {
         c->w2 = c->p.noise_route_b02_w[e[8] ? 1 : 0][0];
         c->w5 = c->p.noise_route_b02_w[e[8] ? 1 : 0][1];
@@ -378,6 +398,7 @@ SSI263_API ssi263 *ssi263_new(const ssi263_params *p, const unsigned char *rom, 
     c->xck = p->xck_hz;
     c->regs[3] = 0x80;                               /* A: CTL set at power-up */
     c->mode = -1;
+    c->last_real = -1;
     for (i = 0; i < NFIELDS; i++)
         c->latch[i] = -1;
     c->clo = 1.0;
@@ -562,6 +583,8 @@ static long chip_run(ssi263 *c, long max_out, int stop_on_request, double *out)
                 c->elapsed += dt;
                 if (!c->timer_done && c->elapsed >= c->duration) {
                     c->timer_done = 1;
+                    if (!c->phoneme)
+                        c->last_real = -1;                   /* a PA ran its time: a real pause, not a prime */
                     if (c->npending)
                         c->apply_due = 1;
                 }
@@ -604,6 +627,19 @@ static long chip_run(ssi263 *c, long max_out, int stop_on_request, double *out)
                 if (rel_now && !c->released)
                     c->released = pending_open(c);
                 rel_now = rel_now && c->released;
+            }
+            if (c->hold_ok) {
+                /* the hard G (as chip.py, params: hold_release): the same early request and held writes, its own
+                   release point, and the gate opens only once the held writes load an open phoneme */
+                double hrel = p->hold_release_frames * frame * scale;
+                if (c->mode > 0 && !c->early_req && !c->timer_done
+                        && c->elapsed >= c->duration - hrel - lead * frame * scale)
+                    c->early_req = 1;
+                if (!c->hold_open && c->elapsed >= c->duration - hrel && pending_open(c))
+                    c->hold_open = 1;
+                if (c->hold_open)
+                    cstep = dt * 1000.0 / p->hold_release_ramp_ms;
+                rel_now = rel_now || c->hold_open;      /* only the gate reads rel_now from here on */
             }
             if (c->closing && c->elapsed >= cdel * frame * scale && !rel_now) {
                 double t = c->clo - cstep;
@@ -780,6 +816,12 @@ SSI263_API void ssi263_skip(ssi263 *c, double seconds)
             early_left = c->duration - p->closure_release_frames * fr * sc
                          - p->lookahead_lead_frames * fr * sc - c->elapsed;
             has_early = 1;
+        } else if (c->hold_ok && c->mode > 0 && !c->early_req && !c->timer_done) {
+            double fr = p->frame_xck_cycles * (16 - (c->regs[2] >> 4)) / c->xck;
+            double sc = (p->closure_fraction != 0.0 && fr > 0) ? (c->duration / (4.0 * fr)) : 1.0;
+            early_left = c->duration - p->hold_release_frames * fr * sc
+                         - p->lookahead_lead_frames * fr * sc - c->elapsed;
+            has_early = 1;
         }
         if (has_early && seconds >= early_left) {
             seconds = early_left > 0.0 ? early_left : 0.0;          /* max(early_left, 0.0) */
@@ -787,6 +829,8 @@ SSI263_API void ssi263_skip(ssi263 *c, double seconds)
         } else if (!c->timer_done && seconds >= left) {
             seconds = left > 0.0 ? left : 0.0;                      /* max(left, 0.0) */
             c->timer_done = 1;
+            if (!c->phoneme)
+                c->last_real = -1;                          /* a PA ran its time: a real pause, not a prime */
             end_now = c->npending > 0;
         }
         c->elapsed += seconds;
@@ -831,10 +875,10 @@ SSI263_API void ssi263_skip(ssi263 *c, double seconds)
 
 /* elapsed duration trans trans_target amp_cur clo g2 g5 phase pending_pulse noise_phase
    lfsr timer_done mode time, then cur[6], latch[6], then released early_req apply_due
-   npending onto_silence */
+   npending onto_silence, then hold_ok hold_open last_real */
 SSI263_API int ssi263_state(const ssi263 *c, double *out, int cap)
 {
-    double s[32];
+    double s[40];
     int i, n = 0;
     s[n++] = c->elapsed;
     s[n++] = c->duration;
@@ -860,6 +904,9 @@ SSI263_API int ssi263_state(const ssi263 *c, double *out, int cap)
     s[n++] = c->apply_due;
     s[n++] = c->npending;
     s[n++] = c->onto_silence;
+    s[n++] = c->hold_ok;
+    s[n++] = c->hold_open;
+    s[n++] = c->last_real;
     for (i = 0; i < n && i < cap; i++)
         out[i] = s[i];
     return n;
