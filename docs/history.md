@@ -244,6 +244,7 @@ study the analog side on a real chip.
 | v0.12 | A listener: a click in "still" | A stop that starts on silence closes at once |
 | v0.13 | Tomi: the jump in "file"; the unit's fuller low end | F1 glides ×2.25; a partly stepped voice source; the Braille Lite's 5 kHz roll-off |
 | v0.14 | A listener: the real chip's Z "rattles"; Tomi: ours was S-like | In Z, J, V and voiced TH the noise swells with each voice pulse |
+| v0.15 | Timothy Wynn: "guess" sounded like "ess"; Tomi chose the clearer, consistent hard G; Claude implementation and Astra review | A K/KV-led HVC of at least two frames can open for its last half-frame into an open successor, with a 2 ms opening ramp; short Accent holds stay unchanged |
 
 ## Add-on releases at a glance
 
