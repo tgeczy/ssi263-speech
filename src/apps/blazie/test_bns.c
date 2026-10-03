@@ -16,6 +16,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#define _getpid getpid
+#endif
 #include "../../csrc/blazie/bl_board.h"
 #include "../../csrc/blazie/bl_firmware.h"
 
@@ -74,7 +80,8 @@ static void models(int argc, char **argv)
             unsigned char *data = read_all(argv[i], &n);
             char out[64], msg[256];
             int r;
-            snprintf(out, sizeof out, "test_bns.import.bns");
+            /* its own name: run_tests runs this check and its swapped control at once, in one folder */
+            snprintf(out, sizeof out, "test_bns.import.%d.bns", (int)_getpid());
             r = data ? blv_import_firmware(data, n, out, msg, sizeof msg) : -99;
             free(data);
             remove(out);
