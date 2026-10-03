@@ -12,7 +12,11 @@ through ssi263_state) for:
   rises to 1 within the ramp; the voice is on (VA latch > 0) and every noise source is off (g2 = g5 = 0) -- the G is
   HVC's own stored voice, not noise or a click; and the output is silent before the opening and audible after it.
   SHUT cases: HVC before D, before PA, after a real pause, HVC HVC, HVC with no K, an answer too late or only the
-  prime in time, a power-down while the writes are held: no hold opens and HVC's gate stays shut to its end.
+  prime in time, a power-down while the writes are held, a K from before a power-down: no hold opens and HVC's gate
+  stays shut to its end.
+  OUT OF SCOPE (hold_release_min_frames, Astra's Reply 151): a hold shorter than 2 frames -- HVC'3, the Accents'
+  KV KV HVC'3 HF, any HVC in mode 1 -- asks nothing early and renders sample for sample as with hold_release off.
+  That is the bounded scope of our modelled fix, not a duration rule established for the silicon.
 
 Sessions: a scripted host answering requests as the firmware does (registers, the PA prime, the phoneme 0.5 ms later),
 on the Python reference and on the C core; then, with the firmware and nvda/dist/blazie-lib/bl_live.exe present, the
@@ -36,7 +40,7 @@ from ssi263.native import SSI263C              # noqa: E402
 
 BREAK = os.environ.get("HARD_G_BREAK", "")
 RATE = 22050
-K, KV, HVC, PA, EH, OU, D, S, T = 0x29, 0x26, 0x2B, 0x00, 0x0A, 0x12, 0x25, 0x30, 0x28
+K, KV, HVC, PA, EH, OU, D, S, T, HF = 0x29, 0x26, 0x2B, 0x00, 0x0A, 0x12, 0x25, 0x30, 0x28, 0x2C
 DRIVER = {"closure_noise_lead_ms": 10.0}       # the Braille Lite voice's setting (bl_voice.c)
 # the listening choice this implements (Tomi's "C_050_sharp", Astra's Reply 150): what the chip must do, whatever its
 # parameters say -- a changed default fails here on purpose
@@ -83,12 +87,12 @@ def observe(chip):
     if isinstance(chip, SSI263C):
         v = chip.state()
         s = dict(elapsed=v[0], duration=v[1], clo=v[5], g2=v[6], g5=v[7], timer_done=v[12], time=v[14],
-                 va=v[15 + 6 + 4], hold_ok=v[32], hold_open=v[33])
+                 va=v[15 + 6 + 4], early_req=v[28], hold_ok=v[32], hold_open=v[33])
         s["phoneme"] = chip.regs[0] & 0x3F if chip.powered else -1
     else:
         s = dict(elapsed=chip.elapsed, duration=chip.duration, clo=chip.clo, g2=chip.g2, g5=chip.g5,
                  timer_done=int(chip.timer_done), time=chip._time, va=chip.latch["VA"], hold_ok=int(chip.hold_ok),
-                 hold_open=int(chip.hold_open))
+                 hold_open=int(chip.hold_open), early_req=int(chip.early_req))
         s["phoneme"] = chip.phoneme if chip.powered else -1
     s["frame"] = 4096.0 * (16 - (chip.regs[2] >> 4)) / 1e6
     return s
@@ -113,13 +117,14 @@ class Recorder:
         return until_request and self.chip.request
 
 
-def scripted(chip, phonemes, answer=0.00016, prime=0.0005, late=None, prime_only=None, powerdown=None, pause=None):
-    """A firmware-like host: power up in mode 3, then at each request write R3 R2 R1 R4 and the PA prime (C0h) `answer`
+def scripted(chip, phonemes, answer=0.00016, prime=0.0005, late=None, prime_only=None, powerdown=None, pause=None,
+             mode=3):
+    """A firmware-like host: power up in `mode` (3), then at each request write R3 R2 R1 R4 and the PA prime (C0h) `answer`
     s after it and the phoneme `prime` s later.  late = index: that answer comes only after the request's phoneme has
     ended; prime_only = index: the prime is written but the phoneme only after its end; powerdown = index: the chip is
     powered down while that answer is held, and back up; pause = index: a real PA (its own timer runs out) before it."""
     rec = Recorder(chip)
-    for a, v in ((4, 0xE7), (2, 0xA8), (1, 0x80), (3, 0xFC), (0, 0xC0), (3, 0x7C)):
+    for a, v in ((4, 0xE7), (2, 0xA8), (1, 0x80), (3, 0xFC), (0, mode << 6), (3, 0x7C)):
         chip.write(a, v)
     for i, ph in enumerate(phonemes):
         rec.run(2.0, until_request=True)
@@ -144,6 +149,35 @@ def scripted(chip, phonemes, answer=0.00016, prime=0.0005, late=None, prime_only
         else:
             rec.run(prime)
         chip.write(0, ph)
+    rec.run(2.0, until_request=True)
+    rec.run(0.01)
+    return rec.rows
+
+
+def powerdown_context(chip, new_k):
+    """Astra's sequence (Reply 151): power up; load K; run 4 ms; CTL power-down; wait 10 ms; the mode-3 PA; power up;
+    run 0.5 ms; [new_k: a genuinely new K, answered as the firmware does;] a four-frame HVC; its request answered with
+    PA then EH."""
+    rec = Recorder(chip)
+    for a, v in ((4, 0xE7), (2, 0xA8), (1, 0x80), (3, 0xFC), (0, 0xC0), (3, 0x7C)):
+        chip.write(a, v)
+    chip.write(0, K)
+    rec.run(0.004)
+    chip.write(3, 0xFC)
+    rec.run(0.010)
+    chip.write(0, 0xC0)
+    chip.write(3, 0x7C)
+    rec.run(0.0005)
+    if new_k:
+        chip.write(0, K)
+        rec.run(2.0, until_request=True)
+        chip.write(0, 0xC0)
+        rec.run(0.0005)
+    chip.write(0, HVC)
+    rec.run(2.0, until_request=True)
+    chip.write(0, 0xC0)
+    rec.run(0.0005)
+    chip.write(0, EH)
     rec.run(2.0, until_request=True)
     rec.run(0.01)
     return rec.rows
@@ -249,7 +283,6 @@ SCRIPTED = [
     ("K HVC OU (go)", [K, HVC, OU], {}, 1),
     ("KV HVC EH (the Speak-Out's G)", [KV, HVC, EH], {}, 1),
     ("K HVC EH, at rate 15", [K, HVC, EH], {"rate": 0xF8}, 1),
-    ("K HVC EH, HVC'3", [K, 0xC0 | HVC, EH], {}, 1),
     ("K HVC EH, K HVC OU (twice)", [K, HVC, EH, K, HVC, OU], {}, 2),
     ("K HVC D (big dog)", [K, HVC, D], {}, 0),
     ("K HVC PA (egg)", [K, HVC, PA], {}, 0),
@@ -261,6 +294,12 @@ SCRIPTED = [
     ("K HVC EH, answered too late", [K, HVC, EH], {"late": 2}, 0),
     ("K HVC EH, only the prime in time", [K, HVC, EH], {"prime_only": 2}, 0),
     ("K HVC EH, power-down while held", [K, HVC, EH], {"powerdown": 2}, 0),
+    ("K, power-down, HVC EH (stale K)", None, {"context": False}, 0),
+    ("K, power-down, a new K, HVC EH", None, {"context": True}, 1),
+    # out of scope: shorter than hold_release_min_frames -- no early request, and 0.7.5's output exactly
+    ("K HVC'3 EH (one frame)", [K, 0xC0 | HVC, EH], {"same_as_off": True}, 0),
+    ("KV KV HVC'3 HF (the Accents' G)", [KV, KV, 0xC0 | HVC, HF], {"same_as_off": True}, 0),
+    ("K HVC EH in mode 1 (one frame)", [K, HVC, EH], {"mode": 1, "same_as_off": True}, 0),
 ]
 
 
@@ -269,16 +308,29 @@ def run_scripted(make, core):
     for label, phs, kw, want in SCRIPTED:
         kw = dict(kw)
         rate = kw.pop("rate", None)
+        context = kw.pop("context", None)
+        same_as_off = kw.pop("same_as_off", False)
         chip = make()
         if rate is not None:
             chip.write(2, rate)
-        rows = scripted(chip, phs, **kw) if rate is None else scripted_rate(chip, phs, rate, **kw)
-        # a repeated HVC: only the first follows the K
+        if context is not None:
+            rows = powerdown_context(chip, context)
+        else:
+            rows = scripted(chip, phs, **kw) if rate is None else scripted_rate(chip, phs, rate, **kw)
         del INFO[:]
         bad = judge(rows, want, label, chip.p)
+        if same_as_off:
+            if any(rows[k]["early_req"] for a, b in hvc_spans(rows) for k in range(a, b + 1)):
+                bad.append("a short hold asked early")
+            off = (SSI263C(dict(PARAMS, hold_release=False), out_rate=RATE) if core == "C" else
+                   SSI263(dict(PARAMS, hold_release=False), out_rate=RATE, dsp="c"))
+            ref = scripted(off, phs, **kw)
+            if [r["y"] for r in rows] != [r["y"] for r in ref]:
+                bad.append("differs from hold_release off")
         fails += bool(bad)
         print("%s  %-4s %-40s %s" % ("FAIL" if bad else "ok  ", core, label, "; ".join(bad) if bad else
-                                     "opened %s" % ", ".join(INFO) if want else "stayed shut"))
+                                     "opened %s" % ", ".join(INFO) if want else
+                                     "no early request, = hold_release off" if same_as_off else "stayed shut"))
     return fails
 
 

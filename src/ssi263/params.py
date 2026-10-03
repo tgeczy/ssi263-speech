@@ -173,6 +173,11 @@ DEFAULTS = {
     "hold_release_ramp_ms": (2.0, "EAR",
                              "the gate's opening ramp for that release only (other stops keep closure_ramp_ms).  "
                              "Tomi: 'sharper really helps' (Astra, Reply 147); not a measured chip ramp"),
+    "hold_release_min_frames": (2, "EAR",
+                                "the bounded scope of the modelled fix, not a silicon duration rule (Astra, Reply 151): "
+                                "only a hold of at least this many frames is eligible -- 4 - DR, or 1 in mode 1 whatever "
+                                "DR says.  The Braille Lite's and the Speak-Out's HVC is 4 frames; the Accents' one-frame "
+                                "HVC (KV KV HVC'3 HF, never followed by an open phoneme) keeps 0.7.5's timing exactly"),
     "hold_release_phonemes": ((0x2B,), "BL",
                               "the holds hold_release may open: HVC (2Bh).  At most 4 codes (the C core)"),
     "hold_release_after": ((0x29, 0x26), "BL",

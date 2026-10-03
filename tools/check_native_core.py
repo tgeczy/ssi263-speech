@@ -62,6 +62,7 @@ SWITCHES = [
     {"hold_release": False},                                            # the hard G off: 0.7.5's suppression
     {"hold_release_frames": 1.0, "hold_release_ramp_ms": 4.0},
     {"hold_release_after": (0x29,), "hold_release_phonemes": (0x2B, 0x2D)},
+    {"hold_release_min_frames": 1},                                   # short holds too (the drift test's G sessions)
     {"field_speed_mult": (1.0,) * 6, "glottal_wave": (1.0,)},          # v0.12's source and speeds
     {"field_speed_mult": (0.7, 1.3, 1.0, 2.0, 0.5, 1.5)},
     {"glottal_wave": sc01_glottal_wave(4)},
@@ -253,7 +254,8 @@ def main():
             compare(sw, 1000 + seed, n_ops, report)
     # the hard G's own path: these sessions must reach it (hold_open), or they test nothing
     for sw in ({"hold_release": True}, {"hold_release": False}, {"hold_release_frames": 1.0, "hold_release_ramp_ms": 4.0},
-               {"closure_timing": "frames"}, {"release_lookahead": False}, {"closure_release_b01": False}):
+               {"closure_timing": "frames"}, {"release_lookahead": False}, {"closure_release_b01": False},
+               {"hold_release_min_frames": 1}):
         for seed in seeds:
             compare(sw, 2000 + seed, n_ops, report, gen=g_ops_for)
     opened = sum(1 for r in report if r[1] == {"hold_release": True} and r[2] >= 2000 and r[9])

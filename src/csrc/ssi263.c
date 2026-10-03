@@ -313,8 +313,10 @@ static void load_phoneme(ssi263 *c)
     c->releases = c->closing && (e[7] == 1 || c->p.closure_release_b01 == 0.0);
     /* the hard G (as chip.py): a hold after K/KV, the firmware's PA prime between them or not; only the
        eligibility to ask early and to open, `releases` untouched */
+    /* ... and only a hold of hold_release_min_frames or more, from THIS phoneme's own mode and R0 (as chip.py) */
     c->hold_ok = c->p.hold_release != 0.0 && c->p.release_lookahead != 0.0 && c->closing && !c->releases
-                 && code_in(c->p.hold_release_phonemes, c->phoneme) && code_in(c->p.hold_release_after, c->last_real);
+                 && code_in(c->p.hold_release_phonemes, c->phoneme) && code_in(c->p.hold_release_after, c->last_real)
+                 && (double)(c->mode == 1 ? 1 : 4 - (c->regs[0] >> 6)) >= c->p.hold_release_min_frames;
     c->hold_open = 0;
     if (c->phoneme)
         c->last_real = c->phoneme;
@@ -485,6 +487,11 @@ SSI263_API void ssi263_write(ssi263 *c, int addr, int value)
             update_inflection(c);
         }
         c->amp_target = value & 0x0F;
+        if (value & 0x80) {
+            /* power-down, after any held writes have landed: the hard G's context and state end (as chip.py) */
+            c->last_real = -1;
+            c->hold_ok = c->hold_open = 0;
+        }
     }
 }
 

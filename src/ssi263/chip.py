@@ -265,6 +265,12 @@ class SSI263:
                 self.log.append((round(t, 6), "mode %d: %s" % (self.mode, MODE_NAMES[self.mode])))
                 self._update_inflection()
             self.amp_target = value & 0x0F
+            if value & 0x80:
+                # power-down, after any held writes have landed (above): the hard G's context and state end here --
+                # a K from before it is no K before the next HVC (lifecycle of our modelled rule, not a claim about
+                # which chip registers CTL resets)
+                self.last_real = -1
+                self.hold_ok = self.hold_open = False
 
     def _apply_pending(self):
         """The writes held for a releasing stop's end land now, in order."""
@@ -302,9 +308,13 @@ class SSI263:
         self.releases = self.closing and (e["class1"] == 1 or not self.p["closure_release_b01"])
         # the hard G: a hold after K/KV, the firmware's PA prime between them or not.  Only the eligibility to ask
         # early and to open is decided here; `releases` (the b01 stops' delay, noise and burst) is untouched
+        # ... and only a hold of hold_release_min_frames or more, counted from THIS phoneme's own mode and R0 (its
+        # duration is assigned below): mode 1 is one frame whatever R0 says, otherwise 4 - DR
+        frames = 1 if self.mode == 1 else 4 - (self.regs[0] >> 6)
         self.hold_ok = bool(self.p["hold_release"] and self.p["release_lookahead"] and self.closing
                             and not self.releases and self.phoneme in self.p["hold_release_phonemes"]
-                            and self.last_real in self.p["hold_release_after"])
+                            and self.last_real in self.p["hold_release_after"]
+                            and frames >= self.p["hold_release_min_frames"])
         self.hold_open = False
         if self.phoneme:
             self.last_real = self.phoneme
