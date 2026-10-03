@@ -71,7 +71,8 @@ AS_API double ash_boot(as_host *h, double limit);
 AS_API double ash_cancel(as_host *h, double limit);
 
 /* the host's state, by name.  Doubles: "cpu_hz", "turbo", "tick_hz" (RST 7.5's clock, 0 = none), "last_speech",
-   "say_time", "time" (the chip's; read-only).  Ints: "preparing", "log_writes" (keep every write for ash_writes),
+   "say_time", "time" (the chip's; read-only).  Ints: "work" (read-only: the instructions the
+   firmware ran outside its waiting loops in the last ash_run -- reading text, making phonemes; as_board_take_work), "preparing", "log_writes" (keep every write for ash_writes),
    "request" (read-only), and as_board_get's names ("switches" and "python_slices" settable).  -1 / 0: unknown. */
 AS_API double ash_get_double(const as_host *h, const char *name);
 AS_API void ash_set_double(as_host *h, const char *name, double v);

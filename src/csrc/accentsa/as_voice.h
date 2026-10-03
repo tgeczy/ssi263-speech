@@ -37,8 +37,13 @@ AS_API void asv_set(as_voice *v, int rate, int pitch, int inflection, int volume
    audio is out.  Returns 1 when text was sent, 0 when there is nothing to say. */
 AS_API int asv_speak(as_voice *v, const char *utf8, int pitch_offset);
 /* The next 30 ms block: 16-bit mono PCM at out_rate in an internal buffer valid until the next call (0 samples while
-   the unit is still silent: the driver's lead trim).  *done = 1 once the unit has finished. */
+   the unit is still silent: the driver's lead trim).  *done = 1 once the unit has finished: not busy, and its 8085
+   back in its waiting loops (issue #8: between clauses it goes quiet while it reads the next one).  The blocks of
+   such a pause come out together (one call, several blocks) when the speech goes on, so the audio is unbroken. */
 AS_API int asv_render(as_voice *v, const short **pcm, int *done);
+/* The longest such pause asv_render waits through (chip seconds, default 6) before it calls the text done anyway;
+   0 = done at the first quiet block, as 0.7.5 and earlier did (the tests' must-fail control). */
+AS_API void asv_set_settle(as_voice *v, double seconds);
 /* The driver's cancel: the Accent's flush (Ctrl-X), then the pitch said again if a capital's restore was pending. */
 AS_API void asv_cancel(as_voice *v);
 

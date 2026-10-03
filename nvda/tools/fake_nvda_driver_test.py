@@ -54,6 +54,20 @@ class FakePlayer:
 
 nvwave = types.ModuleType("nvwave")
 nvwave.WavePlayer = FakePlayer
+# FAKE_PLAYER=wasapi: NVDA's WASAPI player as it behaves (wasapi_player.py): a play clock, onDone only from a later
+# feed() or sync() once played, a stop that drops what is pending.  FakePlayer calls onDone inside feed() at once.
+if os.environ.get("FAKE_PLAYER") == "wasapi":
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from wasapi_player import WasapiPlayer as _Wasapi     # noqa: E402
+
+    class _WasapiFake(_Wasapi):
+        def __init__(self, *a, **k):
+            super().__init__(*a, speed=SIM_SPEED, **k)
+
+        def keep(self, data):      # FakePlayer's chunks: float arrays (audio_since)
+            return np.frombuffer(data, dtype="<i2").astype(float) / 32767
+
+    nvwave.WavePlayer = _WasapiFake
 sys.modules["nvwave"] = nvwave
 config = types.ModuleType("config")
 config.conf = {"audio": {"outputDevice": "default"}, "speech": {"outputDevice": "default"}}
