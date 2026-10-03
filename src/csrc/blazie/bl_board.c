@@ -635,6 +635,7 @@ int bl_clock_on(bl_unit *u, const blc_time *now, long long unix_now)
     if (u->has_clk_tail && blc_load(u->clk, u->clk_tail, &saved_at)) {
         if (saved_at >= 0 && unix_now >= 0)
             blc_advance_off(u->clk, (double)(unix_now - saved_at));   /* it kept time while the unit was off */
+        blc_migrate(u->clk, now);            /* a unit saved on 0.7.0-0.7.5's year (issue #3) */
     } else if (now)
         blc_set(u->clk, now);
     u->clk_wall = unix_now;

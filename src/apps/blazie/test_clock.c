@@ -4,15 +4,16 @@
  *   test_clock unit                      the controller alone: its fields, its bytes, its calendar, saving, the alarm
  *   test_clock bl FIRMWARE STATE [PART]  the English Braille Lite through its own commands (o-chord s d, s t, t, d):
  *                                        the date and time set, the clock going on, the year, switched off and on;
- *                                        and i-chord held through p-chord l's restart (PART: clock or restart;
- *                                        start: only the clock read at the start, for the Spanish unit)
+ *                                        i-chord held through p-chord l's restart; and 1 March 2027's weekday
+ *                                        (issue #3) (PART: clock, restart or year; start: only the clock read at
+ *                                        the start, for the Spanish unit)
  *   test_clock tns FIRMWARE [PART]       the English Type 'n Speak from cold, its setup questions answered y (F4 F5,
  *                                        F9 s t, F9 s d; PART: clock)
  *
  * What the firmware says is read from its RAM: it writes the words before it speaks them ("12:35:02 pm",
  * "Wednesday September 30, 2015", "initialize file system").  The controls put one bug back and must fail:
- * TEST_CLOCK_BREAK=1 a clock that never advances, 2 year fields dropped, 3 the clock left out of a saved state
- * (bl_clock.h blc_break); TEST_CLOCK_HOLD_BREAK=1 keys never reported held (the app before), 2 a chord read held at
+ * TEST_CLOCK_BREAK=1 a clock that never advances, 2 year fields dropped, 3 the clock left out of a saved state,
+ * 4 the year mapped as 0.7.0-0.7.5 did and saved units left on it (Jayson's issue #3) (bl_clock.h blc_break); TEST_CLOCK_HOLD_BREAK=1 keys never reported held (the app before), 2 a chord read held at
  * the start delivered again when it comes up (bl_board.h bl_keys_break), 3 quick key response left on through the
  * restart (emu_unit.h emu_restart_break).
  */
@@ -32,6 +33,9 @@
 #define RATE 11025
 #define T2012 1330864440LL          /* 2012-03-04 12:34:00: the PC's clock, a year the tests never set */
 #define T2015 1443616440LL          /* 2015-09-30 12:34:00 */
+#define T2026_SEP 1790771640LL      /* 2026-09-30 12:34:00 */
+#define T2026_EVE 1798761540LL      /* 2026-12-31 23:59:00 */
+#define T2027_MAR 1803902400LL      /* 2027-03-01 12:00:00 */
 
 static int failures;
 
@@ -42,6 +46,14 @@ static void check(const char *name, int ok, const char *detail)
 }
 
 /* ---- the controller alone --------------------------------------------------------------------------------------- */
+static int weekday(int y, int m, int d)               /* 0 = Sunday (Sakamoto) */
+{
+    static const int k[12] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+    if (m < 3)
+        y--;
+    return (y + y / 4 - y / 100 + y / 400 + k[m - 1] + d) % 7;
+}
+
 static void put(blc_clock *c, const unsigned char *b, int n)
 {
     int i;
@@ -54,7 +66,7 @@ static void unit_tests(void)
     blc_clock c;
     blc_time t;
     unsigned char saved[BLC_SAVE_SIZE];
-    char d[200];
+    char d[700];
     long long at = 0;
     static const unsigned char set_clock[] = {0x02, 0x20 | (34 & 0x1F), 0x05, 0xA0 | 12, 0x40 | 9, 0x60 | 30,
                                               0x80 | (15 + 11)};     /* 12:34, 9/30/15, as the firmware sends them */
@@ -62,10 +74,65 @@ static void unit_tests(void)
     unsigned char got[8];
     int n = 0, b;
 
-    snprintf(d, sizeof d, "1989 %d, 2015 %d, 2020 %d, 2026 %d (2015's calendar), 2024 %d (1996's)", blc_year5(1989),
-             blc_year5(2015), blc_year5(2020), blc_year5(2026), blc_year5(2024));
+    snprintf(d, sizeof d, "1989 %d, 2015 %d, 2020 %d, 2026 %d (1998's calendar), 2024 %d (1996's), 2049 %d (1993's)",
+             blc_year5(1989), blc_year5(2015), blc_year5(2020), blc_year5(2026), blc_year5(2024), blc_year5(2049));
     check("the year field", blc_year5(1989) == 0 && blc_year5(2015) == 26 && blc_year5(2020) == 31
-                            && blc_year5(2026) == 26 && blc_year5(2024) == 7, d);
+                            && blc_year5(2026) == 9 && blc_year5(2024) == 7 && blc_year5(2049) == 4, d);
+
+    {   /* Jayson's issue #3: the controller counts its own New Years, so the year it is set to must stay the host's
+           calendar through them -- 28 years back.  The nearest same calendar (2026 -> 2015) became 2016, a leap
+           year, and 1 March 2027 a Tuesday. */
+        static const char *const wd[7] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+                                          "Saturday"};
+        int w;
+        blc_init(&c, 6144000.0, 0);
+        t.year = 2026; t.month = 12; t.day = 31; t.hour = 23; t.minute = 59; t.second = 59;
+        blc_set(&c, &t);
+        blc_advance_off(&c, 1.0 + 59.0 * 86400.0);   /* switched off over New Year, on again on 1 March 2027 */
+        blc_get(&c, BLC_CLOCK, &t);
+        w = weekday(t.year, t.month, t.day);
+        snprintf(d, sizeof d, "%04d-%02d-%02d, a %s (1 March 2027 is a %s)", t.year, t.month, t.day, wd[w],
+                 wd[weekday(2027, 3, 1)]);
+        check("the weekday after New Year", t.month == 3 && t.day == 1 && w == weekday(2027, 3, 1), d);
+    }
+
+    {   /* a unit saved by 0.7.0-0.7.5 (its year on the nearest calendar) is moved on loading; a date the user set,
+           or one saved on the new year, is kept */
+        static const struct {
+            int year, month, day, host_year, host_month, host_day, want, want_month, want_day;
+            const char *what;
+        } m[] = {
+            {2015, 9, 30, 2026, 9, 30, 1998, 9, 30, "2015 in 2026"},
+            {2016, 2, 29, 2027, 3, 1, 1999, 3, 1, "2016 run on into 2027 (its leap day counted)"},
+            {2016, 1, 15, 2027, 1, 15, 1999, 1, 15, "2016 run on into January 2027"},
+            {2010, 3, 1, 2027, 3, 1, 1999, 3, 1, "2010 in 2027"},
+            {2015, 12, 31, 2027, 1, 1, 1998, 12, 31, "2015 on New Year's Eve, the PC past midnight"},
+            {2015, 6, 5, 2026, 9, 30, 2015, 6, 5, "a date the user set"},
+            {1998, 9, 30, 2026, 9, 30, 1998, 9, 30, "saved on the new year"},
+        };
+        int i, bad = 0;
+        char *p = d;
+        d[0] = 0;
+        for (i = 0; i < (int)(sizeof m / sizeof m[0]); i++) {
+            blc_time host;
+            memset(&host, 0, sizeof host);
+            host.year = m[i].host_year; host.month = m[i].host_month; host.day = m[i].host_day;
+            blc_init(&c, 6144000.0, 0);
+            c.f[BLC_CLOCK][BLC_YEAR] = (unsigned char)(m[i].year - BLC_YEAR0);
+            c.f[BLC_CLOCK][BLC_MONTH] = (unsigned char)m[i].month;
+            c.f[BLC_CLOCK][BLC_DAY] = (unsigned char)m[i].day;
+            blc_migrate(&c, &host);
+            blc_get(&c, BLC_CLOCK, &t);
+            if ((t.year != m[i].want || t.month != m[i].want_month || t.day != m[i].want_day) && ++bad
+                && p - d < (int)sizeof d - 120) {
+                p += snprintf(p, sizeof d - (p - d), "%s%s: %04d-%02d-%02d", p == d ? "" : "; ", m[i].what, t.year,
+                              t.month, t.day);
+            }
+        }
+        if (!bad)
+            snprintf(d, sizeof d, "%d saved clocks: the old years moved, the user's and the new kept", i);
+        check("a unit saved on the old year", !bad, d);
+    }
 
     blc_init(&c, 6144000.0, 0);
     put(&c, set_clock, sizeof set_clock);
@@ -329,6 +396,39 @@ static void restart_checks(const char *fw, const char *st)
     emu_restart_break = 0;
 }
 
+/* Jayson's issue #3 through the English Braille Lite's own date (o-chord d): a unit switched off on New Year's Eve
+   2026 and on again on 1 March 2027 says Monday, as 2027 does (in 1999, its year 28 back); and a unit saved by
+   0.7.0-0.7.5 (2015 for 2026) is moved onto that year when it is loaded.  On the old year it said "Monday February
+   29, 2016". */
+static void year_checks(const char *fw, const char *st)
+{
+    static const char *const want = "Monday March 1, 1999";
+    static const struct { long long saved; int old; const char *what; } c[] = {
+        {T2026_EVE, 0, "switched off on New Year's Eve 2026"},
+        {T2026_SEP, 1, "saved by 0.7.5 in September 2026"},
+    };
+    char d[200], path[64];
+    int i, brk = blc_break;
+    for (i = 0; i < 2; i++) {
+        snprintf(path, sizeof path, "test_clock_year.%d.state", (int)_getpid());
+        if (c[i].old && !brk)
+            blc_break = 4;          /* the old year mapping, to make the old unit's state */
+        start(EMU_BRAILLE_LITE, fw, st, c[i].saved);
+        run_to(2.0);
+        emu_save(g_u, path);
+        emu_destroy(g_u);
+        blc_break = brk;
+        start(EMU_BRAILLE_LITE, fw, path, T2027_MAR);
+        key(8.0, 0x55);             /* o-chord d */
+        key(9.5, 0x19);
+        run_to(14.0);
+        snprintf(d, sizeof d, "on 1 March 2027 the unit said \"%s\": %s", want, ram_has(want) ? "yes" : "no");
+        check(c[i].what, ram_has(want), d);
+        emu_destroy(g_u);
+        remove(path);
+    }
+}
+
 int main(int argc, char **argv)
 {
     const char *brk = getenv("TEST_CLOCK_BREAK"), *part;
@@ -343,10 +443,12 @@ int main(int argc, char **argv)
             clock_checks(EMU_BRAILLE_LITE, argv[2], argv[3], 1);
         if (!*part || !strcmp(part, "restart"))
             restart_checks(argv[2], argv[3]);
+        if (!*part || !strcmp(part, "year"))
+            year_checks(argv[2], argv[3]);
     } else if (argc >= 3 && !strcmp(argv[1], "tns"))
         clock_checks(EMU_TYPE_N_SPEAK, argv[2], NULL, 0);
     else {
-        printf("usage: test_clock unit | bl FIRMWARE STATE [clock|restart|start] | tns FIRMWARE\n");
+        printf("usage: test_clock unit | bl FIRMWARE STATE [clock|restart|start|year] | tns FIRMWARE\n");
         return 2;
     }
     printf("%s\n", failures ? "FAILED" : "all passed");

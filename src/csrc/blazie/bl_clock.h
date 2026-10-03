@@ -69,7 +69,8 @@ typedef struct {
 } blc_clock;
 
 /* The tests' controls (an app never sets it): 1 the clock never advances, 2 year fields from the Z180 are dropped,
-   3 a saved state leaves the controller out. */
+   3 a saved state leaves the controller out, 4 the year mapped as 0.7.0-0.7.5 did (the nearest same calendar) and
+   saved units left on it. */
 extern int blc_break;
 
 /* A controller with every field 0; `now`: the CPU's cycle count. */
@@ -78,9 +79,15 @@ void blc_init(blc_clock *c, double hz, unsigned long long now);
 void blc_set(blc_clock *c, const blc_time *t);
 /* The clock's or the alarm's fields as a calendar time (year 1989 + the field; second from the minute's progress). */
 void blc_get(const blc_clock *c, int which, blc_time *t);
-/* The year field for a calendar year: the year itself in 1989-2020; otherwise the latest year in that range with the
-   same calendar (the weekday of 1 January and the leap day), so the weekdays the firmware works out are right. */
+/* The year field for a calendar year: the year itself in 1989-2020; otherwise a multiple of 28 years away (2026 ->
+   1998), the same calendar (the weekday of 1 January and the leap day), so the weekdays the firmware works out are
+   right, and stay right as the controller counts on through its New Years (until 2100, not a leap year). */
 int blc_year5(int year);
+/* A saved unit whose clock is on 0.7.0-0.7.5's mapping (2026 -> 2015, which its New Year then made 2016) is moved
+   onto blc_year5's, only when its date is the host's, give or take a day, so a date the user set is kept.  Its date
+   is counted from its own 1 January, so a unit that counted 2016's 29 February comes back as 1 March.  1 when it was
+   moved. */
+int blc_migrate(blc_clock *c, const blc_time *host);
 
 /* Called at every CPU step boundary: time passes up to the CPU's cycle count, a byte the firmware is sending
    (`selected`: the 8255's port C bit 4) is taken, and the next byte the controller has is clocked in when the

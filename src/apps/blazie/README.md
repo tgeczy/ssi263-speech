@@ -220,8 +220,12 @@ then a or p); o-chord, t and o-chord, d read them. On the Type 'n Speak F9, s, d
 **The year: 1989 to 2020 only.** The controller holds the year in 5 bits counted from 1989, and the 2003 firmware
 sends a year as two digits plus 11: from 2021 on the number spills into the field that holds the hour. A real unit
 does the same: typing 26 as the year sets the hour to 5 and leaves the year as it was. So the emulator starts the
-clock in the latest year up to 2020 with the same calendar (2026 is 2015's: 1 January on a Thursday, no 29 February),
-and the weekdays the unit gives are this year's. To set the date yourself, use that year too.
+clock 28 years back (2026 is 1998, 2027 is 1999), where the calendar is the same: 1 January falls on the same day
+and the leap years line up, so the weekdays the unit gives are this year's, and stay right as the unit counts on
+into the next years (until 2100, which is not a leap year). To set the date yourself, use that year too. Thanks to
+Jayson (issue #3). Units saved by 0.7.0 to 0.7.5, which used the nearest year with the same calendar (2026 was 2015,
+and its New Year made 2027 a leap year), are moved onto the new year when they are loaded, unless you set a
+different date yourself.
 
 The alarm (o-chord, s, a) is the controller's as well: it goes off at the start of the minute set, with x for any
 hour, day or month, while the unit is running.

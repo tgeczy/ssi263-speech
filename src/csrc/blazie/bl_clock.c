@@ -26,7 +26,10 @@ static int jan1(int y)               /* the weekday of 1 January (0 = Sunday) */
     return (1 + 5 * (p % 4) + 4 * (p % 100) + 6 * (p % 400)) % 7;
 }
 
-int blc_year5(int year)
+/* 0.7.0-0.7.5's mapping: the latest year in range with the same calendar (2026 -> 2015).  Right on the day it is
+   set, but the controller's own New Year then counts 2015 -> 2016, a leap year where 2027 is not (issue #3).  Kept to
+   recognise units saved with it (blc_migrate) and as the tests' control (blc_break 4). */
+static int year5_nearest(int year)
 {
     int y;
     if (year >= BLC_YEAR0 && year < BLC_YEAR0 + BLC_YEARS)
@@ -35,6 +38,69 @@ int blc_year5(int year)
         if (jan1(y) == jan1(year) && leap(y) == leap(year))
             return y - BLC_YEAR0;
     return ((year - BLC_YEAR0) % BLC_YEARS + BLC_YEARS) % BLC_YEARS;
+}
+
+int blc_year5(int year)
+{
+    if (blc_break == 4)
+        return year5_nearest(year);
+    while (year >= BLC_YEAR0 + BLC_YEARS)          /* the calendar repeats every 28 years (until 2100) */
+        year -= 28;
+    while (year < BLC_YEAR0)
+        year += 28;
+    return year - BLC_YEAR0;
+}
+
+static long day_number(int year, int month, int day)     /* days from a fixed origin, for differences */
+{
+    long p = year - 1, n = 365L * p + p / 4 - p / 100 + p / 400 + day - 1;
+    int m;
+    for (m = 1; m < month && m <= 12; m++)
+        n += days_in(m, year);
+    return n;
+}
+
+static void from_day_number(long n, int near, int *year, int *month, int *day)
+{
+    int y = near, m;
+    while (n < day_number(y, 1, 1))
+        y--;
+    while (n >= day_number(y + 1, 1, 1))
+        y++;
+    n -= day_number(y, 1, 1);
+    for (m = 1; m < 12 && n >= days_in(m, y); m++)
+        n -= days_in(m, y);
+    *year = y;
+    *month = m;
+    *day = (int)n + 1;
+}
+
+int blc_migrate(blc_clock *c, const blc_time *host)
+{
+    unsigned char *f = c->f[BLC_CLOCK];
+    int dy, y = f[BLC_YEAR], old = BLC_YEAR0 + y;
+    if (blc_break == 4 || !host || y == blc_year5(host->year))
+        return 0;
+    /* the host year the unit's year stood for (last year, this year or next: a day either side of New Year), as the
+       old mapping gave it -- straight, or the year before's run on over its New Year.  Its date is that year's 1
+       January plus the days the unit has counted since its own: a unit run on into 2016 counted 29 February, so its
+       "29 February" is 1 March 2027. */
+    for (dy = -1; dy <= 1; dy++) {
+        int h = host->year + dy, ty, tm, td;
+        long n, apart;
+        if (y != year5_nearest(h) && y != (year5_nearest(h - 1) + 1) % BLC_YEARS)
+            continue;
+        n = day_number(h, 1, 1) + (day_number(old, f[BLC_MONTH], f[BLC_DAY]) - day_number(old, 1, 1));
+        apart = n - day_number(host->year, host->month, host->day);
+        if (apart < -1 || apart > 1)
+            continue;
+        from_day_number(n, h, &ty, &tm, &td);
+        f[BLC_YEAR] = (unsigned char)blc_year5(ty);
+        f[BLC_MONTH] = (unsigned char)tm;
+        f[BLC_DAY] = (unsigned char)td;
+        return 1;
+    }
+    return 0;                                      /* a date the user set: not ours to change */
 }
 
 static unsigned long long minute_cycles(const blc_clock *c)

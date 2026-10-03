@@ -55,8 +55,9 @@ void emu_keys_down(emu_unit *u, int bits);
 int emu_save(emu_unit *u, const char *path);
 /* The unit's clock controller (../../csrc/blazie/bl_clock.h): emu_create switches it on, going on from the clock
    saved in the state (plus the time the unit was switched off: the controller keeps time on its battery) or, with
-   none saved, starting at the host's local time -- the year as the unit can hold it (1989-2020: a later year becomes
-   the latest one with the same calendar).  The time then passes in the unit's own time.  emu_clock_time: the
+   none saved, starting at the host's local time -- the year as the unit can hold it (1989-2020: a later year goes
+   back 28 years at a time, the same calendar, which stays this year's through the unit's own New Years; a unit
+   saved on 0.7.0-0.7.5's year is moved onto it).  The time then passes in the unit's own time.  emu_clock_time: the
    clock's (alarm 0) or the alarm's (1) fields. */
 int emu_clock_time(const emu_unit *u, int alarm, blc_time *t);
 /* tests: the unit's RAM as its 1 MB address space (the Braille Lite's 00000-3FFFF unused: the ROM); its size */
