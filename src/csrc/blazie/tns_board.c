@@ -116,6 +116,10 @@ static uint8_t io_read(void *ctx, uint16_t Port)
         }
         return v;
     }
+    if (p < 0x40 && (Port >> 8))             /* the Z180's registers answer only a high byte of 0: the read goes out
+                                                to a bus nothing drives, which still holds the port number of an
+                                                IN A,(n) -- SIMON.BNS's IN A,(34h) wait (bl_board.c's io_read) */
+        return (unsigned char)p;
     return 0xFF;                             /* 80h (watchdog) and the rest */
 }
 
