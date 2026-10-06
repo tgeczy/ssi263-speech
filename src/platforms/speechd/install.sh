@@ -88,8 +88,9 @@ if grep -q '^AddModule "ssi263"' "$CONF"; then
     echo "  $CONF already lists the voice"
 else
     # exactly these two lines, which uninstall.sh removes again (a missing final newline is added first)
+    #Comment out the AddModule line to avoid breaking speech-dispatcher's automatic discovery mechanism.
     [ -n "$(tail -c1 "$CONF")" ] && echo >> "$CONF"
-    printf '# --- the Braille Lite 2000 voice (ssi263-speech install.sh) ---\nAddModule "ssi263" "sd_ssi263" "ssi263.conf"\n' >> "$CONF"
+    printf '# --- the Braille Lite 2000 voice (ssi263-speech install.sh) ---\n#AddModule "ssi263" "sd_ssi263" "ssi263.conf"\n' >> "$CONF"
     echo "  added to $CONF"
 fi
 if [ $MAKE_DEFAULT -eq 1 ]; then
