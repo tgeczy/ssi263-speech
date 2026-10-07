@@ -23,7 +23,7 @@
 # blazie_files' usage.  Exit 0 only if all hold.  No firmware is in the repository: the Braille 'n Speak 2000 folder
 # is the person's own.
 BNS_DIR="$(cd "${1:?usage: package_emu_linux.sh <Braille 'n Speak 2000 folder> [VERSION] [ARCHNAME]}" && pwd)"
-V="${2:-0.7.6}"; A="${3:-$(uname -m)}"
+V="${2:-0.7.7}"; A="${3:-$(uname -m)}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 1
 export LANG=C.UTF-8 PYTHON_COLORS=0 PYTHONDONTWRITEBYTECODE=1
