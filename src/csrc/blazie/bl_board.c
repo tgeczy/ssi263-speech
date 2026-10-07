@@ -167,6 +167,13 @@ static uint8_t io_read(void *ctx, uint16_t Port)
     unsigned char v;
     if (p >= 0xC0 && p <= 0xC4)
         return u->ssi_ar ? u->ssi_ready_value : (unsigned char)(u->ssi_ready_value ^ 0x80);
+    /* 00h-3Fh with the address's high byte not 0: the Z180's own registers answer there only when it is 0 (IN0), so
+       the read goes out to the board, where nothing drives the data bus (the keyboard handler's own IN A,(20h) throws
+       its value away).  The bus still holds the last byte put on it, for IN A,(n) the port number.  Blazie's game
+       SIMON.BNS waits on IN A,(34h) bit 0 before every tone, A not 0 as traced: answered FFh it waited forever and the
+       unit locked up at the first key.  Inferred from the game playing on the units, not measured on one. */
+    if (p < 0x40 && (Port >> 8))
+        return (unsigned char)p;
     v = p == 0x40 ? 0x00 : 0xFF;
     if (p == 0x81 && u->model == BL_MODEL_BRAILLE_LITE)
         v &= (unsigned char)~((u->braille_bars & 3) << 6);
