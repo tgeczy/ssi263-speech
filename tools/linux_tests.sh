@@ -90,6 +90,13 @@ control "Accent SA completion CONTROL (the cap as a plain done, must fail)" \
     "^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace ok, limit [0-9]+ FAILED$" \
     "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=limit python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
 check "speech-dispatcher module" python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
+# the speech-dispatcher installer on scratch folders (Garrett, issue #10): a stock speechd.conf left alone (an
+# AddModule line turns autodiscovery off), an earlier install's line removed, a listed config listed; its control
+# is 0.7.6's always-added line
+check "speech-dispatcher installer (speechd.conf)" sh tools/speechd_install_test.sh
+control "speech-dispatcher installer CONTROL (0.7.6's AddModule line, must fail)" \
+    "^FAIL stock config unchanged " "^FAIL earlier install's line removed " "^ok +listed config: this module listed too " \
+    -- env SSI263_INSTALL_BREAK=1 sh tools/speechd_install_test.sh
 control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^stop +module .*identical" \
     "^after +module .*DIFFER" "^set +module .*DIFFER" "^key +module .*DIFFER" "^spanish +module .*identical" \
     "^ra_stop +module .*identical" "^ra_after +module .*DIFFER" \

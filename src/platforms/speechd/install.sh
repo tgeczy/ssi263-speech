@@ -6,19 +6,33 @@
 #   sudo ./install.sh --default    # and make it the default
 #   PREFIX=/opt/ssi263 sudo -E ./install.sh
 #
-# Adds one module line to speech-dispatcher's config (the user's own speechd.conf if there is one, else the
-# system's) and never removes or comments out anything else.  ./uninstall.sh undoes it.
+# speech-dispatcher finds the module by itself: with no AddModule line in speechd.conf it loads every module in
+# its modules folder (Garrett, issue #10: an AddModule line turns that off, leaving this the only synthesizer).  So
+# speechd.conf is left alone, except: a config that already lists its modules with AddModule lines (autodiscovery
+# off, as Raspberry Pi OS ships it) gets one for this voice too, or it would never load; an earlier install's line
+# is removed; and --default sets DefaultModule.  Nothing else is removed or commented out.  ./uninstall.sh undoes it.
+# SSI263_SPD_MODULES and SSI263_SPD_CONF point it at other folders (tools/speechd_install_test.sh).
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PREFIX="${PREFIX:-/usr/local}"
 DATA="$PREFIX/share/ssi263-speech"
-MODBIN="/usr/lib/speech-dispatcher-modules"
+MODBIN="${SSI263_SPD_MODULES:-}"
+if [ -z "$MODBIN" ]; then             # Debian/Ubuntu, multiarch, Fedora/Arch
+    for d in /usr/lib/speech-dispatcher-modules /usr/lib/*/speech-dispatcher-modules \
+             /usr/libexec/speech-dispatcher-modules; do
+        [ -d "$d" ] && { MODBIN="$d"; break; }
+    done
+    MODBIN="${MODBIN:-/usr/lib/speech-dispatcher-modules}"
+fi
 MAKE_DEFAULT=0
 [ "$1" = "--default" ] && MAKE_DEFAULT=1
 
 USER_HOME="$HOME"
 [ -n "$SUDO_USER" ] && USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
-if [ -f "$USER_HOME/.config/speech-dispatcher/speechd.conf" ]; then
+if [ -n "$SSI263_SPD_CONF" ]; then
+    CONF="$SSI263_SPD_CONF"
+    MODCONF="$(dirname "$CONF")/modules"
+elif [ -f "$USER_HOME/.config/speech-dispatcher/speechd.conf" ]; then
     CONF="$USER_HOME/.config/speech-dispatcher/speechd.conf"
     MODCONF="$USER_HOME/.config/speech-dispatcher/modules"
 elif [ -f /etc/speech-dispatcher/speechd.conf ]; then
@@ -84,14 +98,21 @@ echo "  module:   $MODBIN/sd_ssi263"
 echo "  settings: $MODCONF/ssi263.conf"
 echo "  firmware: $DATA"
 
-if grep -q '^AddModule "ssi263"' "$CONF"; then
-    echo "  $CONF already lists the voice"
-else
-    # exactly these two lines, which uninstall.sh removes again (a missing final newline is added first)
-    #Comment out the AddModule line to avoid breaking speech-dispatcher's automatic discovery mechanism.
+MARK='# --- the Braille Lite 2000 voice (ssi263-speech install.sh) ---'
+# an earlier install's lines (0.7.0-0.7.6: an active AddModule, which turned autodiscovery off; #11's commented one)
+if grep -q -e '^[[:space:]]*#\{0,1\}[[:space:]]*AddModule[[:space:]]*"ssi263"' -e "^$MARK\$" "$CONF"; then
+    sed -i -e '/^$/{N;s/^\n\(# --- the Braille Lite 2000 voice (ssi263-speech install.sh) ---\)$/\1/}' \
+           -e "\\|^$MARK\$|d" -e '/^[[:space:]]*#\{0,1\}[[:space:]]*AddModule[[:space:]]*"ssi263"/d' "$CONF"
+    echo "  removed an earlier install's module line from $CONF"
+fi
+if [ "${SSI263_INSTALL_BREAK:-}" = 1 ] || grep -q '^[[:space:]]*AddModule[[:space:]]' "$CONF"; then
+    # the config lists its modules itself (autodiscovery is off): this one must be listed too, or it never loads
+    # (SSI263_INSTALL_BREAK=1, the test's control: 0.7.6's line, always)
     [ -n "$(tail -c1 "$CONF")" ] && echo >> "$CONF"
-    printf '# --- the Braille Lite 2000 voice (ssi263-speech install.sh) ---\n#AddModule "ssi263" "sd_ssi263" "ssi263.conf"\n' >> "$CONF"
-    echo "  added to $CONF"
+    printf '%s\nAddModule "ssi263" "sd_ssi263" "ssi263.conf"\n' "$MARK" >> "$CONF"
+    echo "  $CONF lists its modules itself: added this one to the list"
+else
+    echo "  speech-dispatcher finds the module by itself ($CONF unchanged)"
 fi
 if [ $MAKE_DEFAULT -eq 1 ]; then
     if grep -q '^DefaultModule' "$CONF"; then

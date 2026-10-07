@@ -23,6 +23,13 @@ check() {                          # name, then the command (as linux_tests.sh's
     else echo "FAIL  $name: $(echo "$out" | tail -1 | cut -c1-90)"; fail=1; fi
 }
 . "$HERE/linux_control.sh"         # control(): a must-fail control, judged by its marks
+# the speech-dispatcher installer on scratch folders (Garrett, issue #10): a stock speechd.conf left alone (an
+# AddModule line turns autodiscovery off), an earlier install's line removed, a listed config listed; its control
+# is 0.7.6's always-added line
+check "speech-dispatcher installer (speechd.conf)" sh tools/speechd_install_test.sh
+control "speech-dispatcher installer CONTROL (0.7.6's AddModule line, must fail)" \
+    "^FAIL stock config unchanged " "^FAIL earlier install's line removed " "^ok +listed config: this module listed too " \
+    -- env SSI263_INSTALL_BREAK=1 sh tools/speechd_install_test.sh
 B=build/linux
 EMU=$B/blazie_emu
 GTK_EMU=""; [ -x $B/blazie_emu_gtk ] && GTK_EMU=$B/blazie_emu_gtk

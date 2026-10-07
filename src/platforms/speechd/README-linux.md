@@ -24,7 +24,7 @@ Each voice is the same voice as in its NVDA add-on.
     spd-say -o ssi263 "Hello from the Braille Lite"
     spd-say -o ssi263 -y "Accent SA" "Hello from the Accent"
 
-`install.sh` adds the voices and leaves your default synthesizer alone. `sudo ./install.sh --default` also makes it
+`install.sh` adds the voices and leaves your default synthesizer alone: speech-dispatcher finds the module by itself, so `speechd.conf` isn't changed (an `AddModule` line there would turn that off and leave this the only synthesizer; thanks, Garrett). Only if your `speechd.conf` already lists its modules with `AddModule` lines, as Raspberry Pi OS does, is this one added to the list. Installing over 0.7.6 or earlier removes the line those added. `sudo ./install.sh --default` also makes it
 the default. In Orca: Preferences, Speech, Speech synthesizer: ssi263, then the voice (`spd-say -o ssi263 -L` lists them).
 `sudo ./uninstall.sh` removes everything it added.
 
