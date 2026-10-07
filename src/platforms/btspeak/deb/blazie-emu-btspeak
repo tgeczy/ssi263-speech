@@ -1,0 +1,19 @@
+#!/bin/sh
+# blazie-emu-btspeak -- what the User Menu's entries run: the Blazie emulator with its firmware.  The package's
+# installation fetched the firmware into /usr/lib/blazie-emu-btspeak/share/ssi263-speech; when it could not (no
+# network then), it is fetched now into the user's own folder, once, and used from there.
+LIB=/usr/lib/blazie-emu-btspeak
+EMU="$LIB/bin/blazie_emu"
+if [ -f "$LIB/share/ssi263-speech/BL2ENG.BNS" ]; then
+    exec "$EMU" "$@"
+fi
+MINE="${XDG_DATA_HOME:-$HOME/.local/share}/blazie-emu-btspeak/firmware"
+if [ ! -f "$MINE/BL2ENG.BNS" ]; then
+    echo "The Blazie firmware is not here yet: fetching it from the project's release."
+    "$LIB/fetch-firmware" "$MINE" || {
+        echo "The firmware could not be fetched (is the network on?).  Try again later."
+        sleep 5
+        exit 1
+    }
+fi
+exec "$EMU" --firmware "$MINE" "$@"

@@ -129,6 +129,34 @@ static double key_latency(const char *fw, const char *st, int quick)
     return found;
 }
 
+/* the display after the boot (at[0]), then after advance at 5 s, advance at 7 s and `third` at 9 s (at[1..3]); the
+   display's cells (0: none) and the unit's model */
+static int bars_run(const char *fw, const char *st, int third, unsigned char at[4][EMU_CELLS], int *model)
+{
+    char err[256];
+    emu_unit *u = make(fw, st, err, sizeof err);
+    int n = 0, i, block = RATE / 100, snap = 0;
+    short buf[RATE / 100];
+    if (!u) {
+        printf("FAIL create: %s\n", err);
+        exit(1);
+    }
+    memset(at, 0, 4 * EMU_CELLS);
+    for (i = 0; i < 1100; i++) {
+        if (i == 500 || i == 700)
+            emu_key(u, EMU_ADVANCE);
+        if (i == 900)
+            emu_key(u, third);
+        if (i == 480 || i == 680 || i == 880 || i == 1080)   /* before each bar, and after the last */
+            n = emu_braille(u, at[snap++], EMU_CELLS);
+        emu_render(u, buf, block);
+    }
+    if (model)
+        *model = emu_model(u);
+    emu_destroy(u);
+    return n;
+}
+
 int main(int argc, char **argv)
 {
     char d[200];
@@ -260,6 +288,38 @@ int main(int argc, char **argv)
         check("status menu %", after > 0.01, d);
         free(buf);
         emu_destroy(u);
+    }
+    if (g_kind == EMU_BRAILLE_LITE) {   /* the braille display (bl_board.h bl_braille) and the two advance bars
+                                           (bl_braille_bars): the cells after the boot, then advance, advance and back --
+                                           against advance three times: the back bar must pan, and not the way the
+                                           advance bar does (the firmware pans back to a word's start, so not
+                                           exactly to the first advance's cells).  TEST_EMU_BARS_BREAK=1 sends the
+                                           bars as port 40h bit 7, as the shells used to (the control: the panning
+                                           checks must fail) */
+        unsigned char back[4][EMU_CELLS], fwd[4][EMU_CELLS];
+        int n, i, cells = 0, model;
+        if (getenv("TEST_EMU_BARS_BREAK"))
+            emu_bars_break = 1;
+        n = bars_run(fw, st, EMU_BACK, back, &model);
+        bars_run(fw, st, EMU_ADVANCE, fwd, NULL);
+        emu_bars_break = 0;
+        for (i = 0; i < EMU_CELLS; i++)
+            cells += back[0][i] != 0;
+        if (model == EMU_MODEL_BNS2000) {
+            snprintf(d, sizeof d, "%d cells", n);
+            check("no display (BnS)", n == 0, d);
+        } else {
+            snprintf(d, sizeof d, "%d cells, %d raised after the boot", n, cells);
+            check("braille display", n == 18 && cells > 3, d);
+            snprintf(d, sizeof d, "the advance bar's two presses changed the display: %s, %s",
+                     memcmp(back[0], back[1], EMU_CELLS) ? "yes" : "no",
+                     memcmp(back[1], back[2], EMU_CELLS) ? "yes" : "no");
+            check("advance bar", memcmp(back[0], back[1], EMU_CELLS) && memcmp(back[1], back[2], EMU_CELLS), d);
+            snprintf(d, sizeof d, "back changed the display: %s; not as a third advance: %s",
+                     memcmp(back[3], back[2], EMU_CELLS) ? "yes" : "no",
+                     memcmp(back[3], fwd[3], EMU_CELLS) ? "yes" : "no");
+            check("back bar", memcmp(back[3], back[2], EMU_CELLS) && memcmp(back[3], fwd[3], EMU_CELLS), d);
+        }
     }
     if (ready == ready_path)
         remove(ready_path);

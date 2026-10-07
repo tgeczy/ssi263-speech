@@ -87,6 +87,14 @@ EMU_OBJS="$CHIP_OBJS $BOARD_OBJS $OUT/obj/bl_host.o $OUT/obj_emu/tns_board.o $OU
 RESCUE_OBJS="$OUT/obj_emu/tns_rescue.o $OUT/obj_emu/bl_files.o $OUT/obj_emu/bl_files_state.o"
 $CC $APPF -o "$OUT/test_keys" "$APP/test_keys.c" $KEY_OBJS
 $CC $APPF -o "$OUT/test_display" "$APP/test_display.c"
+# the BT Speak's and BT Braille's keyboard server (btkb_linux.c) and the braille display (brl_linux.c): test_btkb runs
+# the keys against a keyboard server of its own (no device, no BRLTTY needed)
+for f in btkb_linux brl_linux; do
+    $CC $APPF -c -o "$OUT/obj_emu/$f.o" "$APP/$f.c"
+done
+$CC $APPF -c -o "$OUT/obj_emu/evdev_keys.o" "$APP/evdev_linux.c"
+BT_OBJS="$OUT/obj_emu/btkb_linux.o $OUT/obj_emu/brl_linux.o"
+$CC $APPF -o "$OUT/test_btkb" "$APP/test_btkb.c" $BT_OBJS "$OUT/obj_emu/evdev_keys.o" $KEY_OBJS -lpthread -ldl
 # blazie_files: a saved unit's files from the command line (export, import, extract, pack, unpack), as on Windows
 $CC $APPF -o "$OUT/blazie_files" "$APP/blazie_files.c" $FILES_OBJS
 # the unit's own headless tests, as on Windows (build_app.py's test_emu_unit, test_clock, test_rescue), on MAME's Z180
@@ -110,9 +118,11 @@ if [ -n "$AUDIO_LIBS" ]; then
     for f in audio_linux serial_linux evdev_linux bt_handover main_linux; do
         $CC $APPF $AUDIO_DEF -c -o "$OUT/obj_emu/$f.o" "$APP/$f.c"
     done
+    # bt_handover: [input] bt = frontend hands over to blazie_emu_bt; otherwise on a BT Speak or BT Braille this
+    # program reads the device's keyboard server and BRLTTY's display itself (BrlAPI, loaded when it runs: -ldl)
     $CXX $SHARED_CXX -o "$OUT/blazie_emu" "$OUT/obj_emu/main_linux.o" "$OUT/obj_emu/bt_handover.o" "$OUT/obj_emu/audio_linux.o" \
-        "$OUT/obj_emu/audio_pace.o" "$OUT/obj_emu/serial_linux.o" "$OUT/obj_emu/evdev_linux.o" $KEY_OBJS $RESCUE_OBJS $EMU_OBJS $AUDIO_LIBS \
-        -lpthread -lm
+        "$OUT/obj_emu/audio_pace.o" "$OUT/obj_emu/serial_linux.o" "$OUT/obj_emu/evdev_linux.o" $BT_OBJS $KEY_OBJS $RESCUE_OBJS $EMU_OBJS $AUDIO_LIBS \
+        -lpthread -ldl -lm
     echo "built $OUT/blazie_emu (sound: $SOUND)"
     # Native worker for the BT Speak / BT Braille Python frontend. Shares the same board and audio code.
     $CC $APPF $AUDIO_DEF -c -o "$OUT/obj_emu/bt_backend.o" "$ROOT/src/platforms/btspeak/backend.c"

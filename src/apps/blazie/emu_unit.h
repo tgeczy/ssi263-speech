@@ -37,7 +37,8 @@ int emu_model(const emu_unit *u);
 /* Raw display cells (up to 40), left to right in standard eight-dot order; 0 when unavailable.
    Copy of the last complete hardware latch, including any cursor dots set by the firmware. */
 int emu_braille(const emu_unit *u, unsigned char *cells, int capacity);
-/* Physical display bars, independent of keyboard chords: bit 0 forward, bit 1 back. */
+/* Physical display bars, independent of keyboard chords: bit 0 forward, bit 1 back -- down while set, as
+   emu_keys_down's EMU_ADVANCE and EMU_BACK (each kept down at least EMU_BAR_MIN_S, so a quick press is seen). */
 void emu_braille_bars(emu_unit *u, int down);
 
 /* renders `n` samples of the unit running in real time into out (16-bit mono PCM at out_rate) */
@@ -48,8 +49,24 @@ int emu_key(emu_unit *u, int key);
 /* The Braille Lite's keys physically down now (chords.h bits; 0 when none), as they go down and come up, beside
    emu_key's chord when the last one comes up: the unit reads keys held while it starts (power-on, or its own restart
    after p-chord l): i-chord held is the cold reset, and so on (bl_board.h bl_keys_down).  No effect on the Type 'n
-   Speak, whose keys go down and up through emu_key. */
+   Speak, whose keys go down and up through emu_key.
+   The advance bars: EMU_ADVANCE and EMU_BACK, the Braille Lite 2000's two bars (bl_board.h bl_bars; the firmware
+   never reads them through the chord port, so they are pressed on its port 81h instead).  Through emu_keys_down a
+   bar is down while held; in an emu_key chord (a terminal's keys, which never come up) it is tapped, and the chord's
+   dots go to the unit once the firmware has the bar down (its chord with the bar: advance bar + chord).  Either way
+   a bar is kept down at least EMU_BAR_MIN_S of the unit's time (the firmware polls the bars every 100 ms).  A bar held
+   through emu_keys_down is not pressed again by the chord that ends when it comes up.  The Braille 'n Speak has no
+   bars: its firmware never reads them. */
+#define EMU_ADVANCE 0x80
+#define EMU_BACK 0x100
+#define EMU_BAR_MIN_S 0.25
+#define EMU_BAR_CHORD_S 0.15
 void emu_keys_down(emu_unit *u, int bits);
+/* the tests' control (an app never sets it): nonzero, emu_key sends a chord's bar as the old shells did -- port 40h
+   bit 7, which the firmware never reads, so the bars do nothing */
+extern int emu_bars_break;
+/* the most cells emu_braille gives (bl_display.h BLD_MAX_CELLS) */
+#define EMU_CELLS 40
 /* saves what the unit keeps while switched off (its files and settings, its clock), in the state format emu_create
    reads; 1 on success */
 int emu_save(emu_unit *u, const char *path);
