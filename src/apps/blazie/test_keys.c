@@ -168,6 +168,41 @@ static void bl_checks(void)
         check("input device: o-chord down and up, dot 4", !strcmp(got,
               "H01 H05 H15 H55 H54 H50 H40 H00 C55 H08 H00 C08"), d);
     }
+    {   /* issue #12: all six dots and the space bar held at once (seven keys), let go in another order: one chord,
+           all seven bits, when the last comes up.  Nothing here limits how many keys are down; a keyboard that
+           cannot report seven at once (its rollover) is the limit, not the emulator */
+        bl_keys k;
+        key_event e;
+        bl_action a[BLK_MAX_ACTIONS];
+        static const struct { int key, type; } moves[] = {{'f', KE_DOWN}, {'d', KE_DOWN}, {'s', KE_DOWN},
+            {'j', KE_DOWN}, {'k', KE_DOWN}, {'l', KE_DOWN}, {' ', KE_DOWN}, {' ', KE_UP}, {'l', KE_UP}, {'f', KE_UP},
+            {'k', KE_UP}, {'d', KE_UP}, {'j', KE_UP}, {'s', KE_UP}};
+        char got[256] = "", d[320];
+        int i, j, n, len = 0;
+        blk_defaults(&k);
+        for (i = 0; i < 14; i++) {
+            e.key = moves[i].key;
+            e.type = moves[i].type;
+            e.mods = 0;
+            blk_event(&k, &e, i * 0.03);
+            n = blk_take(&k, a, BLK_MAX_ACTIONS);
+            for (j = 0; j < n; j++)
+                len += snprintf(got + len, sizeof got - (size_t)len, "%s%c%02X", len ? " " : "",
+                                a[j].type == BLA_CHORD ? 'C' : 'H', a[j].bits);
+        }
+        snprintf(d, sizeof d, "got [%s]", got);
+        check("input device: seven keys at once", !strcmp(got,
+              "H01 H03 H07 H0F H1F H3F H7F H3F H1F H1E H0E H0C H04 H00 C7F"), d);
+    }
+    {   /* ... and from a terminal (typed characters, no key-up): seven keys within chord_ms of each other are one
+           chord however long the whole takes; a gap longer than chord_ms (80 ms) starts the next one */
+        static const typed seven[] = {{0.0, "f"}, {0.06, "d"}, {0.12, "s"}, {0.18, "j"}, {0.24, "k"}, {0.30, "l"},
+                                      {0.36, " "}};
+        static const typed split[] = {{0.0, "f"}, {0.02, "d"}, {0.04, "s"}, {0.06, "j"}, {0.08, "k"}, {0.10, "l"},
+                                      {0.25, " "}};
+        bl_case("keys mode: seven keys, 60 ms apart", BLK_KEYS, seven, 7, 1.0, "C7F");
+        bl_case("keys mode: a 150 ms gap splits the chord", BLK_KEYS, split, 7, 1.0, "C3F C40");
+    }
     {
         char d[200], n1[48], n2[48];
         int e = blk_chord_of("e-chord"), low_d = blk_chord_of("2-5-6-chord"), dots = blk_chord_of("dots 1 3"),
