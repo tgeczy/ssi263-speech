@@ -144,6 +144,9 @@ int  bl_events_lost(const bl_unit *u);
 void bl_clear_events_lost(bl_unit *u);
 /* tests: the n-th event from now cannot be stored, as when an allocation fails (0: none) */
 void bl_fail_event(bl_unit *u, int n);
+/* Tests' must-fail control (an app never sets it): nonzero, a read of 00h-3Fh with the high byte not 0 answers FFh
+   as before the bus fix (both boards' io_read): SIMON.BNS's IN A,(34h) wait never ends (test_games.c) */
+extern int bl_bus_break;
 
 #ifdef __cplusplus
 }

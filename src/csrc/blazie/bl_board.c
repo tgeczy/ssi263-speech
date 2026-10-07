@@ -172,7 +172,7 @@ static uint8_t io_read(void *ctx, uint16_t Port)
        its value away).  The bus still holds the last byte put on it, for IN A,(n) the port number.  Blazie's game
        SIMON.BNS waits on IN A,(34h) bit 0 before every tone, A not 0 as traced: answered FFh it waited forever and the
        unit locked up at the first key.  Inferred from the game playing on the units, not measured on one. */
-    if (p < 0x40 && (Port >> 8))
+    if (p < 0x40 && (Port >> 8) && !bl_bus_break)
         return (unsigned char)p;
     v = p == 0x40 ? 0x00 : 0xFF;
     if (p == 0x81 && u->model == BL_MODEL_BRAILLE_LITE)
@@ -612,6 +612,7 @@ void bl_hold(bl_unit *u, int chord)
 }
 
 int bl_keys_break;
+int bl_bus_break;
 
 int bl_starts(const bl_unit *u)
 {

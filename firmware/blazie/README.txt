@@ -26,4 +26,10 @@ and their factory states, made from the firmware alone by the emulator's make_st
   make_state bns2000/BS2SLL.BNS english bns2000/bs2sll_fresh.state
                         sha256 6818720dc50c5f7df9a81a46f26667b74c74994de8de908442ec173a6ac27020
 
+The emulator's game test (src/apps/blazie/test_games.c) runs Blazie's games when they are in
+games/ (the June 2003 disk's files, unchanged; without them it is skipped):
+
+  games/simon.bns       sha256 ff9230c0c1250eb44ea34f3aca9269ec7d83f6c8341a6a3b4fa6c5292a908d50
+  games/hangman.bns     sha256 f42ff66964e6d64440961646ff81d6b8cd212aa75bb2e7762a943e95ec19eda9
+
 This folder's contents are ignored by git.

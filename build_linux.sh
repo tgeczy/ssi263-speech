@@ -96,6 +96,10 @@ $CC $APPF -c -o "$OUT/obj_emu/test_clock.o" "$APP/test_clock.c"
 $CXX $SHARED_CXX -o "$OUT/test_clock" "$OUT/obj_emu/test_clock.o" $EMU_OBJS -lm
 $CC $APPF -c -o "$OUT/obj_emu/test_rescue.o" "$APP/test_rescue.c"
 $CXX $SHARED_CXX -o "$OUT/test_rescue" "$OUT/obj_emu/test_rescue.o" $RESCUE_OBJS $EMU_OBJS -lm
+# Blazie's games run from the unit's files (test_games.c: Simon, Hangman; the games themselves never in the repo)
+$CC $APPF -c -o "$OUT/obj_emu/test_games.o" "$APP/test_games.c"
+$CXX $SHARED_CXX -o "$OUT/test_games" "$OUT/obj_emu/test_games.o" "$OUT/obj_emu/bl_files.o" "$OUT/obj_emu/bl_files_state.o" \
+    $EMU_OBJS -lm
 # the sound buffer (audio_pace.c, portable) against a simulated sound card, and the Linux shells' reading of the
 # device's queue and played position; --old: its must-fail control (the 0.7.0 draft's queue), as on Windows
 $CC $APPF -o "$OUT/test_audio" "$APP/test_audio.c" "$OUT/obj_emu/audio_pace.o"

@@ -175,6 +175,22 @@ check "emulator: a Type 'n Speak never set up, rescued" ./build/linux/test_rescu
 control "emulator: rescue CONTROL (the old cold start left on, must fail)" \
     "^FAIL rescued: set up anew, its files carried +the unit's own setup did not complete" "^FAILED$" \
     -- env TEST_RESCUE_BREAK=1 ./build/linux/test_rescue "$TNS"
+# Blazie's games from their disks (test_games.c; RetroBunn, PR #9: Simon locked the unit up at its first tone), when
+# the data folder's games/ has them (simon.bns, hangman.bns: never in the repo; absent, named as a skip): Simon's first
+# tone and its time-out, Hangman a guess answered; its control answers the bus FFh again (bl_board.h bl_bus_break)
+for game in simon hangman; do
+    if [ ! -f "$DATA/games/$game.bns" ]; then echo "skip  emulator: $game: no $DATA/games/$game.bns"; continue; fi
+    check "emulator: $game (Braille Lite)" ./build/linux/test_games $game bl "$DATA/BL2ENG.BNS" \
+        "$DATA/bl2_2003_warm.state" "$DATA/games/$game.bns"
+    check "emulator: $game (Type 'n Speak)" ./build/linux/test_games $game tns "$TNS" - "$DATA/games/$game.bns"
+done
+if [ -f "$DATA/games/simon.bns" ]; then
+    control "emulator: Simon CONTROL (the bus answered FFh, must fail)" "^ok +the game runs: its welcome and prompt" \
+        "^ok +to the start key, the same with the bus FFh" "^FAIL the first tone after the start key +none in 2 s" \
+        "^FAIL the game goes on: its time-out answered" "^FAILED$" \
+        -- env TEST_GAMES_BREAK=1 ./build/linux/test_games simon bl "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state" \
+        "$DATA/games/simon.bns"
+fi
 # blazie_files, a saved unit's files from the command line: export, unpack, a new file, pack, import, on a copy of
 # the shipped state; its control leaves a new flash file's blocks unmarked (bl_files.h blf_break 2)
 check "emulator: blazie_files round trip (export, unpack, pack, import)" sh tools/blazie_files_roundtrip.sh \

@@ -625,6 +625,35 @@ if os.path.isfile(TEST_BNS) and all(os.path.isfile(os.path.join(BNS_DIR, fw)) an
                                     r"^FAIL export: the Slovak unit's folder names +.*: no$", r"^FAILED$"]))
     CHECKS.append(check("Braille 'n Speak 2000 English: file flash", [os.path.join(EMU, "test_flash.exe"), "bl",
                         os.path.join(BNS_DIR, "BS03ENG.BNS"), os.path.join(BNS_DIR, "bs03eng_fresh.state")]))
+# Blazie's games from their disks (src/apps/blazie/test_games.c; RetroBunn, PR #9: Simon locked the unit up at its
+# first tone), when firmware/blazie/games/ has them (simon.bns, hangman.bns: never in the repo; absent, no check):
+# run from the unit's files with its own command on every unit here.  Simon's first tone and its time-out; Hangman a
+# guess answered; the same samples with the bus answered FFh wherever the game does not read it.  Controls: the bus
+# answered FFh again (bl_board.h bl_bus_break): Simon silent from its start key, the unit locked up
+GAMES = os.path.join(FW_BLAZIE, "games")
+TEST_GAMES = os.path.join(EMU, "test_games.exe")
+if os.path.isfile(TEST_GAMES):
+    GAME_UNITS = [("Braille Lite ENG", ["bl", os.path.join(FW_BLAZIE, "BL2ENG.BNS"),
+                                        os.path.join(FW_BLAZIE, "bl2_2003_warm.state")])]
+    if all(os.path.isfile(os.path.join(BNS_DIR, f)) for f in ("BS03ENG.BNS", "bs03eng_fresh.state")):
+        GAME_UNITS.append(("Braille 'n Speak 2000 English", ["bl", os.path.join(BNS_DIR, "BS03ENG.BNS"),
+                                                             os.path.join(BNS_DIR, "bs03eng_fresh.state")]))
+    if os.path.isfile(os.path.join(FW_BLAZIE, "tns", "TNSENG.TNS")):
+        GAME_UNITS.append(("Type 'n Speak ENG", ["tns", os.path.join(FW_BLAZIE, "tns", "TNSENG.TNS"), "-"]))
+    for game in ("simon", "hangman"):
+        GAME = os.path.join(GAMES, game + ".bns")
+        if not os.path.isfile(GAME):
+            continue
+        for label, unit in GAME_UNITS:
+            CHECKS.append(check("Blazie games: %s, %s" % (game.capitalize(), label), [TEST_GAMES, game] + unit + [GAME]))
+            if game == "simon" and label != "Braille 'n Speak 2000 English":
+                CHECKS.append(check("Blazie games: Simon CONTROL (%s, the bus answered FFh, must fail)" % label,
+                                    [TEST_GAMES, game] + unit + [GAME], env={"TEST_GAMES_BREAK": "1"},
+                                    expect_fail=True,
+                                    fail_marks=[r"^ok +the game runs: its welcome and prompt",
+                                                r"^ok +to the start key, the same with the bus FFh",
+                                                r"^FAIL the first tone after the start key +none in 2 s",
+                                                r"^FAIL the game goes on: its time-out answered", r"^FAILED$"]))
 # the emulator's serial port plugged in (src/apps/blazie/test_serial.c; Tomi: WinDisk to the emulated unit): the
 # storage handshake WinDisk and PCDISK answer -- XON ENQ out at 19200 8N1, ACK answered with 'C' and NAK not, input
 # paced at the baud rate, the directory command out -- on every unit; the Windows COM side (serial_win.c) end to end
