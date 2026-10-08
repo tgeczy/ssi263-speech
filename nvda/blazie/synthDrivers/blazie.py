@@ -130,7 +130,9 @@ def _translit(text, encoding="latin-1"):
             fn.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
             fn.restype = ctypes.c_int
             _translit_fn = (ctypes, fn)
-        except (OSError, AttributeError):
+        except (OSError, AttributeError) as e:
+            log.warning("Braille Lite: no accented-letter pass (ssv_translit in %s: %s); such letters stay "
+                        "unspoken" % (DLL, e))
             _translit_fn = False
     if not _translit_fn or not text:
         return text
