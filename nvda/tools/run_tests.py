@@ -1257,6 +1257,51 @@ CHECKS.append(check("bl_voice text = the driver's, 5000 random texts", [PY, "voi
 CHECKS.append(check("bl_voice text CONTROL (no currencies, must fail)", [PY, "voice_text_equiv.py", "2000", "1"],
                     env={"VOICE_TEXT_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^DIFF ", r"^(?!2000 )\d+ of 2000 texts give the unit the same bytes"]))
+# Accented letters (Tomi: typing á é ő ú ű ó ü ö said nothing, "tükör" was "t k r"): src/csrc/translit.h runs first
+# on every voice's text -- a letter the firmware lacks becomes its base letters ("tukor"), alone its words ("a
+# acute"); the Spanish unit keeps cp850's own.  translit_test.py: the module (test_translit.c), every voice's bytes,
+# the five voices speaking on fresh units (each accented text sounds as its ASCII spelling, ASCII text the same PCM
+# with the pass on and off), and the Braille Lite's NVDA driver.  Each control turns the pass off (TRANSLIT_BREAK=1,
+# 0.7's path) and must fail as that.  (The 0.7.0 references above are given the pass's output: translit_ref.py.)
+CHECKS.append(check("accented letters: translit.h (C), the table, alone and in a word, case",
+                    [PY, "translit_test.py", "module"]))
+CHECKS.append(check("accented letters: translit.h CONTROL (the pass off, must fail)", [PY, "translit_test.py", "module"],
+                    env={"TRANSLIT_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r'^FAIL lone: "\\xc3\\xa1" -> "\\xc3\\xa1", not "a acute"$',
+                                r'^FAIL in a word: "t\\xc3\\xbck\\xc3\\xb6r" -> "t\\xc3\\xbck\\xc3\\xb6r", not "tukor"$',
+                                r'^ok   cp850 known: "\\xc3\\xa1" -> "\\xc3\\xa1"$',
+                                r"^ok   ascii: all 128 characters pass unchanged",
+                                r"^translit: \d+ of 54 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$"]))
+CHECKS.append(check("accented letters: the bytes every voice sends", [PY, "translit_test.py", "bytes"]))
+CHECKS.append(check("accented letters: bytes CONTROL (the pass off, must fail)", [PY, "translit_test.py", "bytes"],
+                    env={"TRANSLIT_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^ +'\\xe1' -> b'', not b'a acute\\r\\x06\\r\\x06'$",
+                                r"^ +'t\\xfck\\xf6r' -> b't k r\\r\\x06\\r\\x06', not b'tukor\\r\\x06\\r\\x06'$",
+                                r"^ +'\\u0151' -> b'', not b'o double acute\\r\\x06\\r\\x06'$",
+                                r"^ +'\\xe1' -> b'\\xe1\\r', not b'a acute\\r'$",
+                                r"^FAIL blazie_es bytes ", r"^translit bytes: 5 of 5 FAILED"]))
+_FW = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware")
+if all(os.path.isfile(os.path.join(_FW, *p.split("/"))) for p in (
+        "blazie/BL2ENG.BNS", "blazie/spanish/BL2SPA.BNS", "gw-micro-speakout/SPEAKOUT.HEX",
+        "aicom-accent-mini/SPKEMS.DVC", "aicom-accent-sa/u2.BIN")):
+    CHECKS.append(check("accented letters: the five voices speak them", [PY, "translit_test.py", "voices"]))
+    CHECKS.append(check("accented letters: voices CONTROL (the pass off, must fail)", [PY, "translit_test.py", "voices"],
+                        env={"TRANSLIT_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL blazie +audio +'\\xe1' alone: 0\.00 s, 0 loud samples$",
+                                    r"^FAIL speakout +audio +'\\xe1' alone: 0\.00 s, 0 loud samples$",
+                                    r"^FAIL blazie +audio +'t\\xfck\\xf6r' is not 0\.7's \"t k r\"",
+                                    r"^FAIL sa +audio +'\\u0151' sounds as 'o double acute'",
+                                    r"^ok   sa +ascii +8 of 8 ASCII texts give the same PCM",
+                                    r"^translit voices: \d+ of 33 FAILED \(TRANSLIT_BREAK=1"]))
+CHECKS.append(check("accented letters: the Braille Lite's NVDA driver", [PY, "translit_test.py", "driver"]))
+CHECKS.append(check("accented letters: driver CONTROL (the pass off, must fail)", [PY, "translit_test.py", "driver"],
+                    env={"TRANSLIT_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL blazie +driver +'\\xe1': the unit was sent \[\], 0 samples of audio",
+                                r"^FAIL blazie +driver +'t\\xfck\\xf6r': the unit was sent \['t k r'\]",
+                                r"^ok   blazie +driver +'Hello there\.'",
+                                r"^ok   blazie_es driver +'\\xf1': the unit was sent \['\\xf1'\]",
+                                r"^FAIL blazie_es driver +'\\u0151': the unit was sent \[\]",
+                                r"^translit driver: \d+ of 10 FAILED \(TRANSLIT_BREAK=1"]))
 # other currencies than the dollar reach every unit as words (a listener: "£2.63" was read "2.63")
 CHECKS.append(check("currency rule", [PY, "currency_test.py", "rules"]))
 for w in ("blazie", "speakout", "accent"):
