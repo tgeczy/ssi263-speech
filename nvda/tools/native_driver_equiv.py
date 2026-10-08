@@ -15,7 +15,9 @@ each followed by the next utterance.
     NATIVE_EQUIV_BREAK=cancel     control: the native side's cancels one block late -- the block cuts must DIFFER
 
 The native side is nvda/dist/<addon>-build (or SSI263_NATIVE_SYNTH_DRIVERS_<SPEAKOUT|ACCENT>); the reference is
-legacy_drivers.py's.  Each side runs in its own process (both drivers are synthDrivers.<name>).
+legacy_drivers.py's.  Each side runs in its own process (both drivers are synthDrivers.<name>).  0.7.0's drivers
+predate the accented-letter pass (src/csrc/translit.h): the reference is given each text after it (translit_ref.py);
+translit_test.py holds the pass itself.
 """
 import os
 import pickle
@@ -193,8 +195,17 @@ def child(voice, side, out):
         return r
     d._notifyIndex = index_hook
 
+    # 0.7.0's drivers predate the accented-letter pass (src/csrc/translit.h): the reference is given each text after
+    # it (translit_ref.py, the same C), so everything after the pass is held byte for byte ("café, naïve" below)
+    if side == "legacy":
+        import translit_ref
+        text = translit_ref.translit
+    else:
+        def text(s):
+            return s
+
     def nvda(seq):
-        return [s if k == "t" else IndexCommand(s) if k == "i" else PitchCommand(s) for k, s in seq]
+        return [text(s) if k == "t" else IndexCommand(s) if k == "i" else PitchCommand(s) for k, s in seq]
 
     if which == "accent":
         d._set_voice(voice)

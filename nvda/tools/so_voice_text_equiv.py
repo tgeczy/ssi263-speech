@@ -2,7 +2,8 @@
 given for a text item (ssi263_numwords.currencies, _clean, strip(), Latin-1, the carriage return) must be identical.
 The audio gate (so_voice_equiv.py) speaks a few texts; this one hunts the edge cases of the text rules -- currency
 amounts, quotes and dashes, control characters, characters beyond Latin-1, and the whitespace strip() removes after
-_clean (the space, U+0085 and U+00A0) -- in a second.
+_clean (the space, U+0085 and U+00A0) -- in a second.  0.7.0's driver predates the accented-letter pass
+(src/csrc/translit.h), so it is given the text after it (translit_ref.py); translit_test.py holds the pass itself.
 
     python so_voice_text_equiv.py [count] [seed]
     SO_VOICE_TEXT_BREAK=1        # control: the driver's strip() reduced to spaces only -- must FAIL
@@ -20,6 +21,7 @@ sys.argv = [sys.argv[0], "speakout"]
 # the reference is 0.7.0's Python driver (since 0.7.5 the add-on's driver has no Python front end)
 sys.path.insert(0, HERE)
 import legacy_drivers  # noqa: E402
+import translit_ref  # noqa: E402
 os.environ["SSI263_SYNTH_DRIVERS"] = legacy_drivers.synth_drivers("speakout")
 src = open(os.path.join(HERE, "fake_nvda_driver_test.py"), encoding="utf-8").read()
 exec(src.split("d = drv_mod.SynthDriver()")[0])     # the driver module only: no box is started
@@ -34,12 +36,13 @@ lib.sov_say_bytes.restype = ctypes.c_int
 PIECES = (list("abcdefghij ABCXYZ   0123456789") + [" ", " ", ".", ",", "!", "?", ":", ";", "'", "-", "_", "$", "~"]
           + ["£", "€", "¥", "¢", " €", "\t", "\n", "\r", "\x05", "\x18", "\x7f", "\x85", "\xa0", "\xa0 ", " \x85",
              "‘", "’", "“", "”", "–", "—", "…", "é", "ñ", "¿", "¡", "\U0001F389", "²", "½", "ÿ", "É", " ",
-             "　"]
+             "　", "ő", "ß", "Á", "tükör ", "é", "Æ"]
           + ["£2.63", "£1.01", "€0.5", "5 €", "1,234.56", "£.5", "¥1.5", "50¢", "$3.50", "£1,23", "£ 12", ".63",
              "word ", "sentence. ", "Next! ", "why? ", "a, b, c, "])
 
 
 def py_bytes(text):
+    text = translit_ref.translit(text)      # 0.7.0's driver predates the accented-letter pass: it gets its output
     t = drv_mod._clean(drv_mod.numwords.currencies(text))
     t = t.strip(" ") if BREAK else t.strip()
     return (t + "\r").encode("latin-1", "replace") if t else b""

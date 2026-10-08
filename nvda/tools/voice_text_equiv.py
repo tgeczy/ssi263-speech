@@ -45,7 +45,8 @@ lib.blv_say_bytes.restype = ctypes.c_int
 PIECES = (list("abcdefghij ABCXYZ   0123456789") + [" ", " ", ".", ",", "!", "?", ":", ";", "'", "-", "_", "$"]
           + ["£", "€", "¥", "¢", "£", "€", " €", " ", "\t", "\n", "\r",
              "‘", "’", "“", "”", "–", "—", "…", "é", "ñ", "¿",
-             "¡", "\U0001F389", "²", "½", "\x07", "\x7f", " ", "É"]
+             "¡", "\U0001F389", "²", "½", "\x07", "\x7f", " ", "É",
+             "ő", "ß", "Á", "tükör ", "é"]
           + ["£2.63", "£1.01", "€0.5", "5 €", "1,234.56", "£.5", "¥1.5", "50¢",
              "£1,23", "£ 12", ".63", "2.635", "word ", "sentence. ", "Next! ", "why? ", "a, b, c, "])
 if NUMBERS:                                         # the number words' own edge cases, English and Spanish
@@ -56,6 +57,7 @@ if NUMBERS:                                         # the number words' own edge
 
 
 def py_bytes(text, enc_name, lang, pack):
+    text = drv_mod._translit(text, enc_name)        # the accented letters first (translit.h, the driver's ctypes call)
     t = text if BREAK else drv_mod.numwords.currencies(text, lang)
     t = drv_mod._clean(t, enc_name)
     if NUMBERS and not BREAK_NUMBERS:

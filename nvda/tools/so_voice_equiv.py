@@ -10,7 +10,9 @@ again after it), the lead trim, volume, every sample rate (the box rebooted at e
     SO_VOICE_EQUIV_BREAK=timing      # control: the C host's cpu_ips 1 % fast -- the first case must DIFFER
 
 The driver is 0.7.0's, the Python host's last (legacy_drivers.py), on its default core (mame-steps); the C side is
-nvda/dist/speakout-lib/<arch>/so_voice.dll (src/csrc/speakout/build_board.py).
+nvda/dist/speakout-lib/<arch>/so_voice.dll (src/csrc/speakout/build_board.py).  0.7.0's driver predates the
+accented-letter pass (src/csrc/translit.h): it is given each text after it (translit_ref.py); translit_test.py holds
+the pass itself.
 """
 import ctypes
 import os
@@ -27,6 +29,7 @@ sys.argv = [sys.argv[0], "speakout"]
 # the reference is 0.7.0's Python driver (since 0.7.5 the add-on's driver is so_voice itself: native_driver_equiv.py)
 sys.path.insert(0, HERE)
 import legacy_drivers  # noqa: E402
+import translit_ref  # noqa: E402
 os.environ["SSI263_SYNTH_DRIVERS"] = legacy_drivers.synth_drivers("speakout")
 src = open(os.path.join(HERE, "fake_nvda_driver_test.py"), encoding="utf-8").read()
 exec(src.split("time.sleep(2.0)")[0])
@@ -122,7 +125,8 @@ def driver_side():
         d._rate, d._pitch, d._tone, d._volume = s["rate"], s["pitch"], TONES[s["tone"]], s["volume"]
         d._join, d._short = s["join"], s["short"]
         d._set_sampleRate(str(s["sr"]))
-        seq = ([PitchCommand(c["offset"])] if c["offset"] else []) + [c["text"]]
+        # 0.7.0's driver predates the accented-letter pass (translit.h): it is given the pass's output
+        seq = ([PitchCommand(c["offset"])] if c["offset"] else []) + [translit_ref.translit(c["text"])]
         if c["offset"]:
             seq.append(PitchCommand())                   # NVDA's reset after a capital
         n0 = len(feeds)
@@ -133,7 +137,7 @@ def driver_side():
             if not cut_done.wait(60):
                 sys.exit("the driver never reached block %d of %r" % (c["cut"], c["label"]))
             n1 = cut_at["fed"]
-            d.speak([c["after"]])
+            d.speak([translit_ref.translit(c["after"])])
             if not wait_idle(60):
                 sys.exit("the driver did not finish %r: %s" % (c["after"], last_wait_error[0]))
             out.append([b"".join(feeds[n0:n1]), b"".join(feeds[n1:])])

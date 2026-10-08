@@ -115,6 +115,36 @@ WHINES = (("off", "Off"), ("hiss", "Hiss (even volumes, as the factory setting)"
 MAX_RATE = 15
 
 
+_translit_fn = None
+
+
+def _translit(text, encoding="latin-1"):
+    """The letters the unit's alphabet lacks, before everything else (src/csrc/translit.h, the C voices' own pass,
+    from the add-on's ssi263speech.dll): "tükör" -> "tukor", a lone "á" -> "a acute"; for the Spanish unit only what
+    cp850 lacks ("ő").  Without the library (it is the unit too) the text is left as it was."""
+    global _translit_fn
+    if _translit_fn is None:
+        try:
+            import ctypes
+            fn = ctypes.CDLL(DLL).ssv_translit
+            fn.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+            fn.restype = ctypes.c_int
+            _translit_fn = (ctypes, fn)
+        except (OSError, AttributeError):
+            _translit_fn = False
+    if not _translit_fn or not text:
+        return text
+    ctypes, fn = _translit_fn
+    raw = text.encode("utf-8", "surrogatepass")
+    charset = 1 if encoding == "cp850" else 0                # voices.h SSV_CP850 / SSV_ASCII
+    n = fn(raw, len(raw), charset, None, 0)
+    if n < 0:
+        return text
+    out = ctypes.create_string_buffer(n + 1)
+    fn(raw, len(raw), charset, out, n + 1)
+    return out.raw[:n].decode("utf-8", "surrogatepass")
+
+
 def _clean(text, encoding="latin-1"):
     """7-bit text for the English unit; for the Spanish one also every character its code page has (accents,
     n-tilde, the inverted marks)."""
@@ -770,8 +800,9 @@ class SynthDriver(SynthDriver):
                     self._cur_pitch = want
                     self._pitch_dirty = True
                 continue
-            # "£2.63": the firmware reads only "$" (and the English unit has no pound sign at all)
-            text = _clean(numwords.currencies(value, unit.lang), unit.encoding)
+            # "£2.63": the firmware reads only "$" (and the English unit has no pound sign at all); first the letters
+            # its alphabet lacks, as their base letters (or a lone one's words)
+            text = _clean(numwords.currencies(_translit(value, unit.encoding), unit.lang), unit.encoding)
             if self._numbers:
                 # with the add-on's boot the firmware counts to 999,999,999,999 and says a
                 # trillion as "one billion" (measured); this is for those

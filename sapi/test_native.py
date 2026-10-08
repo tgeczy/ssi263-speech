@@ -8,7 +8,9 @@ outspoken-nvda holds its osp_host to osp_serve.py.  Both get the same requests -
 accents; SAPI's rates and pitches; the voices one after another, and back; the settings dialog's values on the command
 line (--bl-numbers among them: with no value, 1 and 0, also held against each other); a cancel mid-utterance and the
 utterance after it -- and every PCM byte must be equal.  Both widths of the native
-library are held to the one reference (the x86 DLL computes as the x64 one: -msse2 -mfpmath=sse).
+library are held to the one reference (the x86 DLL computes as the x64 one: -msse2 -mfpmath=sse).  0.7.0's drivers
+predate the accented-letter pass (src/csrc/translit.h): the reference is sent each text after it
+(nvda/tools/translit_ref.py); nvda/tools/translit_test.py holds the pass itself.
 
 A cancel lands where the client's pipe lets it (both hosts stop at the same block, as measured); if they ever stop at
 different points, the cut audio must still agree as far as both go and the next utterance is checked as test_serve.py
@@ -41,6 +43,8 @@ import reference_drivers
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+sys.path.insert(0, os.path.join(REPO, "nvda", "tools"))
+import translit_ref  # noqa: E402
 FIRMWARE = os.path.join(REPO, "firmware")
 REQ, RSP, CANCEL = 0x4F535034, 0x4F535052, 0x4F535043
 ARGS = sys.argv[1:]
@@ -155,21 +159,28 @@ def listing(cmd, env=None):
     return [ln.split("\t")[0] for ln in out.splitlines() if "\t" in ln]
 
 
-def play(cmd, requests, env=None):
+def reference_text(voice, text):
+    """0.7.0's drivers predate the accented-letter pass (src/csrc/translit.h): the reference is sent the text after
+    it (nvda/tools/translit_ref.py, the same C), so everything after the pass is held byte for byte ("café" above)"""
+    return translit_ref.translit(text, translit_ref.CP850 if voice.endswith("_es") else translit_ref.ASCII)
+
+
+def play(cmd, requests, env=None, reference=False):
     """Every request's (status, pcm), in order; a cancel case gives two: the cut one and the one after."""
     c = Client(cmd, env)
+    tx = reference_text if reference else (lambda voice, text: text)
     out = []
     try:
         for r in requests:
             if r[0] == "cancel":
                 _k, voice, text, chunks = r
-                seq = c.send(voice, text)
+                seq = c.send(voice, tx(voice, text))
                 out.append(c.response(chunks, seq))
                 c.send(voice, "OK button")
                 out.append(c.response())
             else:
                 voice, ti, rate, pitch = r
-                c.send(voice, TEXTS[lang_of(voice)][ti], rate, pitch)
+                c.send(voice, tx(voice, TEXTS[lang_of(voice)][ti]), rate, pitch)
                 out.append(c.response())
     finally:
         c.close()
@@ -263,7 +274,7 @@ def main():
                 continue
             reqs = [r for r in reqs if (r[1] if r[0] == "cancel" else r[0]) in common]
             jobs.append((name, opts, reqs))
-            results[name, "ref"] = pool.submit(play, ref_cmd + opts, reqs, ref_env)
+            results[name, "ref"] = pool.submit(play, ref_cmd + opts, reqs, ref_env, True)
             for a in ARCHES:
                 results[name, a] = pool.submit(play, nat_cmd[a] + opts, reqs)
         bad, total, nbad = 0, 0, 0

@@ -5,6 +5,7 @@
 
 #include "accent_text.h"
 #include "numwords.h"
+#include "translit.h"
 
 /* ---- _accent_pitch, _accent_settings (int() of a positive float = floor) --------------------------------------- */
 static int clamp100(int x) { return x < 0 ? 0 : x > 100 ? 100 : x; }
@@ -33,10 +34,11 @@ int at_inflection(int x)
     return cmd[best];
 }
 
-/* ---- the text: currencies, _clean, strip, _numbers --------------------------------------------------------------- */
+/* ---- the text: _translit (translit.h), currencies, _clean, strip, _numbers ------------------------------------- */
 
 /* _clean: 7-bit, no control characters (ESC and Ctrl-X are the Accent's commands), no tilde ("~/" opens its phoneme
-   input and swallows everything to the next "~") */
+   input and swallows everything to the next "~").  Its few letters (e-acute ... c-cedilla) are 0.7's; translit.h
+   now reaches every letter first, and they stay so that TRANSLIT_BREAK=1 is exactly the old path. */
 static int clean(const unsigned *in, int n, char *out)
 {
     int i, m = 0;
@@ -158,6 +160,12 @@ char *at_say_text(const char *utf8, int with_numbers)
     int k, m;
     if (!t) return NULL;
     k = nw_utf8(utf8, t);
+    /* translit.h first: the letters the Accents' 7-bit alphabet lacks, as base letters (or a lone one's words) */
+    u = (unsigned *)malloc((size_t)tl_room(k) * sizeof(unsigned));
+    if (!u) { free(t); return NULL; }
+    k = tl_apply(t, k, tl_known_ascii, u);
+    free(t);
+    t = u;
     u = (unsigned *)malloc(((size_t)k * 16 + 64) * sizeof(unsigned));
     if (!u) { free(t); return NULL; }
     m = nw_currencies(t, k, u);

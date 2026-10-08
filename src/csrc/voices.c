@@ -5,6 +5,8 @@
 #include <string.h>
 
 #include "voices.h"
+#include "translit.h"
+#include "blazie/bl_cp850.h"
 #include "blazie/bl_voice.h"
 #include "blazie/bl_numbers.h"
 #include "accentsa/as_voice.h"
@@ -375,4 +377,36 @@ SSV_API ssv_voice *ssv_bank_voice(ssv_bank *k, int i, char *err, int errlen)
     if (!k->slot[s])
         k->slot[s] = ssv_create(i, k->fwdir, &k->boot, err, errlen);
     return k->slot[s];
+}
+
+/* ---- the accented-letter pass on its own (translit.h) ---------------------------------------------------------- */
+static int known_cp850(unsigned c)                 /* bl_voice.c's cp850_byte(c) >= 0 */
+{
+    int i;
+    if (c < 0x80) return 1;
+    for (i = 0; i < 128; i++)
+        if (bl_cp850_high[i] == c) return 1;
+    return 0;
+}
+
+SSV_API int ssv_translit(const char *utf8, int n, int charset, char *out, int cap)
+{
+    unsigned *in, *t;
+    unsigned char *u;
+    int k, m, len;
+    if (n < 0) n = (int)strlen(utf8);
+    in = (unsigned *)malloc(sizeof(unsigned) * (size_t)(n + 1));
+    if (!in) return -1;
+    k = tl_utf8_decode(utf8, n, in);
+    t = (unsigned *)malloc(sizeof(unsigned) * (size_t)tl_room(k));
+    if (!t) { free(in); return -1; }
+    m = tl_apply(in, k, charset == SSV_CP850 ? known_cp850 : tl_known_ascii, t);
+    free(in);
+    u = (unsigned char *)malloc((size_t)m * 4 + 1);
+    if (!u) { free(t); return -1; }
+    len = tl_utf8_encode(t, m, u);
+    free(t);
+    if (out && len <= cap) memcpy(out, u, (size_t)len);
+    free(u);
+    return len;
 }
