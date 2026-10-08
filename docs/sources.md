@@ -46,6 +46,9 @@
 
 - **MAME's `votrax.cpp`,** a die-derived SC-01 model: the interleaving precedent and a
   structural comparison. Its numbers belong to the SC-01.
+- **John McMaster's SC-01-A die photographs,** siliconpr0n:
+  [mcmaster:votrax:sc-01-a](https://siliconpr0n.org/archive/doku.php?id=mcmaster:votrax:sc-01-a). The SSI-263's
+  ancestor in silicon: the ROM array, the filter capacitors and the "(c) 1980" mark.
 - **redcedar's Votrax pages** (about 2006-2007): the SC-01 / SC-01-A difference from Jonathan Gevaryahu's 2007 decap,
   and what became of Silicon Systems (TI's storage group, TDK's semiconductor arm).
 - **Steve Ciarcia's SSI-263 article, Byte, March 1984:** a project with register listings.
