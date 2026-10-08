@@ -138,7 +138,7 @@ rm -rf $TFW && mkdir -p $TFW/blazie/spanish $TFW/gw-micro-speakout $TFW/aicom-ac
 ln -sf "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state" $TFW/blazie/
 [ -f "$DATA/BL2SPA.BNS" ] && ln -sf "$DATA/BL2SPA.BNS" "$DATA/bl2spa_fresh.state" $TFW/blazie/spanish/
 for so in "$DATA/gw-micro-speakout" "$ROOT/firmware/gw-micro-speakout" "$DATA/../speakout-firmware"; do
-    [ -f "$so/SPEAKOUT.HEX" ] && { ln -sf "$(cd "$so" && pwd)/SPEAKOUT.HEX" $TFW/gw-micro-speakout/; break; }
+    [ -f "$so/SPEAKOUT.HEX" ] && { ln -sf "$so/SPEAKOUT.HEX" $TFW/gw-micro-speakout/; break; }
 done
 ln -sf "$ROOT/firmware/aicom-accent-mini/SPKEMS.DVC" $TFW/aicom-accent-mini/
 ln -sf "$ROOT/firmware/aicom-accent-sa/u2.BIN" "$ROOT/firmware/aicom-accent-sa/u3.BIN" \

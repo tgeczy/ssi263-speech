@@ -12,7 +12,8 @@ voices make, and the Braille Lite's NVDA driver.  Tomi: typing á é ő ú ű ó
     python translit_test.py driver    # the Braille Lite's NVDA driver (Python front end, nvda/dist/blazie-build): what
                                       # its unit is sent, English and Spanish, and that it speaks
     TRANSLIT_BREAK=1                  # control: the pass off, as before it -- each mode must FAIL
-    SSI263_LIB=<libssi263speech.so>   # the library (default build/win/<arch>/ssi263speech.dll)
+    SSI263_LIB=<libssi263speech.so>   # the library (default build/win/<arch>/ssi263speech.dll); on Linux the other
+                                      # voices from build/linux/libsd_voices_ref.so (SSI263_VOICES_LIB)
 
 "voices" holds each accented text's audio to its ASCII spelling's, both on a fresh unit (a unit's next utterance
 depends on its state, a fresh one's does not): "tükör" must sound as "tukor" does, "á" alone as "a acute", and not
@@ -74,33 +75,54 @@ def module():
     sys.exit(r.returncode)
 
 
-# ---- voices: ssi263speech.dll --------------------------------------------------------------------------------------
-P, I, S = ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p
+# ---- voices: ssi263speech.dll (Windows), or Linux's two libraries ----------------------------------------------------
+P, I, S, D, Z = ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_double, ctypes.c_size_t
+PCM = [P, ctypes.POINTER(ctypes.POINTER(ctypes.c_short)), ctypes.POINTER(I)]
 VOICES = ("blazie", "blazie_es", "speakout", "mini", "sa")       # ssv indexes 0-4 (voices.h)
+API = {"blazie": "blv", "blazie_es": "blv", "speakout": "sov", "mini": "amv", "sa": "asv"}
+# each voice's files in a folder laid out as firmware/ (voices.c's table)
+FILES = {"blazie": ["blazie/BL2ENG.BNS", "blazie/bl2_2003_warm.state"],
+         "blazie_es": ["blazie/spanish/BL2SPA.BNS", "blazie/spanish/bl2spa_fresh.state"],
+         "speakout": ["gw-micro-speakout/SPEAKOUT.HEX"], "mini": ["aicom-accent-mini/SPKEMS.DVC"],
+         "sa": ["aicom-accent-sa/u2.BIN", "aicom-accent-sa/u3.BIN", "aicom-accent-sa/u4.BIN"]}
+RATE = 22050
+
+
+class Lib:
+    """The voices' C: on Windows ssi263speech.dll has them all and the voice table (ssv_); on Linux the Braille Lite
+    is libssi263speech.so (SSI263_LIB) and the others build/linux/libsd_voices_ref.so (the speech-dispatcher
+    module's engines, as test_sd_ssi263.py loads them; SSI263_VOICES_LIB), each voice made through its own API."""
+
+    def __init__(self):
+        self.libs = [ctypes.CDLL(os.environ.get("SSI263_LIB")
+                                 or os.path.join(REPO, "build", "win", ARCH, "ssi263speech.dll"))]
+        self.table = hasattr(self.libs[0], "ssv_create")
+        if not self.table:
+            self.libs.append(ctypes.CDLL(os.environ.get("SSI263_VOICES_LIB")
+                                         or os.path.join(REPO, "build", "linux", "libsd_voices_ref.so")))
+
+    def fn(self, name, res, args):
+        for lib in self.libs:
+            if hasattr(lib, name):
+                f = getattr(lib, name)
+                f.restype, f.argtypes = res, args
+                return f
+        raise AttributeError("no %s in %s" % (name, ", ".join(lib._name for lib in self.libs)))
 
 
 def load():
-    lib = ctypes.CDLL(os.environ.get("SSI263_LIB") or os.path.join(REPO, "build", "win", ARCH, "ssi263speech.dll"))
-    for name, res, args in (("ssv_create", P, [I, S, P, S, I]), ("ssv_speak", I, [P, P, S, I]),
-                            ("ssv_available", I, [I, S]),
-                            ("ssv_render", I, [P, ctypes.POINTER(ctypes.POINTER(ctypes.c_short)), ctypes.POINTER(I)]),
-                            ("ssv_destroy", None, [P]), ("blv_say_bytes", I, [S, I, I, S, I]),
-                            ("sov_say_bytes", I, [S, S, I]), ("amv_say_bytes", I, [S, I, S, I]),
-                            ("asv_say_bytes", I, [S, I, S, I]), ("ssv_translit", I, [S, I, I, S, I])):
-        fn = getattr(lib, name)
-        fn.restype, fn.argtypes = res, args
-    return lib
+    return Lib()
 
 
 def say_bytes(lib, voice, text):
     """the bytes the voice sends its unit for this text (its drivers' defaults: packing, numbers on)"""
     raw, buf = text.encode("utf-8"), ctypes.create_string_buffer(4096)
     if voice in ("blazie", "blazie_es"):
-        n = lib.blv_say_bytes(raw, 1 if voice == "blazie_es" else 0, 1, buf, 4096)
+        n = lib.fn("blv_say_bytes", I, [S, I, I, S, I])(raw, 1 if voice == "blazie_es" else 0, 1, buf, 4096)
     elif voice == "speakout":
-        n = lib.sov_say_bytes(raw, buf, 4096)
+        n = lib.fn("sov_say_bytes", I, [S, S, I])(raw, buf, 4096)
     else:
-        n = getattr(lib, "amv_say_bytes" if voice == "mini" else "asv_say_bytes")(raw, 1, buf, 4096)
+        n = lib.fn(API[voice] + "_say_bytes", I, [S, I, S, I])(raw, 1, buf, 4096)
     return buf.raw[:n]
 
 
@@ -108,24 +130,53 @@ FIRMWARE = (sys.argv[sys.argv.index("--firmware") + 1] if "--firmware" in sys.ar
             else os.path.join(REPO, "firmware"))
 
 
+def available(lib, voice):
+    if lib.table:
+        return bool(lib.fn("ssv_available", I, [I, S])(VOICES.index(voice), FIRMWARE.encode()))
+    return all(os.path.isfile(os.path.join(FIRMWARE, *f.split("/"))) for f in FILES[voice])
+
+
+def create(lib, voice, err):
+    """a fresh unit: (handle, its speak(utf8), its prefix) through the table, or the voice's own API"""
+    if lib.table:
+        v = lib.fn("ssv_create", P, [I, S, P, S, I])(VOICES.index(voice), FIRMWARE.encode(), None, err, 256)
+        speak = lib.fn("ssv_speak", I, [P, P, S, I])
+        return v, (lambda t: speak(v, None, t, 0)), "ssv"
+    api, paths = API[voice], [os.path.join(FIRMWARE, *f.split("/")) for f in FILES[voice]]
+    if api == "blv":
+        v = lib.fn("blv_create", P, [S, S, I, D, I, I, S, I])(paths[0].encode(), paths[1].encode(),
+                                                              int(voice == "blazie_es"), float(RATE), 1, 0, err, 256)
+        speak = lib.fn("blv_speak", I, [P, S])
+        return v, (lambda t: speak(v, t)), api
+    if api == "asv":
+        roms = [open(p, "rb").read() for p in paths]
+        v = lib.fn("asv_create", P, [S, Z, S, Z, S, Z, D, S, I])(roms[0], len(roms[0]), roms[1], len(roms[1]),
+                                                                 roms[2], len(roms[2]), float(RATE), err, 256)
+    else:
+        v = lib.fn(api + "_create", P, [S, D, S, I])(paths[0].encode(), float(RATE), err, 256)
+    speak = lib.fn(api + "_speak", I, [P, S, I])
+    return v, (lambda t: speak(v, t, 0)), api
+
+
 def pcm(lib, voice, text):
     """the audio of text on a fresh unit (deterministic, unlike a unit's next utterance)"""
     err = ctypes.create_string_buffer(256)
-    v = lib.ssv_create(VOICES.index(voice), FIRMWARE.encode(), None, err, 256)
+    v, speak, api = create(lib, voice, err)
     if not v:
         sys.exit("FAILED: %s: %s" % (voice, err.value.decode("latin-1")))
     try:
-        lib.ssv_speak(v, None, text.encode("utf-8"), 0)
+        speak(text.encode("utf-8"))
+        render = lib.fn(api + "_render", I, PCM)
         buf, done, out = ctypes.POINTER(ctypes.c_short)(), I(0), bytearray()
         for _ in range(4000):
-            n = lib.ssv_render(v, ctypes.byref(buf), ctypes.byref(done))
+            n = render(v, ctypes.byref(buf), ctypes.byref(done))
             if n > 0:
                 out += ctypes.string_at(buf, 2 * n)
             if done.value:
                 break
         return bytes(out)
     finally:
-        lib.ssv_destroy(v)
+        lib.fn(api + "_destroy", None, [P])(v)
 
 
 def loud(y):
@@ -166,7 +217,7 @@ def bytes_():
 
 def voices():
     lib = load()
-    here = [v for i, v in enumerate(VOICES) if lib.ssv_available(i, FIRMWARE.encode())]
+    here = [v for v in VOICES if available(lib, v)]
     if "--ascii-child" in sys.argv:                                   # the other side of the ASCII check
         print(json.dumps(ascii_hashes(lib, here)))
         return
