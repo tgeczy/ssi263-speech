@@ -19,6 +19,12 @@
   engine's first test, from Astra's checked transcription). Two label errors in the printed
   guide are noted.
 - **Votrax, SC-02 data sheet** (12/85): the same chip under Votrax's name.
+- **Votrax, SC-01 data sheet** (1980; a later revision reads 10-14 V and adds the SPEECH-PAC board's manual and
+  schematic): the 64 phonemes with their lengths at 720 kHz, the two pitch pins, the master clock that moves pitch
+  and speed together, and the block diagram of voiced and fricative sources into four filters. The SSI-263's
+  ancestor, for comparison.
+- **Votrax, "Phonetic Speech Dictionary for the SC-01 Speech Synthesizer":** about 1,400 English words in
+  Votrax's own SC-01 phoneme spellings.
 - **Maeding, Austin and Maimone, "An integrated phoneme speech synthesizer",** ISSCC 1984,
   [doi:10.1109/ISSCC.1984.1156580](https://doi.org/10.1109/ISSCC.1984.1156580). Licensed to
   Tomi, so it is summarised here, never reproduced. It gave the architecture: the SC-01
@@ -40,6 +46,8 @@
 
 - **MAME's `votrax.cpp`,** a die-derived SC-01 model: the interleaving precedent and a
   structural comparison. Its numbers belong to the SC-01.
+- **redcedar's Votrax pages** (about 2006-2007): the SC-01 / SC-01-A difference from Jonathan Gevaryahu's 2007 decap,
+  and what became of Silicon Systems (TI's storage group, TDK's semiconductor arm).
 - **Steve Ciarcia's SSI-263 article, Byte, March 1984:** a project with register listings.
 - **Elovitz et al., 1976, the NRL letter-to-sound rules:** the notation of the Braille Lite
   and Speak-Out rule tables.

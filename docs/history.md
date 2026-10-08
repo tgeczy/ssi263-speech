@@ -30,9 +30,20 @@ way, and those withdrawals are part of the record too.
 
 ## Before this project
 
+- **1980.** Votrax, of Troy, Michigan, publishes the SC-01 data sheet:
+  - 64 phonemes on a 6-bit code, each with a fixed length at the standard 720 kHz clock (most full vowels 185 ms);
+  - two pins for four pitch levels;
+  - a master clock that moves pitch and speed together.
+
+  The SSI-263 later puts pitch, speed, length, loudness and filter all under the host's control.
+- **About 1982.** The SC-01-A changes "the parameters ... for a few phonemes, ostensibly to increase sound quality
+  and to remove some DC bias from the output" (Jonathan Gevaryahu, from the 2007 decap). The data sheet's own cover
+  photo shows an SC-01-A dated 8235.
 - **1984.** Silicon Systems' SSI-263 is described at ISSCC (Maeding, Austin and Maimone).
   It descends from Votrax's SC-01, and Votrax sells it as the SC-02. The chip photographed
   later is marked "SSI 263P / P 8404".
+- **1989.** The chip is sold as TDK's 78A263A: a Heath PC Voice Card carries a 78A263A-P with a 1989 date code.
+  Artic Technologies' SynPhonix cards carry Artic's own ARTIC263.
 - **1991.** The Braille 'n Speak 640 ships, around October, and work begins on the
   pronunciation fixes in its firmware, reaching users in the first updates (1991 or summer
   1992). **Cathy Hall** wrote them. Few people outside the company knew her work, and a
@@ -40,6 +51,11 @@ way, and those withdrawals are part of the record too.
   mispronounced words she was given was "David", then said with a short a. The June 2003
   Braille Lite firmware this project runs still carries her fix: "David" comes out
   D A A E V I D, with a long a.
+- **1998.** TI takes over Silicon Systems' storage products group. The speech chips don't go with it: asked in 2006,
+  neither TI nor TDK's semiconductor arm (later Teridian) could say anything about the 263 (redcedar's Votrax
+  pages).
+- **2007.** Jonathan Gevaryahu decaps the SC-01 and SC-01-A and reads their ROMs, the ground for MAME's die-derived
+  SC-01 model.
 - **Visual6502.org** photographs an SSI-263P die from chips an anonymous donor sent: Greg
   James shoots 203 images, Christian Sattler stitches them, and a 7000 × 5803 picture goes
   online with the data sheets.
