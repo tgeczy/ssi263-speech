@@ -11,7 +11,8 @@ voices make, and the Braille Lite's NVDA driver.  Tomi: typing á é ő ú ű ó
                                       # skipped, said so)
     python translit_test.py driver    # the Braille Lite's NVDA driver (Python front end, nvda/dist/blazie-build): what
                                       # its unit is sent, English and Spanish, and that it speaks
-    TRANSLIT_BREAK=1                  # control: the pass off, as before it -- each mode must FAIL
+    TRANSLIT_BREAK=1                  # control: the pass off, as before it -- each mode must FAIL (this script sets
+                                      # the library's ssv_translit_break; test_translit.c sets its own)
     SSI263_LIB=<libssi263speech.so>   # the library (default build/win/<arch>/ssi263speech.dll); on Linux the other
                                       # voices from build/linux/libsd_voices_ref.so (SSI263_VOICES_LIB)
 
@@ -34,6 +35,12 @@ ARCH = "x64" if struct.calcsize("P") == 8 else "x86"
 MODE = sys.argv[1] if len(sys.argv) > 1 else "voices"
 BROKEN = os.environ.get("TRANSLIT_BREAK") == "1"
 results = []
+
+
+def set_break(lib):
+    """the control: the library's own flag (translit.h's ssv_translit_break; the library reads no environment) set
+    when this script runs with TRANSLIT_BREAK=1, cleared otherwise"""
+    ctypes.c_int.in_dll(lib, "ssv_translit_break").value = 1 if BROKEN else 0
 
 
 def report(ok, what):
@@ -100,6 +107,8 @@ class Lib:
         if not self.table:
             self.libs.append(ctypes.CDLL(os.environ.get("SSI263_VOICES_LIB")
                                          or os.path.join(REPO, "build", "linux", "libsd_voices_ref.so")))
+        for lib in self.libs:
+            set_break(lib)
 
     def fn(self, name, res, args):
         for lib in self.libs:
@@ -256,6 +265,7 @@ def driver():
     g = {"__file__": os.path.join(HERE, "fake_nvda_driver_test.py"), "__name__": "harness"}
     exec(compile(src[0], g["__file__"], "exec"), g)
     drv_mod = g["drv_mod"]
+    set_break(ctypes.CDLL(drv_mod.DLL))         # the add-on's library: its unit and its _translit's one copy
     said = []
     native_say = drv_mod.NativeBlazie.say
 

@@ -129,7 +129,8 @@ SSV_API ssv_voice *ssv_bank_voice(ssv_bank *k, int i, char *err, int errlen);
    to the NUL) in, UTF-8 out.  charset: what the firmware knows, SSV_ASCII (the English Braille Lite, the Speak-Out,
    the Accents) or SSV_CP850 (the Spanish Braille Lite).  Returns the length (no NUL), copying into out when it fits in
    cap; -1 when out of memory.  For the Braille Lite's NVDA driver (its front end is Python, its unit this library)
-   and for the tests that hold the voices to 0.7.0's drivers, which predate the pass. */
+   and for the tests that hold the voices to 0.7.0's drivers, which predate the pass.  The library also exports
+   translit.h's ssv_translit_break, the tests' control (nonzero: the pass off for every voice in it). */
 #define SSV_ASCII 0
 #define SSV_CP850 1
 SSV_API int ssv_translit(const char *utf8, int n, int charset, char *out, int cap);

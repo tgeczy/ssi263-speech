@@ -5,8 +5,10 @@
  *     gcc -std=c99 -Wall -I src/csrc -o test_translit src/csrc/test_translit.c && ./test_translit
  *
  * nvda/tools/translit_test.py builds and runs it (Windows), tools/linux_ci_checks.sh too (Linux).  Its control:
- * TRANSLIT_BREAK=1 turns the pass off, as every voice then speaks (the old path) -- this test must FAIL. */
+ * TRANSLIT_BREAK=1 sets ssv_translit_break, the pass off, as every voice then speaks (the old path) -- this test must
+ * FAIL. */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "translit.h"
@@ -149,6 +151,10 @@ static void ascii_unchanged(void)
 
 int main(void)
 {
+    /* the control: TRANSLIT_BREAK=1 in this test's environment sets the library's flag (the library reads none) */
+    const char *brk = getenv("TRANSLIT_BREAK");
+    if (brk && !strcmp(brk, "1"))
+        ssv_translit_break = 1;
     /* the lone letters' words (the whole text one character, whitespace trimmed) */
     expect("lone", "\xc3\xa1", tl_known_ascii, "a acute");                          /* á */
     expect("lone", "\xc3\xa0", tl_known_ascii, "a grave");                          /* à */

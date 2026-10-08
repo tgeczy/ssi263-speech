@@ -38,7 +38,7 @@ int at_inflection(int x)
 
 /* _clean: 7-bit, no control characters (ESC and Ctrl-X are the Accent's commands), no tilde ("~/" opens its phoneme
    input and swallows everything to the next "~").  Its few letters (e-acute ... c-cedilla) are 0.7's; translit.h
-   now reaches every letter first, and they stay so that TRANSLIT_BREAK=1 is exactly the old path. */
+   now reaches every letter first, and they stay so that ssv_translit_break is exactly the old path. */
 static int clean(const unsigned *in, int n, char *out)
 {
     int i, m = 0;

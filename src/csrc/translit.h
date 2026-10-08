@@ -24,13 +24,13 @@
  * unit's included (only the letters it does not know reach them); words in the unit's own language are a possible
  * refinement.
  *
- * TRANSLIT_BREAK=1 in the environment (read once): the pass is off and every voice speaks as before it -- the tests'
- * must-fail control.
+ * ssv_translit_break (exported, set only by tests: through ctypes, or in test_translit.c; the test scripts set it when
+ * their own environment has TRANSLIT_BREAK=1): nonzero turns the pass off and every voice speaks as before it -- the
+ * tests' must-fail control.  The library never reads the environment.
  */
 #ifndef SSI263_TRANSLIT_H
 #define SSI263_TRANSLIT_H
 
-#include <stdlib.h>
 #include <string.h>
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -132,16 +132,17 @@ TL_FN int tl_space(unsigned c)
 
 TL_FN int tl_combining(unsigned c) { return c >= 0x300 && c <= 0x36F; }
 
-/* TRANSLIT_BREAK=1: the pass off (the tests' control), read once */
-TL_FN int tl_broken(void)
-{
-    static int broken = -1;
-    if (broken < 0) {
-        const char *e = getenv("TRANSLIT_BREAK");
-        broken = e && e[0] == '1' && !e[1];
-    }
-    return broken;
-}
+/* A test's control (as bl_voice.h's blv_break_fault; nothing else sets it): nonzero turns the pass off, so every voice
+   of the library speaks as before it.  One flag per library: each file that includes this header defines it, as a
+   COMDAT (Windows) or weak (ELF) symbol the linker keeps once, exported.  Read at every call. */
+#if defined(_WIN32)
+#define TL_FLAG __declspec(dllexport) __attribute__((selectany))
+#else
+#define TL_FLAG __attribute__((weak, visibility("default")))
+#endif
+TL_FLAG int ssv_translit_break = 0;
+
+TL_FN int tl_broken(void) { return ssv_translit_break != 0; }
 
 /* The room tl_apply needs for n code points: two per letter in text ("ss"), or a lone letter's words. */
 TL_FN int tl_room(int n) { return 2 * n + 32; }
