@@ -13,9 +13,11 @@ Mockingboard (`mb_board.c`), with sixteen bytes of "ROM" of our own.
 |---|---|
 | `mb_board.h`, `mb_board.c` | The machine: 48 KB of RAM, the 16 KB language card (its switches at C080h-C08Fh), the SSI-263 at C440h-C447h, the second VIA's PCR, IFR and IER with the chip's A/R on CA1, and our "ROM" (an IRQ entry that does what the monitor's does for the driver, an idle loop, the vectors). The host's guard (writes into a range counted) and abort. |
 | `mb_host.h`, `mb_host.c` | The host: the firmware file placed as the demo BLOADs it (only the known set, by sha256), the four settings bytes, a text said as the MB$ path leaves it (8500h, a space before and after), the rules run with the chip's time standing still, then every frame played from the A/R interrupt in lockstep with the chip (accent_sa.py's lockstep); the overflow guard; cancel by the driver's own end-of-text path. |
+| `mb_voice.h`, `mb_voice.c` | The voice: NVDA's rate and pitch onto the firmware's rate 0-13 and inflection 0-26 (50 = the demo's 8 and 8), the volume as gain, a capital's pitch; the Accents' 7-bit text path (`../accent_text.c`: accented letters, currencies, number words); long text in parts of at most 120 characters, cut at sentence ends, then clause marks, then spaces, and a part the host refuses as too long split again. No lead trim: speech starts within about 12 ms. |
+| `test_mb_voice.c` | The voice on the real firmware (8 tests): the setting steps, the text path, the splitting, speaking, 600 characters in parts, a refused part split, cancel then speak, the volume. |
 | `mb_render.c` | The C API alone: the firmware folder and a text into a WAV (`mb_render <folder> "text" out.wav [--log]`). |
 | `test_mockingboard.c` | The host on the real firmware (9 tests): the golden R0 frames, the five register streams and the settings in them, a clean core (no decimal mode, no undocumented opcode), rate and inflection, refusals and the length limit, the overflow guard, cancel, a changed byte refused. Skips (77) without the firmware file. |
-| `mb_controls.py` | Its must-fail controls (6): each rule undone in a scratch copy, exactly its tests must fail. |
+| `mb_controls.py` | The must-fail controls of both tests (6 host rules, 4 voice rules): each rule undone in a scratch copy, exactly its tests must fail. |
 
 `../../../tools/mockingboard_firmware.py` makes the firmware file, `mockingboard-tts-1.1.bin`, from the toolkit's
 disk image: the six DOS 3.3 binary files the voice runs (TEXT TO SPEECH, INFLECTION, IIE TTS DRIVER and the three
@@ -52,7 +54,8 @@ MKB:RULE files), back to back, each exactly as DOS stores it. It refuses any oth
 
 ## Open
 
-- The voice (`mb_voice`, settings on NVDA's scales, splitting texts) and its entry in `../voices.h`.
+- Its entry in `../voices.h`, which `tools/check_uniform.py` then requires on every platform (NVDA, SAPI, Linux,
+  Android), with the firmware file in each release package.
 - The firmware file into `firmware/` with its notice, once its provenance ledger is written.
 - The earlier SSI-263 version on the Mockingboard C's own disk (one program at 6600h, a different rule table):
   a second voice only if it sounds different.
