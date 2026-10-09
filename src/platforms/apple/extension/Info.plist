@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundleDisplayName</key>
+    <string>SSI-263 Speech Synthesizer</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>NSExtension</key>
+    <dict>
+        <key>NSExtensionAttributes</key>
+        <dict>
+            <key>AudioComponents</key>
+            <array>
+                <dict>
+                    <key>type</key>
+                    <string>ausp</string>
+                    <key>subtype</key>
+                    <string>s263</string>
+                    <key>manufacturer</key>
+                    <string>SSIs</string>
+                    <key>name</key>
+                    <string>SSI-263 Speech: Synthesizer</string>
+                    <key>description</key>
+                    <string>SSI-263 Speech Synthesizer</string>
+                    <key>version</key>
+                    <integer>1</integer>
+                    <key>sandboxSafe</key>
+                    <true/>
+                    <key>tags</key>
+                    <array>
+                        <string>Speech Synthesizer</string>
+                    </array>
+                </dict>
+            </array>
+        </dict>
+        <key>NSExtensionPointIdentifier</key>
+        <string>com.apple.AudioUnit</string>
+        <key>NSExtensionPrincipalClass</key>
+        <string>$(PRODUCT_MODULE_NAME).AudioUnitFactory</string>
+    </dict>
+</dict>
+</plist>

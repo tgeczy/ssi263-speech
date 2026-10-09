@@ -138,8 +138,25 @@ module SSI263Core {
 EOF
 }
 
+# What the apps show under "Licenses and source", into build/apple/licenses (the project takes the folder as it is):
+# the project's MIT, Casso's, and MAME's BSD-3-Clause notices for the four cores, as build_android.sh stages them.
+# No firmware notice: the apps carry no firmware.
+licenses() {
+    L="$OUT/licenses"
+    rm -rf "$L"
+    mkdir -p "$L"
+    cp "$ROOT/LICENSE" "$L/1 SSI-263 Speech (MIT).txt"
+    cp "$SRC/cpu/mame_z180/LICENSE-BSD-3-Clause.txt" "$L/2 MAME Z180 core (BSD-3-Clause).txt"
+    cp "$SRC/cpu/mame_i8085/LICENSE-BSD-3-Clause.txt" "$L/3 MAME 8085 core (BSD-3-Clause).txt"
+    cp "$SRC/cpu/mame_nec/LICENSE-BSD-3-Clause.txt" "$L/4 MAME NEC V40 core (BSD-3-Clause).txt"
+    if [ "$MINI" = 1 ]; then
+        cp "$SRC/cpu/mame_i86/LICENSE-BSD-3-Clause.txt" "$L/5 MAME 8086 core (BSD-3-Clause).txt"
+    fi
+    cp "$ROOT/third_party/casso/LICENSE" "$L/6 Casso (MIT).txt"
+}
+
 case "${1:-all}" in
-    macos) platform macos macos-arm64 macos-x86_64 ;;
+    macos) platform macos macos-arm64 macos-x86_64; licenses ;;
     ios) platform ios ios-arm64 ;;
     ios-simulator) platform ios-simulator iossim-arm64 iossim-x86_64 ;;
     all)
@@ -147,6 +164,7 @@ case "${1:-all}" in
         platform ios ios-arm64
         platform ios-simulator iossim-arm64 iossim-x86_64
         headers
+        licenses
         rm -rf "$OUT/SSI263Core.xcframework"
         xcodebuild -create-xcframework \
             -library "$OUT/macos/libssi263core.a" -headers "$OUT/include" \
