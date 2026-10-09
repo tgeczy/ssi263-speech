@@ -2,16 +2,18 @@
  * (the SAPI 5 engine, sapi/ssi263_sapi.cpp; the speech-dispatcher module; Android), so each of them speaks a voice the
  * same way and none keeps its own copy of which firmware a voice needs or what its NVDA driver's defaults are.
  *
- * The voices are the NVDA add-ons' five, by the same ids their SAPI tokens carry ("<driver module>:<voice>"):
+ * The voices are the NVDA add-ons' five and the Mockingboard, by the ids their SAPI tokens carry ("<driver
+ * module>:<voice>"; the Mockingboard, new in 0.8, has no add-on of its own before the unified one):
  *
  *     blazie:blazie       Braille Lite 2000 (June 2003)   bl_voice.h (BL2ENG.BNS + its warm state)
  *     blazie:blazie_es    Braille Lite 2000 (español)     bl_voice.h (BL2SPA.BNS + its fresh state)
  *     speakout:speakout   Speak-Out                       so_voice.h (SPEAKOUT.HEX)       with SSV_HAVE_SPEAKOUT
  *     accentmini:mini     Accent-mini                     am_voice.h (SPKEMS.DVC)         with SSV_HAVE_ACCENTMINI
  *     accentmini:sa       Accent SA                       as_voice.h (u2, u3, u4)
+ *     mockingboard:mockingboard  Mockingboard              mb_voice.h (mockingboard-tts-1.1.bin)  with SSV_HAVE_MOCKINGBOARD
  *
  * Each engine is a table of six functions -- create, set, speak, render, cancel, destroy -- over its voice's own API
- * (blv_, sov_, amv_, asv_); a voice whose engine is not compiled in is still listed, and ssv_create says why it cannot
+ * (blv_, sov_, amv_, asv_, mbv_); a voice whose engine is not compiled in is still listed, and ssv_create says why it cannot
  * make it.  The firmware is never built in: it comes from a folder laid out as the repository's firmware/ (the paths
  * in ssv_info.files), the user's or the installer's.
  *
@@ -42,12 +44,13 @@ extern "C" {
 #define SSV_SPEAKOUT 1             /* GW Micro's Speak-Out (so_voice.h) */
 #define SSV_ACCENT_MINI 2          /* Aicom's Accent-mini (am_voice.h) */
 #define SSV_ACCENT_SA 3            /* Aicom's Accent SA (as_voice.h) */
+#define SSV_MOCKINGBOARD 4         /* Sweet Micro Systems' Mockingboard (mockingboard/mb_voice.h) */
 
 typedef struct {
     const char *id;                /* "blazie:blazie": the NVDA driver module and its voice, as the SAPI tokens carry it */
     const char *name;              /* the NVDA driver's name for it, UTF-8 */
     const char *lang;              /* "en", "es" */
-    int engine;                    /* SSV_BLAZIE ... SSV_ACCENT_SA */
+    int engine;                    /* SSV_BLAZIE ... SSV_MOCKINGBOARD */
     int slot;                      /* voices of one slot share one unit in a bank (the two Accents: one card) */
     const char *files[4];          /* its firmware, relative to the firmware folder, "/"-separated; NULL after the last */
 } ssv_info;

@@ -47,6 +47,8 @@ static const voice_def ALL[] = {
      {"aicom-accent-sa/u2.BIN", "aicom-accent-sa/u3.BIN", "aicom-accent-sa/u4.BIN", NULL}, {0x10000, 0x8000, 0x8000}},
     {"accentmini:mini", "Accent-mini", "en-US", "accent-mini", {"aicom-accent-mini/SPKEMS.DVC", NULL}},
     {"speakout:speakout", "Speak-Out", "en-US", "speakout", {"gw-micro-speakout/SPEAKOUT.HEX", NULL}},
+    {"mockingboard:mockingboard", "Mockingboard", "en-US", "mockingboard",
+     {"sweet-micro-mockingboard/mockingboard-tts-1.1.bin", NULL}},
 };
 #define N_ALL ((int)(sizeof ALL / sizeof ALL[0]))
 
@@ -153,6 +155,8 @@ static void settings_for(int i, const sd_settings *s, int rate, int pitch, int v
         o->tone = s->speakout_tone;
         o->join = s->speakout_join;
         o->pack = s->speakout_short_pauses;
+        break;
+    case SSV_MOCKINGBOARD:             /* mbv_set: rate, pitch, volume; number words on (its defaults) */
         break;
     }
 }

@@ -74,6 +74,13 @@ EOF
         echo "note: the module has the Speak-Out, but no SPEAKOUT.HEX was found, so the voice is not packaged"
     fi
 fi
+if has mockingboard; then                          # Sweet Micro's, in the repository with firmware/SWEETMICRO.txt
+    mkdir -p "$STAGE/share/ssi263-speech/sweet-micro-mockingboard"
+    cp "$ROOT/firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin" "$STAGE/share/ssi263-speech/sweet-micro-mockingboard/"
+    cp "$ROOT/firmware/SWEETMICRO.txt" "$STAGE/licenses/Sweet-Micro-notice.txt"
+    cp "$ROOT/src/csrc/cpu/fake6502/PINNED.txt" "$STAGE/licenses/Fake6502-6502-core.txt"
+    cp "$ROOT/src/csrc/cpu/fake6502/LICENSE-EchoTalk-BSD-3-Clause.txt" "$STAGE/licenses/EchoTalk-BSD-3-Clause.txt"
+fi
 # the Blazie emulator (src/apps/blazie/README-linux.md): bin/blazie_emu finds the firmware in ../share/ssi263-speech,
 # the Type 'n Speak's in its tns folder (from the firmware folder's tns/, or beside the Braille Lite's)
 if [ -f "$ROOT/build/linux/blazie_emu" ]; then

@@ -16,6 +16,9 @@
 #ifdef SSV_HAVE_ACCENTMINI
 #include "accentmini/am_voice.h"
 #endif
+#ifdef SSV_HAVE_MOCKINGBOARD
+#include "mockingboard/mb_voice.h"
+#endif
 
 /* ---- the table ---------------------------------------------------------------------------------------------------- */
 static const ssv_info VOICES[] = {
@@ -27,6 +30,8 @@ static const ssv_info VOICES[] = {
     {"accentmini:mini", "Accent-mini", "en", SSV_ACCENT_MINI, 3, {"aicom-accent-mini/SPKEMS.DVC", NULL}},
     {"accentmini:sa", "Accent SA", "en", SSV_ACCENT_SA, 3,
      {"aicom-accent-sa/u2.BIN", "aicom-accent-sa/u3.BIN", "aicom-accent-sa/u4.BIN", NULL}},
+    {"mockingboard:mockingboard", "Mockingboard (Sweet Micro Systems)", "en", SSV_MOCKINGBOARD, 4,
+     {"sweet-micro-mockingboard/mockingboard-tts-1.1.bin", NULL}},
 };
 #define NVOICES ((int)(sizeof VOICES / sizeof VOICES[0]))
 
@@ -186,6 +191,29 @@ static void eng_am_cancel(void *u) { amv_cancel((am_voice *)u); }
 static void eng_am_destroy(void *u) { amv_destroy((am_voice *)u); }
 #endif
 
+#ifdef SSV_HAVE_MOCKINGBOARD
+/* the Mockingboard: mb_voice.h (rate, pitch, volume, number words) */
+static void *eng_mb_create(const ssv_info *info, const ssv_source *src, const ssv_boot *b, char *err, int errlen)
+{
+    size_t n;
+    unsigned char *owned;
+    const unsigned char *d = source_bytes(src, 0, &n, &owned);
+    mb_voice *v = NULL;
+    (void)info;
+    if (d)
+        v = mbv_create(d, n, (double)b->sample_rate, err, errlen);
+    else
+        snprintf(err, errlen, "could not read the Mockingboard's mockingboard-tts-1.1.bin");
+    free(owned);
+    return v;
+}
+static void eng_mb_set(void *u, const ssv_settings *s) { mbv_set((mb_voice *)u, s->rate, s->pitch, s->volume, s->numbers); }
+static int eng_mb_speak(void *u, const char *utf8, int pitch_offset) { return mbv_speak((mb_voice *)u, utf8, pitch_offset) > 0; }
+static int eng_mb_render(void *u, const short **pcm, int *done) { return mbv_render((mb_voice *)u, pcm, done); }
+static void eng_mb_cancel(void *u) { mbv_cancel((mb_voice *)u); }
+static void eng_mb_destroy(void *u) { mbv_destroy((mb_voice *)u); }
+#endif
+
 static const ssv_engine *engine(int kind)
 {
     static const ssv_engine bl = {eng_bl_create, eng_bl_set, eng_bl_speak, eng_bl_render, eng_bl_cancel, eng_bl_destroy};
@@ -196,6 +224,9 @@ static const ssv_engine *engine(int kind)
 #ifdef SSV_HAVE_ACCENTMINI
     static const ssv_engine am = {eng_am_create, eng_am_set, eng_am_speak, eng_am_render, eng_am_cancel, eng_am_destroy};
 #endif
+#ifdef SSV_HAVE_MOCKINGBOARD
+    static const ssv_engine mb = {eng_mb_create, eng_mb_set, eng_mb_speak, eng_mb_render, eng_mb_cancel, eng_mb_destroy};
+#endif
     switch (kind) {
     case SSV_BLAZIE: return &bl;
     case SSV_ACCENT_SA: return &as;
@@ -204,6 +235,9 @@ static const ssv_engine *engine(int kind)
 #endif
 #ifdef SSV_HAVE_ACCENTMINI
     case SSV_ACCENT_MINI: return &am;
+#endif
+#ifdef SSV_HAVE_MOCKINGBOARD
+    case SSV_MOCKINGBOARD: return &mb;
 #endif
     default: return NULL;
     }

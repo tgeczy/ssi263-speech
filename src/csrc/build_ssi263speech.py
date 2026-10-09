@@ -50,7 +50,7 @@ FRONT = ["-O2", "-std=c99", "-ffp-contract=off", "-Wall"] + inc("")
 
 def units():
     """(flags, source) for all release voices; a missing voice is a build failure."""
-    for source in ("speakout/so_voice.c", "accentmini/am_voice.c"):
+    for source in ("speakout/so_voice.c", "accentmini/am_voice.c", "mockingboard/mb_voice.c"):
         if not os.path.isfile(os.path.join(SRC, source)):
             raise SystemExit("Required release voice source missing: " + source)
     u = [(CHIP, "ssi263.c"), (CHIP, "ssi263dsp.c"), (MAME, "cpu/z180_mame.cpp"), (MAME, "cpu/z180_asci.cpp")]
@@ -70,6 +70,10 @@ def units():
         u += [(MAME, "cpu/i86_mame.cpp"), (am, "pc86/pc86.c")]
         u += [(am, "accentmini/%s.c" % n) for n in ("am_host", "am_voice")]
         have.append("-DSSV_HAVE_ACCENTMINI")
+    if os.path.isfile(os.path.join(SRC, "mockingboard", "mb_voice.c")):      # mb-voice's sources (mb_voice.h, 0.8)
+        mb = ["-O2", "-std=gnu99", "-ffp-contract=off", "-w"] + inc("cpu", "mockingboard", "")
+        u += [(mb, "cpu/m6502.c")] + [(mb, "mockingboard/%s.c" % n) for n in ("mb_board", "mb_host", "mb_voice")]
+        have.append("-DSSV_HAVE_MOCKINGBOARD")
     u.append((FRONT + have, "voices.c"))
     return u, have
 

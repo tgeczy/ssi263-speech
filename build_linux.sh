@@ -233,7 +233,7 @@ $CXX -shared $UNDEF -o "$OUT/libaccent_sa.so" "$OUT"/obj_accentsa/*.o -lm
 # SSV_HAVE_SPEAKOUT for them.  libsd_voices_ref.so: the same engine objects with the chip and the number words, the
 # test's reference (test_sd_ssi263.py drives the voices directly); never shipped.
 rm -rf "$OUT/obj_voices"; mkdir -p "$OUT/obj_voices"
-VOICE="-O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC -I$SRC/cpu -I$SRC/accentsa -I$SRC/pc86 -I$SRC/speakout"
+VOICE="-O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC -I$SRC/cpu -I$SRC/accentsa -I$SRC/pc86 -I$SRC/speakout -I$SRC/mockingboard"
 VOICE_SRCS="$SRC/accentsa/as_voice.c"            # numwords.o: the library's ($NUM_OBJS)
 [ -f "$SRC/accent_text.c" ] && VOICE_SRCS="$VOICE_SRCS $SRC/accent_text.c"   # the Accents' shared text rules
 SD_DEFS=""
@@ -247,6 +247,10 @@ if [ -f "$SRC/speakout/so_voice.c" ]; then
     VOICE_SRCS="$VOICE_SRCS $SRC/speakout/so_voice.c $SRC/speakout/so_host.c"
     ENGINE_OBJS="$ENGINE_OBJS $OUT/obj_v40/so_board.o $OUT/obj_v40/so_icu.o $OUT/obj_v40/so_scu.o $OUT/obj_v40/so_hex.o $OUT/obj_v40/v40_mame.o"
     SD_DEFS="$SD_DEFS -DSSV_HAVE_SPEAKOUT"
+fi
+if [ -f "$SRC/mockingboard/mb_voice.c" ]; then     # the Mockingboard (0.8): Fake6502, the board, the host, the voice
+    VOICE_SRCS="$VOICE_SRCS $SRC/cpu/m6502.c $SRC/mockingboard/mb_board.c $SRC/mockingboard/mb_host.c $SRC/mockingboard/mb_voice.c"
+    SD_DEFS="$SD_DEFS -DSSV_HAVE_MOCKINGBOARD"
 fi
 for f in $VOICE_SRCS; do
     $CC $VOICE -I"$(dirname "$f")" -c -o "$OUT/obj_voices/$(basename "$f" .c).o" "$f"
