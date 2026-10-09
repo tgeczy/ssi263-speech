@@ -35,6 +35,8 @@ The output goes under `build/apple/` (gitignored). The apps link it with `-lc++`
     SSI263_APPLE_TEST_BREAK=1 python src/platforms/apple/test/test_apple_core.py      control: must FAIL
     python src/platforms/apple/test/test_apple_speech.py
     SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|speech-1|speech-2|import python ...       controls: each must FAIL
+    sh src/platforms/apple/test/run_swift_tests.sh                                     the import, in Swift
+    SSI263_IMPORT_BREAK=1|state|speakout|accent sh src/platforms/apple/test/run_swift_tests.sh   controls: must FAIL
 
 `test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's
 `libssi263core.a`, the library the apps link, and requires every case's samples and PCM hash to be the desktop
@@ -53,6 +55,13 @@ must fail.
   in length.
 - **Import:** each of Aicom's files is known by its sha256 under any name, but not with one byte changed.
 
+`run_swift_tests.sh` compiles the app's import (`FirmwareImport.swift`, `ZipReader.swift`) with
+`FirmwareImportTests.swift`: every case of Android's `FirmwareImportTest.kt` (the zip layouts, the add-on, update
+programs, only the releases on the list, never a state, the Speak-Out's HEX, the words), the Accents' files (the
+Accent add-on's `accent-sa/` ROMs and driver, loose and renamed), each zip form the reader takes (stored, deflated,
+the sizes in a data descriptor), and zips made by `ditto` (Finder's Compress), Info-ZIP's `zip` and Python's
+`zipfile`.
+
 On the Mac, `test_android_native.py` runs every block but the Accent SA's, whose reference is the NVDA driver on the
 Windows DLLs: `SSI263_ANDROID_TEST_ONLY=bl,ra,num,so,mini,import`.
 
@@ -64,5 +73,8 @@ Windows DLLs: `SSI263_ANDROID_TEST_ONLY=bl,ra,num,so,mini,import`.
 | `core/ssp_ssml.h`, `ssp_ssml.c` | VoiceOver's SSML: the segments and their pauses at the Pause mode (off, short, long), as TGSpeechBox's speech extension makes them, and the prosody's rate, pitch and volume (the rotor's decibels) |
 | `core/ssp_speech.h`, `ssp_speech.c` | A request spoken segment by segment through Android's `ssa_engine`, each segment's PCM unchanged, the pauses' zeros between them, pulled block by block; a stop from any thread |
 | `core/ssp_import.h`, `ssp_import.c` | Every firmware the apps import: Aicom's files by sha256 (Android carries them built in), then Android's judgement of the Braille Lite's and the Speak-Out's |
+| `app/FirmwareImport.swift` | Android's `FirmwareImport.kt` in Swift, with the Accents' files: what a source holds (zip layouts, the add-ons, update programs, single files), judged by the native side by content, and the refusals in words |
+| `app/ZipReader.swift` | A zip's entries in order from their local headers, as `ZipInputStream` reads them: stored and deflated (Apple's Compression), sizes in the header or a data descriptor |
 | `test/test_apple_core.py` | Each runnable slice against the desktop program, byte for byte, with its control |
+| `test/FirmwareImportTests.swift`, `run_swift_tests.sh` | The import's layouts and words with a fake native side, the zip forms and the real tools' zips; the controls |
 | `test/test_apple_speech.c`, `.py` | The Apple front end's own C: the SSML and pauses, each voice's requests against their segments' own PCM, a stop, Aicom's files; the controls |
