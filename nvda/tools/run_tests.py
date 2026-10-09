@@ -509,7 +509,8 @@ if os.path.isfile(CLOCK):
 # byte, its flash allocator agreeing with our free space; export-import-export the same image, on the unit and on a
 # fresh one.  Every unit (English and Spanish).  Controls, each one bug put back: 1 the open file's live pointers
 # ignored, 2 new flash blocks not marked used, 3 a RAM file's end of text one short, 4 dates dropped, 5 the open
-# file's number not followed when an earlier file goes.
+# file's number not followed when an earlier file goes, 6 a binary file's line ends converted (issue #16: a compiled
+# BASIC program's 0Ah bytes made 0Dh, so it stopped after its first statement).
 FILES = os.path.join(EMU, "test_files.exe")
 FW_BLAZIE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "blazie")
 if os.path.isfile(FILES):
@@ -530,7 +531,9 @@ if os.path.isfile(FILES):
                    r"^FAIL the unit reads an imported RAM file \(moved to flash\)", r"^FAILED$"]),
             ("4", [r"^ok +export, import, export: the same image",
                    r"^FAIL export, import into a fresh unit, export: the same", r"^FAILED$"]),
-            ("5", [r"^ok +import: done", r"^FAIL the open file goes on after the import", r"^FAILED$"])):
+            ("5", [r"^ok +import: done", r"^FAIL the open file goes on after the import", r"^FAILED$"]),
+            ("6", [r"^ok +import: done", r"^FAIL import: a binary file byte for byte .*differs at byte 1: 0D, not 0A",
+                   r"^FAILED$"])):
         CHECKS.append(check("Blazie emulator: files CONTROL (break %s, must fail)" % brk, FILES_BL + ["--break=" + brk],
                             expect_fail=True, fail_marks=marks))
     if os.path.isfile(os.path.join(FW_BLAZIE, "tns", "TNSENG.TNS")):   # the Type 'n Speak's open-file number (51 back)

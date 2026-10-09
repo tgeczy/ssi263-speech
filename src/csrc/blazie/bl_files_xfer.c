@@ -238,10 +238,15 @@ static int is_junk(const char *n)
     return 0;
 }
 
-/* CR LF and lone LF made CR, in place; the new length */
+/* A PC's text, to the unit's line ends: CR LF and lone LF made CR, in place; the new length.  Only text: a file with
+   a NUL byte in it is not a PC's text but binary -- a compiled BASIC program (COMPILE.BNS's .BAS, a document by its
+   name) ends every statement with 00h, and its line numbers and lengths hold 0Ah and 0Dh bytes that must arrive as
+   they are (issue #16: its first statement ran, the next were garbage).  blf_break 6 converts it anyway. */
 static unsigned long to_unit_lines(unsigned char *d, unsigned long n)
 {
     unsigned long i, o = 0;
+    if (blf_break != 6 && memchr(d, 0, n))
+        return n;
     for (i = 0; i < n; i++) {
         if (d[i] == '\r' && i + 1 < n && d[i + 1] == '\n') { d[o++] = '\r'; i++; }
         else if (d[i] == '\n') d[o++] = '\r';

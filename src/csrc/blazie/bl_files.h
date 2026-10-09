@@ -128,7 +128,8 @@ int blf_check(const blf_fs *fs, char *err, int errlen);
 
 /* Tests' must-fail controls (an app never sets it): 1 the open file's live pointers are ignored (its directory entry
    is read as it stands), 2 a new flash file's blocks are not marked used, 3 a new RAM file's end-of-text one byte
-   short, 4 a new file's time and date dropped, 5 the open file's number left as it was when an earlier file goes. */
+   short, 4 a new file's time and date dropped, 5 the open file's number left as it was when an earlier file goes,
+   6 (bl_files_xfer.c) an imported binary document's line ends converted as a PC's text (issue #16). */
 extern int blf_break;
 
 #ifdef __cplusplus

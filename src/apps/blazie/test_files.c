@@ -20,7 +20,8 @@
  *
  * --break=N (bl_files.h's blf_break) puts one bug back; run_tests' controls must fail on exactly the checks that see
  * it: 1 the open file's live pointers ignored, 2 new flash blocks not marked used, 3 a new RAM file's end of text one
- * byte short, 4 an imported file's date dropped, 5 the open file's number not followed; --break=cp the Slovak unit's
+ * byte short, 4 an imported file's date dropped, 5 the open file's number not followed, 6 a binary file's line ends
+ * converted on import (issue #16: a compiled BASIC program, prog.bas in the image); --break=cp the Slovak unit's
  * names in code page 850 (its folders reach the PC with a thorn for the s-caron).  --break=cold
  * (tns_board.h's tns_cold_break) starts the Type 'n Speak as the emulator did before: the unit's warm reset.
  */
@@ -46,6 +47,9 @@ static char g_yes = 'y';                    /* the unit's yes: s on the Spanish 
 /* the names the test types on the unit: with no dot on the Braille Lite (Spanish computer braille writes the
    period with another chord), so the same chords serve both languages */
 static const char *g_doc, *g_imp, *g_imp_image;
+/* a compiled BASIC program's start, as COMPILE.BNS writes one (issue #16: HACK.BAS's first bytes): binary, NUL
+   bytes in it, its line numbers 10 and 20 the bytes 0Ah and 14h, a 0Dh 0Ah inside a string's length and number */
+static const char PROG_BAS[] = "\0\n\0#\x01\x01\x1d\"Welcome!\"\0\x14\0\x19\x18\x06model$\r\n\"bns\"\0\x1e\0\x0b";
 
 static void check(const char *name, int ok, const char *detail)
 {
@@ -385,6 +389,7 @@ static unsigned char *changed_image(const unit_t *x, const char *drop, const cha
     fat_add_file(b, ram_dir, g_imp_image, (const unsigned char *)"first line\r\nsecond line\r\n", 25, 0x6000,
                  0x5521, 0);
     fat_add_file(b, ram_dir, "big.brl", (const unsigned char *)g_big, 5000, 0x6001, 0x5521, 0);
+    fat_add_file(b, ram_dir, "prog.bas", (const unsigned char *)PROG_BAS, sizeof PROG_BAS - 1, 0x6004, 0x5521, 0);
     fat_add_file(b, flash_dir, tns ? "fbook.brl" : "book", (const unsigned char *)g_book, 3000, 0x6002, 0x5521, 0);
     work = fat_add_dir(b, 0, "work", 0, 0x5521);
     fat_add_file(b, work, "inwork.txt", (const unsigned char *)"in a folder\n", 12, 0x6003, 0x5521, 0);
@@ -533,11 +538,26 @@ static void all_checks(int tns, const char *fw, const char *state)
     snprintf(d, sizeof d, "%d added, %d rewritten, %d deleted, %d unchanged, %d kept, %d skipped, %d new folders%s%s",
              r.added, r.replaced, r.deleted, r.unchanged, r.kept, r.skipped, r.folders_added, ok ? "" : ": ",
              ok ? "" : err);
-    check("import: done, the file system's rules hold", ok && r.added == 4 && r.replaced == 2
+    check("import: done, the file system's rules hold", ok && r.added == 5 && r.replaced == 2
           && r.deleted == 1 && r.skipped == 0 && r.folders_added == 1, d);
     if ((r.skipped || r.kept || getenv("TEST_FILES_KEEP")) && r.log)
         printf("%s", r.log);
     blx_report_free(&r);
+    {   /* a compiled BASIC program (issue #16): its bytes as they came, the 0Ah of its line numbers not made 0Dh */
+        int k = imported_ok ? blf_find(a.fs, "prog.bas") : -1;
+        const unsigned char *x = k >= 0 ? blf_data(a.fs, k, &n) : NULL;
+        int i, diff = -1;
+        for (i = 0; x && i < (int)sizeof PROG_BAS - 1 && i < (int)n; i++)
+            if (x[i] != (unsigned char)PROG_BAS[i] && diff < 0)
+                diff = i;
+        snprintf(d, sizeof d, "%lu bytes (type %c), %s", x ? n : 0, k >= 0 ? blf_get(a.fs, k)->type : '-',
+                 !x ? "not imported" : diff >= 0 ? "differs" : n != sizeof PROG_BAS - 1 ? "another length" : "exact");
+        if (x && diff >= 0)
+            snprintf(d + strlen(d), sizeof d - strlen(d), " at byte %d: %02X, not %02X", diff, x[diff],
+                     (unsigned char)PROG_BAS[diff]);
+        check("import: a binary file byte for byte (a compiled BASIC program)", x && n == sizeof PROG_BAS - 1
+              && diff < 0, d);
+    }
 
     /* 4. export, import, export: the same image (on the unit itself, and on a fresh unit) */
     {
