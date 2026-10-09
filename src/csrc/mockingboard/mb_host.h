@@ -19,9 +19,14 @@
  * while requesting), then the 6502 runs as many cycles as that chip time holds; A/R goes to the board after every
  * chip slice and every chip write.
  *
+ * The chip's clock, MBH_XCK_HZ 1,020,484: the Apple's bus clock as it averages (14.31818 MHz / 14, one cycle in 65
+ * stretched), MEASURED: a recording of a real Mockingboard C playing Sweet Micro's demo (its MESS file through the
+ * COMPOSITE DRIVER, on YouTube: Gciw3PYCVok, Spacedog's find), the same frames through our chip -- every sung note
+ * of "Mary Had a Little Lamb" and "Three Blind Mice" at this clock within 0.1 Hz of the card's (seven notes, 83-166
+ * Hz; at 1 MHz all 2.04% low).  Open: the card's durations come out 0.8% longer than ours at this clock, and its
+ * output is much darker (above 1 kHz: -3 dB, rising to -20 dB above 4 kHz: its output stage or the recording's).
+ *
  * Numbers that are not the Mockingboard's, labelled so:
- *   MBH_XCK_HZ  1,022,727: a GUESS -- the SSI-263's clock taken from the Apple's bus clock, as MAME clocks the SC-01
- *               on the same card.  The schematic has not been checked.
  *   a text's conversion (the rules and INFLECTION, before the first frame) runs with the chip's time standing still:
  *               a HOST feature, so speech starts at once; on an Apple it takes a moment.  Speech itself is paced by A/R
  *               and does not change.
@@ -55,7 +60,7 @@ typedef struct {
 
 #define MB_FILE "mockingboard-tts-1.1.bin"
 #define MB_SHA256 "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"
-#define MBH_XCK_HZ 1022727.0               /* a GUESS (above) */
+#define MBH_XCK_HZ 1020484.0               /* measured (above) */
 /* 8C03h, the last index, is one byte and the firmware's loops run while their index is at most it: at 255 the index
    wraps and never passes it.  So 254 at most -- a space, 253 characters, a space. */
 #define MBH_MAX_TEXT 253

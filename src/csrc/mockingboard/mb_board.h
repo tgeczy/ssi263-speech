@@ -28,7 +28,7 @@ extern "C" {
 typedef struct mb_board mb_board;
 
 #define MB_IDLE 0xFFF5u               /* our idle loop: the host's return address for a call */
-#define MB_CPU_HZ 1022727.0           /* the Apple II's 6502: 14.31818 MHz / 14 */
+#define MB_CPU_HZ 1020484.0           /* the Apple II's 6502: 14.31818 MHz / 14, one cycle in 65 stretched */
 
 typedef struct {
     void *ctx;

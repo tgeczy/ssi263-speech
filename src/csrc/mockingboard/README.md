@@ -32,15 +32,23 @@ MKB:RULE files), back to back, each exactly as DOS stores it. It refuses any oth
   frames run into 8B00h and then the program). The host refuses a text that would pass the second before anything
   plays (`MBH_FAULT_LONG`); the voice splits it.
 - **Rates 14 and 15** wrap in INFLECTION's rate + 2 and come out slow: the voice uses 0-13.
-- **`MBH_XCK_HZ` 1,022,727 is a guess**: the chip's clock taken from the Apple's bus clock, as MAME clocks the SC-01
-  on the same card. The schematic has not been checked.
+- **`MBH_XCK_HZ` 1,020,484, measured**: the chip runs on the Apple's bus clock as it averages (14.31818 MHz / 14,
+  one cycle in 65 stretched). Below.
 - **A host feature**: a text's conversion runs with the chip's time standing still, so speech starts at once.
 
 ## Evidence
 
-The same R0 frames for the same text on two independent 6502s: py65 (a scratch prototype) and this core. The
-firmware never reaches decimal mode or an undocumented opcode in any test text. Tested against nothing real yet:
-recordings of a real Mockingboard would settle the clock and the analog side.
+- **The 6502**: the same R0 frames for the same text on two independent 6502s, py65 (a scratch prototype) and this
+  core. The firmware never reaches decimal mode or an undocumented opcode in any test text.
+- **The clock, against a real card** (2026-10-09): a recording of a Mockingboard C playing Sweet Micro's speech demo
+  (YouTube Gciw3PYCVok, found by Spacedog; its SSI-263 alone on the right channel, an SC-01 on the left). The demo
+  plays register frames, not text: its MESS file through the COMPOSITE DRIVER (Mockingboard C disk), five registers
+  at each A/R. The same frames through our chip: every sung note of "Mary Had a Little Lamb" and "Three Blind Mice"
+  at 1,020,484 Hz is within 0.1 Hz of the card's (seven notes, 83-166 Hz, by harmonic spacing, a synthetic pulse
+  train measuring exact); at 1 MHz all were 2.04% low, at MAME's 1,022,727 Hz they would be 0.2% high.
+- **Open, from the same recording**: the card's durations come out 0.8% longer than ours at that clock (fitted over
+  each whole song), and its sound is much darker -- above 1 kHz -3 dB, falling to -20 dB above 4 kHz, on speech and
+  singing alike: the card's output stage, or the recording's chain. Neither is modelled (the chip, not the board).
 
 ## Open
 
