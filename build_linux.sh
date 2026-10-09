@@ -7,6 +7,10 @@
 #                                    # never copied into src/ssi263/_bin, the package or the wheel
 #   CC=clang CXX=clang++ ./build_linux.sh
 #
+# On macOS the same script builds the desktop references the Apple apps are tested against (src/platforms/apple):
+# the library, sd_ssi263, the hosts' libraries and the tests, with Apple's clang and its libc++; not the Blazie
+# emulator, whose terminal, keyboard and sound are Linux's.  The library is then src/ssi263/_bin/darwin-arm64/'s.
+#
 # On Windows the same sources make ssi263.dll and bl.dll (src/csrc/build_native.py, src/csrc/blazie/build_board.py);
 # the flags here are theirs: -ffp-contract=off keeps the Python reference's arithmetic (no fused multiply-adds),
 # so the golden vectors (nvda/tools/golden) hold on every platform.  The .so is also copied to
@@ -36,6 +40,13 @@ BOARD="-O3 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -DBL_Z180_MAME
 MAME="-O3 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC"
 # libstdc++ and libgcc inside the .so, their symbols kept there: the library needs only libc and libm on any distro
 SHARED_CXX="-static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL"
+# a library whose chip comes from the one loaded before it (libaccent_sa.so, below): Linux's linker allows the
+# undefined symbols; Apple's needs telling
+UNDEF=""
+if [ "$(uname -s)" = Darwin ]; then
+    SHARED_CXX=""                   # libc++ is the system's on every Mac
+    UNDEF="-Wl,-undefined,dynamic_lookup"
+fi
 
 $CC $CHIP -c -o "$OUT/obj/ssi263.o" "$SRC/ssi263.c"
 $CC $CHIP -c -o "$OUT/obj/ssi263dsp.o" "$SRC/ssi263dsp.c"
@@ -68,6 +79,8 @@ rm -f "$OUT/test_bl_board_mame"                     # the old name of test_bl_bo
 # libstdc++ inside: it needs libc, libm, libpthread and libasound.  Its sound is ALSA's (libasound2-dev to build), or
 # PulseAudio's simple API when only that is there (libpulse-dev; or BLAZIE_AUDIO=pulse).  Without either it is not
 # built, and tools/linux_tests.sh says so.  test_keys: its keyboard without a unit (no sound, no firmware).
+# Not on macOS (its terminal, keyboard and sound are Linux's): this block and the GTK window's after it are skipped.
+if [ "$(uname -s)" != Darwin ]; then
 APP="$ROOT/src/apps/blazie"
 APPF="-O2 -std=gnu99 -ffp-contract=off -Wall -Wextra -Wno-unused-parameter -Wno-format-truncation -I$APP -I$SRC -fmacro-prefix-map=$ROOT=."
 rm -rf "$OUT/obj_emu" "$OUT/blazie_emu" "$OUT/blazie_bt" "$OUT/blazie_emu_bt"; mkdir -p "$OUT/obj_emu"
@@ -154,6 +167,7 @@ if [ -n "$AUDIO_LIBS" ] && pkg-config --exists gtk+-3.0 2>/dev/null; then
 elif [ -n "$AUDIO_LIBS" ]; then
     echo "skipped: blazie_emu_gtk -- no GTK 3 headers (sudo apt install libgtk-3-dev); the terminal blazie_emu is built"
 fi
+fi                                  # not on macOS
 
 # MAME's Z180 core's own tests (CONTRACT.md's clauses, and white-box)
 $CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC -c -o "$OUT/test_z180_contract.o" "$SRC/cpu/test_z180_contract.c"
@@ -210,7 +224,7 @@ $CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC/accentsa -c -o "$OUT/test_as_board.o" "$SRC
 $CXX -o "$OUT/test_as_board" "$OUT/test_as_board.o" "$OUT/obj_accentsa/as_board.o" "$OUT/obj_accentsa/as_usart.o" "$OUT/obj_accentsa/i8085_mame.o"
 $CC -O2 -std=gnu89 -I$SRC/accentsa -I$SRC -c -o "$OUT/as_render.o" "$SRC/accentsa/as_render.c"
 $CXX -o "$OUT/as_render" "$OUT/as_render.o" "$OUT"/obj_accentsa/*.o $CHIP_OBJS -lm
-$CXX -shared -o "$OUT/libaccent_sa.so" "$OUT"/obj_accentsa/*.o -lm
+$CXX -shared $UNDEF -o "$OUT/libaccent_sa.so" "$OUT"/obj_accentsa/*.o -lm
 
 # The speech-dispatcher module (src/platforms/speechd): one program with every voice's engine inside (no .so to
 # install beside it) -- the Braille Lite (the library's objects), the Accent SA (as_voice on the board above), and
