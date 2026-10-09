@@ -5,6 +5,8 @@
 *.sh text eol=lf
 # the Android app's Gradle wrapper script: sh chokes on CR
 src/platforms/android/gradlew text eol=lf
+# the BT Speak .deb's maintainer scripts and launcher (no .sh): dpkg runs them with sh, which chokes on CR
+src/platforms/btspeak/deb/* text eol=lf
 
 # Kept byte-exact, never line-ending converted: HOLDOUT.md fingerprints holdout_lines.txt
 # by sha256, rom_bits.csv is the ROM reading as built, and UPSTREAM.json records the
