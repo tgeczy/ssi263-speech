@@ -14,6 +14,9 @@ The cancel is made deterministic on both sides: the driver's is called from its 
 of audio (so its worker sees it before its next block, as NVDA's would land between two), and the C side calls
 amv_cancel after its Nth block.  A capital is one PitchCommand(offset) before the text, the one-offset-per-utterance
 shape of amv_speak.  Needs nvda/dist/accentmini-lib/x64/accent_mini.dll (src/csrc/accentmini/build_am.py).
+0.7.0's driver predates the accented-letter pass (src/csrc/translit.h): it is given each text after it
+(translit_ref.py), so everything after the pass is still held byte for byte: current-preprocessing / frozen-downstream
+equivalence, not an oracle for the pass (translit_test.py's handwritten fixtures are).
 """
 import ctypes
 import os
@@ -27,6 +30,7 @@ sys.argv = [sys.argv[0], "accent"]
 # the reference is 0.7.0's Python driver (since 0.7.5 the add-on's driver is am_voice itself: native_driver_equiv.py)
 sys.path.insert(0, HERE)
 import legacy_drivers  # noqa: E402
+import translit_ref  # noqa: E402
 os.environ["SSI263_SYNTH_DRIVERS"] = legacy_drivers.synth_drivers("accent")
 src = open(os.path.join(HERE, "fake_nvda_driver_test.py"), encoding="utf-8").read()
 exec(src.split("time.sleep(2.0)")[0])
@@ -97,7 +101,8 @@ def driver_side(cases):
             d._set_variant(str(voice))
             d._set_numberWords(numbers)
             d._set_sampleRate(str(sr))
-            seq = ([PitchCommand(off)] if off else []) + [text]
+            # 0.7.0's driver predates the accented-letter pass (translit.h): it is given the pass's output
+            seq = ([PitchCommand(off)] if off else []) + [translit_ref.translit(text)]
             del raw[:]
             state["blocks"] = 0
             if cancel_n:
@@ -105,7 +110,7 @@ def driver_side(cases):
                 nxt = cases[k + 1]
                 assert nxt[2:7] == cases[k][2:7] and nxt[9] == sr and nxt[10] == 0, "a cancel's next case: same settings"
                 state["cancel_at"] = cancel_n
-                state["next"] = ([PitchCommand(nxt[8])] if nxt[8] else []) + [nxt[1]]
+                state["next"] = ([PitchCommand(nxt[8])] if nxt[8] else []) + [translit_ref.translit(nxt[1])]
                 n_owned = len(owned)
                 d.speak(seq)
                 t = time.monotonic()
@@ -175,7 +180,7 @@ def c_side(cases, dvc):
 
 PIECES = ["a", "Z", "e", " ", "  ", ".", ",", "$", "$1", "0", "7", "12", "100", "1,234", "12345", ".5", "$.75",
            "£2.63", "€5", "¥100", "~", "\t", "\n", "\x1b", "\x18", "\x7f", "’", "“", "”", "–", "—", "…", "é",
-           "ñ", "ç", "ü", " ", "\U0001F389", "-", "%", "#", "@", "&", "'s", "Mr.", "3rd", "10:30", "555-1234"]
+           "ñ", "ç", "ü", "ő", "ß", "Á", "tükör "," ", "\U0001F389", "-", "%", "#", "@", "&", "'s", "Mr.", "3rd", "10:30", "555-1234"]
 
 
 def text_check(lib, n, seed):
@@ -189,7 +194,8 @@ def text_check(lib, n, seed):
     for i in range(n):
         text = "".join(rng.choice(PIECES) for _ in range(rng.randint(0, 24)))
         numbers = i % 2 == 0
-        want = drv_mod._clean(drv_mod.numwords.currencies(text)).strip()
+        # 0.7.0's driver predates the accented-letter pass (translit.h): it is given the pass's output
+        want = drv_mod._clean(drv_mod.numwords.currencies(translit_ref.translit(text))).strip()
         if numbers:
             want = drv_mod._numbers(want)
         k = lib.amv_say_bytes(text.encode("utf-8"), int(numbers) ^ (BREAK == "numbers"), buf, len(buf))

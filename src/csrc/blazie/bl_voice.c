@@ -5,6 +5,7 @@
 #include <string.h>
 #include "bl_voice.h"
 #include "bl_cp850.h"
+#include "../translit.h"
 
 /* the driver's constants */
 #define BLOCK_S 0.03
@@ -163,6 +164,8 @@ static int cp850_byte(unsigned c)                           /* -1 if cp850 has n
         if (bl_cp850_high[i] == c) return 0x80 + i;
     return -1;
 }
+
+static int known_cp850(unsigned c) { return cp850_byte(c) >= 0; }    /* the Spanish unit's alphabet (translit.h) */
 
 /* ---- ssi263_numwords.currencies (English only): "£2.63" -> "2 pounds 63 pence" -------------------------------------
    The regex, tried as Python's re does: at each position the three alternatives in order, each amount in the
@@ -436,8 +439,8 @@ static int numbers(blv_numbers_fn fn, unsigned **t, int m, int encoding)
     return k;
 }
 
-/* ---- the text the driver hands unit.say(): currencies, _clean, (_numbers), _lines, encoded, each line \r ^F, one
-   more \r ^F.  malloc'd into *out (the caller frees it); returns the number of lines (0: nothing to say) -------------- */
+/* ---- the text the driver hands unit.say(): _translit (translit.h; the driver's ssv_translit), currencies, _clean,
+   (_numbers), _lines, encoded, each line \r ^F, one more \r ^F.  malloc'd into *out (the caller frees it); returns the number of lines (0: nothing to say) -------------- */
 static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn, unsigned char **out, int *out_len)
 {
     int n = (int)strlen(utf8), m, nl, k, w, len = 0;
@@ -447,15 +450,22 @@ static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn
     unsigned char *data = NULL;
     *out = NULL;
     *out_len = 0;
-    /* sizes: currencies() writes at most 8 code points per one it reads ("£.5" -> "50 pence"), _clean 3 ("...") */
     cps = (unsigned *)malloc(sizeof(unsigned) * (size_t)(n + 1));
-    cur = (unsigned *)malloc(sizeof(unsigned) * (size_t)(8 * n + 16));
-    t = (unsigned *)malloc(sizeof(unsigned) * (size_t)(24 * n + 48));
-    if (!cps || !cur || !t) {
+    if (!cps) return 0;
+    m = utf8_decode(utf8, cps);
+    /* translit.h first: the letters this unit's alphabet lacks, as base letters (or a lone one's words) */
+    cur = (unsigned *)malloc(sizeof(unsigned) * (size_t)tl_room(m));
+    if (!cur) { free(cps); return 0; }
+    m = tl_apply(cps, m, encoding == BLV_CP850 ? known_cp850 : tl_known_ascii, cur);
+    free(cps);
+    cps = cur;
+    /* sizes: currencies() writes at most 8 code points per one it reads ("£.5" -> "50 pence"), _clean 3 ("...") */
+    cur = (unsigned *)malloc(sizeof(unsigned) * (size_t)(8 * m + 16));
+    t = (unsigned *)malloc(sizeof(unsigned) * (size_t)(24 * m + 48));
+    if (!cur || !t) {
         free(cps); free(cur); free(t);
         return 0;
     }
-    m = utf8_decode(utf8, cps);
     /* numwords.currencies(value, unit.lang): the English unit only */
     if (encoding == BLV_LATIN1)
         m = currencies(cps, m, cur);

@@ -6,6 +6,7 @@
 
 #include "so_voice.h"
 #include "../numwords.h"
+#include "../translit.h"
 
 /* the driver's constants */
 #define BLOCK_S 0.03
@@ -175,7 +176,7 @@ static box_settings settings_of(const so_voice *v)
     return s;
 }
 
-/* ---- the text: currencies, _clean, strip ------------------------------------------------------------------------- */
+/* ---- the text: _translit (translit.h), currencies, _clean, strip --------------------------------------------- */
 
 /* _clean: Latin-1 text with no control characters (^E and ^X are the box's commands) */
 static int clean(const unsigned *in, int n, unsigned char *out)
@@ -211,6 +212,13 @@ static unsigned char *say_text(const char *utf8, int *len)
     *len = 0;
     if (!t) return NULL;
     k = nw_utf8(utf8, t);
+    /* translit.h first: the letters the box's 7-bit alphabet lacks (its firmware drops Latin-1's), as base letters
+       (or a lone one's words) */
+    u = (unsigned *)malloc((size_t)tl_room(k) * sizeof(unsigned));
+    if (!u) { free(t); return NULL; }
+    k = tl_apply(t, k, tl_known_ascii, u);
+    free(t);
+    t = u;
     u = (unsigned *)malloc(((size_t)k * 16 + 64) * sizeof(unsigned));
     if (!u) { free(t); return NULL; }
     m = nw_currencies(t, k, u);                                /* "£2.63": the firmware reads only "$" */
