@@ -240,14 +240,14 @@ static void update_names(void)
     snprintf(name, sizeof name, "%s: keyboard. F11 or Alt+Shift+F opens the menu", unit);
     snprintf(g_area_text, sizeof g_area_text, "%s\n\n%s\n\nF11 or Alt+Shift+F: the menu.", unit, tns
              ? "The whole keyboard is the unit's." : "F D S = dots 1 2 3, J K L = dots 4 5 6, the space bar, "
-             "A or ; = the advance bar. Alt and the letter: the menus.");
+             "; = the advance bar, A = the back bar. Alt and the letter: the menus.");
     if (g_area) {
         AtkObject *a = gtk_widget_get_accessible(g_area);
         if (!g_break_name)                      /* the tests' control leaves it without its name */
             atk_object_set_name(a, name);
         atk_object_set_description(a, tns ? "The Type 'n Speak's keyboard: every key goes to the unit."
                                    : "The Braille Lite's keys: F D S and J K L are dots 1 to 6, the space bar is "
-                                     "space, A or semicolon the advance bar; press a chord's keys together.");
+                                     "space, semicolon the advance bar and A the back bar; press a chord's keys together.");
         gtk_widget_queue_draw(g_area);
     }
 }
@@ -402,7 +402,9 @@ static const char DEFAULT_INI[] =
     "dot5 = k brl_dot5\n"
     "dot6 = l brl_dot6\n"
     "space = space\n"
-    "advance = a ;\n"
+    "; the Braille Lite 2000's two advance bars: advance (forward) and back\n"
+    "advance = ; brl_dot8\n"
+    "back = a brl_dot7\n"
     "; keys mode: keys typed within chord_ms of each other are one chord; the same key again within repeat_ms is\n"
     "; the keyboard's auto-repeat (dropped)\n"
     "chord_ms = 80\n"
@@ -416,13 +418,25 @@ static const char DEFAULT_INI[] =
     "[letters]\n"
     "; letters mode: the chord prefix (the next character is its chord, with the space bar), a capital letter as its\n"
     "; chord (dot 7 on a BTSpeak), and the keys that stand for chords (the BTSpeak's own keys for chords, mapped\n"
-    "; back): key = chord, the chord as e-chord, 1-chord, 2-5-6-chord, dots 1 3, space, advance or none\n"
+    "; back): key = chord, the chord as e-chord, 1-chord, 2-5-6-chord, dots 1 3, space, advance, back or none\n"
     "prefix = ctrl-c\n"
     "capital_is_chord = 1\n"
     "; up = 1-chord\n"
     "; enter = e-chord\n"
     "; backspace = b-chord\n"
     "; ctrl-a = advance\n"
+    "; ctrl-b = back\n"
+    "\n"
+    "[btspeak]\n"
+    "; The BT Speak's and BT Braille's own keyboard, from the device's keyboard server: auto (when there is one), or\n"
+    "; off.  Dots 1-6 and the space bar are the Braille Lite's keys, dots 7 and 8 its back and advance bars ([keys]\n"
+    "; back, advance), and on a BT Braille L2 or R2 and L3 or R3 (and the keys that pan its display) are the bars\n"
+    "; too.  M-chord with dot 7 opens this program's menu, Z-chord with dot 7 saves and leaves; gesture_ms is how\n"
+    "; long a 7 or 8 waits for a chord's other keys.\n"
+    "keyboard = auto\n"
+    "gesture_ms = 80\n"
+    "; The Braille Lite's display on a braille display, through BRLTTY: auto (when BRLTTY has one), or off\n"
+    "display = auto\n"
     "\n"
     "[input]\n"
     "; the input devices (/dev/input; the input group needed), where keys are seen going down and up: auto (on a\n"
@@ -430,16 +444,18 @@ static const char DEFAULT_INI[] =
     "evdev = auto\n"
     "; 1: only this program gets those keys while it runs (not the console, not a screen reader)\n"
     "grab = 1\n"
-    "; blazie_emu on a BT Speak or BT Braille: auto (it hands over to blazie_emu_bt, which uses the device's own\n"
-    "; keyboard, speech and braille display) or off (it runs in the terminal, as everywhere else; --no-bt once)\n"
+    "; blazie_emu on a BT Speak or BT Braille: auto (it hands over to blazie_emu_bt, the BT front end with the device's\n"
+    "; own dialogs; without it, as native), native (this program uses the device's keyboard and braille display\n"
+    "; itself: [btspeak] above) or off (the terminal only, as everywhere else; --no-bt once)\n"
     "bt = auto\n";
 
-/* the keys: the Braille Lite's dots, space and advance bar as the terminal shell reads them ([keys] dot1 ..
-   advance; GTK's keys go down and up, so keys mode's timing, letters mode and the hold key are not needed here), and
+/* the keys: the Braille Lite's dots, space and advance bars as the terminal shell reads them ([keys] dot1 ..
+   advance, back; GTK's keys go down and up, so keys mode's timing, letters mode and the hold key are not needed here), and
    the menu keys */
 static void load_keys(void)
 {
-    static const char *const KEYS[] = {"dot1", "dot2", "dot3", "dot4", "dot5", "dot6", "space", "advance"};
+    static const char *const KEYS[] = {"dot1", "dot2", "dot3", "dot4", "dot5", "dot6", "space", "advance",
+                                       "back"};
     char value[256];
     unsigned i;
     blk_defaults(&g_blk);
@@ -1334,7 +1350,7 @@ static void do_keys(int unused)
     (void)unused;
     snprintf(text, sizeof text,
              "Braille Lite, while the keyboard area has the focus:\n\n"
-             "F D S = dots 1 2 3\nJ K L = dots 4 5 6\nSpace bar = space\nA or ; = advance bar\n\n"
+             "F D S = dots 1 2 3\nJ K L = dots 4 5 6\nSpace bar = space\n; = advance bar, A = back bar\n\n"
              "Press the keys of a chord together; it goes to the unit when you let go of them.\n"
              "Keys held while the unit starts are read as it starts: p-chord, l restarts it; hold i-chord at once "
              "for the cold reset.\n"

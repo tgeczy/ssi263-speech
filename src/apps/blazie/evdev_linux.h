@@ -23,6 +23,9 @@ typedef struct {
     char busy[80];                      /* a keyboard another program holds for itself (left alone) */
 } evdev_set;
 
+/* nonzero: every keyboard leaves out the BT Speak's keypad and its server's keyboard for BRLTTY (4x3braille,
+   braille_keyboard), whose keys the program has from the keyboard server */
+extern int evdev_skip_bt;
 /* path: one device, or NULL (or "") for every keyboard that can be read.  0 when none could be opened, the reason
    in msg; else how many, their names in msg */
 int evdev_open(evdev_set *s, const char *path, int grab, char *msg, int msglen);

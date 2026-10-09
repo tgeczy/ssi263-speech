@@ -56,6 +56,7 @@ typedef struct {
 
     /* the state */
     chord_state chord;                  /* keys going down and up (an input device) */
+    int bars;                           /* the advance bars down now (an input device): no part of the chord */
     int pending;                        /* keys mode: the chord being typed */
     double pending_until;               /* when it is complete */
     int pending_repeat;                 /* an auto-repeat run: dropped */
@@ -68,16 +69,19 @@ typedef struct {
     int n_out;
 } bl_keys;
 
-/* the defaults: keys mode; F D S J K L = dots 1-6 (with a braille keyboard's own dot keys), space, A or ; the advance
-   bar; chord 80 ms, repeat 150 ms; hold F12 or Ctrl+K; letters mode's prefix Ctrl+C, capitals as chords, and the
+/* the defaults: keys mode; F D S J K L = dots 1-6 (with a braille keyboard's own dot keys), space, ; (or dot 8) the
+   advance bar, A (or dot 7) the back bar -- the Braille Lite 2000 has two (emu_unit.h EMU_ADVANCE); chord 80 ms, repeat 150 ms; hold F12 or Ctrl+K; letters mode's prefix Ctrl+C, capitals as chords, and the
    BTSpeak's keys for chords mapped back */
 void blk_defaults(bl_keys *k);
-/* settings from the shell's file: setting is the name ("dot1".."dot6", "space", "advance", "hold", "chord_ms",
+/* settings from the shell's file: setting is the name ("dot1".."dot6", "space", "advance", "back", "hold", "chord_ms",
    "repeat_ms", "mode"; letters mode: "prefix", "capital_is_chord", or a key's name for a special: "up = 1-chord");
    0 if the name or value is not understood */
 int blk_set(bl_keys *k, const char *setting, const char *value);
+/* more keys for a bit, beside the ones it has ("advance", "code:261": a BT Braille's panning key); 0 if the setting
+   is not a bit's */
+int blk_add(bl_keys *k, const char *setting, const char *value);
 /* a chord from its name: "p" (a cell, computer braille), "p-chord" (with the space bar), "1-chord", "2-5-6-chord",
-   "dots 1 3", "space", "advance"; -1 if not understood */
+   "dots 1 3", "space", "advance", "back"; -1 if not understood */
 int blk_chord_of(const char *name);
 /* a character's cell in computer braille (6 dots, NABCC; letters either case); -1 if it has none */
 int blk_cell_of(int c);

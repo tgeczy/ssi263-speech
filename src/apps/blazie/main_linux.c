@@ -4,7 +4,7 @@
  * terminal, and the BTSpeak (Blazie Technologies' Linux notetaker, on ARM) -- no desktop needed.
  *
  * The keyboard (README-linux.md has it all):
- *   Braille Lite: chords (bl_keys.c) from the terminal -- keys mode, F D S J K L, space, A or ; (the keys typed
+ *   Braille Lite: chords (bl_keys.c) from the terminal -- keys mode, F D S J K L, space, ; and A (the bars; the keys typed
  *   together are one chord), or letters mode (each character typed is its braille cell: the BTSpeak's own braille
  *   keyboard) -- or from the input devices (evdev_linux.c), where keys are seen going down and up.
  *   Type 'n Speak: the whole keyboard (tns_term.c, tns_keys.h).
@@ -41,7 +41,9 @@
 #include "audio_linux.h"
 #include "audio_pace.h"
 #include "bl_keys.h"
+#include "brl_linux.h"
 #include "bt_handover.h"
+#include "btkb_linux.h"
 #include "emu_unit.h"
 #include "evdev_linux.h"
 #include "ini.h"
@@ -113,6 +115,17 @@ static key_combo g_menu_bl[6], g_menu_tns[6];
 static int g_n_menu_bl, g_n_menu_tns;
 static unsigned char g_tns_held[0x80];           /* the Type 'n Speak's keys down now (an input device's) */
 static tty_link *g_tty;
+/* the BT Speak's and BT Braille's own keyboard (btkb_linux.h) and a braille display (brl_linux.h) */
+static btkb g_bt;
+static btkb_keys g_btk;
+static int g_bt_want;                            /* [btspeak] keyboard: taken at the start, so again after the menu */
+static char g_bt_path[108];
+static brl_out g_brl;
+static int g_disp_pipe[2] = {-1, -1};            /* the sound thread to the main loop: the unit's display changed */
+static unsigned char g_disp_seen[EMU_CELLS];     /* the unit's cells as the sound thread last saw them (its own) */
+static int g_disp_n;
+static unsigned char g_brl_shown[EMU_CELLS];     /* ... and as last shown on the braille display (the main loop's) */
+static int g_brl_n = -1;
 static volatile sig_atomic_t g_quit;
 static int g_headless, g_print_actions, g_flash_instant, g_no_sound;
 static struct termios g_term_saved;
@@ -306,7 +319,9 @@ static const char DEFAULT_INI[] =
     "dot5 = k brl_dot5\n"
     "dot6 = l brl_dot6\n"
     "space = space\n"
-    "advance = a ;\n"
+    "; the Braille Lite 2000's two advance bars: advance (forward) and back\n"
+    "advance = ; brl_dot8\n"
+    "back = a brl_dot7\n"
     "; keys mode: keys typed within chord_ms of each other are one chord; the same key again within repeat_ms is\n"
     "; the keyboard's auto-repeat (dropped)\n"
     "chord_ms = 80\n"
@@ -320,13 +335,25 @@ static const char DEFAULT_INI[] =
     "[letters]\n"
     "; letters mode: the chord prefix (the next character is its chord, with the space bar), a capital letter as its\n"
     "; chord (dot 7 on a BTSpeak), and the keys that stand for chords (the BTSpeak's own keys for chords, mapped\n"
-    "; back): key = chord, the chord as e-chord, 1-chord, 2-5-6-chord, dots 1 3, space, advance or none\n"
+    "; back): key = chord, the chord as e-chord, 1-chord, 2-5-6-chord, dots 1 3, space, advance, back or none\n"
     "prefix = ctrl-c\n"
     "capital_is_chord = 1\n"
     "; up = 1-chord\n"
     "; enter = e-chord\n"
     "; backspace = b-chord\n"
     "; ctrl-a = advance\n"
+    "; ctrl-b = back\n"
+    "\n"
+    "[btspeak]\n"
+    "; The BT Speak's and BT Braille's own keyboard, from the device's keyboard server: auto (when there is one), or\n"
+    "; off.  Dots 1-6 and the space bar are the Braille Lite's keys, dots 7 and 8 its back and advance bars ([keys]\n"
+    "; back, advance), and on a BT Braille L2 or R2 and L3 or R3 (and the keys that pan its display) are the bars\n"
+    "; too.  M-chord with dot 7 opens this program's menu, Z-chord with dot 7 saves and leaves; gesture_ms is how\n"
+    "; long a 7 or 8 waits for a chord's other keys.\n"
+    "keyboard = auto\n"
+    "gesture_ms = 80\n"
+    "; The Braille Lite's display on a braille display, through BRLTTY: auto (when BRLTTY has one), or off\n"
+    "display = auto\n"
     "\n"
     "[input]\n"
     "; the input devices (/dev/input; the input group needed), where keys are seen going down and up: auto (on a\n"
@@ -334,14 +361,15 @@ static const char DEFAULT_INI[] =
     "evdev = auto\n"
     "; 1: only this program gets those keys while it runs (not the console, not a screen reader)\n"
     "grab = 1\n"
-    "; blazie_emu on a BT Speak or BT Braille: auto (it hands over to blazie_emu_bt, which uses the device's own\n"
-    "; keyboard, speech and braille display) or off (it runs in the terminal, as everywhere else; --no-bt once)\n"
+    "; blazie_emu on a BT Speak or BT Braille: auto (it hands over to blazie_emu_bt, the BT front end with the device's\n"
+    "; own dialogs; without it, as native), native (this program uses the device's keyboard and braille display\n"
+    "; itself: [btspeak] above) or off (the terminal only, as everywhere else; --no-bt once)\n"
     "bt = auto\n";
 
 static void load_keys(void)
 {
     static const char *const KEYS[] = {"mode", "dot1", "dot2", "dot3", "dot4", "dot5", "dot6", "space", "advance",
-                                       "chord_ms", "repeat_ms", "hold"};
+                                       "back", "chord_ms", "repeat_ms", "hold"};
     char key[64], value[256];
     unsigned i;
     int j;
@@ -595,6 +623,15 @@ static void *audio_main(void *arg)
         else
             memset(buf, 0, sizeof(short) * (size_t)block);
         tty_pump(g_tty, g_unit);                /* the unit ran: its serial bytes may be waiting, both ways */
+        if (g_unit && g_disp_pipe[1] >= 0) {    /* the unit's display changed: the main loop shows it */
+            unsigned char cells[EMU_CELLS];
+            int n = emu_braille(g_unit, cells, EMU_CELLS);
+            if (n != g_disp_n || memcmp(cells, g_disp_seen, (size_t)n)) {
+                g_disp_n = n;
+                memcpy(g_disp_seen, cells, (size_t)n);
+                if (write(g_disp_pipe[1], "d", 1) != 1) {}
+            }
+        }
         pthread_mutex_unlock(&g_lock);
         if (g_audio && !audio_write(g_audio, buf, block)) {
             say("The sound device stopped working; the unit runs on, silent.");
@@ -701,6 +738,110 @@ static int set_serial(const char *name, int at_start)
     return t != NULL;
 }
 
+/* ---- the BT Speak's keyboard and the braille display ------------------------------------------------------------- */
+/* the unit's display to the braille display when it has one (the Braille Lite); the display given back to BRLTTY
+   when it has none (the Braille 'n Speak, the Type 'n Speak) */
+static void display_refresh(int force)
+{
+    unsigned char cells[EMU_CELLS];
+    int n;
+    if (!g_brl.lib)
+        return;
+    pthread_mutex_lock(&g_lock);
+    n = g_unit ? emu_braille(g_unit, cells, EMU_CELLS) : 0;
+    pthread_mutex_unlock(&g_lock);
+    if (!n) {                                   /* no display (yet): BRLTTY's */
+        brl_hold(&g_brl, 0);
+        g_brl_n = -1;
+        return;
+    }
+    brl_hold(&g_brl, 1);
+    if (!force && n == g_brl_n && !memcmp(cells, g_brl_shown, (size_t)n))
+        return;
+    g_brl_n = n;
+    memcpy(g_brl_shown, cells, (size_t)n);
+    if (!brl_show(&g_brl, cells, n)) {
+        say("Braille: BRLTTY's connection was lost; the display is BRLTTY's again.");
+        brl_close(&g_brl);
+    }
+}
+
+/* the BT keyboard taken (at the start, and after the menu) */
+static int bt_take(int at_start)
+{
+    char msg[256];
+    int absent = 0;
+    if (!g_bt_want || g_bt.running)
+        return g_bt.running;
+    btkb_keys_reset(&g_btk);
+    if (btkb_open(&g_bt, g_bt_path, msg, sizeof msg, &absent))
+        return 1;
+    if (at_start && absent && !strcmp(ini_get(g_ini, "btspeak", "keyboard", "auto"), "auto"))
+        g_bt_want = 0;                          /* not a BT Speak or BT Braille: nothing to say */
+    else
+        say("BT keyboard: %s; the terminal's keys are used.", msg);
+    return 0;
+}
+
+/* the keys from the BT keyboard: to the unit (key_in), the gesture to the menu; the server gone, the terminal's
+   keys are used */
+static void key_in(const key_event *e, double now);
+static void menu(void);
+
+static void bt_keys(double now)
+{
+    int codes[64], downs[64], n = btkb_read(&g_bt, codes, downs, 64), i;
+    if (n < 0) {
+        btkb_close(&g_bt);
+        release_keys();
+        say("BT keyboard: the keyboard server is gone; the terminal's keys are used.");
+        return;
+    }
+    for (i = 0; i < n && !g_quit; i++) {
+        key_event ev[8];
+        int action = BTKB_NONE, reset = 0, j;
+        int k = btkb_keys_feed(&g_btk, codes[i], downs[i], now, ev, 8, &action, &reset);
+        if (reset)
+            release_keys();
+        for (j = 0; j < k; j++)
+            key_in(&ev[j], now);
+        if (action == BTKB_MENU) {
+            menu();                             /* gives the keyboard back to BRLTTY, and takes it again */
+            return;                             /* what was read with the gesture is not the unit's */
+        }
+        if (action == BTKB_QUIT) {              /* Z-chord with dot 7: saved and switched off as menu 0 does */
+            say("Leaving: the unit's memory is saved.");
+            g_quit = 1;
+            return;
+        }
+    }
+}
+
+static void bt_tick(double now)
+{
+    key_event ev[BTKB_MAX_DEFER];
+    int k = btkb_keys_tick(&g_btk, now, ev, BTKB_MAX_DEFER), j;
+    for (j = 0; j < k; j++)
+        key_in(&ev[j], now);
+}
+
+/* BRLTTY's panning commands (a display without the keyboard server): the unit's bars, tapped */
+static void brl_bars(void)
+{
+    int back = 0, adv = 0;
+    if (!brl_keys(&g_brl, &back, &adv)) {
+        say("Braille: BRLTTY's connection was lost; the display is BRLTTY's again.");
+        brl_close(&g_brl);
+        return;
+    }
+    pthread_mutex_lock(&g_lock);
+    if (g_unit && emu_kind(g_unit) == EMU_BRAILLE_LITE) {
+        while (back-- > 0) emu_key(g_unit, EMU_BACK);
+        while (adv-- > 0) emu_key(g_unit, EMU_ADVANCE);
+    }
+    pthread_mutex_unlock(&g_lock);
+}
+
 /* ---- keys to the unit ----------------------------------------------------------------------------------------- */
 static double g_now_for_print;
 
@@ -749,8 +890,6 @@ static void tns_send(int code)
     if (g_unit && emu_kind(g_unit) == EMU_TYPE_N_SPEAK)
         emu_key(g_unit, code);
 }
-
-static void menu(void);
 
 /* one key, from the terminal or an input device */
 static void key_in(const key_event *e, double now)
@@ -810,7 +949,7 @@ static void keys_tick(double now)
 /* ---- the menu ---------------------------------------------------------------------------------------------------- */
 static void keys_help(void)
 {
-    say("Braille Lite, keys mode: F D S = dots 1 2 3, J K L = dots 4 5 6, the space bar, A or ; = the advance bar.");
+    say("Braille Lite, keys mode: F D S = dots 1 2 3, J K L = dots 4 5 6, the space bar, ; = advance bar, A = back bar.");
     say("  Press the keys of a chord together: they are sent as one chord when you stop.");
     say("Braille Lite, letters mode (the BTSpeak's braille keyboard): each character typed is its braille cell.");
     say("  A chord with the space bar: Ctrl+C, then the character; or a capital letter (dot 7): P is p-chord.");
@@ -818,6 +957,9 @@ static void keys_help(void)
     say("Hold (F12 or Ctrl+K): the next chord stays held down until you press it again -- the unit reads keys held");
     say("  while it starts: p-chord, hold, i-chord, l restarts it into the cold reset; then hold again.");
     say("  With an input device (evdev; the input group) keys are seen going down and up: no hold key needed.");
+    say("BT Speak and BT Braille: their own keys are the Braille Lite's -- dots 1-6 and the space bar; dot 7 is the");
+    say("  back bar and dot 8 the advance bar (on a BT Braille L2 or R2 back, L3 or R3 advance); M-chord with dot 7");
+    say("  opens this menu, Z-chord with dot 7 saves and leaves.  On a braille display the unit's cells are shown.");
     say("Braille 'n Speak 2000: the Braille Lite's keys, both modes; it has no advance bar.");
     say("Type 'n Speak: the whole keyboard is the unit's.");
     say("%s", TNS_FIRST_START);
@@ -895,6 +1037,26 @@ static void menu(void)
     release_keys();
     if (g_use_evdev)
         evdev_grab(&g_ev, 0);                   /* the menu is typed in the terminal */
+    if (g_bt.running) {                         /* the gesture's keys up first: never pressed again for BRLTTY */
+        double until = mono() + 3.0;
+        while (btkb_keys_busy(&g_btk) && mono() < until) {
+            struct pollfd w;
+            int codes[16], downs[16], k, j;
+            w.fd = btkb_fd(&g_bt);
+            w.events = POLLIN;
+            if (poll(&w, 1, 50) <= 0)
+                continue;
+            k = btkb_read(&g_bt, codes, downs, 16);
+            if (k < 0)
+                break;
+            for (j = 0; j < k; j++) {
+                key_event ignore[8];
+                btkb_keys_feed(&g_btk, codes[j], downs[j], mono(), ignore, 8, NULL, NULL);
+            }
+        }
+    }
+    btkb_close(&g_bt);                          /* the BT keyboard: BRLTTY's again, typing in the terminal */
+    brl_hold(&g_brl, 0);                        /* the display: BRLTTY's, showing the menu */
     for (;;) {
         if (!list) {                            /* after a choice: one line, not the whole list again */
             say("Menu: another number, ? to list them, or Enter alone to go back to the unit.");
@@ -1044,8 +1206,11 @@ done:
         g_ev.shift = g_ev.ctrl = g_ev.alt = 0;
         evdev_grab(&g_ev, ini_get_int(g_ini, "input", "grab", 1));
     }
-    if (!g_quit)
+    if (!g_quit) {
+        bt_take(0);
+        display_refresh(1);
         say("Back to the %s.", KINDS[g_kind].name);
+    }
 }
 
 /* ---- headless: the tests ------------------------------------------------------------------------------------------ */
@@ -1393,8 +1558,9 @@ int main(int argc, char **argv)
         }
         g_rate = rate;
     }
-    /* on a BT Speak or BT Braille: the device's own keyboard, speech and braille display (bt_handover.h); never for
-       the headless runs or --show-keys */
+    /* on a BT Speak or BT Braille: hand over to the BT front end (bt_handover.h); never for the headless runs or
+       --show-keys.  With bt = native, or the front end not installed, this program uses the device's keyboard and
+       display itself, below (btkb_linux.h, brl_linux.h) */
     if (!g_headless && !show) {
         const char *fw = fw_given ? fw_given : ini_get(g_ini, "unit", "firmware_dir", "");
         bt_hand_over(no_bt, ini_get(g_ini, "input", "bt", "auto"), unit_id, *fw ? fw : NULL, cfg_given, rate);
@@ -1441,6 +1607,27 @@ int main(int argc, char **argv)
     sigaction(SIGINT, &sa, NULL);
     signal(SIGPIPE, SIG_IGN);
     say("Blazie emulator. F11 opens the menu (Ctrl+O too for the Braille Lite). Settings: %s", g_ini_path);
+    {   /* the BT Speak's and BT Braille's keyboard: before the input devices, whose keypad its server holds */
+        const char *kb = ini_get(g_ini, "btspeak", "keyboard", "auto");
+        g_bt_want = strcmp(kb, "off") != 0 && strcmp(ini_get(g_ini, "input", "bt", "auto"), "off") != 0 && !no_bt;
+        snprintf(g_bt_path, sizeof g_bt_path, "%s", getenv("BLAZIE_BTKB_SOCKET") ? getenv("BLAZIE_BTKB_SOCKET")
+                 : BTKB_SOCKET);
+        btkb_keys_init(&g_btk, ini_get_int(g_ini, "btspeak", "gesture_ms", 80) / 1000.0);
+        if (bt_take(1)) {
+            int back, adv;
+            char name[16];
+            evdev_skip_bt = 1;
+            /* the BT Braille's: L2 or R2 the back bar, L3 or R3 the advance bar (as #4's frontend, tried on the
+               device), and the keys the user pans BRLTTY's display with, if others */
+            blk_add(&g_blk, "back", "code:257 code:260");
+            blk_add(&g_blk, "advance", "code:258 code:261");
+            btkb_panning_keys(NULL, &back, &adv);
+            if (back >= 0) blk_add(&g_blk, "back", key_name(evdev_key_of(back), name));
+            if (adv >= 0) blk_add(&g_blk, "advance", key_name(evdev_key_of(adv), name));
+            say("Keys: the BT keyboard. Dots 7 and 8 are the back and advance bars; M-chord with dot 7 opens the "
+                "menu, Z-chord with dot 7 saves and leaves.");
+        }
+    }
     {   /* the input devices: auto on a text console (a desktop's terminal does not own the keyboard) */
         char msg[512];
         const char *use = ini_get(g_ini, "input", "evdev", "auto");
@@ -1452,10 +1639,19 @@ int main(int argc, char **argv)
             g_use_evdev = evdev_open(&g_ev, dev[0] == '/' ? dev : NULL, grab, msg, sizeof msg) > 0;
             if (g_use_evdev)
                 say("Keys: %s%s.", msg, grab ? " (only this program gets them while it runs)" : "");
-            else if (strcmp(dev, "auto") || g_ev.busy[0])
+            else if (strcmp(dev, "auto") || (g_ev.busy[0] && !g_bt.running))
                 say("Keys: %s; the terminal's keys are used.", msg);
-            if (g_use_evdev && g_ev.busy[0])
+            if (g_use_evdev && g_ev.busy[0] && !g_bt.running)
                 say("Keys: %s is held by another program (BRLTTY?); its keys come through the terminal.", g_ev.busy);
+        }
+    }
+    if (strcmp(ini_get(g_ini, "btspeak", "display", "auto"), "off")) {
+        char msg[256];
+        if (brl_open(&g_brl, msg, sizeof msg) && pipe2(g_disp_pipe, O_CLOEXEC | O_NONBLOCK) == 0)
+            say("Braille: the Braille Lite's display on BRLTTY's display (%s).", msg);
+        else if (g_brl.lib) {
+            brl_close(&g_brl);
+            say("Braille: no pipe; the display is BRLTTY's.");
         }
     }
     term_raw();
@@ -1474,12 +1670,19 @@ int main(int argc, char **argv)
     }
     {
         double next_save = mono() + AUTOSAVE_S;
+        display_refresh(1);
         while (!g_quit) {
-            struct pollfd p[1 + EVDEV_MAX];
-            int n = 0, timeout = 1000, r;
+            struct pollfd p[1 + EVDEV_MAX + 3];
+            int n = 0, timeout = 1000, r, n_ev, x_bt = -1, x_brl = -1, x_disp = -1;
             double now = mono(), d;
             p[n].fd = 0; p[n++].events = POLLIN;
             for (i = 0; i < g_ev.n; i++) { p[n].fd = g_ev.fd[i]; p[n++].events = POLLIN; }
+            n_ev = g_ev.n;
+            if (btkb_fd(&g_bt) >= 0) { x_bt = n; p[n].fd = btkb_fd(&g_bt); p[n++].events = POLLIN; }
+            if (brl_fd(&g_brl) >= 0) { x_brl = n; p[n].fd = brl_fd(&g_brl); p[n++].events = POLLIN; }
+            if (g_brl.lib && g_disp_pipe[0] >= 0) { x_disp = n; p[n].fd = g_disp_pipe[0]; p[n++].events = POLLIN; }
+            d = btkb_keys_deadline(&g_btk);
+            if (d >= 0 && (int)((d - now) * 1000) + 1 < timeout) timeout = (int)((d - now) * 1000) + 1;
             d = term_dec_deadline(&g_term);
             if (d >= 0 && (int)((d - now) * 1000) + 1 < timeout) timeout = (int)((d - now) * 1000) + 1;
             d = blk_deadline(&g_blk);
@@ -1510,7 +1713,17 @@ int main(int argc, char **argv)
                             menu();
                 }
             }
-            for (i = 0; i < g_ev.n && r > 0; i++)
+            if (r > 0 && x_disp >= 0 && (p[x_disp].revents & POLLIN)) {
+                char drain[64];
+                while (read(g_disp_pipe[0], drain, sizeof drain) > 0) {}
+                display_refresh(0);
+            }
+            if (r > 0 && x_brl >= 0 && (p[x_brl].revents & POLLIN))
+                brl_bars();
+            if (r > 0 && x_bt >= 0 && g_bt.running && (p[x_bt].revents & (POLLIN | POLLHUP)))
+                bt_keys(now);
+            bt_tick(mono());
+            for (i = 0; i < n_ev && i < g_ev.n && r > 0; i++)
                 if (p[1 + i].revents & POLLIN) {
                     key_event ev[64];
                     int k = evdev_read(&g_ev, g_ev.fd[i], ev, 64), j;
@@ -1545,6 +1758,8 @@ int main(int argc, char **argv)
     save_settings();
     term_restore();
     evdev_close(&g_ev);
+    btkb_close(&g_bt);
+    brl_close(&g_brl);
     {
         emu_unit *u;
         pthread_mutex_lock(&g_lock);            /* a sound thread left stuck renders nothing from here */

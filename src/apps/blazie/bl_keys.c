@@ -33,6 +33,8 @@ int blk_chord_of(const char *name)
     int bits = 0;
     if (!strcmp(name, "advance"))
         return CHORD_ADVANCE;
+    if (!strcmp(name, "back"))
+        return CHORD_BACK;
     if (!strcmp(name, "space"))
         return CHORD_SPACE;
     if (!strncmp(name, "dots ", 5)) {
@@ -41,6 +43,7 @@ int blk_chord_of(const char *name)
         for (tok = strtok(copy, " "); tok; tok = strtok(NULL, " ")) {
             if (!strcmp(tok, "space")) bits |= CHORD_SPACE;
             else if (!strcmp(tok, "advance")) bits |= CHORD_ADVANCE;
+            else if (!strcmp(tok, "back")) bits |= CHORD_BACK;
             else if (tok[0] >= '1' && tok[0] <= '6' && !tok[1]) bits |= CHORD_DOT(tok[0] - '0');
             else return -1;
         }
@@ -73,9 +76,11 @@ const char *blk_chord_name(int bits, char *out)
     out[0] = 0;
     if (bits == CHORD_ADVANCE)
         return strcpy(out, "advance bar");
+    if (bits == CHORD_BACK)
+        return strcpy(out, "back bar");
     if (bits == CHORD_SPACE)
         return strcpy(out, "space");
-    if (cell && !(bits & CHORD_ADVANCE) && CELLS[cell] >= 'A' && CELLS[cell] <= 'Z') {
+    if (cell && !(bits & CHORD_BARS) && CELLS[cell] >= 'A' && CELLS[cell] <= 'Z') {
         snprintf(out, 40, "%c%s", CELLS[cell] - 'A' + 'a', bits & CHORD_SPACE ? "-chord" : "");
         return out;
     }
@@ -86,7 +91,9 @@ const char *blk_chord_name(int bits, char *out)
     if (bits & CHORD_SPACE)
         n += snprintf(out + n, 40 - n, " space");
     if (bits & CHORD_ADVANCE)
-        snprintf(out + n, 40 - n, " advance");
+        n += snprintf(out + n, 40 - n, " advance");
+    if (bits & CHORD_BACK)
+        snprintf(out + n, 40 - n, " back");
     return out;
 }
 
@@ -133,7 +140,7 @@ static const struct { const char *key, *chord; } SPECIALS[] = {
     {"left", "3-chord"}, {"right", "6-chord"}, {"pageup", "2-3-chord"}, {"pagedown", "5-6-chord"},
     {"home", "1-3-chord"}, {"end", "4-6-chord"}, {"ctrl-home", "1-2-3-chord"}, {"ctrl-end", "4-5-6-chord"},
     {"tab", "4-5-chord"}, {"shift-tab", "1-2-chord"}, {"insert", "3-5-chord"}, {"delete", "2-5-6-chord"},
-    {"esc", "2-6-chord"}, {"enter", "e-chord"}, {"backspace", "b-chord"}, {"ctrl-a", "advance"},
+    {"esc", "2-6-chord"}, {"enter", "e-chord"}, {"backspace", "b-chord"}, {"ctrl-a", "advance"}, {"ctrl-b", "back"},
 };
 
 void blk_defaults(bl_keys *k)
@@ -148,7 +155,8 @@ void blk_defaults(bl_keys *k)
     map_add(k, "k brl_dot5", CHORD_DOT(5));
     map_add(k, "l brl_dot6", CHORD_DOT(6));
     map_add(k, "space", CHORD_SPACE);
-    map_add(k, "a ;", CHORD_ADVANCE);
+    map_add(k, "; brl_dot8", CHORD_ADVANCE);
+    map_add(k, "a brl_dot7", CHORD_BACK);
     k->chord_s = 0.08;
     k->repeat_s = 0.15;
     k->n_hold = key_list("f12 ctrl-k", k->hold, 4);
@@ -163,11 +171,21 @@ void blk_defaults(bl_keys *k)
 
 int blk_set(bl_keys *k, const char *setting, const char *value)
 {
-    static const char *const BITS[] = {"dot1", "dot2", "dot3", "dot4", "dot5", "dot6", "space", "advance"};
+    static const char *const BITS[] = {"dot1", "dot2", "dot3", "dot4", "dot5", "dot6", "space", "advance", "back"};
     int i, mods, key;
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 9; i++)
         if (!strcmp(setting, BITS[i])) {
+            key_combo c[8];
+            int n = key_list(value, c, 8), j, m, kept = 0;
             map_clear(k, 1 << i);
+            for (m = 0; m < k->n_map; m++) {    /* a key is one bit: given to this one, it leaves any other */
+                for (j = 0; j < n && k->map_keys[m].key != c[j].key; j++) {}
+                if (j == n) {
+                    k->map_keys[kept] = k->map_keys[m];
+                    k->map_bits[kept++] = k->map_bits[m];
+                }
+            }
+            k->n_map = kept;
             map_add(k, value, 1 << i);
             return 1;
         }
@@ -204,6 +222,18 @@ int blk_set(bl_keys *k, const char *setting, const char *value)
         special_set(k, key, mods, bits);
         return 1;
     }
+    return 0;
+}
+
+int blk_add(bl_keys *k, const char *setting, const char *value)
+{
+    static const char *const BITS[] = {"dot1", "dot2", "dot3", "dot4", "dot5", "dot6", "space", "advance", "back"};
+    int i;
+    for (i = 0; i < 9; i++)
+        if (!strcmp(setting, BITS[i])) {
+            map_add(k, value, 1 << i);
+            return 1;
+        }
     return 0;
 }
 
@@ -253,12 +283,23 @@ int blk_event(bl_keys *k, const key_event *e, double now)
         bit = bit_of(k, e->key);
         if (!bit)
             return 0;
+        if (bit & CHORD_BARS) {                 /* a bar is no part of a chord: down while held, under the dots of
+                                                   a chord typed meanwhile (the firmware's bar + chord) */
+            if (e->type == KE_DOWN)
+                k->bars |= bit & CHORD_BARS;
+            else
+                k->bars &= ~(bit & CHORD_BARS);
+            emit(k, BLA_HELD, k->chord.down | k->bars);
+            bit &= ~CHORD_BARS;
+            if (!bit)
+                return 1;
+        }
         if (e->type == KE_DOWN) {
             chord_down(&k->chord, bit);
-            emit(k, BLA_HELD, k->chord.down);
+            emit(k, BLA_HELD, k->chord.down | k->bars);
         } else {
             int c = chord_up(&k->chord, bit);
-            emit(k, BLA_HELD, k->chord.down);
+            emit(k, BLA_HELD, k->chord.down | k->bars);
             if (c)
                 emit(k, BLA_CHORD, c);
         }
@@ -354,9 +395,10 @@ int blk_take(bl_keys *k, bl_action *out, int cap)
 
 void blk_reset(bl_keys *k)
 {
-    if (k->held || k->chord.down)
+    if (k->held || k->chord.down || k->bars)
         emit(k, BLA_HELD, 0);
     chord_reset(&k->chord);
+    k->bars = 0;
     k->pending = k->pending_repeat = 0;
     k->prefixed = k->hold_armed = 0;
     k->held = 0;

@@ -1,0 +1,43 @@
+#!/bin/sh
+# fetch-firmware DIR -- the Blazie firmware from the project's own release download (blazie-emu-<version>, which
+# carries it), its share/ssi263-speech unpacked into DIR.  Nothing else of the download is kept.  Exit 0 when DIR has
+# BL2ENG.BNS.
+#
+# First the pinned download (v0.7.0's, checked against the SHA-256 written here).  Only when that is gone or no longer
+# matches: the project's latest release, the blazie-emu download its own SHA256SUMS.txt lists for linux-aarch64,
+# checked against that list -- so a release that moves on never needs a new package for the firmware.
+set -e
+URL=https://github.com/tgeczy/ssi263-speech/releases/download/v0.7.0/blazie-emu-0.7.0-linux-aarch64.tar.gz
+SHA=06419043e99d8632c1579bc71b82647abd46983ba71369206f448e98cf5cb965
+LATEST=https://github.com/tgeczy/ssi263-speech/releases/latest/download
+URL="${BTE_FIRMWARE_URL:-$URL}"                 # the tests' own releases (tools/btspeak_deb_test.sh)
+SHA="${BTE_FIRMWARE_SHA:-$SHA}"
+LATEST="${BTE_FIRMWARE_LATEST:-$LATEST}"
+DIR="$1"
+[ -n "$DIR" ] || { echo "fetch-firmware DIR"; exit 2; }
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+get() {                                         # URL to FILE, checked against SHA; 0 when it is that file
+    curl -fsSL --retry 2 --max-time 120 -o "$2" "$1" && echo "$3  $2" | sha256sum -c --status
+}
+
+if ! get "$URL" "$TMP/r.tar.gz" "$SHA"; then
+    echo "the pinned release's download is not there (or not the same): trying the latest release"
+    curl -fsSL --retry 2 --max-time 60 -o "$TMP/sums" "$LATEST/SHA256SUMS.txt" \
+        || { echo "the latest release's SHA256SUMS.txt could not be fetched"; exit 1; }
+    line="$(grep -E '^[0-9a-f]{64}  \*?blazie-emu-[^ /]*-linux-aarch64\.tar\.gz$' "$TMP/sums" | head -n 1)"
+    [ -n "$line" ] || { echo "the latest release lists no blazie-emu linux-aarch64 download"; exit 1; }
+    name="${line##* }"; name="${name#\*}"
+    get "$LATEST/$name" "$TMP/r.tar.gz" "${line%% *}" \
+        || { echo "the latest release's $name is not what its SHA256SUMS.txt says"; exit 1; }
+    echo "the firmware is from the latest release's $name"
+fi
+tar -xzf "$TMP/r.tar.gz" -C "$TMP" --wildcards '*/share/ssi263-speech/*'
+SRC="$(dirname "$(find "$TMP" -name BL2ENG.BNS | head -n 1)")"
+mkdir -p "$DIR"
+(cd "$SRC" && find . -type f \( -iname '*.BNS' -o -iname '*.TNS' -o -name '*.state' \)) | while read -r f; do
+    mkdir -p "$DIR/$(dirname "$f")"
+    cp "$SRC/$f" "$DIR/$f"
+done
+[ -f "$DIR/BL2ENG.BNS" ]
