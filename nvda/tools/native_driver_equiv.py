@@ -16,8 +16,9 @@ each followed by the next utterance.
 
 The native side is nvda/dist/<addon>-build (or SSI263_NATIVE_SYNTH_DRIVERS_<SPEAKOUT|ACCENT>); the reference is
 legacy_drivers.py's.  Each side runs in its own process (both drivers are synthDrivers.<name>).  0.7.0's drivers
-predate the accented-letter pass (src/csrc/translit.h): the reference is given each text after it (translit_ref.py);
-translit_test.py holds the pass itself.
+predate the accented-letter pass (src/csrc/translit.h): the reference is given each text after it (translit_ref.py)
+-- current-preprocessing / frozen-downstream equivalence, not an oracle for the pass (translit_test.py's handwritten
+fixtures are).
 """
 import os
 import pickle

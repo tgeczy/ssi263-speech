@@ -10,7 +10,8 @@ line (--bl-numbers among them: with no value, 1 and 0, also held against each ot
 utterance after it -- and every PCM byte must be equal.  Both widths of the native
 library are held to the one reference (the x86 DLL computes as the x64 one: -msse2 -mfpmath=sse).  0.7.0's drivers
 predate the accented-letter pass (src/csrc/translit.h): the reference is sent each text after it
-(nvda/tools/translit_ref.py); nvda/tools/translit_test.py holds the pass itself.
+(nvda/tools/translit_ref.py) -- current-preprocessing / frozen-downstream equivalence, not an oracle for the pass
+(nvda/tools/translit_test.py's handwritten fixtures are).
 
 A cancel lands where the client's pipe lets it (both hosts stop at the same block, as measured); if they ever stop at
 different points, the cut audio must still agree as far as both go and the next utterance is checked as test_serve.py

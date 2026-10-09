@@ -1259,10 +1259,13 @@ CHECKS.append(check("bl_voice text CONTROL (no currencies, must fail)", [PY, "vo
                     fail_marks=[r"^DIFF ", r"^(?!2000 )\d+ of 2000 texts give the unit the same bytes"]))
 # Accented letters (Tomi: typing á é ő ú ű ó ü ö said nothing, "tükör" was "t k r"): src/csrc/translit.h runs first
 # on every voice's text -- a letter the firmware lacks becomes its base letters ("tukor"), alone its words ("a
-# acute"); the Spanish unit keeps cp850's own.  translit_test.py: the module (test_translit.c), every voice's bytes,
-# the five voices speaking on fresh units (each accented text sounds as its ASCII spelling, ASCII text the same PCM
-# with the pass on and off), and the Braille Lite's NVDA driver.  Each control turns the pass off (TRANSLIT_BREAK=1,
-# 0.7's path) and must fail as that.  (The 0.7.0 references above are given the pass's output: translit_ref.py.)
+# acute"), decomposed input as composed ("a" U+0301 as á); the Spanish unit keeps cp850's own.  translit_test.py:
+# the module (test_translit.c), every voice's bytes, the five voices speaking on fresh units (each accented text
+# sounds as its ASCII spelling, each utterance complete, ASCII text the same PCM with the pass on and off), and the
+# Braille Lite's NVDA driver.  Three layers (Astra, Reply 162): handwritten fixtures own the conversion; no-change
+# inputs, pass on against off, hold what it must leave alone; the equivalence checks above against 0.7.0's drivers
+# are current-preprocessing / frozen-downstream equivalence (translit_ref.py).  Each control turns the pass off
+# (TRANSLIT_BREAK=1, 0.7's path) or makes no unit ever done, and must fail as that.
 CHECKS.append(check("accented letters: translit.h (C), the table, alone and in a word, case",
                     [PY, "translit_test.py", "module"]))
 CHECKS.append(check("accented letters: translit.h CONTROL (the pass off, must fail)", [PY, "translit_test.py", "module"],
@@ -1271,7 +1274,10 @@ CHECKS.append(check("accented letters: translit.h CONTROL (the pass off, must fa
                                 r'^FAIL in a word: "t\\xc3\\xbck\\xc3\\xb6r" -> "t\\xc3\\xbck\\xc3\\xb6r", not "tukor"$',
                                 r'^ok   cp850 known: "\\xc3\\xa1" -> "\\xc3\\xa1"$',
                                 r"^ok   ascii: all 128 characters pass unchanged",
-                                r"^translit: \d+ of 54 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$"]))
+                                r'^FAIL decomposed, lone: "a\\xcc\\x81" -> "a\\xcc\\x81", not "a acute"$',
+                                r'^FAIL several marks: "au\\xcc\\x88\\xcc\\x81to" -> ',
+                                r'^ok   unattached, after a space: ',
+                                r"^translit: \d+ of 83 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$"]))
 CHECKS.append(check("accented letters: the bytes every voice sends", [PY, "translit_test.py", "bytes"]))
 CHECKS.append(check("accented letters: bytes CONTROL (the pass off, must fail)", [PY, "translit_test.py", "bytes"],
                     env={"TRANSLIT_BREAK": "1"}, expect_fail=True,
@@ -1279,7 +1285,10 @@ CHECKS.append(check("accented letters: bytes CONTROL (the pass off, must fail)",
                                 r"^ +'t\\xfck\\xf6r' -> b't k r\\r\\x06\\r\\x06', not b'tukor\\r\\x06\\r\\x06'$",
                                 r"^ +'\\u0151' -> b'', not b'o double acute\\r\\x06\\r\\x06'$",
                                 r"^ +'\\xe1' -> b'\\xe1\\r', not b'a acute\\r'$",
-                                r"^FAIL blazie_es bytes ", r"^translit bytes: 5 of 5 FAILED"]))
+                                r"^ +'man\\u0303ana' -> b'man ana\\r\\x06\\r\\x06', not b'ma\\xa4ana\\r\\x06\\r\\x06'$",
+                                r"^ +'au\\u0308\\u0301to' -> b'au to\\r\\x06\\r\\x06', not b'auto\\r\\x06\\r\\x06'$",
+                                r"^FAIL blazie_es bytes ", r"^ok   sa +same +14 of 14 inputs",
+                                r"^translit bytes: 5 of 10 FAILED"]))
 _FW = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware")
 if all(os.path.isfile(os.path.join(_FW, *p.split("/"))) for p in (
         "blazie/BL2ENG.BNS", "blazie/spanish/BL2SPA.BNS", "gw-micro-speakout/SPEAKOUT.HEX",
@@ -1292,7 +1301,14 @@ if all(os.path.isfile(os.path.join(_FW, *p.split("/"))) for p in (
                                     r"^FAIL blazie +audio +'t\\xfck\\xf6r' is not 0\.7's \"t k r\"",
                                     r"^FAIL sa +audio +'\\u0151' sounds as 'o double acute'",
                                     r"^ok   sa +ascii +8 of 8 ASCII texts give the same PCM",
-                                    r"^translit voices: \d+ of 33 FAILED \(TRANSLIT_BREAK=1"]))
+                                    r"^translit voices: \d+ of 38 FAILED \(TRANSLIT_BREAK=1"]))
+    # completion owned (Astra, Reply 162): every unit's render made never to say done, its audio still coming --
+    # each utterance must be rejected as never done, not taken as audio
+    CHECKS.append(check("accented letters: voices CONTROL (never done, must fail)", [PY, "translit_test.py", "voices"],
+                        env={"TRANSLIT_TEST_NEVER_DONE": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL %s +audio +'\\xe1': never done after 1000 blocks \(0\.[1-9]\d s of audio "
+                                    r"so far\)$" % v for v in ("blazie", "blazie_es", "speakout", "mini", "sa")]
+                        + [r"^translit voices: 5 of 5 FAILED \(TRANSLIT_TEST_NEVER_DONE=1: no unit ever done\)$"]))
 CHECKS.append(check("accented letters: the Braille Lite's NVDA driver", [PY, "translit_test.py", "driver"]))
 CHECKS.append(check("accented letters: driver CONTROL (the pass off, must fail)", [PY, "translit_test.py", "driver"],
                     env={"TRANSLIT_BREAK": "1"}, expect_fail=True,

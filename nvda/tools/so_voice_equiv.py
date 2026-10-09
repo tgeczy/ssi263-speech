@@ -11,8 +11,8 @@ again after it), the lead trim, volume, every sample rate (the box rebooted at e
 
 The driver is 0.7.0's, the Python host's last (legacy_drivers.py), on its default core (mame-steps); the C side is
 nvda/dist/speakout-lib/<arch>/so_voice.dll (src/csrc/speakout/build_board.py).  0.7.0's driver predates the
-accented-letter pass (src/csrc/translit.h): it is given each text after it (translit_ref.py); translit_test.py holds
-the pass itself.
+accented-letter pass (src/csrc/translit.h): it is given each text after it (translit_ref.py) -- current-preprocessing
+/ frozen-downstream equivalence, not an oracle for the pass (translit_test.py's handwritten fixtures are).
 """
 import ctypes
 import os

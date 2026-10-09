@@ -45,11 +45,11 @@ check "chip defaults" python3 src/csrc/gen_chip_defaults.py --check
 check "accented letters: translit.h (C), the table, alone and in a word, case" python3 nvda/tools/translit_test.py module
 control "accented letters: translit.h CONTROL (the pass off, must fail)" \
     '^FAIL lone: "\\xc3\\xa1" -> "\\xc3\\xa1", not "a acute"$' '^ok   ascii: all 128 characters pass unchanged' \
-    '^translit: [0-9]+ of 54 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$' \
+    '^translit: [0-9]+ of 83 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$' \
     -- env TRANSLIT_BREAK=1 python3 nvda/tools/translit_test.py module
 check "accented letters: the bytes every voice sends" python3 nvda/tools/translit_test.py bytes
 control "accented letters: bytes CONTROL (the pass off, must fail)" '^FAIL blazie +bytes ' '^FAIL speakout +bytes ' \
-    "^ +'t\\\\xfck\\\\xf6r' -> b't k r" '^translit bytes: 5 of 5 FAILED' \
+    "^ +'t\\\\xfck\\\\xf6r' -> b't k r" '^translit bytes: 5 of 10 FAILED' \
     -- env TRANSLIT_BREAK=1 python3 nvda/tools/translit_test.py bytes
 check "emulator: the keyboard (terminal, chords, letters, hold, Type 'n Speak)" ./$B/test_keys build
 check "emulator: braille display wiring and latch" ./$B/test_display

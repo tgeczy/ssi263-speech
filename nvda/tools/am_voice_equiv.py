@@ -15,7 +15,8 @@ of audio (so its worker sees it before its next block, as NVDA's would land betw
 amv_cancel after its Nth block.  A capital is one PitchCommand(offset) before the text, the one-offset-per-utterance
 shape of amv_speak.  Needs nvda/dist/accentmini-lib/x64/accent_mini.dll (src/csrc/accentmini/build_am.py).
 0.7.0's driver predates the accented-letter pass (src/csrc/translit.h): it is given each text after it
-(translit_ref.py), so everything after the pass is still held byte for byte; translit_test.py holds the pass itself.
+(translit_ref.py), so everything after the pass is still held byte for byte: current-preprocessing / frozen-downstream
+equivalence, not an oracle for the pass (translit_test.py's handwritten fixtures are).
 """
 import ctypes
 import os

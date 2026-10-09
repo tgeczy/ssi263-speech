@@ -3,7 +3,8 @@ given for a text item (ssi263_numwords.currencies, _clean, strip(), Latin-1, the
 The audio gate (so_voice_equiv.py) speaks a few texts; this one hunts the edge cases of the text rules -- currency
 amounts, quotes and dashes, control characters, characters beyond Latin-1, and the whitespace strip() removes after
 _clean (the space, U+0085 and U+00A0) -- in a second.  0.7.0's driver predates the accented-letter pass
-(src/csrc/translit.h), so it is given the text after it (translit_ref.py); translit_test.py holds the pass itself.
+(src/csrc/translit.h), so it is given the text after it (translit_ref.py): current-preprocessing / frozen-downstream
+equivalence, not an oracle for the pass (translit_test.py's handwritten fixtures are).
 
     python so_voice_text_equiv.py [count] [seed]
     SO_VOICE_TEXT_BREAK=1        # control: the driver's strip() reduced to spaces only -- must FAIL

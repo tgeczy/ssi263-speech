@@ -1,10 +1,13 @@
 """The accented-letter pass (src/csrc/translit.h) for the references that predate it.
 
-Since 0.7.7 every voice's text path starts with it -- "tükör" -> "tukor", a lone "á" -> "a acute" -- and 0.7.0's
-Python drivers (legacy_drivers.py), the reference the C voices, the native drivers and the SAPI voices are held to,
-never had it.  The tests that compare against them hand the reference the text after the same pass, from the same C
-(ssv_translit in ssi263speech.dll), so everything after it is still held byte for byte; the pass itself is
-translit_test.py's.  Python 3.7 to 3.13, 32- and 64-bit; ctypes only.
+From 0.8 (it is not in 0.7.7 or any release before) every voice's text path starts with it -- "tükör" -> "tukor", a
+lone "á" -> "a acute" -- and 0.7.0's Python drivers (legacy_drivers.py), the reference the C voices, the native
+drivers and the SAPI voices are held to, never had it.  The tests that compare against them hand the reference the
+text after the same pass, from the same C (ssv_translit in ssi263speech.dll), so everything after it is still held
+byte for byte: current-preprocessing / frozen-downstream equivalence.  That is no oracle for the pass itself (the
+same C on both sides cannot catch a wrong table entry): translit_test.py's and test_translit.c's handwritten
+fixtures own the conversion, and its no-change inputs (the pass on against off, no reference conversion) what must
+stay as it was.  Python 3.7 to 3.13, 32- and 64-bit; ctypes only.
 
     translit(text, charset)     charset ASCII (the English Braille Lite, the Speak-Out, the Accents) or CP850
 """

@@ -122,16 +122,17 @@ control "module CONTROL (SSI263AccentInflection ignored, must fail)" "^as_speak 
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # Accented letters (src/csrc/translit.h, first on every voice's text): the module, every voice's bytes, and the voices
 # speaking on fresh units, from a firmware folder laid out as firmware/ (the data folder's Braille Lites, the
-# repository's Aicom files, the Speak-Out's where test_sd_ssi263.py finds it; a voice without its files is skipped).
-# Each control turns the pass off (TRANSLIT_BREAK=1) and must fail as that.  The first two are linux_ci_checks.sh's.
+# repository's Aicom files, the Speak-Out's where test_sd_ssi263.py finds it; all five are required, a voice without
+# its files fails).  Each control turns the pass off (TRANSLIT_BREAK=1) or makes no unit ever done
+# (TRANSLIT_TEST_NEVER_DONE=1) and must fail as that.  The first two are linux_ci_checks.sh's.
 check "accented letters: translit.h (C), the table, alone and in a word, case" python3 nvda/tools/translit_test.py module
 control "accented letters: translit.h CONTROL (the pass off, must fail)" \
     '^FAIL lone: "\\xc3\\xa1" -> "\\xc3\\xa1", not "a acute"$' '^ok   ascii: all 128 characters pass unchanged' \
-    '^translit: [0-9]+ of 54 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$' \
+    '^translit: [0-9]+ of 83 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$' \
     -- env TRANSLIT_BREAK=1 python3 nvda/tools/translit_test.py module
 check "accented letters: the bytes every voice sends" python3 nvda/tools/translit_test.py bytes
 control "accented letters: bytes CONTROL (the pass off, must fail)" '^FAIL blazie +bytes ' '^FAIL speakout +bytes ' \
-    "^ +'t\\\\xfck\\\\xf6r' -> b't k r" '^translit bytes: 5 of 5 FAILED' \
+    "^ +'t\\\\xfck\\\\xf6r' -> b't k r" '^translit bytes: 5 of 10 FAILED' \
     -- env TRANSLIT_BREAK=1 python3 nvda/tools/translit_test.py bytes
 TFW=build/translit-firmware
 rm -rf $TFW && mkdir -p $TFW/blazie/spanish $TFW/gw-micro-speakout $TFW/aicom-accent-mini $TFW/aicom-accent-sa
@@ -148,6 +149,10 @@ control "accented letters: voices CONTROL (the pass off, must fail)" \
     "^FAIL blazie +audio +'\\\\xe1' alone: 0\.00 s, 0 loud samples$" "^FAIL blazie +audio +'t\\\\xfck\\\\xf6r' is not" \
     '^ok   blazie +ascii +8 of 8 ASCII texts give the same PCM' '^translit voices: [0-9]+ of [0-9]+ FAILED' \
     -- env TRANSLIT_BREAK=1 python3 nvda/tools/translit_test.py voices --firmware $TFW
+control "accented letters: voices CONTROL (never done, must fail)" \
+    "^FAIL blazie +audio +'\\\\xe1': never done after 1000 blocks" "^FAIL sa +audio +'\\\\xe1': never done after 1000 blocks" \
+    '^translit voices: 5 of 5 FAILED \(TRANSLIT_TEST_NEVER_DONE=1: no unit ever done\)$' \
+    -- env TRANSLIT_TEST_NEVER_DONE=1 python3 nvda/tools/translit_test.py voices --firmware $TFW
 # The Blazie emulator in a terminal (src/apps/blazie/README-linux.md), on MAME's Z180: its keyboard without a unit
 # (test_keys), the unit headless as on Windows (test_emu_unit, test_clock), and the whole program headless
 # (test_emu_linux.py: boot and a chord answered, the clock from the system time typed as keys and as computer-braille
