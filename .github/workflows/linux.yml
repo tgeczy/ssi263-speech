@@ -31,6 +31,7 @@ on:
       - "tools/linux_*.sh"
       - "tools/check_no_gpl.py"
       - "tools/check_glibc_floor.sh"
+      - "tools/btspeak_deb_test.sh"
       - "tools/build_bt_frontend.py"
       - ".github/workflows/linux.yml"
   workflow_dispatch:

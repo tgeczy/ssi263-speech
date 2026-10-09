@@ -56,6 +56,18 @@ check "emulator: braille display wiring and latch" ./$B/test_display
 control "emulator: keyboard CONTROL (dots 1 and 4 swapped, must fail)" "^FAIL +keys mode: o-chord, then t" \
     "^FAIL +letters mode: computer braille" "^ok +tns: y " "^ok +terminal: F12" "^test_keys: [0-9]+ of [0-9]+ FAILED$" \
     -- env BLAZIE_KEYS_BREAK=1 ./$B/test_keys build
+# the BT Speak's and BT Braille's keyboard server and display layout (test_btkb), and the BT Speak .deb's maintainer
+# scripts on a scratch root with a fake release of the test's own (no network); a commit from before #5 has neither
+if [ -f src/apps/blazie/test_btkb.c ]; then
+    check "emulator: the BT keyboard server and the display layout" ./$B/test_btkb
+    control "emulator: BT keyboard CONTROL (dots 7 and 8 never wait, must fail)" \
+        "^FAIL gesture: dot 7 first, then M-chord" "^ok +gesture: M-chord's keys first" "^ok +server: every key consumed" \
+        "^FAIL: 1 failure$" -- env BTKB_BREAK=1 ./$B/test_btkb
+    check "BT Speak .deb: install and removal (scratch root, User Menus, firmware fetch)" sh tools/btspeak_deb_test.sh
+    control "BT Speak .deb CONTROL (postrm never runs, must fail)" "^FAIL +removal: the menus exactly as they were" \
+        "^ok +install: three User Menu entries" "^btspeak deb: FAILED$" \
+        -- env BTSPEAK_DEB_BREAK=1 sh tools/btspeak_deb_test.sh
+fi
 check "emulator: the sound buffer (simulated card)" ./$B/test_audio
 control "emulator: sound buffer CONTROL (the 0.7.0 draft's four blocks, must fail)" \
     "^FAIL busy machine: no gap after 10 s +[0-9]{2,} gaps after 10 s" \
