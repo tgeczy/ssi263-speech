@@ -40,11 +40,34 @@ enum FirmwareInstaller {
         return try Data(contentsOf: url)
     }
 
-    static func inspect(name: String, data: Data) throws -> FirmwareImport.Plan {
+    /// Every file the person chose, each judged into a staging folder of its own, as one plan: each kind of
+    /// firmware from the first file that holds it, every note, and each file that held none said in a note -- or,
+    /// when none held any, every refusal.
+    static func inspect(_ urls: [URL]) throws -> FirmwareImport.Plan {
         guard let staging = SsiShared.stagingFolder else {
             throw Failure(message: "The app's shared folder is not available, so nothing can be imported.")
         }
-        return FirmwareImport.inspect(name: name, data: data, staging: staging, id: NativeIdentify())
+        try? FileManager.default.removeItem(at: staging)
+        var plans: [(String, FirmwareImport.Plan)] = []
+        for (i, url) in urls.enumerated() {
+            let data = try read(url)
+            let plan = FirmwareImport.inspect(name: url.lastPathComponent, data: data,
+                                              staging: staging.appendingPathComponent("source\(i)", isDirectory: true),
+                                              id: NativeIdentify())
+            plans.append((url.lastPathComponent, plan))
+        }
+        if plans.count == 1 { return plans[0].1 }
+        var found: [FirmwareImport.Found] = []
+        for kind in FirmwareImport.order {
+            if let f = plans.lazy.compactMap({ $0.1.found.first { $0.kind == kind } }).first { found.append(f) }
+        }
+        let notes = plans.flatMap { $0.1.notes }
+        if found.isEmpty {
+            return FirmwareImport.Plan(found: [], refusal: plans.compactMap { p in p.1.refusal.map { "\(p.0): \($0)" } }
+                                       .joined(separator: " "))
+        }
+        let empty = plans.filter { $0.1.found.isEmpty }.map { "\($0.0) holds no firmware this app takes; it is left out." }
+        return FirmwareImport.Plan(found: found, refusal: nil, notes: notes + empty)
     }
 
     /// The probe each unit speaks before it is taken.

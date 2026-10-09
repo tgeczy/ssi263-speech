@@ -48,14 +48,14 @@ final class AppModel: ObservableObject {
 
     // ---- the import ------------------------------------------------------------------------------------------------
 
-    /// A file the person chose: judged off the main thread, then put to them (`pending`).
-    func choose(_ url: URL) {
+    /// The files the person chose: judged off the main thread, then put to them (`pending`).
+    func choose(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
         importing = true
-        step = "Looking at \(url.lastPathComponent)"
+        step = urls.count == 1 ? "Looking at \(urls[0].lastPathComponent)" : "Looking at \(urls.count) files"
         announce(step)
         Task.detached {
-            let result = Result { try FirmwareInstaller.inspect(name: url.lastPathComponent,
-                                                                data: FirmwareInstaller.read(url)) }
+            let result = Result { try FirmwareInstaller.inspect(urls) }
             await MainActor.run {
                 self.importing = false
                 switch result {

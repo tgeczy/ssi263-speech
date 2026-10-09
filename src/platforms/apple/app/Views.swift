@@ -78,8 +78,8 @@ struct SetupView: View {
             } header: {
                 Text("Firmware").accessibilityAddTraits(.isHeader)
             } footer: {
-                Text("Choose a firmware file, an update program, a zip holding them, or an NVDA add-on. Each file " +
-                     "is known by its contents, whatever its name.")
+                Text("Choose firmware files, update programs, zips holding them, or NVDA add-ons, one or several " +
+                     "at once. Each file is known by its contents, whatever its name.")
             }
 
             Section {
@@ -111,8 +111,8 @@ struct SetupView: View {
             }
         }
         .navigationTitle("SSI-263 Speech")
-        .fileImporter(isPresented: $picking, allowedContentTypes: [.item], allowsMultipleSelection: false) { r in
-            if case .success(let urls) = r, let url = urls.first { model.choose(url) }
+        .fileImporter(isPresented: $picking, allowedContentTypes: [.item], allowsMultipleSelection: true) { r in
+            if case .success(let urls) = r { model.choose(urls) }
         }
         .confirmationDialog("Import this firmware?", isPresented: Binding(
             get: { model.pending != nil }, set: { if !$0 { model.cancelImport() } }), titleVisibility: .visible) {
