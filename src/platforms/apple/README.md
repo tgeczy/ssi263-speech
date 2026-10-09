@@ -33,6 +33,8 @@ The output goes under `build/apple/` (gitignored). The apps link it with `-lc++`
     python src/platforms/android/test/test_android_native.py
     python src/platforms/apple/test/test_apple_core.py [--simulator]
     SSI263_APPLE_TEST_BREAK=1 python src/platforms/apple/test/test_apple_core.py      control: must FAIL
+    python src/platforms/apple/test/test_apple_speech.py
+    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|speech-1|speech-2|import python ...       controls: each must FAIL
 
 `test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's
 `libssi263core.a`, the library the apps link, and requires every case's samples and PCM hash to be the desktop
@@ -42,6 +44,15 @@ references, so the slices are held to them too. It runs macOS arm64 natively, x8
 on the device by the app. Its control runs the slices with the request's rate dropped (`ssa_map_break`), so the run
 must fail.
 
+`test_apple_speech.py` holds the Apple front end's own C to its rules, on the macos-arm64 slice:
+- **SSML:** VoiceOver's SSML is parsed as TGSpeechBox's speech extension parses it. The cases cover iOS 27's `<s>`
+  parts, an `800.0ms` break folding into the sentence end before it, the strengths, the 30 ms floor, the 2 s cap, the
+  end-of-request pause, a break-only spacer, the entities, the rate, and the volume rotor's decibels.
+- **Speaking:** every voice whose files are there speaks each request byte for byte as its segments through
+  `ssa_start`/`ssa_pull` directly, with the pauses' zeros between them. A stop holds, and off, short and long differ
+  in length.
+- **Import:** each of Aicom's files is known by its sha256 under any name, but not with one byte changed.
+
 On the Mac, `test_android_native.py` runs every block but the Accent SA's, whose reference is the NVDA driver on the
 Windows DLLs: `SSI263_ANDROID_TEST_ONLY=bl,ra,num,so,mini,import`.
 
@@ -50,4 +61,8 @@ Windows DLLs: `SSI263_ANDROID_TEST_ONLY=bl,ra,num,so,mini,import`.
 | File | What it does |
 |---|---|
 | `build_apple.sh` | SSI263Core: the static libraries for each slice, lipo'd per platform, and the XCFramework with its headers |
+| `core/ssp_ssml.h`, `ssp_ssml.c` | VoiceOver's SSML: the segments and their pauses at the Pause mode (off, short, long), as TGSpeechBox's speech extension makes them, and the prosody's rate, pitch and volume (the rotor's decibels) |
+| `core/ssp_speech.h`, `ssp_speech.c` | A request spoken segment by segment through Android's `ssa_engine`, each segment's PCM unchanged, the pauses' zeros between them, pulled block by block; a stop from any thread |
+| `core/ssp_import.h`, `ssp_import.c` | Every firmware the apps import: Aicom's files by sha256 (Android carries them built in), then Android's judgement of the Braille Lite's and the Speak-Out's |
 | `test/test_apple_core.py` | Each runnable slice against the desktop program, byte for byte, with its control |
+| `test/test_apple_speech.c`, `.py` | The Apple front end's own C: the SSML and pauses, each voice's requests against their segments' own PCM, a stop, Aicom's files; the controls |
