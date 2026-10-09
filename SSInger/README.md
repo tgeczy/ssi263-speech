@@ -35,7 +35,7 @@ register-level model in `../src/csrc/ssi263.c`; nothing is recorded.
   ~30 Hz (inflection 0) — put pitch notes on channel N+1 (or a second
   clip) or you will hear almost nothing on small speakers. That is the
   patented method, not a bug.
-- The key→phoneme layout is fixed and built in (`note_map.txt` documents
+- The key→phoneme layout is fixed and built in (`note_map.txt`, in the download, documents
   it — reference only, the plugin reads no files). A custom layout becomes
   a UI feature (Phase-2 PEC-style editor), not a sidecar file. All 64
   chip phonemes are playable: notes 36–89 (C2–F6) sing E to TH in chip

@@ -8,6 +8,7 @@ or .tar.gz (Linux):
     VST3/ CLAP/ Standalone/   (+ AU/ on macOS, LV2/ on Linux)  the plug-ins
     LICENSE                   this repository's MIT licence
     README.md, BUILD.md       SSInger's own (install folders, Gatekeeper, OSARA)
+    note_map.txt              which key sings which phoneme (for reading: the plug-in has it built in)
     SOURCE.txt                the AGPLv3 corresponding-source offer
     licenses/                 AGPLv3, Casso, and every bundled third-party
                               notice, copied from the trees CMake fetched
@@ -140,6 +141,8 @@ OWN_FILES = {
     "LICENSE": os.path.join(REPO, "LICENSE"),
     "README.md": os.path.join(SSINGER, "README.md"),
     "BUILD.md": os.path.join(SSINGER, "BUILD.md"),
+    "note_map.txt": os.path.join(SSINGER, "note_map.txt"),   # which key sings what, for reading (Spacedog: so
+                                                              # nobody gets confused); the plug-in has it built in
     "licenses/AGPL-3.0.txt": os.path.join(HERE, "AGPL-3.0.txt"),
     "licenses/Casso-MIT.txt": os.path.join(REPO, "third_party", "casso", "LICENSE"),
     "licenses/README.md": os.path.join(SSINGER, "third_party", "README.md"),
