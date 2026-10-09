@@ -83,12 +83,17 @@ struct SetupView: View {
             }
 
             Section {
-                Picker("Voice", selection: $previewVoice) {
-                    ForEach(SsiShared.voices, id: \.key) { v in Text(v.name).tag(v.key) }
+                let imported = model.voices.filter { $0.label != nil }
+                if imported.isEmpty {
+                    Text("Import a voice's firmware first.")
+                } else {
+                    Picker("Voice", selection: $previewVoice) {
+                        ForEach(imported) { v in Text(v.voice.name).tag(v.voice.key) }
+                    }
+                    TextField("Text to speak", text: $text, axis: .vertical)
+                    Button("Speak") { model.speak(text, voiceKey: previewVoice) }
+                    Button("Stop") { model.stopPreview() }
                 }
-                TextField("Text to speak", text: $text, axis: .vertical)
-                Button("Speak") { model.speak(text, voiceKey: previewVoice) }
-                Button("Stop") { model.stopPreview() }
                 if !model.previewStatus.isEmpty { Text(model.previewStatus) }
             } header: {
                 Text("Preview").accessibilityAddTraits(.isHeader)
@@ -128,6 +133,14 @@ struct SetupView: View {
             Text("Every voice will stay silent until its firmware is imported again.")
         }
         .sheet(isPresented: $showLicenses) { LicensesView() }
+        .onAppear(perform: choosePreviewVoice)
+        .onChange(of: model.voices.map { $0.label ?? "" }) { _ in choosePreviewVoice() }
+    }
+
+    /// The preview speaks an imported voice: the one chosen while it is imported, else the first imported.
+    private func choosePreviewVoice() {
+        let imported = model.voices.filter { $0.label != nil }.map { $0.voice.key }
+        if !imported.contains(previewVoice), let first = imported.first { previewVoice = first }
     }
 
     private func planWords(_ plan: FirmwareImport.Plan?) -> String {

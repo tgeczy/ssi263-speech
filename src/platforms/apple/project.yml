@@ -17,6 +17,10 @@ settings:
     SWIFT_VERSION: "5"
     DEVELOPMENT_TEAM: P84QQE42U9
     CODE_SIGN_STYLE: Automatic
+    # automatic signing registers the entitlements' App Group and signs with a profile that grants it: without it a
+    # Mac target gets the team's wildcard profile, and macOS then refuses the extension the group's container
+    # ("Requestor's signature does not allow it to access a TCC-protected group container")
+    REGISTER_APP_GROUPS: YES
     MARKETING_VERSION: "0.8.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_OBJC_BRIDGING_HEADER: shared/BridgingHeader.h
@@ -35,6 +39,11 @@ targets:
   SsiSpeech-macOS:
     type: application
     platform: macOS
+    attributes:
+      # the App Groups capability, for automatic signing (REGISTER_APP_GROUPS above)
+      SystemCapabilities:
+        com.apple.ApplicationGroups.Mac:
+          enabled: 1
     sources:
       - path: app
         excludes: ["*.entitlements"]
@@ -60,6 +69,11 @@ targets:
   SsiSynthExtension-macOS:
     type: app-extension
     platform: macOS
+    attributes:
+      # the App Groups capability, for automatic signing (REGISTER_APP_GROUPS above)
+      SystemCapabilities:
+        com.apple.ApplicationGroups.Mac:
+          enabled: 1
     sources:
       - path: extension
         excludes: ["*.entitlements", "Info.plist"]
@@ -75,6 +89,11 @@ targets:
   SsiSpeech-iOS:
     type: application
     platform: iOS
+    attributes:
+      # the App Groups capability, for automatic signing (REGISTER_APP_GROUPS above)
+      SystemCapabilities:
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     sources:
       - path: app
         excludes: ["*.entitlements"]
@@ -101,6 +120,11 @@ targets:
   SsiSynthExtension-iOS:
     type: app-extension
     platform: iOS
+    attributes:
+      # the App Groups capability, for automatic signing (REGISTER_APP_GROUPS above)
+      SystemCapabilities:
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     sources:
       - path: extension
         excludes: ["*.entitlements", "Info.plist"]
