@@ -6,16 +6,27 @@
  * The firmwares know only their own alphabet: 7-bit ASCII (the English Braille Lite, the Speak-Out, the Accents) or a
  * DOS code page (the Spanish Braille Lite: cp850).  Before this pass, a letter outside it became a space or silence:
  * "á" alone said nothing, "tükör" became "t k r".  tl_apply runs first on a text item's code points, before every
- * other rule (currencies, each voice's _clean), and changes only letters the voice does not know:
+ * other rule (currencies, each voice's _clean), and changes only letters the voice does not know.  It reads the text
+ * as graphemes: a base character and the run of combining marks (U+0300-U+036F) attached to it.
  *
- *   - a known character passes unchanged (the voice's known() says which: tl_known_ascii, or the code page's);
+ *   - Composition first, before known() is asked: a letter (ASCII or the table's) with an attached run is one
+ *     grapheme.  When the run is one mark and the two make a letter of the table ("a" U+0301 -> á, "n" U+0303 -> ñ),
+ *     the grapheme IS that letter, exactly as if it had come precomposed.  Otherwise (no such letter: "q" U+0301, or a
+ *     run of several marks, "u" U+0308 U+0301 -- the table has no letter with two marks) the grapheme is its base
+ *     character, as the rules below take it in a word, and the whole run is dropped.  Only the table's letters
+ *     compose (each with the mark it is named for: acute U+0301 ... ogonek U+0328, comma U+0326), in C, so it is the
+ *     same on every front end -- never the OS's normalisation;
+ *   - a known character passes unchanged (the voice's known() says which: tl_known_ascii, or the code page's) -- the
+ *     Spanish unit is sent cp850's ñ for "n" U+0303 as for a precomposed ñ;
  *   - an unknown letter inside text becomes its base letters, capitals keeping case: "tükör" -> "tukor",
  *     "Tamás" -> "Tamas", ß -> "ss", Æ -> "AE", Þ -> "Th";
- *   - a LONE unknown letter -- the whole text item is that one character once whitespace is trimmed (NVDA's typed
- *     character or character navigation) -- becomes its letter and its mark in English words: "á" -> "a acute",
- *     "ő" -> "o double acute", "ß" -> "sharp s".  Capitals give the same words (NVDA marks a capital itself).  A
- *     letter with punctuation ("ő.") is not lone;
- *   - a combining mark (U+0300-U+036F) right after a letter is dropped ("a" U+0301 -> "a"), the base letter stays;
+ *   - a LONE unknown letter -- the whole text item is that one grapheme once whitespace is trimmed (NVDA's typed
+ *     character or character navigation) -- becomes its letter and its mark in English words: "á" (or "a" U+0301)
+ *     -> "a acute", "ő" -> "o double acute", "ß" -> "sharp s".  Capitals give the same words (NVDA marks a capital
+ *     itself).  A letter with punctuation ("ő.") is not lone, nor "cap á" (NVDA's "say cap"); a grapheme that is not
+ *     a table letter ("u" U+0308 U+0301) is not named, only its base;
+ *   - an UNATTACHED mark -- at the start, or after a character that is not a letter (a space, a digit, a symbol) --
+ *     passes unchanged, with any marks after it, to the voice's own rules as before (they make it a space);
  *   - anything else (symbols, other scripts) passes unchanged, to the voice's own rules as before.
  *
  * The table covers Latin-1 Supplement and Latin Extended-A (U+00C0-U+017F, all but the two symbols x and ÷), the
@@ -163,36 +174,81 @@ TL_FN int tl_put_words(const tl_letter *l, unsigned *out)
     return m;
 }
 
+/* a letter a mark can attach to: ASCII's or the table's */
+TL_FN int tl_is_letter(unsigned c)
+{
+    return (c < 128 && (c | 32) >= 'a' && (c | 32) <= 'z') || tl_lookup(c) != NULL;
+}
+
+/* the combining mark each of the table's mark words is (its canonical decomposition's) */
+static const struct {
+    unsigned cp;
+    const char *mark;
+} tl_marks[] = {
+    {0x0300, "grave"}, {0x0301, "acute"}, {0x0302, "circumflex"}, {0x0303, "tilde"}, {0x0304, "macron"},
+    {0x0306, "breve"}, {0x0307, "dot"}, {0x0308, "umlaut"}, {0x030A, "ring"}, {0x030B, "double acute"},
+    {0x030C, "caron"}, {0x0326, "comma"}, {0x0327, "cedilla"}, {0x0328, "ogonek"},
+};
+
+/* base + mark as one letter of the table (its code point), or 0: base one ASCII letter, mark named for it */
+TL_FN unsigned tl_compose(unsigned base, unsigned mark)
+{
+    const char *word = NULL;
+    size_t i;
+    if (base >= 128 || !tl_is_letter(base))
+        return 0;
+    for (i = 0; i < sizeof tl_marks / sizeof tl_marks[0]; i++)
+        if (tl_marks[i].cp == mark)
+            word = tl_marks[i].mark;
+    if (!word)
+        return 0;
+    for (i = 0; i < 192; i++)
+        if (tl_table[i].base && tl_table[i].base[0] == (char)base && !tl_table[i].base[1]
+                && !strcmp(tl_table[i].mark, word))
+            return 0xC0 + (unsigned)i;
+    for (i = 0; i < sizeof tl_extra / sizeof tl_extra[0]; i++)
+        if (tl_extra[i].l.base[0] == (char)base && !tl_extra[i].l.base[1] && !strcmp(tl_extra[i].l.mark, word))
+            return tl_extra[i].cp;
+    return 0;
+}
+
+/* one character as the firmware is given it: known, its base letters, or (lone) its words; else unchanged */
+TL_FN int tl_put(unsigned c, int lone, tl_known_fn known, unsigned *out)
+{
+    const tl_letter *l;
+    const char *s;
+    int m = 0;
+    if (known(c) || (l = tl_lookup(c)) == NULL) {
+        out[m++] = c;
+    } else if (lone) {
+        m = tl_put_words(l, out);
+    } else {
+        for (s = l->base; *s; s++) out[m++] = (unsigned char)*s;
+    }
+    return m;
+}
+
 /* The pass: in[0..n) -> out (room for tl_room(n)), known() saying what the firmware reads; returns the count. */
 TL_FN int tl_apply(const unsigned *in, int n, tl_known_fn known, unsigned *out)
 {
-    int i, m = 0, a = 0, b = n;
-    const tl_letter *l;
+    int i = 0, j, m = 0, a = 0, b = n;
     if (tl_broken()) {
         memcpy(out, in, sizeof(unsigned) * (size_t)(n > 0 ? n : 0));
         return n;
     }
-    while (a < b && tl_space(in[a])) a++;
+    while (a < b && tl_space(in[a])) a++;                   /* the item without its whitespace: lone if one grapheme */
     while (b > a && tl_space(in[b - 1])) b--;
-    if (b - a == 1 && !known(in[a]) && (l = tl_lookup(in[a])) != NULL) {     /* a lone letter: its words */
-        for (i = 0; i < a; i++) out[m++] = in[i];
-        m += tl_put_words(l, out + m);
-        for (i = b; i < n; i++) out[m++] = in[i];
-        return m;
-    }
-    for (i = 0; i < n; i++) {
-        unsigned c = in[i];
-        const char *s;
-        if (known(c)) {
-            out[m++] = c;
-        } else if ((l = tl_lookup(c)) != NULL) {
-            for (s = l->base; *s; s++) out[m++] = (unsigned char)*s;
-        } else if (tl_combining(c) && i > 0 && (tl_lookup(in[i - 1]) || (in[i - 1] < 128 && (
-                       ((in[i - 1] | 32) >= 'a' && (in[i - 1] | 32) <= 'z'))))) {
-            ;                                                                   /* the mark of the letter before */
-        } else {
-            out[m++] = c;
+    while (i < n) {
+        unsigned c = in[i], p;
+        for (j = i + 1; j < n && tl_combining(in[j]); j++) ;  /* the run of marks attached to in[i] */
+        if (tl_combining(c) || (j > i + 1 && !tl_is_letter(c))) {
+            for (; i < j; i++) out[m++] = in[i];             /* unattached: as it came */
+            continue;
         }
+        if (j == i + 2 && (p = tl_compose(c, in[i + 1])) != 0)
+            c = p;                                            /* base + its one mark: the letter */
+        m += tl_put(c, i == a && j == b && (j == i + 1 || c != in[i]), known, out + m);
+        i = j;                                                /* a run that made no letter: dropped */
     }
     return m;
 }

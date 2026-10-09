@@ -200,9 +200,30 @@ int main(void)
     expect("not lone: a word of one letter in text", "a \xc5\x91 b", tl_known_ascii, "a o b");
     expect("not lone: with punctuation", "\xc5\x91.", tl_known_ascii, "o.");
     expect("not lone: two letters", "\xc3\xa1\xc3\xa1", tl_known_ascii, "aa");
-    /* combining marks after a letter go; the base letter stays */
-    expect("combining", "cafe\xcc\x81 na\xc3\xafve", tl_known_ascii, "cafe naive");
-    expect("combining, not after a letter", " \xcc\x81", tl_known_ascii, " \xcc\x81");
+    /* decomposed letters: base + its one mark is the letter, alone and in a word (handwritten, as the composed ones) */
+    expect("decomposed, lone", "a\xcc\x81", tl_known_ascii, "a acute");             /* a U+0301 */
+    expect("decomposed, lone, a capital", "A\xcc\x81", tl_known_ascii, "a acute");
+    expect("decomposed, lone", "o\xcc\x8b", tl_known_ascii, "o double acute");      /* o U+030B */
+    expect("decomposed, lone", "u\xcc\x88", tl_known_ascii, "u umlaut");            /* u U+0308 */
+    expect("decomposed, lone", "c\xcc\x8c", tl_known_ascii, "c caron");             /* c U+030C */
+    expect("decomposed, lone", "s\xcc\xa6", tl_known_ascii, "s comma");             /* s U+0326 */
+    expect("decomposed, lone", "z\xcc\x87", tl_known_ascii, "z dot");               /* z U+0307 */
+    expect("decomposed, lone, whitespace kept", " a\xcc\x81\n", tl_known_ascii, " a acute\n");
+    expect("decomposed, in a word", "tu\xcc\x88ko\xcc\x88r", tl_known_ascii, "tukor");
+    expect("decomposed, in a word", "Tama\xcc\x81s", tl_known_ascii, "Tamas");
+    expect("decomposed, in a word", "cafe\xcc\x81 nai\xcc\x88ve", tl_known_ascii, "cafe naive");
+    /* a mark that makes no letter of the table: the base, the mark dropped; a run of marks: the base, the run dropped */
+    expect("no such letter", "q\xcc\x81" "ed", tl_known_ascii, "qed");               /* q U+0301 */
+    expect("no such letter, lone: the base only", "q\xcc\x81", tl_known_ascii, "q");
+    expect("several marks", "au\xcc\x88\xcc\x81to", tl_known_ascii, "auto");         /* u U+0308 U+0301 */
+    expect("several marks, lone: the base only", "u\xcc\x88\xcc\x81", tl_known_ascii, "u");
+    expect("several marks after a precomposed letter", "\xc3\xbc\xcc\x81\xcc\x81x", tl_known_ascii, "ux");
+    /* an unattached mark (at the start, after a space, a digit, a symbol): left, with its run, to the voice's rules */
+    expect("unattached, after a space", "a \xcc\x81" "b", tl_known_ascii, "a \xcc\x81" "b");
+    expect("unattached, at the start", "\xcc\x81" "ab", tl_known_ascii, "\xcc\x81" "ab");
+    expect("unattached, alone", "\xcc\x81", tl_known_ascii, "\xcc\x81");
+    expect("unattached, a run after a digit", "1\xcc\x81\xcc\x88", tl_known_ascii, "1\xcc\x81\xcc\x88");
+    expect("unattached, after a symbol", "\xe2\x82\xac\xcc\x81", tl_known_ascii, "\xe2\x82\xac\xcc\x81");
     /* everything else is left to the voice's own rules */
     expect("symbols", "\xc3\x97 \xc3\xb7 \xe2\x82\xac \xc2\xbd \xc2\xa9 \xe2\x80\x9cq\xe2\x80\x9d \xf0\x9f\x8e\x89",
            tl_known_ascii, "\xc3\x97 \xc3\xb7 \xe2\x82\xac \xc2\xbd \xc2\xa9 \xe2\x80\x9cq\xe2\x80\x9d \xf0\x9f\x8e\x89");
@@ -215,6 +236,18 @@ int main(void)
     expect("cp850 known", "Ma\xc3\xb1" "ana, \xc2\xbfqu\xc3\xa9 tal?", known_cp850, "Ma\xc3\xb1" "ana, \xc2\xbfqu\xc3\xa9 tal?");
     expect("cp850 unknown, lone", "\xc5\x91", known_cp850, "o double acute");
     expect("cp850 unknown, in a word", "Erd\xc5\x91s", known_cp850, "Erdos");
+    /* ... and decomposed: the unit's own letter, precomposed, so it is sent cp850's byte */
+    expect("cp850 known, decomposed, lone", "n\xcc\x83", known_cp850, "\xc3\xb1");         /* n U+0303 -> ñ */
+    expect("cp850 known, decomposed, lone", "a\xcc\x81", known_cp850, "\xc3\xa1");         /* a U+0301 -> á */
+    expect("cp850 known, decomposed, in a word", "man\xcc\x83" "ana", known_cp850, "ma\xc3\xb1" "ana");
+    expect("cp850 known, decomposed, in a word", "camio\xcc\x81n", known_cp850, "cami\xc3\xb3n");   /* camión */
+    expect("cp850 known, decomposed, a capital", "E\xcc\x81l", known_cp850, "\xc3\x89l");   /* É: cp850 90 */
+    expect("cp850 unknown, decomposed, lone", "o\xcc\x8b", known_cp850, "o double acute");
+    expect("cp850 known base, several marks: the base kept", "\xc3\xbc\xcc\x81", known_cp850, "\xc3\xbc");
+    expect("cp850, several marks on an ASCII base", "pu\xcc\x88\xcc\x81" "a", known_cp850, "pua");
+    expect("cp850 preserved", "\xc2\xbfQu\xc3\xa9 tal, ni\xc3\xb1o? \xc2\xa1Ol\xc3\xa9!", known_cp850,
+           "\xc2\xbfQu\xc3\xa9 tal, ni\xc3\xb1o? \xc2\xa1Ol\xc3\xa9!");
+    expect("cp850 unattached", "a \xcc\x81" "b", known_cp850, "a \xcc\x81" "b");
     coverage();
     same_words_both_cases();
     ascii_unchanged();
