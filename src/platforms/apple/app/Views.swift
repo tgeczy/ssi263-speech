@@ -119,8 +119,7 @@ struct SetupView: View {
         .fileImporter(isPresented: $picking, allowedContentTypes: [.item], allowsMultipleSelection: true) { r in
             if case .success(let urls) = r { model.choose(urls) }
         }
-        .confirmationDialog("Import this firmware?", isPresented: Binding(
-            get: { model.pending != nil }, set: { if !$0 { model.cancelImport() } }), titleVisibility: .visible) {
+        .confirmationDialog("Import this firmware?", isPresented: $model.askingToImport, titleVisibility: .visible) {
             Button("Import") { model.confirm() }
             Button("Cancel", role: .cancel) { model.cancelImport() }
         } message: {

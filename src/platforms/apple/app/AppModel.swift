@@ -2,11 +2,14 @@
 // with its progress), the removal, and the preview.  The screens (SetupView, VoiceSettingsView) show it.  MIT.
 
 import SwiftUI
+import os
 #if os(iOS)
 import UIKit
 #else
 import AppKit
 #endif
+
+private let log = Logger(subsystem: "com.ssi263speech.app", category: "app")
 
 /// Said to VoiceOver now, whatever has focus: an import's steps and its end.
 func announce(_ text: String) {
@@ -30,7 +33,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var importing = false
     @Published private(set) var progress = 0.0
     @Published private(set) var step = ""
-    @Published var pending: FirmwareImport.Plan?          // judged, waiting for the person's yes
+    @Published private(set) var pending: FirmwareImport.Plan?   // judged, waiting for the person's yes
+    @Published var askingToImport = false                 // the confirmation shown; closing it is not a no
     @Published var message: String?                       // an import's or a removal's outcome, in words
     @Published var previewStatus = ""
 
@@ -62,7 +66,12 @@ final class AppModel: ObservableObject {
                 case .failure(let e):
                     self.finish(e.localizedDescription)
                 case .success(let plan):
-                    if let refusal = plan.refusal { self.finish(refusal) } else { self.pending = plan }
+                    if let refusal = plan.refusal {
+                        self.finish(refusal)
+                    } else {
+                        self.pending = plan
+                        self.askingToImport = true
+                    }
                 }
             }
         }
@@ -106,6 +115,9 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Cancel: the import in flight stopped, or the one waiting for a yes dropped.  Only the person's Cancel calls
+    /// it -- never the confirmation's closing, which SwiftUI does before an Import button's action runs (a closing
+    /// that cancelled once dropped every confirmed import before it started).
     func cancelImport() {
         job?.cancel()
         if pending != nil {
@@ -130,6 +142,7 @@ final class AppModel: ObservableObject {
     private func finish(_ words: String) {
         message = words
         announce(words)
+        log.notice("\(words, privacy: .public)")       // an import's or a removal's outcome, for finding problems
     }
 
     func removeAll() {
@@ -146,7 +159,10 @@ final class AppModel: ObservableObject {
         previewStatus = "Speaking"
         preview.speak(text.isEmpty ? "Hello there." : text, voice: v) { [weak self] error in
             self?.previewStatus = error ?? ""
-            if let e = error { announce(e) }
+            if let e = error {
+                announce(e)
+                log.notice("preview: \(e, privacy: .public)")
+            }
         }
     }
 

@@ -26,8 +26,11 @@ enum SsiShared {
     }
 
     static var container: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
+        containerOverride ?? FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
     }
+
+    /// The host-side tests' folder in place of the App Group's (test/test_installer.sh); never set in the apps.
+    static var containerOverride: URL?
 
     /// The units' files, as Android's SsiData.dir: the firmware imported and the Braille Lite's states made from it.
     static var unitFolder: URL? { container?.appendingPathComponent("unit", isDirectory: true) }

@@ -36,6 +36,7 @@ The output goes under `build/apple/` (gitignored). The apps link it with `-lc++`
     python src/platforms/apple/test/test_apple_speech.py
     SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|speech-1|speech-2|import python ...       controls: each must FAIL
     sh src/platforms/apple/test/run_swift_tests.sh                                     the import, in Swift
+    sh src/platforms/apple/test/test_installer.sh                  the app's import on the real firmware, as the app runs it
     SSI263_IMPORT_BREAK=1|state|speakout|accent sh src/platforms/apple/test/run_swift_tests.sh   controls: must FAIL
 
 `test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's
@@ -76,5 +77,6 @@ Windows DLLs: `SSI263_ANDROID_TEST_ONLY=bl,ra,num,so,mini,import`.
 | `app/FirmwareImport.swift` | Android's `FirmwareImport.kt` in Swift, with the Accents' files: what a source holds (zip layouts, the add-ons, update programs, single files), judged by the native side by content, and the refusals in words |
 | `app/ZipReader.swift` | A zip's entries in order from their local headers, as `ZipInputStream` reads them: stored and deflated (Apple's Compression), sizes in the header or a data descriptor |
 | `test/test_apple_core.py` | Each runnable slice against the desktop program, byte for byte, with its control |
+| `test/InstallerTests.swift`, `test_installer.sh` | The app's FirmwareInstaller (inspect, then the Job's commit: the Braille Lite's state made and checked, each unit heard) on the repository's firmware against the macos-arm64 slice, in a temporary folder in place of the App Group's |
 | `test/FirmwareImportTests.swift`, `run_swift_tests.sh` | The import's layouts and words with a fake native side, the zip forms and the real tools' zips; the controls |
 | `test/test_apple_speech.c`, `.py` | The Apple front end's own C: the SSML and pauses, each voice's requests against their segments' own PCM, a stop, Aicom's files; the controls |
