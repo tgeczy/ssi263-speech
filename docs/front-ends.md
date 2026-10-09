@@ -21,7 +21,8 @@ document labels.
 ## Speak-Out (GW Micro, 1995)
 
 - **The box:** a talking box by Daniel Weirich (hardware) and Douglas Geoffray (software) of
-  GW Micro. The same tables, byte for byte, are in GW Micro's Sounding Board card driver.
+  GW Micro. The same tables, byte for byte, are in GW Micro's Sounding Board card driver
+  (below).
 - **The firmware:** `SPEAKOUT.HEX`, Intel HEX for an NEC V40 (an 8088-compatible with its
   own interrupt controller and serial unit), loaded at 0000:0100–7F6D.
 - **Inside:** 1152 letter-to-sound rules in the NRL notation (Elovitz, 1976) at 0x5318, and an
@@ -37,6 +38,35 @@ document labels.
   timing matches the real box to about 0.1–0.2 s.
 - **Open:** real Speak-Out phrases run 11–13 % longer than ours, while the Braille Lite
   matches the data sheet to 0.5 %. Host scheduling was measured and does not explain it.
+
+### The Sounding Board (GW Micro's PC card, 1988–96)
+
+- **The card:** an ISA card with an SSI-263 (the LT and XE were versions for Toshiba
+  laptops). The desktop card also has 16 KB of RAM that SBLOAD can load into (`/!MS`), and
+  it and the LT have a tone knob that, the manual says, boosts a high frequency range.
+  The text-to-speech ran on the PC, in two DOS TSRs by Douglas Geoffray, version 2.7:
+  `SBLOAD.COM` ("Text-To-Speech in DOS") and `SB.COM` (the card driver). Both are packed
+  .COM files that unpack themselves as they start.
+- **The same front end:** between them the two programs carry the Speak-Out's rule and
+  allophone tables byte for byte (SB.COM 1000–16EB is the Speak-Out's 5318–5A03, SBLOAD
+  1A9D–3C5F is 5A03–7BC5, SBLOAD 3C60–3F52 is 7BD0–7EC2). Fed the same text, the two hosts
+  send the chip the same frames, register for register (134 frames for a two-sentence test,
+  381 for one full of numbers, dates, money and acronyms). The settings match too: rate 5,
+  pitch 3, volume 9, tone I.
+- **The card's ports:** R0–R4 at base+0 to base+4, base 300h by default (`/!Bn`, n × 16);
+  A/R on IRQ2 by default (`/!In`: 2, 3, 4, 5 or 7). The IRQ handler sends one frame per
+  request exactly as the Speak-Out's does (R0 = 00, R1, R2, R3, R4, then the phoneme byte),
+  and the start-up writes the Speak-Out's sequence (R2 F8, R4 E9, R3 82, R0 EB, R3 52). The
+  XE (`/!BT`) maps the registers out of order into the COM2 range: R0 2FA, R1 2FB, R2 2F8,
+  R3 2F9, R4 2FE.
+- **The machine:** `src/hosts/soundingboard.py` loads SBLOAD and then SB as DOS would, each
+  running until it stays resident, on MAME's 8086 (`pc86.py`) or Unicorn, with a BIOS timer
+  (SB waits for 18 ticks at start-up) and enough of DOS for the two. Text goes in as a
+  screen reader sent it: INT 17h to LPT3. It greets "Sounding board version 2.7" as it
+  loads.
+- **Where the products differ:** not in the rules. On the hardware, the card's analog output
+  and tone knob, and how fast the host answers each A/R (a PC against the Speak-Out's V40).
+  Older driver versions (Sounding Board 2.0 and earlier) are not checked.
 
 ## Braille Lite 2000, speech-box mode
 
