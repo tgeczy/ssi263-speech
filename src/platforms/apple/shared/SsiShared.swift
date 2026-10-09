@@ -60,8 +60,10 @@ enum SsiShared {
 
     static let identifierPrefix = "com.ssi263speech.voice."
 
+    /// The voice a request names.  The system may hand our identifier back with the extension's bundle ID in front
+    /// (macOS lists "com.ssi263speech.app.synth-extension.com.ssi263speech.voice.speakout"), so its end decides.
     static func voice(identifier: String) -> Voice? {
-        voices.first { identifierPrefix + $0.key == identifier }
+        voices.first { identifier == identifierPrefix + $0.key || identifier.hasSuffix("." + identifierPrefix + $0.key) }
     }
 
     /// The voice's files are in the unit folder.  Asks only whether they exist -- which needs no access to their

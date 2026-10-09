@@ -76,12 +76,15 @@ final class RenderState: @unchecked Sendable {
         lock.broadcast()
     }
 
-    /// Up to `frames` samples into out; waits a little for the synthesis thread when it has nothing yet.  The count
-    /// and whether the request is complete (drained and finished).
+    /// `frames` samples into out -- waiting for the synthesis thread until it has made that many, or has finished --
+    /// and whether the request is complete (drained and finished).  Never fewer while the request runs: the system
+    /// plays every frame it asked for, so a short buffer's padding was heard as a gap (the Speak-Out came out 13 %
+    /// long, a few zeros after every block, while the system pulled faster than the unit made its blocks).
     func render(into out: UnsafeMutablePointer<Float32>, frames: Int) -> (Int, Bool) {
         lock.lock(); defer { lock.unlock() }
-        if offset >= samples.count && !finished {
-            _ = lock.wait(until: Date(timeIntervalSinceNow: 0.25))   // the unit's next block is a few ms away
+        let deadline = Date(timeIntervalSinceNow: 2)   // a unit that has stopped answering must not hang the system
+        while samples.count - offset < frames && !finished {
+            if !lock.wait(until: deadline) { break }
         }
         let n = min(samples.count - offset, frames)
         if n > 0 {
@@ -196,6 +199,8 @@ public final class SsiAudioUnit: AVSpeechSynthesisProviderAudioUnit {
         let identifier = request.voice.identifier
         if settings.logRequests {
             log.notice("request \(generation, privacy: .public) \(identifier, privacy: .public): \(ssml, privacy: .public)")
+        } else {                                       // debug: seen only by a live `log stream --level debug`
+            log.debug("request \(generation, privacy: .public) \(identifier, privacy: .public): \(ssml, privacy: .public)")
         }
         synthesis.async { [self] in
             speak(generation, ssml: ssml, identifier: identifier, settings: settings)
