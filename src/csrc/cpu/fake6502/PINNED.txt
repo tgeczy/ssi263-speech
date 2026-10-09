@@ -1,0 +1,32 @@
+Fake6502: where the 6502 core's instructions come from.
+
+Author:    Mike Chambers (miker00lz@gmail.com), Fake6502 v1.1, 2011
+Licence:   public domain -- "This source code is released into the public domain, but if you use it please do give
+           credit. I put a lot of effort into writing this!"  Credit is given here, in ../m6502_fake_machine.c's header
+           and in the project's notices.
+Upstream:  http://rubbermallet.org/fake6502.c
+
+The pinned copy is the one EchoTalk vendors -- Jayson Smith's (@jaybird110127) Echo II / Textalker emulator, which
+runs the real Textalker on this core, and from which this project takes its 6502:
+
+  https://github.com/jaybird110127/echotalk
+  revision  25ba18f850d9367f6690245b756234fe030c4ace
+  file      third_party/fake6502/fake6502.c
+  sha256    6356d2f4550c2f93645023df3eb8a7a3e22e04f3178a324baac34359e4fbb5de
+
+EchoTalk's copy is upstream's plain core (its THIRD_PARTY_LICENSES.md: reduced back from a fork with debugger hooks)
+with NES_CPU turned off, so decimal mode is honoured: the Apple II's 6502 is a MOS part, not a NES's.  EchoTalk is
+BSD-3-Clause (LICENSE-EchoTalk-BSD-3-Clause.txt beside this file, its text as of that revision).  The lines copied
+from the pinned file are Fake6502's own; EchoTalk's comment on NES_CPU is not among them, and its decision -- decimal
+mode on -- is kept by never defining NES_CPU.
+
+Nothing is copied unchanged.  ../extract_6502_machine.py copies exact line ranges into ../m6502_fake_machine.c (the
+flag macros, push and pull, the addressing modes, every instruction including the undocumented ones, and the three
+tables), refusing to run unless the source's sha256 is the one above and every anchor line is in place; every change
+is named in the script and marked CHANGED in the output.
+
+NOT taken: the globals, reset6502, nmi6502, irq6502, exec6502, step6502 -- our step driver in ../m6502.c replaces them
+(CONTRACT.md 13).
+
+To update: change SHA256 in the script, move any anchors, re-run it and the tests (test_m6502_contract.c,
+m6502_controls.py), and record the new revision here.

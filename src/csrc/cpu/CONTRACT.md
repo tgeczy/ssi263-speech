@@ -557,3 +557,32 @@ undoes 28 rules, each failing exactly its tests: among them EI's delay removed, 
 acceptance, and HALT released at the line. No control is possible for the statics made members (`Mod_RM`,
 `parity_table`, `nec_popa_tmp`: the tables are the same in every instance), nor for reset clearing EI's delay (reset
 clears IE, and the first instruction spends the delay).
+
+## 13. The 6502 (MOS 6502, NMOS: the Apple II with a Mockingboard)
+
+The core is Fake6502's instructions (v1.1, Mike Chambers, public domain), copied by `extract_6502_machine.py` from
+the copy Jayson Smith's EchoTalk vendors (`fake6502/PINNED.txt`), behind our step driver `m6502.c`. Its state is the
+core's own (upstream keeps it in globals); a thread-local pointer names the core whose instruction runs, so two
+cores run side by side, on different threads too.
+
+- **A step** is the phases of 1: A acceptance (an NMI edge first, else an IRQ level that I does not mask: PC and P
+  pushed with B clear and bit 5 set, I set, PC from FFFAh / FFFEh, 7 cycles **(chip)**), B its charge, D the boundary,
+  E one instruction, F its cycles (the table's, a page crossed on the reads upstream charges, a branch taken: 1, across
+  a page: 2 **(chip; upstream)**).
+- **The poll** **(chip)**: the NMOS 6502 polls its interrupt lines before an instruction's last cycle. CLI, SEI and
+  PLP change I in their last cycle, so the poll after them still sees the old I: an IRQ CLI unmasks waits one more
+  instruction, and CLI; SEI with an IRQ held takes it after SEI. RTI restores I before its poll. Not modelled **(model)**:
+  a taken branch that crosses no page delaying the poll, and an interrupt hijacking BRK.
+- **Memory-mapped I/O only**: the bus's `in` and `out` are never called.
+- **Decimal mode** **(upstream, NOT the chip)**: ADC and SBC with D set adjust the old accumulator and then store the
+  binary sum. Counted in `m6502_regs.decimal`, so a board shows its firmware never reaches them.
+- **Undocumented opcodes** **(upstream's guesses)**: run as Fake6502 runs them, counted in `m6502_regs.undocumented`
+  with the last one's address.
+- **Not modelled**: the dummy reads and writes of indexed and read-modify-write instructions (a soft switch read
+  twice); no firmware here relies on them.
+
+Tests (`test_m6502_contract.c`, 17): `zero_budget`, `reset`, `two_cores`, `boundary`, `irq_entry`, `irq_masked`,
+`cli_delay`, `sei_delay`, `plp_delay`, `rti_at_once`, `irq_level`, `nmi_edge`, `brk`, `jmp_ind_wrap`, `cycles`,
+`decimal`, `undocumented`. `m6502_controls.py` undoes 10 rules, each failing exactly its tests: the poll's delay
+removed, RTI delayed, I not masking, NMI a level, B set on an interrupt's push, the boundary, the counts, the JMP
+($xxFF) page wrap, and a branch across a page.

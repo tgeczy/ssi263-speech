@@ -41,6 +41,12 @@ The cores never know which board they are in.
 | `i86_controls.py` | Its must-fail controls (75): each rule undone in a scratch copy, exactly its tests must fail. |
 | `compare_i86_accent.py` | The Accent-mini (`src/hosts/accent.py`) on the MAME 8086 against Unicorn: scripted scenarios; write values and times, audio, registers, FLAGS (by its stated policy), host log, INIT memory and snapshots must all match (with must-fail controls). |
 | `census_i86_accent.py` | Which x86 SPKEMS.DVC needs: every block it runs under Unicorn, disassembled (needs capstone). |
+| `fake6502/` | Where the 6502's instructions come from: `PINNED.txt` (Fake6502 v1.1, Mike Chambers, public domain; the copy EchoTalk vendors, its revision and hash) and EchoTalk's licence text. Nothing of it is copied unchanged. |
+| `extract_6502_machine.py` | Generates `m6502_fake_machine.c` from the pinned `fake6502.c`: exact line ranges, each anchored, the CPU's state moved into the core, every change named and marked `CHANGED`. |
+| `m6502_fake_machine.c` | **Generated; do not edit.** Fake6502's flag macros, stack helpers, addressing modes, every instruction and its tables. |
+| `m6502.c` | **Our step driver** for the 6502 (CONTRACT.md 13: the poll after CLI/SEI/PLP, NMI an edge, IRQ a level) and the `cpu.h` functions; counts decimal-mode arithmetic and undocumented opcodes. It includes `m6502_fake_machine.c`. |
+| `test_m6502_contract.c` | CONTRACT.md 13's clauses on the 6502 core, one test each (17). |
+| `m6502_controls.py` | Its must-fail controls (10): each rule undone in a scratch copy, exactly its tests must fail. |
 
 Built by `../blazie/build_board.py` (the Braille Lite board on the MAME core: `bl_live_mame.exe`,
 `test_bl_board_mame.exe`, beside the legacy ones) and `../../../build_linux.sh` (`test_bl_board_mame`). Gated in
@@ -209,3 +215,6 @@ counted with a scratch-instrumented build, not in the tree):
   value and time. A prefixed WAIT restarts at its WAIT byte without the prefix: recorded by a reproducer
   (`wait_prefixed`), not changed.
 - **Known limits (MAME's, kept):** MUL/DIV are one figure (Intel's lowest), and the undefined flags are MAME's.
+
+The 6502 (the Apple II's, for the Mockingboard in `../mockingboard/`) is plain C: `test_m6502_contract` and its
+controls build with gcc alone (`m6502_controls.py`).

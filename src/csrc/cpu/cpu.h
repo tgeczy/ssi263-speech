@@ -191,6 +191,38 @@ void i86_regs_set(i86 *c, const i86_regs *in);
    needs a later CPU shows here. */
 uint64_t i86_aliased(const i86 *c, uint32_t *last_addr, uint8_t *last_op);
 
+/* ---- 6502 (MOS 6502, NMOS: the Apple II, running Sweet Micro Systems' Mockingboard text-to-speech) -------------
+   Fake6502's instructions (public domain, Mike Chambers; via Jayson Smith's EchoTalk) behind our step driver,
+   CONTRACT.md 13.  Memory-mapped I/O only: the bus's in and out are never called and may be NULL.  Decimal-mode
+   ADC/SBC are upstream's and not the NMOS chip's (they store the binary sum), and the undocumented opcodes are
+   upstream's guesses: both are counted (m6502_regs), so a board shows its firmware never reaches them. */
+typedef struct m6502 m6502;
+
+enum { M6502_IRQ, M6502_NMI };       /* IRQ: a level, masked by I; NMI: an edge */
+
+typedef struct {
+    uint16_t pc;
+    uint8_t a, x, y, sp;
+    uint8_t p;                       /* as PHP pushes it, less B: bit 5 reads 1 */
+    uint32_t decimal;                /* ADC/SBC run with D set since reset */
+    uint32_t undocumented;           /* undocumented opcodes run since reset */
+    uint16_t undocumented_at;        /* the last one's address */
+} m6502_regs;
+
+m6502 *m6502_create(const cpu_bus *bus, double clock_hz);
+void m6502_destroy(m6502 *c);
+void m6502_reset(m6502 *c);                        /* PC from FFFCh-FFFDh, SP FDh, I set */
+int m6502_step(m6502 *c);                          /* one step (CONTRACT.md 1, 13); returns its cycles */
+uint64_t m6502_run(m6502 *c, uint64_t budget);
+void m6502_set_irq(m6502 *c, int line, int asserted);
+uint64_t m6502_cycles(const m6502 *c);
+uint64_t m6502_steps(const m6502 *c);
+uint32_t m6502_pc(const m6502 *c);                 /* the saved instruction-start PC */
+void m6502_regs_get(const m6502 *c, m6502_regs *out);
+/* A host that calls into its firmware (a JSR with its own return trap) sets the registers between steps; the counts
+   in `in` are ignored. */
+void m6502_regs_set(m6502 *c, const m6502_regs *in);
+
 #ifdef __cplusplus
 }
 #endif
