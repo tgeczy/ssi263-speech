@@ -1,0 +1,53 @@
+# SSI-263 Speech for macOS and iOS (in progress)
+
+A system speech voice for VoiceOver and every app on the Mac, iPhone and iPad, speaking with the same emulated
+SSI-263 hardware as the NVDA add-ons, the SAPI engine, the Linux module and the Android app, with the same PCM for
+the same text and settings. The Android app is the blueprint (`src/platforms/android`), and TGSpeechBox's Apple app
+is the model for the Xcode project, the speech extension and its VoiceOver pauses.
+
+The apps ship hollow: no firmware at all, only this project's own MIT code and MAME's BSD-3-Clause cores. Each user
+imports the firmware they own, recognised by content (SHA-256), never by name.
+
+## The native core: SSI263Core
+
+`build_apple.sh` builds the chip, every voice's board, host and voice on MAME's Z180, 8085, V40 and 8086 cores (C++17
+interpreters with no JIT, which iOS allows), the voice table (`src/csrc/voices.c`), Android's plain-C front end
+(`ssa_engine`, `ssa_map` and `ssa_import`, used unchanged) and the Apple front end's own C (`core/`). These are the
+same sources and flags as `build_android.sh`, with `-ffp-contract=off` throughout so the arithmetic is the reference's.
+It makes static libraries for each Apple platform:
+
+| Platform | Architectures | Minimum |
+|---|---|---|
+| macOS | arm64, x86_64 | 13.0 |
+| iOS (devices) | arm64 | 16.0 |
+| iOS Simulator | arm64, x86_64 | 16.0 |
+
+    sh src/platforms/apple/build_apple.sh              every slice, then build/apple/SSI263Core.xcframework
+    sh src/platforms/apple/build_apple.sh macos        one platform only
+
+The output goes under `build/apple/` (gitignored). The apps link it with `-lc++`.
+
+## Test
+
+    sh build_linux.sh                                       the desktop references, on the Mac too
+    python src/platforms/android/test/test_android_native.py
+    python src/platforms/apple/test/test_apple_core.py [--simulator]
+    SSI263_APPLE_TEST_BREAK=1 python src/platforms/apple/test/test_apple_core.py      control: must FAIL
+
+`test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's
+`libssi263core.a`, the library the apps link, and requires every case's samples and PCM hash to be the desktop
+program's, along with the Accent SA's front-end text. `test_android_native.py` holds that desktop program to the
+references, so the slices are held to them too. It runs macOS arm64 natively, x86_64 under Rosetta, and, with
+`--simulator`, the iOS Simulator's arm64 in a booted simulator (`xcrun simctl spawn`). The device slice is checked
+on the device by the app. Its control runs the slices with the request's rate dropped (`ssa_map_break`), so the run
+must fail.
+
+On the Mac, `test_android_native.py` runs every block but the Accent SA's, whose reference is the NVDA driver on the
+Windows DLLs: `SSI263_ANDROID_TEST_ONLY=bl,ra,num,so,mini,import`.
+
+## Files
+
+| File | What it does |
+|---|---|
+| `build_apple.sh` | SSI263Core: the static libraries for each slice, lipo'd per platform, and the XCFramework with its headers |
+| `test/test_apple_core.py` | Each runnable slice against the desktop program, byte for byte, with its control |
