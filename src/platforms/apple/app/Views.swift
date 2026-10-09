@@ -78,8 +78,8 @@ struct SetupView: View {
             } header: {
                 Text("Firmware").accessibilityAddTraits(.isHeader)
             } footer: {
-                Text("Choose firmware files, update programs, zips holding them, or NVDA add-ons, one or several " +
-                     "at once. Each file is known by its contents, whatever its name.")
+                Text("Choose firmware files you own, update programs, or .zip or .nvda-addon packages containing " +
+                     "them, one or several at once. Each file is known by its contents, whatever its name.")
             }
 
             Section {

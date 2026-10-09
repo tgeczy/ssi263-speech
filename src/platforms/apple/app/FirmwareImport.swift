@@ -41,11 +41,12 @@ enum FirmwareImport {
     /// Tomi's words, for a state picked on its own.
     static let stateFile = "This is a state file, not firmware. Please import only firmware files, or zips " +
         "containing them, with this tool."
-    static let whatToChoose = "Choose the Braille Lite 2000's firmware: its update program (such as blt2000.exe), " +
-        "the BL2ENG.BNS or BL2SPA.BNS inside it, a zip holding them at its top or one folder down, or the NVDA " +
-        "add-on (.nvda-addon), which carries both. Or the Speak-Out's: GW Micro's SPEAKOUT.HEX, or the speakout.zip " +
-        "holding it. Or the Accents': Aicom's u2.BIN, u3.BIN and u4.BIN for the Accent SA and SPKEMS.DVC for the " +
-        "Accent-mini, or the NVDA add-on that carries them."
+    /// Neutral words for a store app (Tomi): the files a user owns and the packages they may come in, never where
+    /// to get them, and never which package carries what.
+    static let whatToChoose = "Choose firmware files you own. For the Braille Lite 2000: its update program (such " +
+        "as blt2000.exe), or the BL2ENG.BNS or BL2SPA.BNS inside it. For the Speak-Out: GW Micro's SPEAKOUT.HEX, " +
+        "or the speakout.zip holding it. For the Accents: Aicom's u2.BIN, u3.BIN and u4.BIN for the Accent SA and " +
+        "SPKEMS.DVC for the Accent-mini. A .zip or .nvda-addon package containing them works too."
     static let onlyTheHex = "Only GW Micro's SPEAKOUT.HEX, as it came, can be imported for the Speak-Out."
 
     /// The host-side tests' controls (SSI263_IMPORT_BREAK; never set in the app): `1` looks at a zip's top only -- no

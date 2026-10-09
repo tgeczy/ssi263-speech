@@ -70,3 +70,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .venv/
+
+# macOS Finder's folder settings
+.DS_Store

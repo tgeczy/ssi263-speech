@@ -35,7 +35,7 @@ enum FirmwareInstaller {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
         if size > FirmwareImport.maxSource {
             throw Failure(message: "\(url.lastPathComponent) is larger than 64 MB, so it is not firmware, an update " +
-                          "for it or an NVDA add-on.")
+                          "for it or a package containing them.")
         }
         return try Data(contentsOf: url)
     }

@@ -18,7 +18,7 @@ run-name: Linux build of ${{ inputs.ref || github.sha }}
 
 on:
   push:
-    branches: [main, linux-ci]
+    branches: [main, version-0.8]
     paths:
       - "build_linux.sh"
       - "src/csrc/**"
