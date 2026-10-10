@@ -60,6 +60,17 @@ typedef struct {
 
 #define MB_FILE "mockingboard-tts-1.1.bin"
 #define MB_SHA256 "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"
+/* The earlier text-to-speech (0.8; Mockingboard disks 1 and 2, the same files on both): ONE program at 6600h with
+   its own inflection and composite driver, and its rules -- four DOS binary files back to back in the same form:
+   TEXT TO SPEECH (6600h), MKB:RULE.INDEX (6E00h), MKB:RULE.LENGTH (6F00h), MKB:RULE.TABLE (7000h).  The same paths
+   at other addresses: the text at 6000h, its last index at 6600h, the call at 660Eh, the rules done at 662Ch, the
+   settings at 6A00h-6A03h (the disk's SPEECH POKEs 27136-27139), busy at FFh, the R0 frames from 6500h.  Its own
+   limits: MBH_MAX_TEXT and MBH_MAX_FRAMES hold for it too (a 257th R0 frame would reach its variables at 6600h;
+   that byte is its guard). */
+#define MB_FILE_EARLY "mockingboard-tts-early.bin"
+#define MB_SHA256_EARLY "c7c049b1b61792719e21e461a2a8c25fc32c12882c81305814a3dc67af6e5835"
+#define MBH_V11 1                          /* the toolkit's 1.1 */
+#define MBH_VEARLY 2                       /* the earlier one */
 #define MBH_XCK_HZ 1020484.0               /* measured (above) */
 /* 8C03h, the last index, is one byte and the firmware's loops run while their index is at most it: at 255 the index
    wraps and never passes it.  So 254 at most -- a space, 253 characters, a space. */
@@ -73,9 +84,14 @@ typedef struct {
 #define MBH_FAULT_LONG 1                   /* "fault": too many frames for one text (refused before playing) */
 #define MBH_FAULT_STUCK 2                  /* "fault": the 6502 did not come back within the limit */
 
+/* Either known file (the version by its sha256); mbh_create_dir takes MB_FILE from dir, else MB_FILE_EARLY. */
 MB_API mb_host *mbh_create(const unsigned char *image, size_t n, ssi263 *chip, double out_rate, char *err, int errlen);
-/* 1 when these bytes are the known firmware file (MB_SHA256): what an importer checks */
+/* 1 when these bytes are the 1.1 firmware file (MB_SHA256) */
 MB_API int mbh_is_known(const unsigned char *image, size_t n);
+/* MBH_V11 or MBH_VEARLY when these bytes are one of the known firmware files, else 0: what an importer checks, and
+   the file's name for it (mbh_variant_file: MB_FILE, MB_FILE_EARLY; NULL for an unknown one) */
+MB_API int mbh_variant(const unsigned char *image, size_t n);
+MB_API const char *mbh_variant_file(int variant);
 MB_API mb_host *mbh_create_dir(const char *dir, ssi263 *chip, double out_rate, char *err, int errlen);
 MB_API void mbh_destroy(mb_host *h);
 MB_API ssi263 *mbh_chip(mb_host *h);
@@ -92,7 +108,8 @@ MB_API int mbh_run(mb_host *h, double seconds, double step, const double **audio
 MB_API int mbh_busy(const mb_host *h);       /* the firmware's own flag (1Eh), or its interrupt still pending */
 MB_API void mbh_cancel(mb_host *h);          /* the driver's own stop, at the next A/R (above) */
 
-/* State, by name.  Ints: "log_writes" (keep every write for mbh_writes), "frames" (the last text's, 0-255),
+/* State, by name.  Ints: "variant" (MBH_V11, MBH_VEARLY), "mem:HHHH" (that byte as the 6502 sees it; the tests),
+   "log_writes" (keep every write for mbh_writes), "frames" (the last text's, 0-255),
    "fault" (1: the last call into the firmware did not return), and mb_board_get's names.  -1: unknown. */
 MB_API int mbh_get_int(const mb_host *h, const char *name);
 MB_API void mbh_set_int(mb_host *h, const char *name, int v);

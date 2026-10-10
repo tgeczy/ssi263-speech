@@ -1,9 +1,16 @@
 # src/csrc/mockingboard: Sweet Micro Systems' Mockingboard, speaking through our SSI-263
 
-**Work in progress for 0.8.** The Mockingboard (Sweet Micro Systems, 1983; the Apple II's best-known sound and
-speech card) with its SSI-263, driven by Sweet Micro's own text-to-speech: Mike LePage's version 1.1 of 11 March
-1985, from the Mockingboard Developers Toolkit disk. Its letter-to-sound rules are Sweet Micro's (in the NRL style,
-like Blazie's and GW Micro's but their own), so this voice says words its own way.
+**New in 0.8.** The Mockingboard (Sweet Micro Systems, 1983; the Apple II's best-known sound and speech card) with
+its SSI-263, driven by Sweet Micro's own text-to-speech, in two versions, each its own voice:
+
+- **1.1:** Mike LePage's version of 11 March 1985, from the Mockingboard Developers Toolkit disk
+  (`mockingboard-tts-1.1.bin`);
+- **early:** the text-to-speech of Mockingboard disk 1, a single program at 6600h with its own inflection and
+  composite driver and its own rules (`mockingboard-tts-early.bin`). Tomi, hearing the two: "Mocking-bo-wrd",
+  "dough-lars", an "apple" without its ending -- the same chip, the same warmth, other words.
+
+Their letter-to-sound rules are Sweet Micro's (in the NRL style, like Blazie's and GW Micro's but their own), so these
+voices say words their own way.
 
 Nothing of Apple's is used: no monitor ROM, no DOS, no Applesoft. Sweet Micro's six program and rule files run on
 our own 6502 (`../cpu/m6502.c`, Fake6502's instructions via Jayson's EchoTalk) and our own small Apple II and
@@ -12,14 +19,14 @@ Mockingboard (`mb_board.c`), with sixteen bytes of "ROM" of our own.
 | File | What it is for |
 |---|---|
 | `mb_board.h`, `mb_board.c` | The machine: 48 KB of RAM, the 16 KB language card (its switches at C080h-C08Fh), the SSI-263 at C440h-C447h, the second VIA's PCR, IFR and IER with the chip's A/R on CA1, and our "ROM" (an IRQ entry that does what the monitor's does for the driver, an idle loop, the vectors). The host's guard (writes into a range counted) and abort. |
-| `mb_host.h`, `mb_host.c` | The host: the firmware file placed as the demo BLOADs it (only the known set, by sha256), the four settings bytes, a text said as the MB$ path leaves it (8500h, a space before and after), the rules run with the chip's time standing still, then every frame played from the A/R interrupt in lockstep with the chip (accent_sa.py's lockstep); the overflow guard; cancel by the driver's own end-of-text path. |
+| `mb_host.h`, `mb_host.c` | The host: either firmware file placed as the disks' BLOADs place it (only the known sets, by sha256; `mbh_variant`), the version's addresses from one table (`LAYOUTS`: the text, its last index, the call, the rules' end, the settings, busy, the R0 frames' page, the guard), the four settings bytes, a text said as the MB$ path leaves it (a space before and after), the rules run with the chip's time standing still, then every frame played from the A/R interrupt in lockstep with the chip (accent_sa.py's lockstep); the overflow guard (1.1: 8B00h-8BFFh, no file's; early: 6600h, its own variables, armed after its text's preparation at 6617h); cancel by the driver's own end-of-text path. |
 | `mb_voice.h`, `mb_voice.c` | The voice: NVDA's rate and pitch onto the firmware's rate 0-13 and inflection 0-26 (50 = the demo's 8 and 8), the volume as gain, a capital's pitch; the Accents' 7-bit text path (`../accent_text.c`: accented letters, currencies, number words); long text in parts of at most 120 characters, cut at sentence ends, then clause marks, then spaces, and a part the host refuses as too long split again. No lead trim: speech starts within about 12 ms. |
 | `test_mb_voice.c` | The voice on the real firmware (8 tests): the setting steps, the text path, the splitting, speaking, 600 characters in parts, a refused part split, cancel then speak, the volume. |
-| `mb_dsk.h`, `mb_dsk.c` | The firmware file from a disk image the user owns: the Developers Toolkit as a 140 KB DOS 3.3 image, in DOS order (.dsk, .do) or ProDOS order (.po); its six files taken from the catalog exactly as DOS stores them, accepted only as the known set (`mbh_is_known`). Nothing else of the disk is taken. For the apps' firmware import. |
-| `test_mb_dsk.c` | The disk reader on real images (5 tests): DOS order, ProDOS order, another Mockingboard disk (an earlier text-to-speech) refused, a damaged copy refused, a wrong size refused. |
+| `mb_dsk.h`, `mb_dsk.c` | A firmware file from a disk image the user owns, a 140 KB DOS 3.3 image in DOS order (.dsk, .do) or ProDOS order (.po): the Developers Toolkit (also "Mockingboard - Developer's Toolkit" and "MNBTOOLKIT for IIc") gives 1.1's six files, disk 1 the early version's four; taken from the catalog exactly as DOS stores them, accepted only as a known set (`mbh_variant`). Nothing else of the disk is taken. For the apps' firmware import. |
+| `test_mb_dsk.c` | The disk reader on real images (6 tests): DOS order, ProDOS order, another Mockingboard disk refused (disk 2: the early program with other rules), disk 1 as the early file, a damaged copy refused, a wrong size refused. |
 | `mb_render.c` | The C API alone: the firmware folder and a text into a WAV (`mb_render <folder> "text" out.wav [--log]`). |
-| `test_mockingboard.c` | The host on the real firmware (9 tests): the golden R0 frames, the five register streams and the settings in them, a clean core (no decimal mode, no undocumented opcode), rate and inflection, refusals and the length limit, the overflow guard, cancel, a changed byte refused. Skips (77) without the firmware file. |
-| `mb_controls.py` | The three tests as they are, then their must-fail controls (6 host rules, 4 voice rules, 3 disk-reader rules): each rule undone in a scratch copy, exactly its tests must fail; built side by side, run by `nvda/tools/run_tests.py` (the disk images from `MOCKINGBOARD_DISKS`, paths.local). |
+| `test_mockingboard.c` | The host on the real firmware (10 tests a version, 1.1 and then the early one as `early_*`): the golden R0 frames, the five register streams and the settings in them, a clean core (no decimal mode, no undocumented opcode), rate and inflection, refusals and the length limit, the overflow guard (the program's bytes as a fresh unit's afterwards), an overflow during the rules stopped at the guard's first byte, cancel, a changed byte refused. Skips (77) without the firmware file. |
+| `mb_controls.py` | The three tests as they are, then their must-fail controls (8 host rules, two of them the early guard's; 4 voice rules; 3 disk-reader rules): each rule undone in a scratch copy, exactly its tests must fail; built side by side, run by `nvda/tools/run_tests.py` (the disk images from `MOCKINGBOARD_DISKS`, paths.local). |
 
 `../../../tools/mockingboard_firmware.py` makes the firmware file, `mockingboard-tts-1.1.bin`, from the toolkit's
 disk image: the six DOS 3.3 binary files the voice runs (TEXT TO SPEECH, INFLECTION, IIE TTS DRIVER and the three

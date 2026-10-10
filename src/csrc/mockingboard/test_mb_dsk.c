@@ -1,10 +1,11 @@
 /* test_mb_dsk.c -- the firmware file from a disk image (mb_dsk.h), on real disk images (not in the repository).
  *
- *     test_mb_dsk <the Developers Toolkit .dsk> <another Mockingboard .dsk (the Mockingboard C disk)>
+ *     test_mb_dsk <the Developers Toolkit .dsk> <another Mockingboard .dsk> [<Mockingboard disk 1 .dsk>]
  *
- *   dos_order      the toolkit image as it comes (DOS order): the known firmware file
+ *   dos_order      the toolkit image as it comes (DOS order): the 1.1 firmware file
  *   prodos_order   the same image rewritten in ProDOS order (.po): the same file
- *   other_version  the Mockingboard C disk (an earlier text-to-speech): refused, "not the ... version 1.1"
+ *   other_version  another Mockingboard disk -- disk 2, the early program with other rules: refused, "not one of"
+ *   early_disk     disk 1: the early firmware file (mbh_variant MBH_VEARLY, MB_FILE_EARLY's 11,309 bytes)
  *   damaged        the toolkit with one byte of its rule table changed: refused
  *   wrong_size     the image less one sector: refused
  *
@@ -86,9 +87,22 @@ int main(int argc, char **argv)
     free(po);
     err[0] = 0;
     ok = mb_firmware_from_dsk(b, (size_t)n2, &out, &on, err, (int)sizeof err);
-    check("other_version", !ok && (strstr(err, "version 1.1") || strstr(err, "missing")), "%s",
+    check("other_version", !ok && (strstr(err, "not one of") || strstr(err, "missing")), "%s",
           ok ? "accepted" : err);
     free(out);
+    if (argc > 3) {
+        long n3 = 0;
+        unsigned char *c = slurp(argv[3], &n3);
+        out = NULL;
+        on = 0;
+        err[0] = 0;
+        ok = c ? mb_firmware_from_dsk(c, (size_t)n3, &out, &on, err, (int)sizeof err) : 0;
+        check("early_disk", ok && on == 11309 && mbh_variant(out, on) == MBH_VEARLY
+              && !strcmp(mbh_variant_file(mbh_variant(out, on)), MB_FILE_EARLY), "%s, %lu bytes, variant %d",
+              ok ? "a known file" : c ? err : "not read", (unsigned long)on, ok ? mbh_variant(out, on) : 0);
+        free(out);
+        free(c);
+    }
     /* one byte inside MKB:RULE.TABLE, found on the disk by 32 of its bytes, changed */
     for (i = 0; have_probe && i + (int)sizeof probe <= n1 && !changed; i++)
         if (!memcmp(a + i, probe, sizeof probe)) {
@@ -97,7 +111,7 @@ int main(int argc, char **argv)
         }
     err[0] = 0;
     ok = mb_firmware_from_dsk(a, (size_t)n1, &out, &on, err, (int)sizeof err);
-    check("damaged", changed && !ok && strstr(err, "version 1.1"), "%s", !changed ? "the table not found on the disk"
+    check("damaged", changed && !ok && strstr(err, "not one of"), "%s", !changed ? "the table not found on the disk"
           : ok ? "accepted" : err);
     free(out);
     err[0] = 0;

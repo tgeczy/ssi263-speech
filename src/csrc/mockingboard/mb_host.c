@@ -9,25 +9,50 @@
 
 #include "mb_board.h"
 
-/* the toolkit's addresses (mb_host.h) */
-#define A_TEXT 0x8500u                     /* MB$ GETTEXT's buffer */
-#define A_LAST 0x8C03u                     /* the text's last index */
+/* the same three in both versions (mb_host.h) */
 #define A_PTR 0x06u                        /* (06h): the text */
-#define A_SPEAK 0x8C11u                    /* TEXT TO SPEECH, after its JSR to MB$ GETTEXT */
-#define A_RULES_DONE 0x8C32u               /* its JSR to INFLECTION: the rules have made every R0 frame */
-#define A_SPARE 0x8B00u                    /* 8B00-8BFF: no file's; the R0 frames reach it only past 256 */
-#define A_SETTINGS 0x92DCu                 /* inflection, rate, amplitude, filter */
-#define A_BUSY 0x1Eu
 #define A_END 0x1Au                        /* (1Ah): one past the last R0 frame */
 #define A_PLAYING 0xECu                    /* (ECh): the R0 frame the driver writes next */
 
 #define CALL_LIMIT 50000000ULL             /* 6502 cycles a text's conversion may take: ~49 s on an Apple */
 
-/* the six files, in MB_FILE's order: their load addresses */
-static const unsigned ADDRS[6] = {0x8C00, 0x9000, 0x9300, 0xD000, 0xD100, 0xD200};
-static const char *const SHA256_HEX = "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae";
+/* A version of the text-to-speech: its files and where each part of the toolkit's paths is (mb_host.h) */
+typedef struct {
+    int variant;                           /* MBH_V11, MBH_VEARLY */
+    const char *file, *sha256, *what;
+    int nfiles;
+    unsigned addrs[6];                     /* the files, in the firmware file's order: their load addresses */
+    uint16_t text;                         /* MB$ GETTEXT's buffer */
+    uint16_t last;                         /* the text's last index */
+    uint16_t speak;                        /* TEXT TO SPEECH, after its JSR to MB$ GETTEXT */
+    uint16_t rules_done;                   /* its call after the rules: every R0 frame made */
+    uint16_t guard_from;                   /* where the guard starts (0: at the call): after any set-up that may
+                                              write the guarded bytes itself */
+    uint16_t guard_lo, guard_hi;           /* written only by R0 frames past the most it has room for */
+    uint16_t settings;                     /* inflection, rate, amplitude, filter */
+    uint16_t busy;
+    uint8_t frame_page;                    /* the R0 frames' first page */
+} layout;
+
+static const layout LAYOUTS[] = {
+    /* the toolkit's 1.1 (1985): INFLECTION and the IIE TTS DRIVER beside it; past its 256 R0 frames lies 8B00-8BFF,
+       no file's, so a write there harms nothing */
+    {MBH_V11, MB_FILE, MB_SHA256, "Sweet Micro Systems' text-to-speech 1.1", 6,
+     {0x8C00, 0x9000, 0x9300, 0xD000, 0xD100, 0xD200},
+     0x8500, 0x8C03, 0x8C11, 0x8C32, 0, 0x8B00, 0x8BFF, 0x92DC, 0x1E, 0x8A},
+    /* the earlier one on Mockingboard disks 1 and 2: one program at 6600h with its own inflection and composite
+       driver, the rules below it.  Its five register streams are the pages 6100h-6500h, the R0 frames the last; a
+       257th R0 frame would land on its own variables at 6600h, so that byte alone is the guard (the program never
+       writes it after its text's preparation at 686Dh -- which stores the prepared text's last index there -- so the
+       guard starts where the rules do, 6617h) and the host stops before its code is touched */
+    {MBH_VEARLY, MB_FILE_EARLY, MB_SHA256_EARLY, "Sweet Micro Systems' early text-to-speech", 4,
+     {0x6600, 0x6E00, 0x6F00, 0x7000},
+     0x6000, 0x6600, 0x660E, 0x662C, 0x6617, 0x6600, 0x6600, 0x6A00, 0xFF, 0x65},
+};
+#define NLAYOUTS ((int)(sizeof LAYOUTS / sizeof LAYOUTS[0]))
 
 struct mb_host {
+    const layout *L;
     mb_board *b;
     ssi263 *chip;
     int own_chip;
@@ -130,36 +155,60 @@ static int hex_is(const unsigned char *d, const char *hex)
     return 1;
 }
 
-MB_API int mbh_is_known(const unsigned char *image, size_t n)
+static const layout *layout_of(const unsigned char *image, size_t n)
 {
     unsigned char sum[32];
-    sha256(image, n, sum);
-    return hex_is(sum, SHA256_HEX);
-}
-
-/* the six files placed; 0 (the reason in err) if the image is not the set */
-static int place(mb_board *b, const unsigned char *image, size_t n, char *err, int errlen)
-{
-    unsigned char sum[32];
-    size_t at = 0;
     int k;
     sha256(image, n, sum);
-    if (!hex_is(sum, SHA256_HEX)) {
+    for (k = 0; k < NLAYOUTS; k++)
+        if (hex_is(sum, LAYOUTS[k].sha256))
+            return &LAYOUTS[k];
+    return NULL;
+}
+
+MB_API int mbh_variant(const unsigned char *image, size_t n)
+{
+    const layout *L = layout_of(image, n);
+    return L ? L->variant : 0;
+}
+
+MB_API int mbh_is_known(const unsigned char *image, size_t n)
+{
+    return mbh_variant(image, n) == MBH_V11;
+}
+
+MB_API const char *mbh_variant_file(int variant)
+{
+    int k;
+    for (k = 0; k < NLAYOUTS; k++)
+        if (LAYOUTS[k].variant == variant)
+            return LAYOUTS[k].file;
+    return NULL;
+}
+
+/* its files placed; the layout, or NULL (the reason in err) if the image is not a known set */
+static const layout *place(mb_board *b, const unsigned char *image, size_t n, char *err, int errlen)
+{
+    const layout *L = layout_of(image, n);
+    size_t at = 0;
+    int k;
+    if (!L) {
         if (err && errlen > 0)
-            snprintf(err, (size_t)errlen, "%s: not Sweet Micro Systems' text-to-speech 1.1 (unknown sha256)", MB_FILE);
-        return 0;
+            snprintf(err, (size_t)errlen, "not one of Sweet Micro Systems' text-to-speech files this host knows "
+                     "(unknown sha256)");
+        return NULL;
     }
-    for (k = 0; k < 6; k++) {
+    for (k = 0; k < L->nfiles; k++) {
         unsigned addr, len;
         if (at + 4 > n)
-            return 0;
+            return NULL;
         addr = image[at] | image[at + 1] << 8;
         len = image[at + 2] | image[at + 3] << 8;
-        if (addr != ADDRS[k] || at + 4 + len > n || !mb_board_load(b, (uint16_t)addr, image + at + 4, len))
-            return 0;
+        if (addr != L->addrs[k] || at + 4 + len > n || !mb_board_load(b, (uint16_t)addr, image + at + 4, len))
+            return NULL;
         at += 4 + len;
     }
-    return at == n;
+    return at == n ? L : NULL;
 }
 
 /* ---- creation ---------------------------------------------------------------------------------------------------- */
@@ -192,9 +241,9 @@ MB_API mb_host *mbh_create(const unsigned char *image, size_t n, ssi263 *chip, d
     ops.ctx = h;
     ops.write = chip_write;
     h->b = mb_board_create(&ops);
-    if (!h->b || !place(h->b, image, n, err, errlen)) {
+    if (!h->b || !(h->L = place(h->b, image, n, err, errlen))) {
         if (h->b && err && errlen > 0 && !err[0])
-            snprintf(err, (size_t)errlen, "%s: not six DOS files at the toolkit's addresses", MB_FILE);
+            snprintf(err, (size_t)errlen, "not the text-to-speech's DOS files at their addresses");
         mb_board_destroy(h->b);
         if (h->own_chip)
             ssi263_free(chip);
@@ -214,6 +263,10 @@ MB_API mb_host *mbh_create_dir(const char *dir, ssi263 *chip, double out_rate, c
     mb_host *h;
     snprintf(path, sizeof path, "%s/%s", dir, MB_FILE);
     f = fopen(path, "rb");
+    if (!f) {                                /* no 1.1 here: the early one, if it is */
+        snprintf(path, sizeof path, "%s/%s", dir, MB_FILE_EARLY);
+        f = fopen(path, "rb");
+    }
     if (!f) {
         if (err && errlen > 0)
             snprintf(err, (size_t)errlen, "%s: cannot open", MB_FILE);
@@ -262,15 +315,15 @@ static int clamp(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; 
 
 MB_API void mbh_set(mb_host *h, int inflection, int rate, int amplitude, int filter)
 {
-    mb_board_poke(h->b, A_SETTINGS, (uint8_t)clamp(inflection, 0, 26));
-    mb_board_poke(h->b, A_SETTINGS + 1, (uint8_t)clamp(rate, 0, 15));
-    mb_board_poke(h->b, A_SETTINGS + 2, (uint8_t)clamp(amplitude, 0, 15));
-    mb_board_poke(h->b, A_SETTINGS + 3, (uint8_t)clamp(filter, 0, 255));
+    mb_board_poke(h->b, h->L->settings, (uint8_t)clamp(inflection, 0, 26));
+    mb_board_poke(h->b, (uint16_t)(h->L->settings + 1), (uint8_t)clamp(rate, 0, 15));
+    mb_board_poke(h->b, (uint16_t)(h->L->settings + 2), (uint8_t)clamp(amplitude, 0, 15));
+    mb_board_poke(h->b, (uint16_t)(h->L->settings + 3), (uint8_t)clamp(filter, 0, 255));
 }
 
 MB_API int mbh_busy(const mb_host *h)
 {
-    return mb_board_peek(h->b, A_BUSY) != 0 || mb_board_get(h->b, "irq") > 0;
+    return mb_board_peek(h->b, h->L->busy) != 0 || mb_board_get(h->b, "irq") > 0;
 }
 
 /* runs the 6502 until it reaches `pc`, the idle loop, a guarded write, or the limit; 1 if it reached `pc` */
@@ -284,6 +337,7 @@ static int run_to(mb_host *h, uint16_t pc, uint64_t start)
 
 MB_API int mbh_say(mb_host *h, const unsigned char *text, int n)
 {
+    const layout *L = h->L;
     uint64_t start;
     int k, marks = 0, raw;
     h->fault = 0;
@@ -291,24 +345,29 @@ MB_API int mbh_say(mb_host *h, const unsigned char *text, int n)
         return 0;
     for (k = 0; k < n; k++)
         marks += strchr("!,.?:;", text[k]) != NULL && text[k];
-    mb_board_poke(h->b, A_TEXT, ' ');                       /* as MB$ GETTEXT: a space, the text, a space */
+    mb_board_poke(h->b, L->text, ' ');                      /* as MB$ GETTEXT: a space, the text, a space */
     for (k = 0; k < n; k++)
-        mb_board_poke(h->b, (uint16_t)(A_TEXT + 1 + k), text[k]);
-    mb_board_poke(h->b, (uint16_t)(A_TEXT + 1 + n), ' ');
-    mb_board_poke(h->b, A_LAST, (uint8_t)(n + 1));
-    mb_board_poke(h->b, A_PTR, A_TEXT & 0xFF);
-    mb_board_poke(h->b, A_PTR + 1, A_TEXT >> 8);
-    mb_board_call(h->b, A_SPEAK, 0, 0, 0);
-    mb_board_guard(h->b, A_SPARE, A_SPARE + 0xFF);
+        mb_board_poke(h->b, (uint16_t)(L->text + 1 + k), text[k]);
+    mb_board_poke(h->b, (uint16_t)(L->text + 1 + n), ' ');
+    mb_board_poke(h->b, L->last, (uint8_t)(n + 1));
+    mb_board_poke(h->b, A_PTR, L->text & 0xFF);
+    mb_board_poke(h->b, A_PTR + 1, L->text >> 8);
+    mb_board_call(h->b, L->speak, 0, 0, 0);
     start = mb_board_cycles(h->b);                           /* the chip's time stands still (mb_host.h) */
+    if (L->guard_from && !run_to(h, L->guard_from, start)) {    /* its own set-up first, unguarded */
+        h->fault = MBH_FAULT_STUCK;
+        mb_board_abort(h->b);
+        return 0;
+    }
+    mb_board_guard(h->b, L->guard_lo, L->guard_hi);
     /* the rules: every R0 frame made, before INFLECTION adds a punctuation's phonemes (up to 4 each) */
-    if (!run_to(h, A_RULES_DONE, start)) {
+    if (!run_to(h, L->rules_done, start)) {
         h->fault = mb_board_get(h->b, "guard_writes") ? MBH_FAULT_LONG : MBH_FAULT_STUCK;
         mb_board_abort(h->b);
         mb_board_guard(h->b, 0xFFFF, 0);
         return 0;
     }
-    raw = (mb_board_peek(h->b, A_END + 1) - 0x8A) * 256 + mb_board_peek(h->b, A_END);
+    raw = (mb_board_peek(h->b, A_END + 1) - L->frame_page) * 256 + mb_board_peek(h->b, A_END);
     if (raw + 4 * marks > MBH_MAX_FRAMES) {
         h->fault = MBH_FAULT_LONG;
         mb_board_abort(h->b);
@@ -322,7 +381,7 @@ MB_API int mbh_say(mb_host *h, const unsigned char *text, int n)
         h->fault = MBH_FAULT_STUCK;
         return 0;
     }
-    h->frames = (mb_board_peek(h->b, A_END + 1) - 0x8A) * 256 + mb_board_peek(h->b, A_END);
+    h->frames = (mb_board_peek(h->b, A_END + 1) - L->frame_page) * 256 + mb_board_peek(h->b, A_END);
     return 1;
 }
 
@@ -393,6 +452,9 @@ MB_API int mbh_get_int(const mb_host *h, const char *name)
     if (!strcmp(name, "log_writes")) return h->log_on;
     if (!strcmp(name, "frames")) return h->frames;
     if (!strcmp(name, "fault")) return h->fault;
+    if (!strcmp(name, "variant")) return h->L->variant;
+    if (!strncmp(name, "mem:", 4))          /* a byte as the 6502 sees it now, "mem:6600" (the tests) */
+        return mb_board_peek(h->b, (uint16_t)strtol(name + 4, NULL, 16));
     return (int)mb_board_get(h->b, name);
 }
 

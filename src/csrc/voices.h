@@ -11,6 +11,7 @@
  *     accentmini:mini     Accent-mini                     am_voice.h (SPKEMS.DVC)         with SSV_HAVE_ACCENTMINI
  *     accentmini:sa       Accent SA                       as_voice.h (u2, u3, u4)
  *     mockingboard:mockingboard  Mockingboard              mb_voice.h (mockingboard-tts-1.1.bin)  with SSV_HAVE_MOCKINGBOARD
+ *     mockingboard:early  Mockingboard, early             mb_voice.h (mockingboard-tts-early.bin)  with SSV_HAVE_MOCKINGBOARD
  *
  * Each engine is a table of six functions -- create, set, speak, render, cancel, destroy -- over its voice's own API
  * (blv_, sov_, amv_, asv_, mbv_); a voice whose engine is not compiled in is still listed, and ssv_create says why it cannot

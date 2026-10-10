@@ -32,6 +32,9 @@ static const ssv_info VOICES[] = {
      {"aicom-accent-sa/u2.BIN", "aicom-accent-sa/u3.BIN", "aicom-accent-sa/u4.BIN", NULL}},
     {"mockingboard:mockingboard", "Mockingboard (Sweet Micro Systems)", "en", SSV_MOCKINGBOARD, 4,
      {"sweet-micro-mockingboard/mockingboard-tts-1.1.bin", NULL}},
+    /* the earlier text-to-speech of Mockingboard disks 1 and 2: its own rules ("Mocking-bo-wrd", "dough-lars") */
+    {"mockingboard:early", "Mockingboard, early (Sweet Micro Systems)", "en", SSV_MOCKINGBOARD, 5,
+     {"sweet-micro-mockingboard/mockingboard-tts-early.bin", NULL}},
 };
 #define NVOICES ((int)(sizeof VOICES / sizeof VOICES[0]))
 
@@ -199,11 +202,10 @@ static void *eng_mb_create(const ssv_info *info, const ssv_source *src, const ss
     unsigned char *owned;
     const unsigned char *d = source_bytes(src, 0, &n, &owned);
     mb_voice *v = NULL;
-    (void)info;
     if (d)
         v = mbv_create(d, n, (double)b->sample_rate, err, errlen);
     else
-        snprintf(err, errlen, "could not read the Mockingboard's mockingboard-tts-1.1.bin");
+        snprintf(err, errlen, "could not read the Mockingboard's %s", info->files[0]);
     free(owned);
     return v;
 }

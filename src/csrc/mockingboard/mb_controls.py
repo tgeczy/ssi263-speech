@@ -5,7 +5,9 @@ line, the full test inventory) is ../cpu/contract_controls.py's.  The builds run
 runs this).
 
     python src/csrc/mockingboard/mb_controls.py <folder holding mockingboard-tts-1.1.bin>
-        [<the Developers Toolkit .dsk> <another Mockingboard .dsk>]
+        [<the Developers Toolkit .dsk> <another Mockingboard .dsk> [<Mockingboard disk 1 .dsk>]]
+
+The host's tests run on 1.1 and, when the folder also holds mockingboard-tts-early.bin, on the early version.
 """
 import os
 import shutil
@@ -22,28 +24,46 @@ sys.path.insert(0, os.path.join(CSRC, "cpu"))
 from tools import repo_paths  # noqa: E402
 from contract_controls import RunError, run_tests  # noqa: E402
 
-SPEECH = ["golden_r0", "streams", "clean_core", "settings", "busy_refused", "overflow_guard", "cancel"]
+SPEECH = ["golden_r0", "streams", "clean_core", "settings", "busy_refused", "overflow_guard", "overflow_in_rules",
+          "cancel"]
+SPEECH += ["early_" + t for t in SPEECH]           # the host's tests run on both versions (test_mockingboard.c)
 
 # a rule -> (its file under src/csrc, its code, the code with the rule undone, the tests that must then fail); a rule
 # in two places: a list of (code, undone) pairs, and None
 VARIANTS = {
     "A/R's edge flags CA1": (
-        "mockingboard/mb_board.c", "        b->via_ifr |= 0x02;                        /* CA1 */\n", "", SPEECH),
+        "mockingboard/mb_board.c", "        b->via_ifr |= 0x02;                        /* CA1 */\n", "",
+        # 1.1's in-rules overflow is refused before anything plays; the early one's waits on the digits before it
+        [t for t in SPEECH if t != "overflow_in_rules"]),
     "the text between spaces (MB$ GETTEXT)": (
-        "mockingboard/mb_host.c", "    mb_board_poke(h->b, A_TEXT, ' ');", "    mb_board_poke(h->b, A_TEXT, 'X');",
-        ["golden_r0", "overflow_guard", "cancel"]),
+        "mockingboard/mb_host.c", "    mb_board_poke(h->b, L->text, ' ');", "    mb_board_poke(h->b, L->text, 'X');",
+        ["golden_r0", "overflow_guard", "cancel", "early_golden_r0", "early_overflow_guard", "early_cancel"]),
     "the overflow guard (both checks)": (
         "mockingboard/mb_host.c", [("    if (raw + 4 * marks > MBH_MAX_FRAMES) {", "    if (0) {"),
-                                   ("    mb_board_guard(h->b, A_SPARE, A_SPARE + 0xFF);\n", "")],
-        None, ["overflow_guard"]),
+                                   ("    mb_board_guard(h->b, L->guard_lo, L->guard_hi);\n", "")],
+        None, ["overflow_guard", "overflow_in_rules", "early_overflow_guard", "early_overflow_in_rules"]),
     "cancel moves the end": (
         "mockingboard/mb_host.c", "    mb_board_poke(h->b, A_END, mb_board_peek(h->b, A_PLAYING));\n", "",
-        ["cancel"]),
+        ["cancel", "early_cancel"]),
+    # a file of the right size taken whatever its bytes: a changed byte gets through
     "the firmware's sha256": (
-        "mockingboard/mb_host.c", "    if (!hex_is(sum, SHA256_HEX)) {", "    if (0) {", ["wrong_image"]),
+        "mockingboard/mb_host.c", "        if (hex_is(sum, LAYOUTS[k].sha256))",
+        "        if (hex_is(sum, LAYOUTS[k].sha256) || n == (LAYOUTS[k].variant == MBH_V11 ? 11948u : 11309u))",
+        ["wrong_image", "early_wrong_image"]),
+    # the early version's guard (mb_host.c LAYOUTS): it must start after the program's own set-up, which stores the
+    # prepared text's last index at 6600h, and it must watch 6600h, where a 257th R0 frame would land
+    "early: the guard after its set-up": (
+        "mockingboard/mb_host.c", "0x6000, 0x6600, 0x660E, 0x662C, 0x6617, 0x6600, 0x6600,",
+        "0x6000, 0x6600, 0x660E, 0x662C, 0, 0x6600, 0x6600,",
+        ["early_busy_refused", "early_cancel", "early_clean_core", "early_golden_r0", "early_overflow_guard",
+         "early_settings", "early_streams"]),
+    "early: the guard on 6600h": (
+        "mockingboard/mb_host.c", "0x6000, 0x6600, 0x660E, 0x662C, 0x6617, 0x6600, 0x6600,",
+        "0x6000, 0x6600, 0x660E, 0x662C, 0x6617, 0xBFFF, 0xBFFF,", ["early_overflow_in_rules"]),
     "the settings bytes": (
-        "mockingboard/mb_host.c", "    mb_board_poke(h->b, A_SETTINGS + 1, (uint8_t)clamp(rate, 0, 15));\n", "",
-        ["settings", "streams"]),
+        "mockingboard/mb_host.c",
+        "    mb_board_poke(h->b, (uint16_t)(h->L->settings + 1), (uint8_t)clamp(rate, 0, 15));\n", "",
+        ["settings", "streams", "early_settings", "early_streams"]),
 }
 
 VOICE = "mockingboard/mb_voice.c"
@@ -65,9 +85,9 @@ DSK_VARIANTS = {
     "ProDOS order read as ProDOS": (DSK, "        k.prodos = order;", "        k.prodos = 0;", ["prodos_order"]),
     # (damaged too: it finds the byte to change through the file dos_order reads)
     "the length from DOS's header": (DSK, "    need = got >= 4 ? 4 + (buf[2] | buf[3] << 8) : -1;",
-                                     "    need = got;", ["damaged", "dos_order", "prodos_order"]),
-    "only the known set": (DSK, "    return mbh_is_known(res, (size_t)*at) ? R_OK : R_OTHER;", "    return R_OK;",
-                           ["damaged"]),
+                                     "    need = got;", ["damaged", "dos_order", "early_disk", "prodos_order"]),
+    "only the known sets": (DSK, "    return mbh_variant(res, (size_t)*at) ? R_OK : R_OTHER;", "    return R_OK;",
+                            ["damaged"]),
 }
 
 HOST_SOURCES = ["mockingboard/test_mockingboard.c", "mockingboard/mb_host.c", "mockingboard/mb_board.c", "cpu/m6502.c",
@@ -86,15 +106,16 @@ def build(src, sources, out_exe, env, bindir):
 
 
 def main():
-    if len(sys.argv) not in (2, 4):
+    if len(sys.argv) not in (2, 4, 5):
         sys.exit(__doc__)
     fw = os.path.abspath(sys.argv[1])
     if not os.path.isfile(os.path.join(fw, "mockingboard-tts-1.1.bin")):
         print("skipped: no mockingboard-tts-1.1.bin in %s" % fw)
         sys.exit(77)
-    args = {"host": [fw], "voice": [fw]}
+    early = os.path.isfile(os.path.join(fw, "mockingboard-tts-early.bin"))
+    args = {"host": [fw, fw] if early else [fw], "voice": [fw]}
     suites = list(SUITES)
-    if len(sys.argv) == 4 and all(os.path.isfile(p) for p in sys.argv[2:]):
+    if len(sys.argv) >= 4 and all(os.path.isfile(p) for p in sys.argv[2:]):
         args["dsk"] = [os.path.abspath(p) for p in sys.argv[2:]]
         suites.append(("dsk", DSK_SOURCES, DSK_VARIANTS))
     else:

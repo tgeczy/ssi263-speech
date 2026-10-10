@@ -6,9 +6,18 @@
 
 #include "mb_dsk.h"
 
-static const char *const NAMES[6] = {"TEXT TO SPEECH", "INFLECTION", "IIE TTS DRIVER", "MKB:RULE.INDEX",
-                                     "MKB:RULE.LENGTH", "MKB:RULE.TABLE"};
-static const unsigned ADDRS[6] = {0x8C00, 0x9000, 0x9300, 0xD000, 0xD100, 0xD200};
+/* the sets of files a firmware file is made of (mb_host.h): the toolkit's 1.1, then the earlier one of disks 1-2 */
+typedef struct {
+    int n;
+    const char *names[6];
+    unsigned addrs[6];
+} fileset;
+static const fileset SETS[2] = {
+    {6, {"TEXT TO SPEECH", "INFLECTION", "IIE TTS DRIVER", "MKB:RULE.INDEX", "MKB:RULE.LENGTH", "MKB:RULE.TABLE"},
+     {0x8C00, 0x9000, 0x9300, 0xD000, 0xD100, 0xD200}},
+    {4, {"TEXT TO SPEECH", "MKB:RULE.INDEX", "MKB:RULE.LENGTH", "MKB:RULE.TABLE"},
+     {0x6600, 0x6E00, 0x6F00, 0x7000}},
+};
 /* ProDOS block k of a track (0-7): the DOS 3.3 sectors of its two halves */
 static const int PRODOS_HALVES[8][2] = {{0, 14}, {13, 12}, {11, 10}, {9, 8}, {7, 6}, {5, 4}, {3, 2}, {1, 15}};
 
@@ -110,24 +119,24 @@ static int fail(char *err, int errlen, const char *msg)
 
 enum { R_OK, R_MISSING, R_DAMAGED, R_OTHER };
 
-/* the six files read in one sector order, into res; R_OK, or why not */
-static int read_set(const disk *k, unsigned char *res, long *at)
+/* a set's files read in one sector order, into res; R_OK (a known firmware file), or why not */
+static int read_set(const disk *k, const fileset *set, unsigned char *res, long *at)
 {
     int f;
     *at = 0;
-    for (f = 0; f < 6; f++) {
+    for (f = 0; f < set->n; f++) {
         int type, t, s;
         long len;
-        if (!find(k, NAMES[f], &type, &t, &s) || type != 4)
+        if (!find(k, set->names[f], &type, &t, &s) || type != 4)
             return R_MISSING;
         len = binary_file(k, t, s, res + *at, 64 * 1024 - *at);
         if (len < 4)
             return R_DAMAGED;
-        if ((unsigned)(res[*at] | res[*at + 1] << 8) != ADDRS[f])
+        if ((unsigned)(res[*at] | res[*at + 1] << 8) != set->addrs[f])
             return R_OTHER;                /* there, but loading elsewhere: another version of the text-to-speech */
         *at += len;
     }
-    return mbh_is_known(res, (size_t)*at) ? R_OK : R_OTHER;
+    return mbh_variant(res, (size_t)*at) ? R_OK : R_OTHER;
 }
 
 MB_API int mb_firmware_from_dsk(const unsigned char *image, size_t n, unsigned char **out, size_t *out_n, char *err,
@@ -135,11 +144,12 @@ MB_API int mb_firmware_from_dsk(const unsigned char *image, size_t n, unsigned c
 {
     static const char *const WHY[] = {"", "not the Mockingboard Developers Toolkit (a file is missing)",
                                       "not the Mockingboard Developers Toolkit (a file is damaged)",
-                                      "a Mockingboard disk, but not the text-to-speech version 1.1 this voice runs"};
+                                      "a Mockingboard disk, but not one of the text-to-speech versions these voices "
+                                      "run (1.1, or the earlier one of disks 1 and 2)"};
     disk k;
     unsigned char *res;
     long at = 0;
-    int order, best = R_MISSING, any = 0;
+    int order, set, best = R_MISSING, any = 0;
     *out = NULL;
     *out_n = 0;
     if (n != MB_DSK_SIZE)
@@ -151,19 +161,20 @@ MB_API int mb_firmware_from_dsk(const unsigned char *image, size_t n, unsigned c
     /* DOS order first, then ProDOS order: the catalog's first sector sits at the same place in both, so the order is
        the one whose files read */
     for (order = 0; order < 2; order++) {
-        int r;
         k.prodos = order;
         if (!is_dos33(&k))
             continue;
         any = 1;
-        r = read_set(&k, res, &at);
-        if (r == R_OK) {
-            *out = res;
-            *out_n = (size_t)at;
-            return 1;
+        for (set = 0; set < 2; set++) {
+            int r = read_set(&k, &SETS[set], res, &at);
+            if (r == R_OK) {
+                *out = res;
+                *out_n = (size_t)at;
+                return 1;
+            }
+            if (r > best || best == R_MISSING)
+                best = r;
         }
-        if (r > best || best == R_MISSING)
-            best = r;
     }
     free(res);
     return fail(err, errlen, any ? WHY[best] : "not a DOS 3.3 disk");

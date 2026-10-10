@@ -1,22 +1,29 @@
-"""Make the Mockingboard voice's firmware file from Sweet Micro Systems' Mockingboard Developers Toolkit disk (1984;
-its text-to-speech is version 1.1, 11 March 1985): the six DOS 3.3 binary files the voice runs, back to back, each
-exactly as DOS stores it (load address, length, bytes).  Nothing else of the disk is taken -- not Apple's DOS, nor
-any other program on it.
+"""Make a Mockingboard voice's firmware file from one of Sweet Micro Systems' disks, as src/csrc/mockingboard/mb_dsk.c
+does: the DOS 3.3 binary files a version of its text-to-speech is made of, back to back, each exactly as DOS stores it
+(load address, length, bytes).  Nothing else of the disk is taken -- not Apple's DOS, nor any other program on it.
 
-    python tools/mockingboard_firmware.py <the toolkit's .dsk> <output folder>
+    python tools/mockingboard_firmware.py <a disk's .dsk (DOS order)> <output folder>
 
-The disk must be the known image (DISK_SHA256, a 140 KB DOS-order .dsk); the output is checked against OUT_SHA256,
-which src/csrc/mockingboard/mb_host.c also requires.
+  the Mockingboard Developers Toolkit (1984; also "Mockingboard - Developer's Toolkit" and "MNBTOOLKIT for IIc"):
+    text-to-speech 1.1 (11 March 1985), six files -> mockingboard-tts-1.1.bin
+  Mockingboard disk 1: the earlier text-to-speech, four files -> mockingboard-tts-early.bin
+
+The output is checked against its known sha256, which src/csrc/mockingboard/mb_host.h also requires (MB_SHA256,
+MB_SHA256_EARLY).
 """
 import hashlib
 import os
 import sys
 
-DISK_SHA256 = "7b2930489cfe8952d0338d2d8751cef3bdca004075161050481da8301d0136a2"
-OUT_SHA256 = "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"
-OUT_NAME = "mockingboard-tts-1.1.bin"       # mb_host.h's MB_FILE
-FILES = ["TEXT TO SPEECH", "INFLECTION", "IIE TTS DRIVER", "MKB:RULE.INDEX", "MKB:RULE.LENGTH", "MKB:RULE.TABLE"]
-ADDRS = [0x8C00, 0x9000, 0x9300, 0xD000, 0xD100, 0xD200]
+# (output, its sha256, the files in order, their load addresses) -- mb_host.h
+SETS = [
+    ("mockingboard-tts-1.1.bin", "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae",
+     ["TEXT TO SPEECH", "INFLECTION", "IIE TTS DRIVER", "MKB:RULE.INDEX", "MKB:RULE.LENGTH", "MKB:RULE.TABLE"],
+     [0x8C00, 0x9000, 0x9300, 0xD000, 0xD100, 0xD200]),
+    ("mockingboard-tts-early.bin", "c7c049b1b61792719e21e461a2a8c25fc32c12882c81305814a3dc67af6e5835",
+     ["TEXT TO SPEECH", "MKB:RULE.INDEX", "MKB:RULE.LENGTH", "MKB:RULE.TABLE"],
+     [0x6600, 0x6E00, 0x6F00, 0x7000]),
+]
 
 
 def sector(disk, t, s):
@@ -59,27 +66,37 @@ def binary_file(disk, t, s):
     return raw[:4 + n]
 
 
+def from_disk(disk):
+    """(output name, its bytes) for the first known set on the disk; None when there is none"""
+    cat = catalog(disk)
+    for out_name, out_sha, files, addrs in SETS:
+        out = b""
+        for name, addr in zip(files, addrs):
+            if name not in cat or cat[name][0] != 4:
+                break
+            f = binary_file(disk, cat[name][1], cat[name][2])
+            if (f[0] | f[1] << 8) != addr:
+                break
+            out += f
+        else:
+            if hashlib.sha256(out).hexdigest() == out_sha:
+                return out_name, out
+    return None
+
+
 def main():
     if len(sys.argv) != 3:
         sys.exit(__doc__)
     disk = open(sys.argv[1], "rb").read()
-    if len(disk) != 143360 or hashlib.sha256(disk).hexdigest() != DISK_SHA256:
-        sys.exit("%s is not the Mockingboard Developers Toolkit disk this voice knows" % sys.argv[1])
-    cat = catalog(disk)
-    out = b""
-    for name, addr in zip(FILES, ADDRS):
-        if name not in cat or cat[name][0] != 4:
-            sys.exit("%s: no binary file %r" % (sys.argv[1], name))
-        f = binary_file(disk, cat[name][1], cat[name][2])
-        if (f[0] | f[1] << 8) != addr:
-            sys.exit("%r loads at %04X, not %04X" % (name, f[0] | f[1] << 8, addr))
-        out += f
-    if hashlib.sha256(out).hexdigest() != OUT_SHA256:
-        sys.exit("the six files are not the known set")
-    path = os.path.join(sys.argv[2], OUT_NAME)
-    with open(path, "wb") as fh:
+    if len(disk) != 143360:
+        sys.exit("%s is not a 140 KB Apple II disk image" % sys.argv[1])
+    found = from_disk(disk)
+    if not found:
+        sys.exit("%s holds none of the text-to-speech versions these voices run" % sys.argv[1])
+    name, out = found
+    with open(os.path.join(sys.argv[2], name), "wb") as fh:
         fh.write(out)
-    print("%s: %d bytes, sha256 %s" % (OUT_NAME, len(out), hashlib.sha256(out).hexdigest()))
+    print("%s: %d bytes, sha256 %s" % (name, len(out), hashlib.sha256(out).hexdigest()))
 
 
 if __name__ == "__main__":
