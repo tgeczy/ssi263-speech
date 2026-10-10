@@ -285,7 +285,10 @@ class SsvInfo(ctypes.Structure):
 
 
 def sapi(voices, p, stage=None):
-    ver = re.search(r"^version\s*=\s*(\S+)", read(os.path.join(REPO, "nvda", "blazie", "manifest.ini")), re.M).group(1)
+    manifest = os.path.join(REPO, "nvda", "ssi263", "manifest.ini")      # 0.8's one add-on, else 0.7's Blazie
+    if not os.path.isfile(manifest):
+        manifest = os.path.join(REPO, "nvda", "blazie", "manifest.ini")
+    ver = re.search(r"^version\s*=\s*(\S+)", read(manifest), re.M).group(1)
     stages = [stage] if stage else [os.path.join(DIST, "sapi-%s-final" % ver), os.path.join(DIST, "sapi-dev")]
     stage = next((s for s in stages if os.path.isfile(os.path.join(s, "voices.txt"))), None)
     if not stage:
