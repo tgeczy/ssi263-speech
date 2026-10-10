@@ -75,6 +75,21 @@ import writes it; another disk is refused with the disk reader's reason ("a Mock
 text-to-speech version 1.1 this voice runs", "not a DOS 3.3 disk"). Its voice takes the app's rate, pitch (a
 capital's as an offset, at least one of its inflection steps), volume and "Read numbers as words" (`mb_voice.h`).
 
+**Finding the disk.** The disk image to import is Sweet Micro Systems' *Mockingboard Developers Toolkit* (1984). Two
+images of it are known, and both hold the same six files (checked 2026-10-09 against every Mockingboard disk in the
+archives below):
+
+| Disk image (as archived) | sha256 |
+|---|---|
+| `Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk` | `7b2930489cfe8952d0338d2d8751cef3bdca004075161050481da8301d0136a2` |
+| `Mockingboard - Developer's Toolkit.dsk`, also archived as `MNBTOOLKIT for IIc.DSK` | `15cfb639ce5d9ca38bb650c8cb9662bcaf2b83282b0822fb2bfcd14463817cad` |
+
+They are preserved in the public Apple II archives: the Asimov archive and its mirrors (its Mockingboard folder, under
+the sound hardware images) and ReActiveMicro's Mockingboard software downloads. The other Mockingboard disks there --
+the demonstration disks, the 1982 Sound and Speech I and Speech Development System disks, `mockingboard1.dsk`,
+`mockingboard2.dsk` -- are refused: some have no text-to-speech, and some have an earlier version with other rules.
+The app itself names no source: it asks for your own copy of the disk.
+
 ### The Speak-Out: GW Micro's SPEAKOUT.HEX
 
 Known by content (`app/src/main/cpp/ssa_import.c`), never by name: an Intel HEX file -- every line a record with a
