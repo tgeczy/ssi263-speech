@@ -79,6 +79,8 @@ def main():
         os.remove(os.path.join(unified, "mockingboard.py"))
         rm(os.path.join(unified, "_ssi263_mockingboard"))
     shutil.copy2(os.path.join(HERE, "ssi263", "synthDrivers", "ssi263.py"), sd)
+    shutil.copytree(os.path.join(HERE, "ssi263", "globalPlugins"), os.path.join(BUILD, "globalPlugins"),
+                    ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copytree(os.path.join(HERE, "blazie", "locale"), os.path.join(BUILD, "locale"))
     with open(os.path.join(BUILD, "manifest.ini"), "w", encoding="utf-8") as f:
         f.write(MANIFEST)

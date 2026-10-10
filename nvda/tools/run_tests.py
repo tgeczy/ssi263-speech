@@ -164,6 +164,15 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
                        ("loading", [r"^FAIL missing .*RAISED", r"^ok   order ", r"^unified settings: 1 FAILED$"])):
         CHECKS.append(check("0.8 driver settings CONTROL (%s, must fail)" % brk, [PY, "unified_settings_test.py"],
                             env={"UNIFIED_SETTINGS_BREAK": brk}, expect_fail=True, fail_marks=marks))
+    # its global plugin (unified_plugin_test.py): the manual update check and its SHA256SUMS check, the 0.7 add-ons'
+    # settings migrated profile by profile, the Voice panel refreshed after a firmware change; one control per rule
+    CHECKS.append(check("0.8 plugin: updates, migration, panel refresh", [PY, "unified_plugin_test.py"],
+                        ok=lambda out: bool(re.search(r"^unified plugin: all passed$", out, re.M))))
+    for brk, case in (("hash", "wrong_hash"), ("fill", "kept_existing"), ("ledger", "second_run"),
+                      ("options", "stale_choices")):
+        CHECKS.append(check("0.8 plugin CONTROL (%s, must fail)" % brk, [PY, "unified_plugin_test.py"],
+                            env={"UNIFIED_PLUGIN_BREAK": brk}, expect_fail=True,
+                            fail_marks=[r"^FAIL %s " % case, r"^ok   newer ", r"^unified plugin: 1 FAILED$"]))
 # its must-fail control: 0.5.0's cancel put back on four seeds in parallel; it passes when a seed catches it (one seed
 # alone missed it under this suite's load about 1 run in 6)
 CHECKS.append(check("complete_fuzz CONTROL (0.5.0 cancel, must be caught)", [PY, "complete_fuzz_control.py", "150"]))
