@@ -1,15 +1,23 @@
 """The 0.8 add-on's global plugin (globalPlugins/ssi263Speech) under stand-ins: the update check, the migration of the
-0.7 add-ons' settings, and the Voice panel's refresh after a firmware change.
+0.7 add-ons' settings, removing the 0.7 add-ons, the Voice panel's refresh after a firmware change, and the settings
+ring hook.
 
   updates   a newer release found by its asset's name (not its tag); the same and older versions, a draft and a
             prerelease not offered; the download refused without SHA256SUMS.txt, with no entry or two entries for the
             file, or with a wrong hash, and taken with the right one
-  migrate   each 0.7 driver's section into its firmware types' own keys (the Braille Lite's Spanish voice as es,
-            the Accent SA's as accentsa); the synth switched with that type's plain keys; a profile's own overrides
-            only (nothing written into one with no 0.7 section); a key already set kept; the old sections kept; a
-            second run writing nothing (the ledger); a failed save leaving the ledger unwritten; NVDA switched live
+  migrate   each 0.7 driver's section into its firmware types' own keys only (the Braille Lite's Spanish voice as es);
+            the synth switched with the type the profile EFFECTIVELY had (an Accent SA inherited from the base stays
+            the SA: Reply 163, 3); a profile's own overrides only (a rate-only profile gets only that rate; nothing
+            into one with no 0.7 section); a key already set kept; the old sections kept; a second run writing nothing
+            (the ledger); NVDA switched live.  Failures (Reply 163, 5): a failed save rolled back in memory, the ledger
+            unwritten, and the next run saving it whole; a failed switch putting every profile's synth back, the ledger
+            unwritten, and the next run trying again
+  removal   the 0.7 add-ons removed only when NVDA speaks with this driver, its unit booted, and every profile is
+            migrated -- the settings page's button too (Reply 164)
   panel     every string control given the new unit's choices (kept options and items) before NVDA's update; the
             hook restored only while ours is installed, passing through otherwise
+  ring      a ring change of this driver's rate also written to the active firmware's own key; the firmware type and
+            the voice left to the ring; another driver untouched; the properties restored
 
     UNIFIED_PLUGIN_BREAK=hash      control: any download accepted -- wrong_hash must FAIL
     UNIFIED_PLUGIN_BREAK=fill      control: the migration overwrites a key already set -- kept_existing must FAIL
@@ -17,6 +25,11 @@
     UNIFIED_PLUGIN_BREAK=options   control: the choices not replaced -- stale_choices must FAIL
     UNIFIED_PLUGIN_BREAK=revert    control: no profile's synth put back when this driver fails to start --
                                    switch_failed must FAIL
+    UNIFIED_PLUGIN_BREAK=inherit   control: the Accent model read from the profile alone -- inherited_accent must FAIL
+    UNIFIED_PLUGIN_BREAK=rollback  control: a failed save not undone in memory -- save_retry must FAIL
+    UNIFIED_PLUGIN_BREAK=pending   control: the ledger written though the switch failed -- start_retry must FAIL
+    UNIFIED_PLUGIN_BREAK=ready     control: removal without the readiness check -- manual_removal must FAIL
+    UNIFIED_PLUGIN_BREAK=ringkey   control: the ring hook writes nothing -- ring_key must FAIL
 
 Exit 0 when all pass.  Build first: nvda/build_ssi263.py.
 """
@@ -83,8 +96,13 @@ class _View(dict):
 
 
 class Synth:
-    def __init__(self, name):
+    def __init__(self, name, booted=True):
         self.name = name
+        if name == "ssi263":         # this driver: its unit, booted or not
+            ev = __import__("threading").Event()
+            if booted:
+                ev.set()
+            self.inner = types.SimpleNamespace(booted=ev, bootError=None)
 
 
 def install(tmp, conf, synth):
@@ -169,13 +187,20 @@ def test_updates(up):
 
 
 # ---- migrate -----------------------------------------------------------------------------------------------------
+def ledger_of(tmp):
+    path = os.path.join(tmp, "ssi263-speech", "settings.json")
+    return json.load(open(path, encoding="utf-8")).get("migrated") if os.path.isfile(path) else None
+
+
 def test_migrate(tmp):
     base = {"speech": {"synth": "blazie", "blazie": {"voice": "blazie_es", "rate": "70", "whine": "low"},
-                       "speakout": {"rate": "20"}}}
+                       "speakout": {"rate": "20"}, "accentmini": {"voice": "sa", "rate": "60"}}}
     profiles = {
-        "reading": {"speech": {"synth": "accentmini", "accentmini": {"voice": "sa", "rate": "30"}}},
+        "reading": {"speech": {"synth": "accentmini", "accentmini": {"voice": "mini", "rate": "30"}}},
         "typing": {"speech": {"speakout": {"pitch": "60"}, "ssi263": {"fw_speakout_pitch": "10"}}},
         "plain": {"speech": {"rate": "40"}, "keyboard": {}},
+        "fast": {"speech": {"blazie": {"rate": "25"}}},
+        "sa": {"speech": {"synth": "accentmini"}},
     }
     conf = Conf(copy.deepcopy(base), copy.deepcopy(profiles), active=("typing",))
     plugin, state = install(tmp, conf, Synth("blazie"))
@@ -183,30 +208,38 @@ def test_migrate(tmp):
     if BREAK == "fill":
         orig = mig.migrate_profile
 
-        def overwrite(raw):
+        def overwrite(raw, inherited=None, undo=None):
             dest = raw.get("speech", {}).get("ssi263")
             if dest:
                 for k in list(dest):
                     if k.startswith("fw_"):
                         del dest[k]
-            return orig(raw)
+            return orig(raw, inherited, undo)
         mig.migrate_profile = overwrite
     if BREAK == "ledger":
-        plugin.migrate.migrate_all = (lambda f: lambda profiles, ledger: f(profiles, set()))(mig.migrate_all)
-        mig_mark = mig.mark_done
+        mig.migrate_all = (lambda f: lambda profiles, ledger, undo=None: f(profiles, set(), undo))(mig.migrate_all)
         mig.mark_done = lambda ledger, profiles: None
+    if BREAK == "inherit":
+        mig._effective_voice = lambda old, speech, inherited: (speech.get(old) or {}).get("voice")
     switched = plugin.run_migration()
     b = conf.profiles[0]["speech"]
     new = b.get("ssi263", {})
     check("base_braillelite", b.get("synth") == "ssi263" and new.get("firmwareType") == "braillelite2000"
-          and new.get("voice") == "es" and new.get("rate") == "70" and new.get("fw_braillelite2000_voice") == "es"
-          and new.get("fw_braillelite2000_whine") == "low" and new.get("fw_speakout_rate") == "20",
-          "synth %s, %s" % (b.get("synth"), {k: v for k, v in new.items() if not k.startswith("fw_speakout")}))
+          and new.get("fw_braillelite2000_voice") == "es" and new.get("fw_braillelite2000_rate") == "70"
+          and new.get("fw_braillelite2000_whine") == "low" and new.get("fw_speakout_rate") == "20"
+          and "rate" not in new and "voice" not in new,
+          "synth %s, %s" % (b.get("synth"), {k: v for k, v in new.items() if k.startswith(("fw_braille", "firm"))}))
     check("old_kept", b.get("blazie") == base["speech"]["blazie"])
     r = conf.stored["reading"]["speech"]
-    check("inactive_accent", r.get("synth") == "ssi263" and r["ssi263"].get("firmwareType") == "accentsa"
-          and r["ssi263"].get("fw_accentsa_rate") == "30" and r["ssi263"].get("fw_accentmini_rate") == "30"
-          and r["ssi263"].get("voice") == "en", repr(r.get("ssi263")))
+    check("inactive_accent", r.get("synth") == "ssi263" and r["ssi263"].get("firmwareType") == "accentmini"
+          and r["ssi263"].get("fw_accentmini_rate") == "30" and r["ssi263"].get("fw_accentsa_rate") == "30",
+          repr(r.get("ssi263")))
+    sa = conf.stored["sa"]["speech"]
+    check("inherited_accent", sa.get("synth") == "ssi263" and sa.get("ssi263") == {"firmwareType": "accentsa"},
+          "a profile with only synth=accentmini, the base's voice sa: %r" % (sa.get("ssi263"),))
+    f = conf.stored["fast"]["speech"]
+    check("rate_only", f.get("ssi263") == {"fw_braillelite2000_rate": "25"} and "synth" not in f,
+          "a profile with only [[blazie]] rate=25: %r" % (f.get("ssi263"),))
     t = conf.stored["typing"]["speech"]
     check("kept_existing", t["ssi263"].get("fw_speakout_pitch") == "10" and "synth" not in t,
           "fw_speakout_pitch %s (it was 10; the 0.7 section says 60); synth %s" % (t["ssi263"].get("fw_speakout_pitch"),
@@ -214,7 +247,7 @@ def test_migrate(tmp):
     check("own_overrides", "ssi263" not in conf.stored["plain"]["speech"], repr(conf.stored["plain"]))
     check("live_switch", switched and state["set"] == ["ssi263"] and conf.saved == 1,
           "switched %s, setSynth %s, saves %d" % (switched, state["set"], conf.saved))
-    ledger = json.load(open(os.path.join(tmp, "ssi263-speech", "settings.json"), encoding="utf-8"))["migrated"]
+    ledger = ledger_of(tmp)
     # a second start: the user went back to the 0.7 driver by hand; the ledger keeps it that way
     conf.profiles[0]["speech"]["synth"] = "blazie"
     state["synth"] = Synth("blazie")
@@ -222,22 +255,30 @@ def test_migrate(tmp):
     check("second_run", conf.profiles[0]["speech"]["synth"] == "blazie" and state["set"] == ["ssi263"],
           "ledger %s; synth now %s" % (ledger, conf.profiles[0]["speech"]["synth"]))
 
-    # a failed save: the ledger is not written
+    # a failed save: undone in memory, the ledger unwritten, raised; once the disk works, saved whole
     tmp2 = tempfile.mkdtemp(prefix="ssi263-plugin-")
     conf2 = Conf(copy.deepcopy(base), {})
     conf2.fail_save = True
-    plugin2, _state = install(tmp2, conf2, Synth("blazie"))
+    plugin2, state2 = install(tmp2, conf2, Synth("blazie"))
+    if BREAK == "rollback":
+        plugin2.migrate.rollback = lambda undo: None
     try:
         plugin2.run_migration()
         raised = False
     except OSError:
         raised = True
-    check("failed_save", raised and not os.path.isfile(os.path.join(tmp2, "ssi263-speech", "settings.json")),
-          "raised %s, ledger written: %s" % (raised, os.path.isfile(os.path.join(tmp2, "ssi263-speech",
-                                                                                 "settings.json"))))
+    undone = "ssi263" not in conf2.profiles[0]["speech"] and conf2.profiles[0]["speech"]["synth"] == "blazie"
+    check("failed_save", raised and ledger_of(tmp2) is None and undone and state2["set"] == [],
+          "raised %s, ledger %s, undone in memory %s, setSynth %s" % (raised, ledger_of(tmp2), undone, state2["set"]))
+    conf2.fail_save = False
+    retried = plugin2.run_migration()
+    check("save_retry", retried and conf2.saved == 1 and ledger_of(tmp2) == [""] and state2["set"] == ["ssi263"]
+          and conf2.profiles[0]["speech"].get("ssi263", {}).get("firmwareType") == "braillelite2000",
+          "saves %d, ledger %s, setSynth %s" % (conf2.saved, ledger_of(tmp2), state2["set"]))
     shutil.rmtree(tmp2, ignore_errors=True)
 
-    # this driver fails to start after the save: every switched profile gets its own synth back, saved
+    # this driver fails to start after the save: every switched profile gets its own synth back, saved; the ledger
+    # unwritten, so once it can start the next run switches again
     tmp3 = tempfile.mkdtemp(prefix="ssi263-plugin-")
     conf3 = Conf(copy.deepcopy(base), copy.deepcopy(profiles))
     plugin3, state3 = install(tmp3, conf3, Synth("blazie"))
@@ -249,12 +290,116 @@ def test_migrate(tmp):
             def __contains__(self, x):
                 return not state3["set"] and tuple.__contains__(self, x)
         plugin3.migrate.OLD_DRIVERS = Gone(plugin3.migrate.OLD_DRIVERS)
+    if BREAK == "pending":
+        real_save = plugin3._save_settings
+
+        def save_anyway(data):
+            real_save(data)
+        orig_run = plugin3.run_migration
+
+        def marks_anyway():
+            r = orig_run()
+            data = plugin3._load_settings()
+            data["migrated"] = ["", "fast", "plain", "reading", "sa", "typing"]
+            real_save(data)
+            return r
+        plugin3.run_migration = marks_anyway
     switched = plugin3.run_migration()
     got = (conf3.profiles[0]["speech"]["synth"], conf3.stored["reading"]["speech"]["synth"])
     check("switch_failed", not switched and got == ("blazie", "accentmini") and conf3.saved == 2
           and state3["synth"].name == "blazie" and "reading" in conf3._dirtyProfiles,
           "synths now %s (were blazie, accentmini), saves %d, NVDA on %s" % (got, conf3.saved, state3["synth"].name))
+    state3["fail"] = ()
+    again = plugin3.run_migration()
+    check("start_retry", again and state3["set"] == ["ssi263", "ssi263"] and state3["synth"].name == "ssi263"
+          and ledger_of(tmp3) is not None and "" in ledger_of(tmp3),
+          "retried %s, setSynth %s, NVDA on %s, ledger %s" % (again, state3["set"], state3["synth"].name,
+                                                             ledger_of(tmp3)))
     shutil.rmtree(tmp3, ignore_errors=True)
+
+
+# ---- removal ---------------------------------------------------------------------------------------------------
+def test_removal():
+    def session(synth, ledger):
+        tmp = tempfile.mkdtemp(prefix="ssi263-plugin-")
+        conf = Conf({"speech": {"synth": synth.name}}, {})
+        plugin, state = install(tmp, conf, synth)
+        if ledger is not None:
+            plugin._save_settings({"migrated": ledger})
+        removed, prompts = [], []
+        plugin._old_addons = lambda: [types.SimpleNamespace(name="blazie_ssi263",
+                                                            requestRemove=lambda: removed.append("blazie_ssi263"))]
+        wx = types.ModuleType("wx")
+        wx.YES, wx.NO, wx.YES_NO, wx.ICON_QUESTION, wx.OK, wx.ICON_WARNING = 1, 0, 2, 4, 8, 16
+        gui = types.ModuleType("gui")
+        answers = iter([wx.YES, wx.NO])
+
+        def message_box(message, *a):
+            prompts.append(message)
+            return next(answers)
+        gui.messageBox = message_box
+        sys.modules["wx"], sys.modules["gui"] = wx, gui
+        if BREAK == "ready":
+            plugin.removal_ready = lambda: (True, "")
+        plugin.offer_removal()
+        shutil.rmtree(tmp, ignore_errors=True)
+        return removed, prompts
+
+    removed, prompts = session(Synth("blazie"), None)
+    check("manual_removal", removed == [] and prompts and "kept for now" in prompts[0],
+          "on blazie, nothing migrated, Yes pressed: removed %s; said %r" % (removed, (prompts or [""])[0][:70]))
+    removed, _p = session(Synth("ssi263", booted=False), [""])
+    check("not_booted", removed == [], "this driver's unit not booted: removed %s" % removed)
+    removed, _p = session(Synth("ssi263"), [""])
+    check("ready_removal", removed == ["blazie_ssi263"], "this driver speaking, all migrated: removed %s" % removed)
+
+
+# ---- ring --------------------------------------------------------------------------------------------------------
+def test_ring(rng):
+    class Meta(type):
+        """properties from _get_value/_set_value, as NVDA's AutoPropertyType makes them"""
+
+        def __init__(cls, name, bases, ns):
+            super().__init__(name, bases, ns)
+            if "_set_value" in ns:
+                cls.value = property(getattr(cls, "_get_value"), ns["_set_value"])
+
+    store = {"speech": {"ssi263": {}, "other": {}}}
+
+    class SynthSetting(metaclass=Meta):
+        def __init__(self, synth, sid):
+            self.synth, self.setting = synth, types.SimpleNamespace(id=sid)
+
+        def _get_value(self):
+            return getattr(self.synth, self.setting.id)
+
+        def _set_value(self, v):
+            setattr(self.synth, self.setting.id, v)
+            store["speech"][self.synth.name][self.setting.id] = v
+
+    class StringSynthSetting(SynthSetting):
+        def _set_value(self, v):
+            SynthSetting._set_value(self, v)
+
+    synth = types.SimpleNamespace(name="ssi263", firmwareType="speakout", rate=50, variant="i")
+    other = types.SimpleNamespace(name="other", firmwareType="speakout", rate=50)
+    nvda_props = (SynthSetting.__dict__["value"], StringSynthSetting.__dict__["value"])
+    hook = rng.Hook([SynthSetting, StringSynthSetting], lambda: store, _Log())
+    hook.install()
+    if BREAK == "ringkey":
+        hook.active = False
+    SynthSetting(synth, "rate").value = 35
+    StringSynthSetting(synth, "variant").value = "a"
+    StringSynthSetting(synth, "firmwareType").value = "speakout"
+    SynthSetting(other, "rate").value = 20
+    hook.restore()
+    restored = (SynthSetting.__dict__["value"], StringSynthSetting.__dict__["value"]) == nvda_props
+    got = store["speech"]["ssi263"]
+    check("ring_key", got.get("fw_speakout_rate") == 35 and got.get("fw_speakout_variant") == "a"
+          and got.get("rate") == 35 and "fw_speakout_firmwareType" not in got
+          and store["speech"]["other"] == {"rate": 20}
+          and restored, "the config %s; another driver %s; NVDA's properties back %s" % (got, store["speech"]["other"],
+                                                                                         restored))
 
 
 # ---- panel -------------------------------------------------------------------------------------------------------
@@ -284,8 +429,7 @@ class Container:
 
 def test_panel(pnl):
     if BREAK == "options":
-        pnl.refresh = (lambda f: lambda container, driver: container.updateDriverSettings(changedSetting="firmwareType"))(
-            pnl.refresh)
+        pnl.refresh = lambda container, driver: container.updateDriverSettings(changedSetting="firmwareType")
     tones = [types.SimpleNamespace(id=t, displayName="Tone %s" % t.upper()) for t in "abcdefghijklmnopqrstuvwxyz"]
     driver = types.SimpleNamespace(
         name="ssi263",
@@ -337,7 +481,9 @@ def main():
         plugin, _state = install(tmp, Conf({}, {}), None)
         test_updates(plugin.updates)
         test_panel(plugin.panel)
+        test_ring(plugin.ring)
         test_migrate(tmp)
+        test_removal()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("unified plugin: %s" % ("all passed" if all(results) else "%d FAILED" % results.count(False)))

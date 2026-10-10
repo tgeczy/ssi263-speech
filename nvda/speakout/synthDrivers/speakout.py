@@ -75,7 +75,7 @@ class SynthDriver(SynthDriver):
     def check(cls):
         return os.path.isfile(FIRMWARE) and os.path.isfile(DLL)
 
-    def __init__(self):
+    def __init__(self, startVoice=None):
         super().__init__()
         self._rate = 50       # box rate 5, its default
         self._pitch = 50      # box pitch 3, its default
@@ -93,6 +93,10 @@ class SynthDriver(SynthDriver):
         self._cancelFlag = threading.Event()
         self._stopped = False
         self._box = None
+        # the worker's first boot, for a driver running this one inside (synthDrivers/ssi263.py): set once it
+        # is up, with bootError when it failed -- the constructor returning says nothing about the firmware
+        self.booted = threading.Event()
+        self.bootError = None
         self._worker = threading.Thread(target=self._run, name="speakout-ssi263", daemon=True)
         self._worker.start()
 
@@ -237,9 +241,12 @@ class SynthDriver(SynthDriver):
     def _run(self):
         try:
             self._box = self._boot()
-        except Exception:
+        except Exception as e:
             log.error("Speak-Out: could not start the emulated box", exc_info=True)
+            self.bootError = e
+            self.booted.set()
             return
+        self.booted.set()
         while not self._stopped:
             job = self._queue.get()
             if job is None:

@@ -306,7 +306,7 @@ class SynthDriver(SynthDriver):
     def check(cls):
         return all(os.path.isfile(p) for p in (FIRMWARE, STATE, DLL))
 
-    def __init__(self):
+    def __init__(self, startVoice=None):
         super().__init__()
         self._rate = 50        # unit rate 11, its factory setting
         self._pitch = 50       # unit pitch ~16 (81 Hz), its factory setting
@@ -334,7 +334,12 @@ class SynthDriver(SynthDriver):
         self._stopped = False
         self._unit = None
         self._units = {}        # voice id -> its emulated unit, started on first use
-        self._voice = "blazie"
+        # startVoice: the voice its worker boots first (synthDrivers/ssi263.py); NVDA itself gives none
+        self._voice = startVoice if startVoice in self._present() else "blazie"
+        # the worker's first boot, for a driver running this one inside (synthDrivers/ssi263.py): set once it
+        # is up, with bootError when it failed -- the constructor returning says nothing about the firmware
+        self.booted = threading.Event()
+        self.bootError = None
         self._worker = threading.Thread(target=self._run, name="blazie-ssi263", daemon=True)
         self._worker.start()
 
@@ -595,10 +600,13 @@ class SynthDriver(SynthDriver):
 
     def _run(self):
         try:
-            self._unit = self._unit_for("blazie")
-        except Exception:
+            self._unit = self._unit_for(self._voice)
+        except Exception as e:
             log.error("Blazie: could not start the emulated unit", exc_info=True)
+            self.bootError = e
+            self.booted.set()
             return
+        self.booted.set()
         while not self._stopped:
             job = self._queue.get()
             if job is None:

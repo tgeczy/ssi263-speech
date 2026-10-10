@@ -89,11 +89,20 @@ def child(fw, side, out):
     d, player, notifier = g["d"], g["FakePlayer"], g["Notifier"]
     IndexCommand, PitchCommand, LangChangeCommand = g["IndexCommand"], g["PitchCommand"], g["LangChangeCommand"]
     if side == "wrapper":
-        if BREAK == "notify":
-            d.inner.notifySynth = None
         if BREAK == "memory":
             type(d)._set_variant = lambda self, v: None
+        if lang != "en":
+            # the unit booted straight into that language (startVoice), as a saved Spanish Braille Lite loads:
+            # away to another type and back, remembering the language
+            d._set_firmwareType("speakout")
+            d._memory[fw.split("-")[0]] = {"voice": lang}
+            d._set_firmwareType(fw.split("-")[0])
+            booted = d.inner._voice
+            if booted != voice:
+                sys.exit("wrapper: the unit came back on %r, not %r" % (booted, voice))
         d._set_voice(lang)
+        if BREAK == "notify":
+            d.inner.notifySynth = None
     elif voice:
         d._set_voice(voice)
     if fw.startswith("braillelite2000"):

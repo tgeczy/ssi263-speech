@@ -113,14 +113,15 @@ class SynthDriver(SynthDriver):
     def check(cls):
         return bool(cls._present())
 
-    def __init__(self):
+    def __init__(self, startVoice=None):
         super().__init__()
         self._rate = 50        # Accent rate 5, its default
         self._pitch = 50       # Accent pitch 5, its default
         self._inflection = 100  # full intonation (M0), its default
         self._volume = 100
         self._voice_char = "5"  # voice characteristic V5, its default
-        self._model = self._present()[0]   # which Accent, "mini" or "sa"; the worker boots it
+        # which Accent, "mini" or "sa"; the worker boots it (startVoice: synthDrivers/ssi263.py; NVDA gives none)
+        self._model = startVoice if startVoice in self._present() else self._present()[0]
         self._booted = None
         self._join = True
         self._numbers = True
@@ -135,6 +136,10 @@ class SynthDriver(SynthDriver):
         self._stopped = False
         self._box = None
         self._phase = ("start", time.monotonic())
+        # the worker's first boot, for a driver running this one inside (synthDrivers/ssi263.py): set once it
+        # is up, with bootError when it failed -- the constructor returning says nothing about the firmware
+        self.booted = threading.Event()
+        self.bootError = None
         self._worker = threading.Thread(target=self._run, name="accent-ssi263", daemon=True)
         self._worker.start()
         if DEBUG_LOG:
@@ -338,9 +343,12 @@ class SynthDriver(SynthDriver):
     def _run(self):
         try:
             self._boot()
-        except Exception:
+        except Exception as e:
             log.error("Accent: could not start the emulated card", exc_info=True)
+            self.bootError = e
+            self.booted.set()
             return
+        self.booted.set()
         while not self._stopped:
             self._set_phase("waiting for speech")
             job = self._queue.get()

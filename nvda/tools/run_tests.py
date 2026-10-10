@@ -155,24 +155,32 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
                         env={"UNIFIED_EQUIV_BREAK": "memory"}, expect_fail=True,
                         fail_marks=[r"^same  speakout plain ", r"^DIFF  speakout tone a +PCM differs",
                                     r"^DIFF  braillelite2000 tone 0 +PCM differs", UNIFIED_SUM]))
-    # its settings under NVDA's own load and save order, profiles and Cancel (unified_settings_test.py): per-firmware
-    # memory, the firmware type loaded before the voice, a missing firmware kept out of NVDA's load; one control per rule
-    CHECKS.append(check("0.8 driver settings: memory, order, Cancel, profiles", [PY, "unified_settings_test.py"],
+    # its settings under NVDA's own load and save order, profiles and Cancel (unified_settings_test.py): each type's
+    # values only in its own keys (Reply 163, 1-2), the firmware type loaded first, a unit taken only once booted
+    # (Reply 163, 4); one control per rule
+    CHECKS.append(check("0.8 driver settings: memory, order, Cancel, profiles, boot", [PY, "unified_settings_test.py"],
                         ok=lambda out: bool(re.search(r"^unified settings: all passed$", out, re.M))))
-    for brk, marks in (("order", [r"^FAIL order ", r"^ok   memory ", r"^unified settings: 2 FAILED$"]),
-                       ("cancel", [r"^FAIL cancel ", r"^ok   order ", r"^unified settings: 1 FAILED$"]),
-                       ("loading", [r"^FAIL missing .*RAISED", r"^ok   order ", r"^unified settings: 1 FAILED$"])):
+    for brk, marks in (("plain", [r"^FAIL ring_type_only ", r"^ok   profile_one_key ", r"^unified settings: 1 FAILED$"]),
+                       ("sametype", [r"^FAIL profile_one_key ", r"^ok   memory ", r"^unified settings: 3 FAILED$"]),
+                       ("cancel", [r"^FAIL cancel ", r"^ok   order ", r"^unified settings: 2 FAILED$"]),
+                       ("ready", [r"^FAIL worker_boot ", r"^ok   boot_failure ", r"^unified settings: 1 FAILED$"])):
         CHECKS.append(check("0.8 driver settings CONTROL (%s, must fail)" % brk, [PY, "unified_settings_test.py"],
                             env={"UNIFIED_SETTINGS_BREAK": brk}, expect_fail=True, fail_marks=marks))
+    # the release archive's own check (build_ssi263.py verify_archive): clean as built, and a changed DLL, a missing
+    # Mockingboard file, a changed driver and an added disk image each caught by name (addon_archive_test.py)
+    CHECKS.append(check("0.8 archive check sees a changed, missing or added file", [PY, "addon_archive_test.py"],
+                        ok=lambda out: bool(re.search(r"^addon archive: all passed$", out, re.M))))
     # its global plugin (unified_plugin_test.py): the manual update check and its SHA256SUMS check, the 0.7 add-ons'
     # settings migrated profile by profile, the Voice panel refreshed after a firmware change; one control per rule
     CHECKS.append(check("0.8 plugin: updates, migration, panel refresh", [PY, "unified_plugin_test.py"],
                         ok=lambda out: bool(re.search(r"^unified plugin: all passed$", out, re.M))))
-    for brk, case in (("hash", "wrong_hash"), ("fill", "kept_existing"), ("ledger", "second_run"),
-                      ("options", "stale_choices"), ("revert", "switch_failed")):
+    for brk, case, n in (("hash", "wrong_hash", 1), ("fill", "kept_existing", 1), ("ledger", "second_run", 1),
+                         ("options", "stale_choices", 1), ("revert", "switch_failed", 2),
+                         ("inherit", "inherited_accent", 1), ("rollback", "save_retry", 2), ("pending", "start_retry", 1),
+                         ("ready", "manual_removal", 2), ("ringkey", "ring_key", 1)):
         CHECKS.append(check("0.8 plugin CONTROL (%s, must fail)" % brk, [PY, "unified_plugin_test.py"],
                             env={"UNIFIED_PLUGIN_BREAK": brk}, expect_fail=True,
-                            fail_marks=[r"^FAIL %s " % case, r"^ok   newer ", r"^unified plugin: 1 FAILED$"]))
+                            fail_marks=[r"^FAIL %s " % case, r"^ok   newer ", r"^unified plugin: %d FAILED$" % n]))
 # its must-fail control: 0.5.0's cancel put back on four seeds in parallel; it passes when a seed catches it (one seed
 # alone missed it under this suite's load about 1 run in 6)
 CHECKS.append(check("complete_fuzz CONTROL (0.5.0 cancel, must be caught)", [PY, "complete_fuzz_control.py", "150"]))

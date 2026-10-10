@@ -6,18 +6,23 @@ blazie.py, speakout.py, accentmini.py, and mockingboard.py, each with its engine
 starts with "_").  This driver runs ONE of them at a time, chosen by the firmware type, and passes NVDA's speech,
 settings and notifications through: what you hear is that driver's, byte for byte (nvda/tools/unified_driver_equiv.py).
 
-Settings (investigation/design-0.8-nvda-addon.md, its revisions after Astra's Reply 161):
+Settings (investigation/design-0.8-nvda-addon.md, its revisions after Astra's Reply 161, and Reply 163):
   firmware type  the units whose firmware is here (Braille Lite 2000, Speak-Out, Accent SA, Accent-mini, Mockingboard)
   voice          that firmware's languages, with their language codes, so NVDA's language switching works
   the rest       the unit's own settings, as its 0.7 add-on had them
-Each firmware type keeps its own values (Tomi): switching to the Accent restores the Accent's rate, pitch and voice.
-They live in NVDA's own config, in this driver's section, as fw_<type>_<setting> keys, so configuration profiles
-keep them too; the active type's are also under their plain names, as NVDA expects.  They are written only by
-saveSettings (NVDA's OK or save), so a Cancel -- loadSettings -- forgets what a switch remembered.
+Each firmware type keeps its own values (Tomi).  Where they are kept is ONE place: NVDA's config, this driver's
+section, the keys fw_<type>_<setting> (profile-aware key by key, so a profile that sets only the Braille Lite's
+rate inherits everything else).  The type itself is the plain key firmwareType.  The plain keys of the units'
+settings (rate, voice ...) are never read: NVDA's settings ring writes the one it changed there, and the global
+plugin's ring hook writes it to the firmware's own key as well (globalPlugins/ssi263Speech/ring.py); saveSettings,
+which NVDA also runs before every config save, writes them all.  So nothing NVDA writes elsewhere can overrule a
+firmware's own value (Reply 163, 1-2).  A switch remembers the old type's values in memory until saveSettings; a
+Cancel (loadSettings) forgets them.
 
-Loading is our own order (Reply 161, 2): the firmware type first, then its language, then its settings.  A firmware
-that fails to start leaves the previous unit speaking.  Never read the config in __init__ (blazie.py: 0.6.0's
-setSynth KeyError).
+Loading is our own order: the firmware type first, then its language, then its settings.  A unit is the new one only
+once its worker has booted the requested firmware and language (its booted event; Reply 163, 4): until then, and if
+it fails, the previous unit keeps speaking, and a unit switched away from reports to nobody NVDA knows.  Never read
+the config in __init__ (blazie.py: 0.6.0's setSynth KeyError).
 """
 
 from collections import OrderedDict
@@ -45,6 +50,12 @@ if mockingboard is not None:
 LANGUAGES = {"en": "English", "es": "Español"}
 # the units' own string settings with choices (NVDA's available<Id>s, its id capitalized)
 CHOICES = ("variant", "sampleRate", "whine")
+BOOT_TIMEOUT = 30.0              # seconds a unit may take to boot its firmware before it counts as failed
+
+
+class _Stale:
+    """the synth a unit switched away from reports as: not NVDA's, so its late index and done are dropped"""
+    name = "ssi263 (switched away)"
 
 
 def _settings_of(fw):
@@ -100,85 +111,133 @@ class _Unified(SynthDriver):
         self._fw = None
         self._inner = None
         self._memory = {}            # firmware type -> its values when switched away from; saveSettings writes them
-        self._loading = False        # inside loadSettings: the firmware type is handled before NVDA's own pass
+        self._defaults = {}          # firmware type -> its unit's own values when it started (a key never saved)
+        self._loading = False        # inside loadSettings: the firmware type is handled before anything else
         types = present_types()
         if not types:
             raise RuntimeError("SSI-263: no firmware is here")
         self._fw, self._inner = types[0], self._make(types[0])
 
     # -- the unit -----------------------------------------------------------------------------------------------
-    def _make(self, fw):
-        """a started unit of that firmware type, speaking its first language"""
+    def _make(self, fw, lang=None):
+        """a unit of that firmware type whose worker has BOOTED that language's firmware; raises otherwise"""
         _name, mod, voices = FIRMWARE_TYPES[fw]
-        inner = mod.SynthDriver()
-        inner.notifySynth = self
+        langs = present_languages(fw)
+        lang = lang if lang in langs else langs[0]
+        inner = mod.SynthDriver(startVoice=voices[lang])
         try:
-            inner._set_voice(voices[present_languages(fw)[0]])
+            booted = getattr(inner, "booted", None)
+            if booted is not None:
+                if not booted.wait(BOOT_TIMEOUT):
+                    raise RuntimeError("SSI-263: the %s did not boot in %.0f s" % (FIRMWARE_TYPES[fw][0], BOOT_TIMEOUT))
+                if inner.bootError is not None:
+                    raise RuntimeError("SSI-263: the %s did not boot: %s" % (FIRMWARE_TYPES[fw][0], inner.bootError))
+            inner._set_voice(voices[lang])
         except Exception:
+            inner.notifySynth = _Stale
             inner.terminate()
             raise
+        inner.notifySynth = self
+        if fw not in self._defaults:
+            self._defaults[fw] = self._values_of(inner, fw)
         return inner
+
+    def _values_of(self, inner, fw):
+        out = OrderedDict()
+        voices = FIRMWARE_TYPES[fw][2]
+        for s in inner.supportedSettings:
+            if s.id == "voice":
+                cur = inner._get_voice()
+                out["voice"] = next((lang for lang, v in voices.items() if v == cur), next(iter(voices)))
+            else:
+                fn = getattr(inner, "_get_" + s.id, None)
+                out[s.id] = fn() if fn else None
+        return out
 
     def _values(self):
         """the active unit's values, by setting id (the voice as its language)"""
-        out = OrderedDict()
-        for s in self._inner.supportedSettings:
-            out[s.id] = self._get_voice() if s.id == "voice" else self._get(s.id)
-        return out
+        return self._values_of(self._inner, self._fw)
 
-    def _apply(self, values):
+    def _apply(self, values, onlyChanged=False):
         """values onto the active unit: the language first (blazie.py starts its unit with it)"""
-        if "voice" in values:
+        cur = self._values() if onlyChanged else {}
+        if "voice" in values and not (onlyChanged and cur.get("voice") == values["voice"]):
             try:
                 self._set_voice(values["voice"])
+                self._voice_changed()
             except Exception:
-                pass
+                log.debugWarning("SSI-263: voice %r not applied" % (values["voice"],), exc_info=True)
         for k, v in values.items():
-            if k != "voice" and v is not None:
-                try:
-                    self._set(k, v)
-                except Exception:
-                    log.debugWarning("SSI-263: %s=%r not applied" % (k, v), exc_info=True)
+            if k == "voice" or v is None or (onlyChanged and cur.get(k) == v):
+                continue
+            try:
+                self._set(k, v)
+            except Exception:
+                log.debugWarning("SSI-263: %s=%r not applied" % (k, v), exc_info=True)
 
-    def _saved(self, fw):
-        """a firmware type's own values from NVDA's config (the profile's, or the base's); {} when none"""
+    def _voice_changed(self):
+        """what NVDA's changeVoice does after a voice change: the settings ring and the voice's dictionary"""
+        try:
+            import speechDictHandler
+            speechDictHandler.loadVoiceDict(self)
+        except Exception:
+            pass
+
+    def _section(self):
         try:
             import config
-            c = config.conf["speech"][self.name]
+            return config.conf["speech"][self.name]
         except Exception:
-            return {}
+            return None
+
+    def _saved(self, fw):
+        """a firmware type's own values from NVDA's config (each from the topmost profile that sets it)"""
+        c = self._section()
         out = OrderedDict()
+        if c is None:
+            return out
         for s in _settings_of(fw):
             key = mem_key(fw, s.id)
             try:
-                isset = c.isSet(key) if hasattr(c, "isSet") else key in c
-                if isset:
-                    out[s.id] = c[key]
+                if c.isSet(key) if hasattr(c, "isSet") else key in c:
+                    v = c[key]
+                    if v is not None:
+                        out[s.id] = v
             except Exception:
                 pass
         return out
 
+    def _wanted(self, fw):
+        """what a firmware type should have now: remembered from a switch, else saved, else its unit's defaults"""
+        if fw in self._memory:
+            return self._memory[fw]
+        values = OrderedDict(self._defaults.get(fw, {}))
+        values.update(self._saved(fw))
+        return values
+
     def _switch(self, fw, remember=True):
-        """to another firmware type: the new unit started first (if it fails, the old one keeps speaking), then its
-        own values -- the ones it had when switched away from, else the saved ones, else its defaults"""
+        """to another firmware type: the new unit booted first (if it fails, the old one keeps speaking), then its
+        own values"""
         if fw == self._fw:
             return
         if fw not in FIRMWARE_TYPES or not present_languages(fw):
             raise ValueError("SSI-263: no %s firmware here" % fw)
+        if remember:
+            self._memory[self._fw] = self._values()
+        want = self._memory.get(fw) or self._saved(fw)
         try:
             import speech
             getattr(speech, "cancelSpeech", lambda: None)()   # NVDA would wait for the old unit's notifications
         except Exception:
             pass
-        if remember:
-            self._memory[self._fw] = self._values()
-        new = self._make(fw)
+        new = self._make(fw, want.get("voice"))
         old, self._fw, self._inner = self._inner, fw, new
+        old.notifySynth = _Stale
         try:
             old.terminate()
         except Exception:
             log.debugWarning("SSI-263: the old unit did not stop cleanly", exc_info=True)
-        self._apply(self._memory.get(fw) or self._saved(fw))
+        self._apply(self._wanted(fw))
         self._refresh_ring()
 
     def _refresh_ring(self):
@@ -217,6 +276,7 @@ class _Unified(SynthDriver):
 
     def terminate(self):
         if self._inner is not None:
+            self._inner.notifySynth = _Stale
             self._inner.terminate()
 
     def _get_supportedCommands(self):
@@ -264,9 +324,11 @@ class _Unified(SynthDriver):
         return spec
 
     def saveSettings(self):
-        super().saveSettings()
-        import config
-        c = config.conf["speech"][self.name]
+        """the firmware type, and every remembered type's own values; NVDA runs this before every config save"""
+        c = self._section()
+        if c is None:
+            return
+        c["firmwareType"] = self._fw
         memory = dict(self._memory)
         memory[self._fw] = self._values()
         for fw, values in memory.items():
@@ -276,24 +338,23 @@ class _Unified(SynthDriver):
         self._memory.clear()
 
     def loadSettings(self, onlyChanged=False):
-        # what a switch remembered is forgotten (a Cancel); the saved firmware type first, then NVDA's own order
+        """the saved firmware type, then its own values (all of them, the same type too: a profile may set only
+        some); what a switch remembered is forgotten (a Cancel)"""
         self._memory.clear()
-        try:
-            import config
-            fw = config.conf["speech"][self.name].get("firmwareType")
-        except Exception:
-            fw = None
+        c = self._section()
+        fw = c.get("firmwareType") if c is not None else None
         if fw and fw != self._fw:
             if fw in FIRMWARE_TYPES and present_languages(fw):
                 try:
                     self._switch(fw, remember=False)
+                    return
                 except Exception:
                     log.error("SSI-263: could not start the %s; keeping the %s" % (fw, self._fw), exc_info=True)
             else:
                 log.warning("SSI-263: the saved firmware type %r is not here; keeping the %s" % (fw, self._fw))
         self._loading = True
         try:
-            super().loadSettings(onlyChanged)
+            self._apply(self._wanted(self._fw), onlyChanged)
         finally:
             self._loading = False
 
