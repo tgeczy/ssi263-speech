@@ -1,6 +1,7 @@
 /* ssa_engine.c -- see ssa_engine.h.  The voices' engines are src/csrc/voices.c's table (the one the SAPI engine
  * speaks through: each voice's API, its NVDA driver's defaults), units made with ssv_create_from -- the imported
- * firmware by path under the app's own names, the Aicom ROMs and driver in memory.  What is Android's own stays here:
+ * firmware (the Braille Lite's, the Speak-Out's, the Mockingboard's) by path under the app's own names, the Aicom
+ * ROMs and driver in memory.  What is Android's own stays here:
  * the request's rate and pitch on the sliders (a capital's pitch moved at least one step), the Accent SA's fresh unit
  * per utterance, and the pull with a stop between blocks.  The bank (ssv_bank) is not used: it keeps one card for
  * both Accents, and the Accent SA here is a fresh unit per utterance.
@@ -14,6 +15,9 @@
 #include "voices.h"
 #include "accentsa/as_voice.h"
 #include "speakout/so_voice.h"
+#ifdef SSV_HAVE_MOCKINGBOARD
+#include "mockingboard/mb_voice.h"
+#endif
 #include "ssa_engine.h"
 #include "ssa_map.h"
 
@@ -34,6 +38,7 @@ static const voice_def VOICES[SSA_VOICES] = {
     {"accentmini:sa", {NULL}},
     {"speakout:speakout", {SSA_SPEAKOUT_FILE, NULL}},
     {"accentmini:mini", {NULL}},
+    {"mockingboard:mockingboard", {SSA_MOCKINGBOARD_FILE, NULL}},
 };
 static const size_t ROM_SIZES[3] = {0x10000, 0x8000, 0x8000};
 
@@ -154,10 +159,25 @@ static void settings_for(const ssa_engine *e, int voice, const ssa_settings *s, 
         }
         break;
     }
+    case SSA_MOCKINGBOARD:             /* as the Speak-Out: the slider's pitch as the setting, the request's as a
+                                          capital's offset; the number words from the settings, as the Braille Lite */
+        o->pitch = clamp100(s->pitch);
+        *offset = ssa_mockingboard_pitch(s->pitch, ssa_voice_break == 5 ? 100 : request_pitch) - o->pitch;
+        o->numbers = s->numbers && ssa_voice_break != 6;
+        break;
     }
 }
 
 int ssa_speakout_pitch(int slider, int request) { return ssa_step_pitch(slider, request, sov_pitch_step); }
+
+int ssa_mockingboard_pitch(int slider, int request)
+{
+#ifdef SSV_HAVE_MOCKINGBOARD
+    return ssa_step_pitch(slider, request, mbv_pitch_step);
+#else
+    return ssa_pitch(slider, request);
+#endif
+}
 
 /* ---- the engine -------------------------------------------------------------------------------------------------- */
 

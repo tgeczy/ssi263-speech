@@ -7,9 +7,9 @@ plugins {
 
 // Everything the APK carries besides code is staged by build_android.sh at the repository root into
 // build/android/assets: the Accent SA's ROMs (Aicom's, the built-in voice), and the licences (MIT, MAME's BSD notices).
-// No Braille Lite firmware: the app's users import their own (FirmwareImport.kt); only a developer build asked for
-// with SSI263_ANDROID_BUNDLE_FIRMWARE=1 carries it.  The native library, from the same sources as the Linux and
-// Windows builds, is dropped under jniLibs.  Gradle only checks both are there.
+// No Braille Lite, Speak-Out or Mockingboard firmware: the app's users import their own (FirmwareImport.kt); only a
+// developer build asked for with SSI263_ANDROID_BUNDLE_FIRMWARE=1 carries it.  The native library, from the same
+// sources as the Linux and Windows builds, is dropped under jniLibs.  Gradle only checks both are there.
 val repoRoot = rootProject.file("../../..")
 val stagedAssets = File(repoRoot, "build/android/assets")
 val abis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
@@ -26,7 +26,12 @@ val verifyNativeBuild = tasks.register("verifyNativeBuild") {
                             "aicom/u2.BIN", "aicom/u3.BIN", "aicom/u4.BIN") +
                             // the Accent-mini, built in once its voice's sources are in the tree (build_android.sh)
                             (if (File(repoRoot, "src/csrc/accentmini/am_voice.c").isFile)
-                                listOf("aicom/SPKEMS.DVC", "licenses/MAME-8086-core-BSD-3-Clause.txt") else emptyList())) {
+                                listOf("aicom/SPKEMS.DVC", "licenses/MAME-8086-core-BSD-3-Clause.txt") else emptyList()) +
+                            // the Mockingboard's 6502 credits, once its voice's sources are in the tree (its
+                            // firmware is the user's to import)
+                            (if (File(repoRoot, "src/csrc/mockingboard/mb_voice.c").isFile)
+                                listOf("licenses/Fake6502-6502-core.txt", "licenses/EchoTalk-BSD-3-Clause.txt")
+                            else emptyList())) {
             check(File(stagedAssets, name).isFile) { "build/android/assets/$name is missing: run `sh build_android.sh`" }
         }
         // All-MAME 0.7: no GPL code, so nothing of 0.6's GPL staging may ride along from an older stage

@@ -1,8 +1,9 @@
 /* ssa_jni.c -- the JNI bridge from Kotlin (SsiNative.kt) to the front end (ssa_engine.h).
  *
  * Thin: it marshals strings, the Accents' ROMs and the PCM buffer across the boundary and calls ssa_*, which calls
- * bl_voice, as_voice, so_voice (and am_voice, in a build with the Accent-mini) -- the same C the speech-dispatcher
- * module and the NVDA add-ons' libraries are built from, linked into this one .so.  No IPC.
+ * bl_voice, as_voice, so_voice (and am_voice and mb_voice, in a build with the Accent-mini and the Mockingboard) --
+ * the same C the speech-dispatcher module and the NVDA add-ons' libraries are built from, linked into this one .so.
+ * No IPC.
  *
  * C, not C++: only MAME's CPU cores (the Z180, the 8085, the V40) are C++, linked with a static libc++ inside the .so.
  *
@@ -194,9 +195,10 @@ static unsigned char *bytes_of(JNIEnv *env, jbyteArray a, jsize *n)
 }
 
 /* ssa_import.h's ssa_import_firmware, the firmware in these bytes by content: BLV_FW_ENGLISH 0 or _SPANISH 1 (a
-   Braille Lite release on the list, written to `out` as a .BNS) or SSA_HEX_SPEAKOUT 3 (the known SPEAKOUT.HEX,
-   written to `out`), the label in nativeImportError; else negative (_NONE, _REFUSED, _WRITE, _UNKNOWN; SSA_HEX_OTHER
-   -5: an Intel HEX file but not the Speak-Out's), the reason in nativeImportError. */
+   Braille Lite release on the list, written to `out` as a .BNS), SSA_HEX_SPEAKOUT 3 (the known SPEAKOUT.HEX,
+   written to `out`) or SSA_FW_MOCKINGBOARD 5 (the known mockingboard-tts-1.1.bin, written to `out`), the label in
+   nativeImportError; else negative (_NONE, _REFUSED, _WRITE, _UNKNOWN; SSA_HEX_OTHER -5: an Intel HEX file but not
+   the Speak-Out's; SSA_FW_MB_BUILD -6: the Mockingboard's in a build without it), the reason in nativeImportError. */
 JNIEXPORT jint JNICALL FN(nativeImportFirmware)(JNIEnv *env, jclass cls, jbyteArray jdata, jstring jout)
 {
     jsize n;

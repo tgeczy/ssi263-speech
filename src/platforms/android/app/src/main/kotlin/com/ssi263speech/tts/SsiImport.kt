@@ -1,6 +1,7 @@
 // The import on the phone: a source's bytes (a file the system picker handed over, or a path from adb), judged by
 // FirmwareImport with the native side's eyes, then brought in -- each Braille Lite unit's state made from its
-// firmware on this phone (bl_state.c) and checked; the Speak-Out's HEX taken as it is -- each unit made to speak once,
+// firmware on this phone (bl_state.c) and checked; the Speak-Out's HEX and the Mockingboard's file taken as they
+// are -- each unit made to speak once,
 // and only then moved into place beside the voice.
 package com.ssi263speech.tts
 
@@ -61,8 +62,8 @@ object SsiImport {
         }
     }
 
-    private fun tooBig(source: Source) = "${source.name} is larger than 64 MB, so it is not Braille Lite or " +
-        "Speak-Out firmware, an update for it or the NVDA add-on."
+    private fun tooBig(source: Source) = "${source.name} is larger than 64 MB, so it is not Braille Lite, " +
+        "Speak-Out or Mockingboard firmware, an update for it or the NVDA add-on."
 
     fun inspect(ctx: Context, source: Source): FirmwareImport.Plan =
         FirmwareImport.inspect(source.name, read(source), SsiData.staging(ctx), NativeIdentify)
@@ -71,7 +72,7 @@ object SsiImport {
 
     /** The unit's name in the import's messages. */
     fun unitName(language: Int) =
-        if (language == FirmwareImport.SPEAKOUT) "Speak-Out" else "${FirmwareImport.languageName(language)} Braille Lite"
+        if (language in FirmwareImport.NO_STATE) FirmwareImport.languageName(language) else "${FirmwareImport.languageName(language)} Braille Lite"
 
     class Cancelled : IOException("cancelled")
 
@@ -89,10 +90,10 @@ object SsiImport {
         @Volatile private var making = 0.0
         private val total: Double = plan.found.sumOf { weight(it.language).toDouble() }.coerceAtLeast(1.0)
 
-        /** English's state is 150 million instructions, Spanish's 1150 million; the Speak-Out has no state to make,
-         * only its check. */
+        /** English's state is 150 million instructions, Spanish's 1150 million; the Speak-Out and the Mockingboard
+         * have no state to make, only their check. */
         private fun weight(language: Int) = when (language) {
-            FirmwareImport.SPANISH -> 1150; FirmwareImport.SPEAKOUT -> 15; else -> 150 }
+            FirmwareImport.SPANISH -> 1150; FirmwareImport.SPEAKOUT, FirmwareImport.MOCKINGBOARD -> 15; else -> 150 }
 
         fun start(ctx: Context) = Thread({
             result = runCatching { commit(ctx.applicationContext) }
@@ -119,7 +120,7 @@ object SsiImport {
                     val firmware = File(ready, files[0])
                     if (!f.firmware.renameTo(firmware)) f.firmware.copyTo(firmware, overwrite = true)
                     val w = weight(f.language).toDouble()
-                    if (f.language != FirmwareImport.SPEAKOUT) {
+                    if (f.language !in FirmwareImport.NO_STATE) {
                         val state = File(ready, files[1])
                         step = "Preparing the $name unit"
                         listener?.invoke(this)

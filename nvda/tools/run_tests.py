@@ -942,10 +942,13 @@ if os.path.isfile(ANDROID_TEST):
     ANDROID_FW = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware")
     ANDROID_SO = os.path.isfile(os.path.join(ANDROID_FW, "gw-micro-speakout", "SPEAKOUT.HEX"))
     ANDROID_MINI = os.path.isfile(os.path.join(ANDROID_FW, "aicom-accent-mini", "SPKEMS.DVC"))
+    # the Mockingboard's firmware is imported by the user, never committed: its cases run where the file is
+    ANDROID_MB = os.path.isfile(os.path.join(ANDROID_FW, "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin"))
     # the number words' reference (bl.dll has none): ssi263speech.dll, src/csrc/build_ssi263speech.py
     ANDROID_NUM = os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", "win",
                                               "x64" if sys.maxsize > 2 ** 32 else "x86", "ssi263speech.dll"))
-    CHECKS.append(check("Android engine: native part as bl.dll, the NVDA Accent driver, so_voice and am_voice",
+    # ... and the Mockingboard (imported, 0.8) as mb_voice driven directly, with its import by sha256 and two controls
+    CHECKS.append(check("Android engine: native part as bl.dll, the NVDA Accent driver, so_voice, am_voice and mb_voice",
                         [PY, ANDROID_TEST]))
     for brk, what, marks in (
             ("1", "rate dropped",
@@ -975,12 +978,20 @@ if os.path.isfile(ANDROID_TEST):
              [r"^FAIL +desktop +s-pitch-150 +got ", r"^ok +desktop +s-pitch-100 ", r"^FAILED: 7 case\(s\) differ$"]),
             ("speakout-settings", "Speak-Out: tone, join and short pauses dropped",
              [r"^FAIL +desktop +s-settings +got ", r"^ok +desktop +s-sliders ", r"^FAILED: 9 case\(s\) differ$"]),
-            ("import-hash", "Speak-Out import: the sha256 dropped",
-             [r"^FAIL +import +another HEX ", r"^ok +import +a HEX with one digit changed",
-              r"^FAILED: 1 case\(s\) differ$"])) if ANDROID_SO else ()):
-        # each control runs the blocks its bug touches (SSI263_ANDROID_TEST_ONLY), not all five voices: the gate's time
+            ("import-hash", "Speak-Out and Mockingboard import: the sha256 dropped",
+             [r"^FAIL +import +another HEX ", r"^ok +import +a HEX with one digit changed"] +
+             ([r"^FAIL +import +the file with one byte changed: Mockingboard", r"^ok +import +the file cut short",
+               r"^FAILED: 2 case\(s\) differ$"] if ANDROID_MB else [r"^FAILED: 1 case\(s\) differ$"])),)
+            if ANDROID_SO else ()) + ((
+            ("mockingboard-pitch", "Mockingboard: the request's pitch dropped",
+             [r"^FAIL +desktop +mb-pitch-150 +got ", r"^ok +desktop +mb-pitch-100 ", r"^FAILED: 9 case\(s\) differ$"]),
+            ("mockingboard-numbers", "Mockingboard: number words dropped",
+             [r"^FAIL +desktop +mb-num +got ", r"^FAIL +desktop +mb-num-off +got ", r"^ok +desktop +mb-pitch-120 ",
+              r"^FAILED: 5 case\(s\) differ$"])) if ANDROID_MB else ()):
+        # each control runs the blocks its bug touches (SSI263_ANDROID_TEST_ONLY), not all six voices: the gate's time
         only = {"1": "bl,accent", "accent-pitch": "accent,mini", "run-ahead": "bl,ra", "numbers": "num",
-                "speakout-pitch": "so", "speakout-settings": "so", "import-hash": "import"}.get(brk, "accent")
+                "speakout-pitch": "so", "speakout-settings": "so", "import-hash": "import",
+                "mockingboard-pitch": "mb", "mockingboard-numbers": "mb"}.get(brk, "accent")
         CHECKS.append(check("Android engine CONTROL (%s, must fail)" % what, [PY, ANDROID_TEST],
                             env={"SSI263_ANDROID_TEST_BREAK": brk, "SSI263_ANDROID_TEST_ONLY": only}, expect_fail=True,
                             fail_marks=marks))
@@ -1010,7 +1021,8 @@ if os.path.isfile(ANDROID_TEST):
     # are not, Astra's Reply 127)
     CHECKS.append(check("Android APK check: MIT and MAME's BSD notices, no GPL", [PY, APK_CHECK, "--synthetic"],
                         ok=lambda out: bool(re.search(r"^synthetic\.apk: licences MIT \(ours, Casso's\), MAME's "
-                                                      r"BSD-3-Clause \(Z180, 8085, V40, 8086\), Aicom's; no GPL or Unicorn$",
+                                                      r"BSD-3-Clause \(Z180, 8085, V40, 8086\), Aicom's"
+                                                      r"(, Fake6502's and EchoTalk's)?; no GPL or Unicorn$",
                                                       out, re.M))))
     CHECKS.append(check("Android APK check CONTROL (z180emu's GPL among the licences, must fail)",
                         [PY, APK_CHECK, "--control-gpl", "--synthetic"], expect_fail=True,
@@ -1031,7 +1043,10 @@ if os.path.isfile(ANDROID_TEST):
     for fw, what, mark in ((os.path.join(ROOT_FW, "blazie", "BL2ENG.BNS"), "a Blazie image beside Aicom's ROMs",
                             r"unit\.dat: a Braille Lite ROM image; Aicom ROMs allowed: [34] "),
                            (os.path.join(ROOT_FW, "gw-micro-speakout", "SPEAKOUT.HEX"), "the Speak-Out's firmware",
-                            r"unit\.dat: the Speak-Out's SPEAKOUT\.HEX; .*unit\.dat: an Intel HEX image")):
+                            r"unit\.dat: the Speak-Out's SPEAKOUT\.HEX; .*unit\.dat: an Intel HEX image"),
+                           (os.path.join(ROOT_FW, "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin"),
+                            "the Mockingboard's firmware",
+                            r"unit\.dat: the Mockingboard's mockingboard-tts-1\.1\.bin")):
         if os.path.isfile(fw):
             CHECKS.append(check("Android APK check CONTROL (%s, must fail)" % what,
                                 [PY, APK_CHECK, "--control", fw, "--synthetic"], expect_fail=True,

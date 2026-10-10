@@ -1,12 +1,14 @@
 // FirmwareImport's layout and wording on the JVM, with no phone and no firmware: the native side's judgement is
 // played by a fake that knows a made-up image by the same signature (F3 C3 xx xx FF "COPYRIGHT") plus a letter for
-// what it is, and a made-up Intel HEX text (":" records) as the Speak-Out's when it says GOOD, a damaged one when not.
+// what it is, and a made-up Intel HEX text (":" records) as the Speak-Out's when it says GOOD, a damaged one when not,
+// and made-up bytes starting "SWEETMICRO" as the Mockingboard's file.
 // The real judgement (bl_firmware.c, its list of releases; ssa_import.c, SPEAKOUT.HEX's sha256) has its own tests,
 // test_import_native.py and test_android_native.py, on the real files.
 //     gradlew testDebugUnitTest                              every case
 //     gradlew testDebugUnitTest -Pssi263ImportBreak=1        control: the layout rules off; the layout cases fail
 //     gradlew testDebugUnitTest -Pssi263ImportBreak=state    control: a state not known as one; the state cases fail
 //     gradlew testDebugUnitTest -Pssi263ImportBreak=speakout control: the Speak-Out's HEX dropped; its cases fail
+//     gradlew testDebugUnitTest -Pssi263ImportBreak=mockingboard    the Mockingboard's file dropped; its cases fail
 package com.ssi263speech.tts
 
 import org.junit.Assert.assertEquals
@@ -36,6 +38,9 @@ class FirmwareImportTest {
     private fun hex(good: Boolean) = (":020000020000FC\r\n:10000000" + (if (good) "GOOD" else "BAD0") +
         "000000000000000000000000000000\r\n:00000001FF\r\n").toByteArray()
 
+    /** A made-up Mockingboard file: the native side knows the real one by its sha256. */
+    private fun mockingboard() = "SWEETMICRO".toByteArray() + ByteArray(2000) { (it * 5).toByte() }
+
     /** A made-up state: the size every state has, whatever is in it. */
     private fun state() = ByteArray(FirmwareImport.STATE_SIZE) { (it * 13).toByte() }
 
@@ -48,6 +53,10 @@ class FirmwareImportTest {
                     return FirmwareImport.OTHER_HEX to "an Intel HEX file, but damaged: line 2's checksum or length is wrong"
                 out.writeBytes(data)
                 return FirmwareImport.SPEAKOUT to "GW Micro Speak-Out: SPEAKOUT.HEX"
+            }
+            if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "SWEETMICRO") {
+                out.writeBytes(data)
+                return FirmwareImport.MOCKINGBOARD to "Mockingboard: Sweet Micro Systems' text-to-speech 1.1"
             }
             val at = (0..data.size - 15).firstOrNull { i ->
                 data[i] == 0xF3.toByte() && data[i + 1] == 0xC3.toByte() && data[i + 4] == 0xFF.toByte() &&
@@ -113,8 +122,8 @@ class FirmwareImportTest {
     @Test fun aZipWithNoFirmwareSaysSo() {
         val plan = inspect("photos.zip", zip("a.txt" to "hello".toByteArray(), "b/c.bin" to ByteArray(300)))
         assertTrue(plan.found.isEmpty())
-        assertTrue(plan.refusal!!, plan.refusal!!.startsWith("This zip does not contain Braille Lite or Speak-Out " +
-            "firmware."))
+        assertTrue(plan.refusal!!, plan.refusal!!.startsWith("This zip does not contain Braille Lite, Speak-Out or " +
+            "Mockingboard firmware."))
     }
 
     @Test fun firmwareTwoFoldersDownIsNotLookedForButNamed() {
@@ -312,9 +321,42 @@ class FirmwareImportTest {
         assertTrue(plan.notes.single(), plan.notes.single().startsWith("unit.dat is a state file, not firmware"))
     }
 
-    @Test fun theWordsNameBothUnits() {
-        assertEquals("This file does not contain Braille Lite or Speak-Out firmware.", FirmwareImport.NO_FIRMWARE_FILE)
+    // ---- the Mockingboard: Sweet Micro Systems' file, by its sha256 (Tomi, 2026-10-09: imported as Blazie's is) ------
+
+    @Test fun theMockingboardFileAlone() {
+        val plan = inspect("mockingboard-tts-1.1.bin", mockingboard())
+        assertNull(plan.refusal)
+        assertEquals(listOf(FirmwareImport.MOCKINGBOARD), languages(plan))
+        assertEquals("Mockingboard: Sweet Micro Systems' text-to-speech 1.1", plan.found[0].label)
+        assertTrue(plan.found[0].firmware.readBytes().contentEquals(mockingboard()))
+    }
+
+    @Test fun theMockingboardFileOneFolderDownBesideTheOthers() {
+        val plan = inspect("units.zip", zip("blt2000/BL2ENG.BNS" to bns('E'), "speakout/SPEAKOUT.HEX" to hex(true),
+            "mockingboard/mockingboard-tts-1.1.bin" to mockingboard()))
+        assertEquals(listOf(FirmwareImport.ENGLISH, FirmwareImport.SPEAKOUT, FirmwareImport.MOCKINGBOARD),
+            languages(plan))
+        assertEquals("mockingboard/mockingboard-tts-1.1.bin", plan.found[2].from)
+    }
+
+    @Test fun theMockingboardFileTwoFoldersDownIsNamed() {
+        val plan = inspect("deep.zip", zip("backup/mockingboard/mockingboard-tts-1.1.bin" to mockingboard()))
+        assertTrue(plan.found.isEmpty())
+        assertTrue(plan.refusal!!, plan.refusal!!.contains("backup/mockingboard/mockingboard-tts-1.1.bin is deeper " +
+            "than that"))
+    }
+
+    @Test fun theMockingboardHasNoStateToMake() {
+        assertTrue(FirmwareImport.MOCKINGBOARD in FirmwareImport.NO_STATE)
+        assertEquals(listOf("mockingboard-tts-1.1.bin"), FirmwareImport.FILES[FirmwareImport.MOCKINGBOARD])
+        assertTrue(FirmwareImport.MOCKINGBOARD in FirmwareImport.IMPORTED)
+    }
+
+    @Test fun theWordsNameEveryUnit() {
+        assertEquals("This file does not contain Braille Lite, Speak-Out or Mockingboard firmware.",
+            FirmwareImport.NO_FIRMWARE_FILE)
         assertTrue(FirmwareImport.WHAT_TO_CHOOSE.contains("GW Micro's SPEAKOUT.HEX, or the speakout.zip holding it"))
+        assertTrue(FirmwareImport.WHAT_TO_CHOOSE.contains("the Mockingboard's: mockingboard-tts-1.1.bin"))
         assertEquals("This is a state file, not firmware. Please import only firmware files, or zips containing " +
             "them, with this tool.", FirmwareImport.STATE_FILE)
     }

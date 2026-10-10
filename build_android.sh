@@ -2,14 +2,17 @@
 # Build the Android app's native library, libssi263speech.so: the SSI-263 chip, the Braille Lite board (on MAME's
 # Z180 core), the Braille Lite host and voice, the Aicom Accent SA's board, host and voice on MAME's 8085 core, the GW
 # Micro Speak-Out's board, host and voice on MAME's V40 core, and -- when src/csrc/accentmini/am_voice.c is in the
-# tree -- the Aicom Accent-mini's (C++17 cores, with a static libc++ inside the one .so) -- the same sources and flags
+# tree -- the Aicom Accent-mini's (C++17 cores, with a static libc++ inside the one .so), and -- when
+# src/csrc/mockingboard/mb_voice.c is -- the Mockingboard's board, host and voice on the 6502 (Fake6502's
+# instructions, src/csrc/cpu/m6502.c) -- the same sources and flags
 # as build_linux.sh -- plus the app's front end
 # (src/platforms/android/app/src/main/cpp), cross-built with the NDK's clang and dropped where Gradle packages
 # prebuilt libraries.  Then it stages what the APK carries besides code: the Accent SA's ROMs (Aicom's, the one
 # firmware the app ships: Tomi, 2026-09-30) and the licences: the project's MIT, and MAME's BSD-3-Clause notices for
-# the Z180, 8085 and V40 cores (and the 8086's with the Accent-mini).  No GPL code
-# (src/platforms/android/test/check_apk_no_firmware.py audits the APK).
-# Not the Braille Lite's firmware nor the Speak-Out's: the app's users import their own.  The Accent-mini's SPKEMS.DVC
+# the Z180, 8085 and V40 cores (and the 8086's with the Accent-mini; Fake6502's credit and EchoTalk's BSD-3-Clause
+# with the Mockingboard).  No GPL code (src/platforms/android/test/check_apk_no_firmware.py audits the APK).
+# Not the Braille Lite's firmware, the Speak-Out's nor the Mockingboard's: the app's users import their own (Sweet
+# Micro's is treated as Blazie's: Tomi, 2026-10-09).  The Accent-mini's SPKEMS.DVC
 # (Aicom's, beside the Accent SA's ROMs) only in a build with the Accent-mini.
 #
 #   sh build_android.sh                  arm64-v8a, armeabi-v7a and x86_64
@@ -68,17 +71,25 @@ Z180CXX="-O3 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fPIC -fvisi
 MAME="-O2 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fPIC -fvisibility=hidden -Wall -Wno-sign-compare -I$SRC/cpu -I$SRC"
 ACCENT="-O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/accentsa -I$SRC"
 SPEAKOUT="-O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/speakout -I$SRC"
+# the Mockingboard's 6502, board, host and voice, as build_ssi263speech.py builds them
+MOCKING="-O2 -std=gnu99 -ffp-contract=off -fPIC -fvisibility=hidden -w -I$SRC/cpu -I$SRC/mockingboard -I$SRC"
 CPP="$APP/cpp"
 AICOM="$ROOT/firmware/aicom-accent-sa"
 AICOM_MINI="$ROOT/firmware/aicom-accent-mini"
 # The voices' table (src/csrc/voices.c, the SAPI engine's too) gets the engines whose sources are in the tree, as
 # src/csrc/build_ssi263speech.py builds it: the Speak-Out (so_voice.h) and the Accent-mini (am_voice.h, Aicom's
-# SPKEMS.DVC on an emulated PC; its driver is then staged beside the Accent SA's ROMs).
+# SPKEMS.DVC on an emulated PC; its driver is then staged beside the Accent SA's ROMs) and the Mockingboard
+# (mb_voice.h; its firmware imported by the user, never staged).
 MINI=0
+MB=0
 HAVE="-DSSV_HAVE_SPEAKOUT"
 if [ -f "$SRC/accentmini/am_voice.c" ]; then
     MINI=1
     HAVE="$HAVE -DSSV_HAVE_ACCENTMINI"
+fi
+if [ -f "$SRC/mockingboard/mb_voice.c" ]; then
+    MB=1
+    HAVE="$HAVE -DSSV_HAVE_MOCKINGBOARD"
 fi
 
 target() {
@@ -118,7 +129,7 @@ objects() {
     cc --target="$TARGET" $FRONT -I"$SRC/blazie" -c -o "$O/bl_numbers.o" "$SRC/blazie/bl_numbers.c"
     cc --target="$TARGET" $FRONT $HAVE -c -o "$O/voices.o" "$SRC/voices.c"
     cc --target="$TARGET" $FRONT -c -o "$O/ssa_map.o" "$CPP/ssa_map.c"
-    cc --target="$TARGET" $FRONT -c -o "$O/ssa_engine.o" "$CPP/ssa_engine.c"
+    cc --target="$TARGET" $FRONT $HAVE -c -o "$O/ssa_engine.o" "$CPP/ssa_engine.c"
     cc --target="$TARGET" $FRONT -c -o "$O/ssa_import.o" "$CPP/ssa_import.c"
     # The Speak-Out (MAME's V40, src/csrc/speakout: its board, host and voice; so_voice.h lists them)
     cxx --target="$TARGET" $MAME -c -o "$O/v40_mame.o" "$SRC/cpu/v40_mame.cpp"
@@ -132,6 +143,12 @@ objects() {
         cxx --target="$TARGET" $MAME -c -o "$O/i86_mame.o" "$SRC/cpu/i86_mame.cpp"
         for f in pc86/pc86 accentmini/am_host accentmini/am_voice; do
             cc --target="$TARGET" $ACCENT -I$SRC/pc86 -c -o "$O/${f##*/}.o" "$SRC/$f.c"
+        done
+    fi
+    # The Mockingboard (the 6502, src/csrc/mockingboard's board, host and voice), when its sources are in the tree
+    if [ "$MB" = 1 ]; then
+        for f in cpu/m6502 mockingboard/mb_board mockingboard/mb_host mockingboard/mb_voice; do
+            cc --target="$TARGET" $MOCKING -c -o "$O/${f##*/}.o" "$SRC/$f.c"
         done
     fi
 }
@@ -200,6 +217,11 @@ stage_assets() {
                 break
             fi
         done
+        # the Mockingboard's, when it is in the repository's firmware folder
+        MBFW="$ROOT/firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin"
+        if [ "$MB" = 1 ] && [ -f "$MBFW" ]; then
+            cp "$MBFW" "$A/firmware/"
+        fi
         echo "DEVELOPER BUILD: the firmware is bundled; do not distribute this APK"
     fi
     cp "$ROOT/src/platforms/android/licenses/"*.txt "$A/licenses/"
@@ -210,6 +232,12 @@ stage_assets() {
     cp "$SRC/cpu/mame_nec/LICENSE-BSD-3-Clause.txt" "$A/licenses/MAME-NEC-V40-core-BSD-3-Clause.txt"
     if [ "$MINI" = 1 ]; then
         cp "$SRC/cpu/mame_i86/LICENSE-BSD-3-Clause.txt" "$A/licenses/MAME-8086-core-BSD-3-Clause.txt"
+    fi
+    # the Mockingboard's 6502: Fake6502 (public domain, credit asked) by way of EchoTalk (BSD-3-Clause), the names
+    # tools/package_linux.sh gives them; no Sweet Micro notice, as the app carries none of its firmware
+    if [ "$MB" = 1 ]; then
+        cp "$SRC/cpu/fake6502/PINNED.txt" "$A/licenses/Fake6502-6502-core.txt"
+        cp "$SRC/cpu/fake6502/LICENSE-EchoTalk-BSD-3-Clause.txt" "$A/licenses/EchoTalk-BSD-3-Clause.txt"
     fi
     cp "$ROOT/third_party/casso/LICENSE" "$A/licenses/Casso-MIT.txt"
     ls -R "$A" | head -20

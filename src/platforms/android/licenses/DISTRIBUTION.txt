@@ -3,8 +3,8 @@ SSI-263 Speech for Android: distribution and licenses
 Copyright (c) 2026 Tamas Geczy
 
 This app is free software under the MIT License: the SSI-263 chip model,
-the Braille Lite, Accent SA, Accent-mini and Speak-Out boards, hosts and
-voices, and the app itself.
+the Braille Lite, Accent SA, Accent-mini, Speak-Out and Mockingboard
+boards, hosts and voices, and the app itself.
 The chip model draws on Casso's SSI-263 model (MIT License: Robert Elmer),
 whose notice is under Full licenses.
 
@@ -15,6 +15,11 @@ licenses and copyright notices:
   Grull Osgo;
 - the Speak-Out's NEC V40: Bryan McPhail;
 - the Accent-mini's Intel 8086: Carl.
+
+The Mockingboard's 6502 takes its instructions from Fake6502 by Mike
+Chambers (public domain; credit asked and given, under Full licenses:
+Fake6502 6502 core), by way of EchoTalk by Jayson Smith, whose copy it
+pins (BSD-3-Clause License, under Full licenses).
 
 The source, and how to build this app, are at:
 https://github.com/tgeczy/ssi263-speech
@@ -28,11 +33,11 @@ notice under Full licenses (Aicom Accent SA notice). They are not ours and
 are not covered by the licenses above; they are the only firmware this app
 carries.
 
-This app carries no Blazie Braille Lite 2000 firmware and no GW Micro
-Speak-Out firmware. You import your own copy, which stays in the app's
-storage on this device; the Braille Lite's battery-backed state is made
-from it here. That firmware is not ours and is not covered by the licenses
-above.
+This app carries no Blazie Braille Lite 2000 firmware, no GW Micro
+Speak-Out firmware and no Sweet Micro Systems Mockingboard firmware. You
+import your own copy, which stays in the app's storage on this device; the
+Braille Lite's battery-backed state is made from it here. That firmware is
+not ours and is not covered by the licenses above.
 
 Use Full licenses to read the included terms. Third-party components retain
 their own licenses.

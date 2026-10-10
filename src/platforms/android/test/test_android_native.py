@@ -21,6 +21,12 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
   firmware/aicom-accent-mini/SPKEMS.DVC is there): against am_voice driven directly (test_android_native --am-direct:
   amv_set, amv_speak with the capital's offset, amv_render, amv_cancel on one kept unit), the settings computed here
   as the Accent SA's are.  am_voice itself is the NVDA Accent driver's "mini" voice (nvda/tools/am_voice_equiv.py).
+- The Mockingboard (imported, Sweet Micro Systems' firmware; its cases run when
+  firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin is there): against mb_voice driven directly
+  (test_android_native --mb-direct: mbv_set, mbv_speak with the capital's offset, mbv_render, mbv_cancel on one kept
+  unit), the settings computed here as the Speak-Out's are, its inflection's steps (mbv_pitch_step) for the capital's
+  move, and the number words from the settings: on and off must sound different.  Its import: the file taken by its
+  sha256, as it is; the same file with one byte changed, and one cut short, refused.
 - The import: GW Micro's SPEAKOUT.HEX recognised by content (Intel HEX, then the known sha256) as it is, with LF
   line endings, with a DOS end-of-file mark, and out of a speakout.zip like GW Micro's; a HEX with one digit
   changed, one whose checksums were fixed after the change (another HEX), one cut short, and other files refused;
@@ -48,11 +54,15 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
                              speakout-settings    ssa_voice_break 2: its tone, join and short pauses dropped
                              run-ahead            ssa_voice_break 3: the Braille Lite's run ahead dropped
                              numbers              ssa_voice_break 4: its number words dropped (always off)
-                             import-hash          ssa_import_break: any well-formed Intel HEX taken as the Speak-Out
+                             mockingboard-pitch   ssa_voice_break 5: the Mockingboard's request pitch dropped
+                             mockingboard-numbers ssa_voice_break 6: its number words dropped (always off)
+                             import-hash          ssa_import_break: any well-formed Intel HEX taken as the Speak-Out,
+                                                  any file of its size as the Mockingboard's
 
 SSI263_ANDROID_TEST_ONLY=<blocks>, a comma list of bl (the Braille Lite in lockstep, its Spanish unit and the probe),
 ra (run ahead), num (the number words), accent (the Accent SA and its text), so (the Speak-Out), mini (the
-Accent-mini), import (the Speak-Out import): only those blocks, on both sides -- for the controls, so each runs what
+Accent-mini), mb (the Mockingboard), import (the Speak-Out's and the Mockingboard's import): only those blocks, on
+both sides -- for the controls, so each runs what
 its bug touches (the 3-minute gate).
 
 Options: --firmware <folder> (default $SSI263_FIRMWARE, else firmware/blazie; the Spanish unit there or in its
@@ -111,6 +121,8 @@ FILES = {"en": ("BL2ENG.BNS", "bl2_2003_warm.state"), "es": ("BL2SPA.BNS", "bl2s
 AICOM = os.path.join(REPO, "firmware", "aicom-accent-sa")
 SPEAKOUT_HEX = os.path.join(REPO, "firmware", "gw-micro-speakout", "SPEAKOUT.HEX")
 MINI_DVC = os.path.join(REPO, "firmware", "aicom-accent-mini", "SPKEMS.DVC")
+MB_BIN = os.path.join(REPO, "firmware", "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin")
+MB_SHA256 = "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"    # mb_host.h's MB_SHA256
 SPEAKOUT_SHA256 = "1c6930c8c6aed0550bc267c14032f9195b450ed95de606f2fa9727e2b7eb1eb1"   # its README's
 
 # The Accent-mini's cases: test_android_native.c's mini_cases, in the same order -- (name, text, the app's rate and
@@ -150,6 +162,28 @@ SPEAKOUT_CASES = [
     ("s-11k", HELLO_S, 50, 50, 100, 100, 100, 8, 1, 1, 11025, 4096, 0),
 ]
 ROMS = ("u2.BIN", "u3.BIN", "u4.BIN")
+
+# The Mockingboard's cases: test_android_native.c's mb_cases, in the same order -- (name, text, the app's rate and
+# pitch sliders, the request's rate and pitch percentages, volume, numbers, sample rate, pull size, blocks before a
+# stop).  One unit across them, as the app keeps one.
+HELLO_MB = "Hello there. This is the Mockingboard, speaking on a phone."
+MB_CASES = [
+    ("mb-default", HELLO_MB, 50, 50, 100, 100, 100, 1, 22050, 4096, 0),
+    ("mb-default-97", HELLO_MB, 50, 50, 100, 100, 100, 1, 22050, 97, 0),
+    ("mb-fast", HELLO_MB, 50, 50, 200, 100, 100, 1, 22050, 4096, 0),
+    ("mb-sliders", HELLO_MB, 70, 80, 100, 100, 100, 1, 22050, 4096, 0),
+    ("mb-pitch-100", "B", 50, 50, 100, 100, 100, 1, 22050, 4096, 0),
+    ("mb-pitch-150", "B", 50, 50, 100, 150, 100, 1, 22050, 4096, 0),
+    ("mb-pitch-75", "B", 50, 50, 100, 75, 100, 1, 22050, 4096, 0),
+    ("mb-pitch-120", "B", 50, 50, 100, 120, 100, 1, 22050, 4096, 0),
+    ("mb-pitch-100-again", "B", 50, 50, 100, 100, 100, 1, 22050, 4096, 0),
+    ("mb-num", NUM_TEXTS["en"], 50, 50, 100, 100, 100, 1, 22050, 4096, 0),
+    ("mb-num-off", NUM_TEXTS["en"], 50, 50, 100, 100, 100, 0, 22050, 4096, 0),
+    ("mb-stopped", LONG, 50, 50, 100, 100, 100, 1, 22050, 4096, 8),
+    ("mb-after-stop", "Next message.", 50, 50, 100, 100, 100, 1, 22050, 4096, 0),
+    ("mb-volume-150", HELLO_MB, 50, 50, 100, 100, 150, 1, 22050, 4096, 0),
+    ("mb-11k", HELLO_MB, 50, 50, 100, 100, 100, 1, 11025, 4096, 0),
+]
 
 # The Accent SA's cases: test_android_native.c's accent_cases, in the same order -- (name, text, the app's rate and
 # pitch sliders, the request's rate and pitch percentages, the engine volume, inflection, sample rate, pull size,
@@ -436,6 +470,77 @@ def mini_capitals(label, got):
     return bad
 
 
+# ---- the Mockingboard's reference: mb_voice driven directly ------------------------------------------------------
+def mb_step(p):                                     # mb_voice.c's mbv_pitch_step: its inflection 0-26 (50 = 8)
+    p = max(0, min(100, p))
+    return int(p * 8 / 50.0 + 0.5) if p <= 50 else 8 + int((p - 50) * 18 / 50.0 + 0.5)
+
+
+def mb_reference(exe, data, cases=None):
+    """The app's mapping, computed here as the Speak-Out's: the request's rate on the slider, the slider's pitch as the
+    setting and the request's as a capital's offset, moved at least one of the inflection's steps."""
+    lines = []
+    for name, text, rate, pitch, rr, rp, volume, numbers, sr, chunk, stop in cases or MB_CASES:
+        slider = max(0, min(100, pitch))
+        lines.append("%s %d %d %d %d %d %d %d %s\n" % (name, sr, on_top(rate, rr), slider, volume, numbers,
+                                                     step_pitch(pitch, rp, mb_step) - slider, stop,
+                                                     text.encode("utf-8").hex()))
+    out = subprocess.run([exe, "--mb-direct", data], input="".join(lines), capture_output=True, text=True)
+    if out.returncode:
+        sys.exit("test_android_native --mb-direct failed (%d): %s" % (out.returncode, out.stderr.strip()))
+    return parse(out.stdout)
+
+
+def mb_heard(label, got):
+    """The Mockingboard's capitals (one kept unit, as the Speak-Out's: the same text twice in a row differs by the
+    unit's own timing, so the pitch coming back is the reference's, compared above) and its number words: on and off
+    sound different."""
+    bad = capitals(label, got, "mb")
+    on, off = got.get("mb-num"), got.get("mb-num-off")
+    ok = on is not None and off is not None and on[1] != off[1]
+    print("%-5s %-8s mb-num differs from mb-num-off (the number words heard)" % ("ok" if ok else "FAIL", label))
+    return bad + (not ok)
+
+
+def mb_import_cases(exe, tmp):
+    """The Mockingboard's file as a user may bring it: taken by its sha256, written as it is; changed or cut, refused."""
+    import hashlib
+    import io
+    import zipfile
+    bad = 0
+    data = open(MB_BIN, "rb").read()
+    flipped = bytearray(data)
+    flipped[0x800] ^= 0x01
+    zbuf = io.BytesIO()
+    with zipfile.ZipFile(zbuf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("mockingboard-tts-1.1.bin", data)
+    with zipfile.ZipFile(io.BytesIO(zbuf.getvalue())) as z:
+        member = z.read("mockingboard-tts-1.1.bin")
+    cases = [("mockingboard-tts-1.1.bin", data, 5, data),
+             ("a renamed copy (speech.dat)", data, 5, data),
+             ("a zip's mockingboard-tts-1.1.bin", member, 5, data),
+             ("the file with one byte changed", bytes(flipped), -1, None),
+             ("the file cut short", data[:-1], -1, None)]
+    for name, blob, code, want in cases:
+        src, out = os.path.join(tmp, "import.in"), os.path.join(tmp, "import.out")
+        with open(src, "wb") as f:
+            f.write(blob)
+        if os.path.exists(out):
+            os.remove(out)
+        r = subprocess.run([exe, "--import", src, out], capture_output=True, text=True)
+        m = re.match(r"^import (-?\d+) (.*)$", r.stdout.strip())
+        got = int(m.group(1)) if m else None
+        written = open(out, "rb").read() if os.path.exists(out) else None
+        ok = got == code
+        if ok and want is not None:
+            ok = written == want and hashlib.sha256(written).hexdigest() == MB_SHA256
+        if ok and code < 0:
+            ok = written is None
+        print("%-5s import   %s: %s" % ("ok" if ok else "FAIL", name, m.group(2) if m else r.stdout + r.stderr))
+        bad += not ok
+    return bad
+
+
 # ---- the import: GW Micro's SPEAKOUT.HEX by content -----------------------------------------------------------------
 def import_cases(exe, tmp):
     """(name, bytes, the code wanted, the bytes wanted in out or None): what a user may bring."""
@@ -592,16 +697,22 @@ def build_into(exe):
              (front, os.path.join(spk, "so_voice.c")), (front, os.path.join(CPP, "ssa_import.c")),
              (front + ["-I" + os.path.join(SRC, "blazie")], os.path.join(SRC, "blazie", "bl_numbers.c")),
              (front, os.path.join(SRC, "numwords_es.c")),
-             (front, os.path.join(CPP, "ssa_map.c")),
-             (front, os.path.join(CPP, "ssa_engine.c")), (front, os.path.join(HERE, "test_android_native.c"))]
-    # the voices' table (src/csrc/voices.c) with the engines in the tree, as build_android.sh builds it
+             (front, os.path.join(CPP, "ssa_map.c")), (front, os.path.join(HERE, "test_android_native.c"))]
+    # the voices' table (src/csrc/voices.c) with the engines in the tree, as build_android.sh builds it (and the app's
+    # engine with them: its Mockingboard pitch steps)
     have = ["-DSSV_HAVE_SPEAKOUT"]
     if os.path.isfile(os.path.join(SRC, "accentmini", "am_voice.c")):
         have.append("-DSSV_HAVE_ACCENTMINI")
         am = accent + ["-I" + os.path.join(SRC, "pc86")]
         units += [(mame, os.path.join(SRC, "cpu", "i86_mame.cpp")), (am, os.path.join(SRC, "pc86", "pc86.c")),
                   (am, os.path.join(SRC, "accentmini", "am_host.c")), (am, os.path.join(SRC, "accentmini", "am_voice.c"))]
-    units.append((front + have, os.path.join(SRC, "voices.c")))
+    if os.path.isfile(os.path.join(SRC, "mockingboard", "mb_voice.c")):
+        have.append("-DSSV_HAVE_MOCKINGBOARD")
+        mb = ["-O2", "-std=gnu99", "-ffp-contract=off", "-w", "-I" + os.path.join(SRC, "cpu"),
+              "-I" + os.path.join(SRC, "mockingboard"), "-I" + SRC]
+        units += [(mb, os.path.join(SRC, "cpu", "m6502.c"))] + \
+                 [(mb, os.path.join(SRC, "mockingboard", n + ".c")) for n in ("mb_board", "mb_host", "mb_voice")]
+    units += [(front + have, os.path.join(SRC, "voices.c")), (front + have, os.path.join(CPP, "ssa_engine.c"))]
 
     def compile_one(unit):
         flags, src = unit
@@ -629,7 +740,7 @@ def parse(text):
 
 
 def run_desktop(exe, data, aicom):
-    r = subprocess.run([exe, data, aicom] + ([MINI_DVC] if os.path.isfile(MINI_DVC) else []), capture_output=True,
+    r = subprocess.run([exe, data, aicom, MINI_DVC if os.path.isfile(MINI_DVC) else "-"], capture_output=True,
                        text=True)
     if r.returncode:
         sys.exit("test_android_native failed (%d): %s" % (r.returncode, r.stderr.strip()))
@@ -657,7 +768,7 @@ def run_adb(abi, data, aicom):
         subprocess.run([adb, "shell", "mkdir -p %s/aicom" % where], check=True)
         for n in ROMS:
             subprocess.run([adb, "push", os.path.join(aicom, n), where + "/aicom/"], check=True, capture_output=True)
-        mini = ""
+        mini = " -"
         if os.path.isfile(MINI_DVC):
             subprocess.run([adb, "push", MINI_DVC, where + "/aicom/"], check=True, capture_output=True)
             mini = " aicom/SPKEMS.DVC"
@@ -673,11 +784,12 @@ def run_adb(abi, data, aicom):
 
 def data_folder(firmware, tmp):
     """The units' files in one folder, as the app has them (English, Spanish when both of its files exist, and the
-    Speak-Out's HEX when it is in the repository's firmware folder)."""
+    Speak-Out's HEX and the Mockingboard's file when they are in the repository's firmware folder)."""
     for f in FILES["en"]:
         shutil.copy2(os.path.join(firmware, f), tmp)
-    if os.path.isfile(SPEAKOUT_HEX):
-        shutil.copy2(SPEAKOUT_HEX, tmp)
+    for f in (SPEAKOUT_HEX, MB_BIN):
+        if os.path.isfile(f):
+            shutil.copy2(f, tmp)
     for d in (firmware, os.path.join(firmware, "spanish")):
         if all(os.path.isfile(os.path.join(d, f)) for f in FILES["es"]):
             for f in FILES["es"]:
@@ -701,7 +813,8 @@ def capitals(label, got, p="a"):
     """A capital's pitch (TalkBack raises the request's pitch for its own utterance): heard, and gone after it.  The
     Speak-Out ("s") keeps one unit, as the NVDA driver keeps one box: the same text twice in a row already differs a
     little (the box's own timing carries over), so its pitch coming back is the reference's -- so_voice itself, given
-    no offset -- matched byte for byte above, not a repeat of the first."""
+    no offset -- matched byte for byte above, not a repeat of the first.  The Mockingboard ("mb") keeps one unit too,
+    and is checked the same way."""
     bad = 0
     base, again = got.get(p + "-pitch-100"), got.get(p + "-pitch-100-again")
     for name, other in (("-pitch-150", "-pitch-100"), ("-pitch-75", "-pitch-100"), ("-pitch-150", "-pitch-75"),
@@ -710,7 +823,7 @@ def capitals(label, got, p="a"):
         ok = got.get(name) is not None and got.get(name)[1] != (got.get(other) or (0, None))[1]
         print("%-5s %-8s %s sounds different from %s" % ("ok" if ok else "FAIL", label, name, other))
         bad += not ok
-    if p == "s":
+    if p in ("s", "mb"):
         return bad
     ok = base is not None and base == again
     print("%-5s %-8s %s-pitch-100-again = %s-pitch-100, byte for byte (the pitch came back)" % (
@@ -780,6 +893,14 @@ def main():
             want.update(mini_reference(exe))
         elif not mini:
             print("skip  the Accent-mini: no firmware/aicom-accent-mini/SPKEMS.DVC")
+        mb = os.path.isfile(MB_BIN)
+        if mb and block("mb"):
+            want.update(mb_reference(exe, data))
+            # ssa_probe on the Mockingboard: a fresh unit says the import's "Hello." at the defaults
+            want["mb-probe"] = mb_reference(exe, data, [("mb-probe", "Hello.", 50, 50, 100, 100, 100, 1, 22050,
+                                                         4096, 0)])["mb-probe"]
+        elif not mb:
+            print("skip  the Mockingboard: no firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin")
 
         def checks(label, got):
             bad = compare(label, got, want)
@@ -793,6 +914,8 @@ def main():
                 bad += capitals(label, got, "s")
             if mini and block("mini"):
                 bad += mini_capitals(label, got)
+            if mb and block("mb"):
+                bad += mb_heard(label, got)
             return bad
         bad = 0
         if want:
@@ -801,6 +924,8 @@ def main():
             bad += compare_texts(run_texts(exe), text_want)
         if speakout and block("import"):
             bad += import_cases(exe, data)
+        if mb and block("import"):
+            bad += mb_import_cases(exe, data)
         if a.adb:
             bad += checks("device", run_adb(a.abi, data, a.aicom))
     finally:

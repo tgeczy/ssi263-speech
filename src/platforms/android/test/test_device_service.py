@@ -17,11 +17,14 @@ JNI bridge, the APK's Accent SA ROMs and the framework's hand-over.
   pitch mapped as ssa_engine.c maps them; and the capital's pitches as the Accent SA's.
 - The Aicom Accent-mini (built in, when this build carries it): against am_voice driven directly (--am-direct), the
   same way.
+- The Mockingboard (when its mockingboard-tts-1.1.bin is imported on the device): against mb_voice driven directly
+  (--mb-direct) from the device's own file, the same way.
 
 Each voice is chosen for the run through SettingsActivity's setvoice hook, as the Voice button would, and the choice
 the device had before (or none) is put back afterwards, as is run ahead.
 
-    python test_device_service.py [--rate 2.0] [--aloud] [--voice accent|braillelite|speakout|accentmini|both|all]
+    python test_device_service.py [--rate 2.0] [--aloud]
+                                  [--voice accent|braillelite|speakout|accentmini|mockingboard|both|all]
                                   (a debug build installed; ANDROID_SERIAL picks the device; both = the Accent SA and
                                   the Braille Lite, as before 0.7.5)
 
@@ -48,7 +51,8 @@ TEXT = {"braillelite": "Hello there. This is the Braille Lite, speaking on a pho
         "accent": "Hello there. This is the Accent SA, speaking on a phone."}
 TEXT["speakout"] = "Hello there. This is the Speak-Out, speaking on a phone."
 TEXT["accentmini"] = "Hello there. This is the Accent-mini, speaking on a phone."
-VOICE = {"braillelite": 0, "accent": 2, "speakout": 3, "accentmini": 4}   # SsiNative's indices
+TEXT["mockingboard"] = "Hello there. This is the Mockingboard, speaking on a phone."
+VOICE = {"braillelite": 0, "accent": 2, "speakout": 3, "accentmini": 4, "mockingboard": 5}   # SsiNative's indices
 CAPITAL = "B"
 SETTINGS = os.path.join(T.REPO, "src", "platforms", "android", "app", "src", "main", "kotlin", "com", "ssi263speech",
                         "tts", "SsiSettings.kt")
@@ -245,6 +249,27 @@ def accent_mini(a):
     return run_cases(a, "accentmini", want, "Accent-mini")
 
 
+def mockingboard(a):
+    """The Mockingboard, against mb_voice driven directly from the device's own imported file."""
+    tmp = tempfile.mkdtemp(prefix="ssi263-device-mb-")
+    try:
+        if not pulled("/data/user_de/0/%s/files/unit/mockingboard-tts-1.1.bin" % PKG, tmp, "mockingboard-tts-1.1.bin"):
+            print("skip  Mockingboard: no mockingboard-tts-1.1.bin imported on the device")
+            return 0
+        volume, pct = default_volume(), int(round(a.rate * 100))
+        lines = []
+        for name, text, rate, pitch in (("sentence", TEXT["mockingboard"], pct, 100), ("cap-100", CAPITAL, 100, 100),
+                                        ("cap-150", CAPITAL, 100, 150), ("cap-120", CAPITAL, 100, 120),
+                                        ("cap-75", CAPITAL, 100, 75)):
+            lines.append("%s 22050 %d 50 %d 1 %d 0 %s\n" % (name, T.on_top(50, rate), volume,
+                                                            T.step_pitch(50, pitch, T.mb_step) - 50,
+                                                            text.encode("utf-8").hex()))
+        want = direct("--mb-direct", tmp, lines)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return run_cases(a, "mockingboard", want, "Mockingboard")
+
+
 def device_unit(tmp, spanish):
     """The unit's files from the device's storage (a debug build: run-as), into `tmp`."""
     names = list(T.FILES["en"]) + (list(T.FILES["es"]) if spanish else [])
@@ -314,7 +339,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--rate", type=float, default=2.0)
     ap.add_argument("--aloud", action="store_true")
-    ap.add_argument("--voice", choices=("accent", "braillelite", "speakout", "accentmini", "both", "all"),
+    ap.add_argument("--voice", choices=("accent", "braillelite", "speakout", "accentmini", "mockingboard", "both", "all"),
                     default="both")
     ap.add_argument("--firmware", default=os.environ.get("SSI263_FIRMWARE") or os.path.join(T.REPO, "firmware", "blazie"))
     ap.add_argument("--firmware-from-repo", action="store_true",
@@ -333,6 +358,8 @@ def main():
             bad += speakout(a)
         if a.voice in ("accentmini", "all"):
             bad += accent_mini(a)
+        if a.voice in ("mockingboard", "all"):
+            bad += mockingboard(a)
     finally:
         set_run_ahead(before_ra)                # the device's own run ahead back (-1: never set)
         set_voice(before)                       # the device's own choice back (-1: none)

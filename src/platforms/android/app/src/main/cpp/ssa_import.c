@@ -4,8 +4,11 @@
 #include <string.h>
 
 #include "blazie/bl_firmware.h"        /* blv_sha256 */
+#include "mockingboard/mb_host.h"      /* MB_SHA256 */
+#include "ssa_engine.h"                /* ssa_voice_built */
 #include "ssa_import.h"
 
+#define MB_SIZE 11948L                 /* the Mockingboard's file: the toolkit's six DOS files back to back */
 #define MAX_HEX (4L << 20)             /* the firmware is 78 KB of text; 1 MB of ROM is under 3 MB of it */
 
 int ssa_import_break = 0;
@@ -115,8 +118,38 @@ int ssa_import_speakout(const unsigned char *data, long n, const char *out, char
     return fail(msg, msglen, SSA_HEX_SPEAKOUT, SSA_SPEAKOUT_LABEL);
 }
 
+int ssa_import_mockingboard(const unsigned char *data, long n, const char *out, char *msg, int msglen)
+{
+    static const char HEXD[] = "0123456789abcdef";
+    unsigned char digest[32];
+    char got[65];
+    int i;
+    FILE *f;
+    if (out) remove(out);
+    if (!data || n != MB_SIZE)
+        return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
+    blv_sha256(data, n, digest);
+    for (i = 0; i < 32; i++) { got[2 * i] = HEXD[digest[i] >> 4]; got[2 * i + 1] = HEXD[digest[i] & 15]; }
+    got[64] = 0;
+    if (strcmp(got, MB_SHA256) && !ssa_import_break)
+        return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
+    if (!ssa_voice_built(SSA_MOCKINGBOARD))
+        return fail(msg, msglen, SSA_FW_MB_BUILD,
+                    "the Mockingboard's firmware, but this copy of the app has no Mockingboard voice");
+    if (!out || !(f = fopen(out, "wb"))) return fail(msg, msglen, BLV_FW_WRITE, "cannot write it");
+    if (fwrite(data, 1, (size_t)n, f) != (size_t)n) {
+        fclose(f);
+        remove(out);
+        return fail(msg, msglen, BLV_FW_WRITE, "cannot write it");
+    }
+    fclose(f);
+    return fail(msg, msglen, SSA_FW_MOCKINGBOARD, SSA_MOCKINGBOARD_LABEL);
+}
+
 int ssa_import_firmware(const unsigned char *data, long n, const char *out, char *msg, int msglen)
 {
     int r = blv_import_firmware(data, n, out, msg, msglen);
+    if (r == BLV_FW_NONE)
+        r = ssa_import_mockingboard(data, n, out, msg, msglen);
     return r == BLV_FW_NONE ? ssa_import_speakout(data, n, out, msg, msglen) : r;
 }

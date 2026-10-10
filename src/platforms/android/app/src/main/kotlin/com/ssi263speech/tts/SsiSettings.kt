@@ -21,7 +21,8 @@ object SsiSettings {
     const val MAX_VOLUME = 200
     const val SHORT_PAUSES = "short_pauses"
     const val RUN_AHEAD = "run_ahead"          // the Braille Lite's, EXPERIMENTAL: off by default (NVDA's runAhead)
-    const val NUMBERS = "numbers"              // the Braille Lite's "Read numbers as words": on (NVDA's numberWords)
+    const val NUMBERS = "numbers"              // "Read numbers as words", the Braille Lite's and the Mockingboard's:
+                                               // on (NVDA's numberWords)
     const val SO_TONE = "speakout_tone"        // the Speak-Out's tone, 0-25 = A-Z
     const val SO_DEFAULT_TONE = 8              // I, the box's own
     const val SO_JOIN = "speakout_join"        // "Join phrases"
@@ -56,7 +57,7 @@ object SsiSettings {
             p.getBoolean(INFLECTION, true),
             p.getInt(WHINE, 0).coerceIn(0, 2),
             p.getInt(SAMPLE_RATE, 22050).takeIf { it in SAMPLE_RATES } ?: 22050,
-            p.getInt(VOICE, SsiEngine.defaultVoice(ctx)).coerceIn(SsiNative.ENGLISH, SsiNative.ACCENT_MINI),
+            p.getInt(VOICE, SsiEngine.defaultVoice(ctx)).coerceIn(SsiNative.ENGLISH, SsiNative.MOCKINGBOARD),
             p.getBoolean(OVERRIDE_VOICE, true),
             p.getBoolean(RUN_AHEAD, false),
             p.getInt(SO_TONE, SO_DEFAULT_TONE).coerceIn(0, 25),

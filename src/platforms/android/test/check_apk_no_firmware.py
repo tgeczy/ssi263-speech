@@ -1,5 +1,6 @@
 """An APK must carry no firmware but Aicom's (Tomi, 2026-09-30: store builds carry only Aicom's content; the Blazie
-firmware and states, and GW Micro's Speak-Out firmware, never: their users import them, 0.7.5).
+firmware and states, and GW Micro's Speak-Out firmware, never: their users import them, 0.7.5; nor Sweet Micro
+Systems' Mockingboard firmware, treated as Blazie's: Tomi, 2026-10-09).
 
 Allowed, by sha256 and nothing else -- exactly these files, the built-in voices (firmware/AICOM.txt): the Accent SA's
 three ROMs, and the Accent-mini's driver (build_android.sh stages it when src/csrc/accentmini/am_voice.c is there):
@@ -11,7 +12,8 @@ three ROMs, and the Accent-mini's driver (build_android.sh stages it when src/cs
 
 Refused, in any file, an archive's members included: a Braille Lite ROM image by content (F3 C3 xx xx FF
 "COPYRIGHT"); a unit's state by content (the 786432 bytes every state has: it holds what the firmware wrote); the
-Speak-Out's SPEAKOUT.HEX by its sha256, and any Intel HEX image by content; firmware, state or ROM files by name
+Speak-Out's SPEAKOUT.HEX by its sha256, and any Intel HEX image by content; the Mockingboard's
+mockingboard-tts-1.1.bin by its sha256 (and by name, .bin); firmware, state or ROM files by name
 (.bns .tns .state .hex .bin .dvc .rom) unless the file is one of the three above; and anything in assets/aicom/ that
 is not one of them.
 
@@ -24,12 +26,15 @@ is not one of them.
     --control <BL2ENG.BNS> <apk>                    the firmware added under a bland name -- beside the Aicom ROMs
     --control <bl2_2003_warm.state> <apk>           ... a state under a bland name
     --control <SPEAKOUT.HEX> <apk>                  ... the Speak-Out's firmware under a bland name
+    --control <mockingboard-tts-1.1.bin> <apk>      ... the Mockingboard's firmware under a bland name
     --control-aicom-flipped <apk>                   assets/aicom/u2.BIN with one byte changed: not an allowed file
     --control-gpl <apk>                             z180emu's GPL text added among the licences (0.6's APK had it)
 
 And the licences (Tomi, 2026-09-30: all-MAME 0.7): the APK carries the project's and Casso's MIT licences, MAME's
-BSD-3-Clause notices for the Z180, 8085, V40 and 8086 cores, Aicom's notice and the distribution notice -- and no z180emu or
-Unicorn engine and no GPL notice anywhere (tools/check_no_gpl.py's search, the native libraries included).
+BSD-3-Clause notices for the Z180, 8085, V40 and 8086 cores, Aicom's notice and the distribution notice, and -- with
+the Mockingboard's sources in the tree -- its 6502's credits (Fake6502's PINNED.txt, EchoTalk's BSD-3-Clause), and
+no z180emu or Unicorn engine and no GPL notice anywhere (tools/check_no_gpl.py's search, the native libraries
+included).
 """
 import hashlib
 import io
@@ -64,7 +69,15 @@ LICENSES = {"DISTRIBUTION.txt": os.path.join("src", "platforms", "android", "lic
             "MAME-NEC-V40-core-BSD-3-Clause.txt": os.path.join("src", "csrc", "cpu", "mame_nec", "LICENSE-BSD-3-Clause.txt"),
             "MAME-8086-core-BSD-3-Clause.txt": os.path.join("src", "csrc", "cpu", "mame_i86", "LICENSE-BSD-3-Clause.txt"),
             "Aicom-Accent-SA-notice.txt": os.path.join("firmware", "AICOM.txt")}
-REFUSED = {"1c6930c8c6aed0550bc267c14032f9195b450ed95de606f2fa9727e2b7eb1eb1": "the Speak-Out's SPEAKOUT.HEX"}
+# the Mockingboard's 6502 (build_android.sh stages these when src/csrc/mockingboard/mb_voice.c is there)
+MOCKINGBOARD = os.path.isfile(os.path.join(REPO, "src", "csrc", "mockingboard", "mb_voice.c"))
+if MOCKINGBOARD:
+    LICENSES.update({"Fake6502-6502-core.txt": os.path.join("src", "csrc", "cpu", "fake6502", "PINNED.txt"),
+                     "EchoTalk-BSD-3-Clause.txt": os.path.join("src", "csrc", "cpu", "fake6502",
+                                                               "LICENSE-EchoTalk-BSD-3-Clause.txt")})
+REFUSED = {"1c6930c8c6aed0550bc267c14032f9195b450ed95de606f2fa9727e2b7eb1eb1": "the Speak-Out's SPEAKOUT.HEX",
+           "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae": "the Mockingboard's "
+           "mockingboard-tts-1.1.bin"}
 
 
 def scan(label, data, hits, allowed, depth=0, name=""):
@@ -161,8 +174,9 @@ def main():
         print("%s: %d entries, %s; Aicom ROMs allowed: %d%s" % (
             label, n, "no firmware" if not hits else "FIRMWARE: " + "; ".join(hits[:5]), len(allowed),
             "" if not allowed else " (%s)" % ", ".join(sorted(allowed))))
-        print("%s: licences %s" % (label, "MIT (ours, Casso's), MAME's BSD-3-Clause (Z180, 8085, V40, 8086), Aicom's; "
-                                   "no GPL or Unicorn" if not lic else "WRONG: " + "; ".join(lic[:5])))
+        print("%s: licences %s" % (label, "MIT (ours, Casso's), MAME's BSD-3-Clause (Z180, 8085, V40, 8086), Aicom's%s; "
+                                   "no GPL or Unicorn" % (", Fake6502's and EchoTalk's" if MOCKINGBOARD else "")
+                                   if not lic else "WRONG: " + "; ".join(lic[:5])))
         bad += bool(hits) or bool(lic)
     return 1 if bad else 0
 

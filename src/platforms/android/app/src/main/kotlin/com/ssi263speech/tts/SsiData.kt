@@ -1,5 +1,6 @@
 // The units' files.  The Braille Lite's: the firmware each user imports (SsiImport) and the state made from it; the
-// Speak-Out's: GW Micro's SPEAKOUT.HEX, imported the same way.  In device-protected storage, where the native side
+// Speak-Out's: GW Micro's SPEAKOUT.HEX, and the Mockingboard's: Sweet Micro Systems' mockingboard-tts-1.1.bin,
+// imported the same way.  In device-protected storage, where the native side
 // opens them by path -- and where they can be read before the phone is first unlocked, so the voice works on the lock
 // screen after a restart.  A release APK carries neither; a developer build made with SSI263_ANDROID_BUNDLE_FIRMWARE=1
 // carries the Braille Lite's as assets, copied in once per installed version.  The Accents': Aicom's ROMs (and the
@@ -35,7 +36,7 @@ object SsiData {
         return files.all { File(dir(ctx), it).isFile }
     }
 
-    /** Firmware has been imported: a Braille Lite voice or the Speak-Out. */
+    /** Firmware has been imported: a Braille Lite voice, the Speak-Out or the Mockingboard. */
     fun any(ctx: Context): Boolean = FirmwareImport.IMPORTED.any { has(ctx, it) }
 
     // ---- the Accent SA's ROMs: Aicom's, the one firmware the APK carries (firmware/AICOM.txt; Tomi, 2026-09-30) ----
@@ -106,7 +107,7 @@ object SsiData {
         }
     }
 
-    /** Remove every imported unit, the Braille Lite's and the Speak-Out's (a developer build's bundled one stays away
+    /** Remove every imported unit, the Braille Lite's, the Speak-Out's and the Mockingboard's (a developer build's bundled one stays away
      * until the app is reinstalled). */
     fun remove(ctx: Context) = SsiEngine.withEngine {
         SsiEngine.reload()

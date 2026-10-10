@@ -10,9 +10,11 @@ SSI-263 hardware, with every voice the NVDA add-ons have (Tomi, 0.7.5: "all voic
 | Braille Lite 2000, English (`en-US-braillelite`) | **imported** by the user | the unit's June 2003 firmware on MAME's Z180 |
 | Braille Lite 2000, Spanish (`es-ES-braillelite`) | **imported** by the user | ONCE's September 2000 firmware on MAME's Z180 |
 | GW Micro Speak-Out (`en-US-speakout`) | **imported** by the user (0.7.5): GW Micro's `SPEAKOUT.HEX` | its V40 firmware on MAME's V40 |
+| Mockingboard (Sweet Micro Systems) (`en-US-mockingboard`) | **imported** by the user (0.8): `mockingboard-tts-1.1.bin` | Sweet Micro's text-to-speech 1.1 on a 6502 (Fake6502's instructions, via EchoTalk) |
 
-Aicom's files are the only firmware the APK carries (`assets/aicom`, with `firmware/AICOM.txt`); Blazie's and GW
-Micro's never ship -- each user imports their own, through one "Import firmware…" that tells them apart by content.
+Aicom's files are the only firmware the APK carries (`assets/aicom`, with `firmware/AICOM.txt`); Blazie's, GW
+Micro's and Sweet Micro's never ship (Sweet Micro's is treated as Blazie's: Tomi, 2026-10-09) -- each user imports
+their own, through one "Import firmware…" that tells them apart by content.
 
 The native part is the same C as the NVDA add-ons' libraries, the SAPI engine and the Linux speech-dispatcher module
 (`src/csrc`), cross-built with the NDK; its voices are made through `src/csrc/voices.c`, the voice table the SAPI
@@ -38,9 +40,9 @@ the Speak-Out does, and takes a request's pitch as the driver takes a capital's 
 Store builds carry only Aicom's content (Tomi): `check_apk_no_firmware.py` lets exactly the three ROMs and the
 Accent-mini's driver through, by sha256, and refuses any Blazie or Speak-Out firmware or state.
 
-## The imported firmware: the Braille Lite's and the Speak-Out's, never shipped
+## The imported firmware: the Braille Lite's, the Speak-Out's and the Mockingboard's, never shipped
 
-The APK carries no Braille Lite or Speak-Out firmware -- this app is the one place it cannot ship -- so each user
+The APK carries no Braille Lite, Speak-Out or Mockingboard firmware -- this app is the one place it cannot ship -- so each user
 imports their own, as outspoken and Panthera take their engine data. Setup's one "Import firmware…" (or `am start -n
 com.ssi263speech.tts/.SettingsActivity --es import <path|content: URI>`, which skips the confirm
 dialog; `--ez removefirmware true` removes all of it) takes either unit's files, told apart by content (below). A
@@ -56,8 +58,18 @@ It takes:
 
 - a zip, with the firmware at its top or one folder down -- GW Micro's `speakout.zip`, a Braille Lite update -- and
   the NVDA add-on (`.nvda-addon`: `synthDrivers/_ssi263_blazie/`); a zip holding both units' files imports both;
-- one file: the Speak-Out's `SPEAKOUT.HEX`; a `.BNS`, or an update program (`.exe`/`.com`) holding the image, raw or
-  as a zip behind its code (`blt2000.exe`), also inside a zip.
+- one file: the Speak-Out's `SPEAKOUT.HEX`; the Mockingboard's `mockingboard-tts-1.1.bin`; a `.BNS`, or an update
+  program (`.exe`/`.com`) holding the image, raw or as a zip behind its code (`blt2000.exe`), also inside a zip.
+
+### The Mockingboard: Sweet Micro's text-to-speech, one file
+
+`mockingboard-tts-1.1.bin` is the Mockingboard Developers Toolkit disk's six DOS 3.3 files back to back
+(`tools/mockingboard_firmware.py` makes it from the disk image), known by content alone (`ssa_import.c`): its sha256,
+`88e1e90f…` (`src/csrc/mockingboard/mb_host.h`'s `MB_SHA256`, the only file its host runs; `check_apk_no_firmware.py`
+refuses the same hash in an APK). It is written as it is, under that name; like the Speak-Out's it has no state to
+make, so it is checked once (`ssa_probe` says "Hello.") and moved into place. The toolkit's `.dsk` image itself is not
+taken yet: that waits for the shared C that turns a disk into the file. Its voice takes the app's rate, pitch (a
+capital's as an offset, at least one of its inflection steps), volume and "Read numbers as words" (`mb_voice.h`).
 
 ### The Speak-Out: GW Micro's SPEAKOUT.HEX
 
@@ -113,14 +125,17 @@ build checks that the library needs nothing beyond libc, libm, libdl and liblog)
 `app/src/main/jniLibs/<abi>/` and everything else the APK carries to `build/android/assets/` at the repository root
 -- the Accent SA's ROMs (from `firmware/aicom-accent-sa`), the Accent-mini's driver (`firmware/aicom-accent-mini`,
 when its voice is in the tree), the licences (the project's MIT, Aicom's notice, MAME's BSD-3-Clause notices for the
-Z180, 8085, V40 and 8086 cores). None of that is committed. A developer build may carry
+Z180, 8085, V40 and 8086 cores, and with the Mockingboard's sources in the tree its 6502's credits: Fake6502's
+`PINNED.txt` and EchoTalk's BSD-3-Clause). None of that is committed. A developer build may carry
 the firmware, by asking: `SSI263_ANDROID_BUNDLE_FIRMWARE=1` (with `SSI263_FIRMWARE`, default `firmware/blazie`, the
-Spanish unit there or in `spanish/`); never distribute one. Gradle then needs `-Pssi263BundleFirmware=1` too: without
+Spanish unit there or in `spanish/`, and the Mockingboard's file from `firmware/sweet-micro-mockingboard` when it is
+there); never distribute one. Gradle then needs `-Pssi263BundleFirmware=1` too: without
 it, staged firmware stops the build (a leftover once rode into a plain `assembleDebug`). `check_apk_no_firmware.py` looks inside an APK (and any
 archive in it): Aicom's three ROMs and the Accent-mini's driver pass by sha256 and nothing else does -- a Braille Lite ROM image or a
-unit's state by content, the Speak-Out's HEX by its hash and any Intel HEX by content, firmware, state or ROM files
-by name, anything else in `assets/aicom`. `--control <BL2ENG.BNS> <apk>` adds the firmware under a bland name beside
-the Aicom ROMs and must fail, as must `--control <bl2_2003_warm.state>`, `--control <SPEAKOUT.HEX>` and
+unit's state by content, the Speak-Out's HEX by its hash and any Intel HEX by content, the Mockingboard's file by its
+hash, firmware, state or ROM files by name, anything else in `assets/aicom`. `--control <BL2ENG.BNS> <apk>` adds the
+firmware under a bland name beside the Aicom ROMs and must fail, as must `--control <bl2_2003_warm.state>`,
+`--control <SPEAKOUT.HEX>`, `--control <mockingboard-tts-1.1.bin>` and
 `--control-aicom-flipped` (u2 with one byte changed); `--synthetic` in place of the APK checks an APK-like zip made
 on the spot (run_tests uses it). It also checks the licences: MIT (ours and Casso's), the four MAME notices, Aicom's and the distribution
 notice present, and no z180emu, GPL text or Unicorn anywhere, the native libraries included (`tools/check_no_gpl.py`);
@@ -140,9 +155,10 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     SSI263_ANDROID_TEST_BREAK=1 python src/platforms/android/test/test_android_native.py   # control: must FAIL
     SSI263_ANDROID_TEST_BREAK=accent-pitch|accent-glide|accent-reuse|accent-step ...      # the Accents': must FAIL
     SSI263_ANDROID_TEST_BREAK=speakout-pitch|speakout-settings|run-ahead|import-hash ...  # the 0.7.5 ones: must FAIL
+    SSI263_ANDROID_TEST_BREAK=mockingboard-pitch|mockingboard-numbers ...                 # the Mockingboard's: must FAIL
     python src/platforms/android/test/test_volume_headroom.py              # the default volume, every voice
     python src/platforms/android/test/test_device_service.py [--rate 2.0] [--aloud]
-                                  [--voice accent|braillelite|speakout|accentmini|both|all]
+                                  [--voice accent|braillelite|speakout|accentmini|mockingboard|both|all]
     python src/platforms/android/test/test_import_native.py               # the import's native part, and the states
     SSI263_IMPORT_TEST_BREAK=1 python src/platforms/android/test/test_import_native.py     # control: must FAIL
     SSI263_IMPORT_TEST_BREAK=hash python src/platforms/android/test/test_import_native.py  # control: must FAIL
@@ -150,6 +166,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=1                     # control: the layout cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=state                 # control: the state cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=speakout              # control: the Speak-Out cases must FAIL
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=mockingboard          # control: the Mockingboard cases must FAIL
 
 `test_import_native.py` makes every fixture at test time from the files in the firmware folder (`--firmware`, default
 `$SSI263_FIRMWARE`, else `firmware/blazie`, with `spanish/`, `tns/` and `once2000/` -- ONCE's September 2000
@@ -181,6 +198,16 @@ the same with its checksum put right (another HEX), one cut short, a text file, 
 Braille Lite's. Its controls: the Speak-Out's request pitch dropped (`speakout-pitch`), its own settings dropped
 (`speakout-settings`), run ahead dropped (`run-ahead`), the number words dropped (`numbers`: always off, as before),
 the sha256 check dropped (`import-hash`: another HEX taken).
+
+The Mockingboard (0.8; `firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin`, never committed: skipped, and
+said so, without it), copied into the data folder as an import leaves it, against mb_voice driven directly
+(`--mb-direct`: one kept unit, the settings computed in Python as the Speak-Out's, the capital's offset at least one
+of `mbv_pitch_step`'s steps) on 15 cases: rates, sliders, the capitals at 150/75/120 %, the number words on and off
+(which must differ), a stop and the utterance after it, volume 150, 11 kHz; and the import's probe. Its import: the
+file as it is, renamed, out of a zip, taken; one byte changed, or cut short, refused. Its controls: the request's
+pitch dropped (`mockingboard-pitch`), the number words dropped (`mockingboard-numbers`); `import-hash` also takes the
+changed file. The JVM tests play it with a fake too (alone, beside the other units one folder down, two folders down
+named; `-Pssi263ImportBreak=mockingboard` must fail those).
 
 The Braille Lite's reference in both is the desktop library the NVDA add-on and Linux ship (`bl.dll` + `ssi263.dll`
 from `build_board.py` / `build_native.py`, or `build/linux/libssi263speech.so`), driven the way `sd_ssi263.c` maps

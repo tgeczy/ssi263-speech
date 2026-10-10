@@ -6,9 +6,10 @@
  *     test_android_native <data folder> [<aicom folder> [<SPKEMS.DVC>]]
  *                                           one line per case: "<name> <samples> <fnv-1a 64 of the PCM bytes>";
  *                                           with the Aicom folder (u2/u3/u4.BIN), the Accent SA's cases first; with
- *                                           the Accent-mini's driver, its cases; the Speak-Out's when the data folder
- *                                           has SPEAKOUT.HEX; the Braille Lite's, lockstep and run ahead, and its
- *                                           number words on and off (English, and Spanish when it is there)
+ *                                           the Accent-mini's driver ("-": none), its cases; the Speak-Out's when the
+ *                                           data folder has SPEAKOUT.HEX, the Mockingboard's when it has
+ *                                           mockingboard-tts-1.1.bin; the Braille Lite's, lockstep and run ahead, and
+ *                                           its number words on and off (English, and Spanish when it is there)
  *     test_android_native --texts           stdin's lines as the Accent SA's front end sends them
  *     test_android_native --so-direct <SPEAKOUT.HEX>
  *                                           the Speak-Out's reference: so_voice driven directly (sov_create, sov_set,
@@ -21,6 +22,12 @@
  *                                           one, made again when the boot key changes; stdin: "<name> <boot key>
  *                                           <sample rate> <rate> <pitch> <inflection> <volume> <numbers> <voice>
  *                                           <pitch offset> <blocks before a cancel> <text, hex>" per case
+ *     test_android_native --mb-direct <folder with mockingboard-tts-1.1.bin>
+ *                                           the Mockingboard's reference: mb_voice driven directly (mbv_create_dir,
+ *                                           mbv_set, mbv_speak, mbv_render, mbv_cancel), one unit as the app keeps
+ *                                           one, made again at a new sample rate; stdin: "<name> <sample rate> <rate>
+ *                                           <pitch> <volume> <numbers> <pitch offset> <blocks before a cancel>
+ *                                           <text, hex>" per case
  *     test_android_native --import <file> <out>
  *                                           the import's judgement (ssa_import_firmware, as nativeImportFirmware):
  *                                           "import <code> <message>"
@@ -29,8 +36,8 @@
  * maps SSIP (the reference), and the Accent SA's with the NVDA Accent driver itself (accent_reference.py), on the
  * desktop and over adb.  SSI263_ANDROID_TEST_BREAK in the environment puts a bug back, the controls: 1 breaks the rate
  * mapping (ssa_map.h), so the "fast" cases must differ; accent-pitch, accent-glide, accent-reuse and accent-step are
- * ssa_engine.h's ssa_accent_break 1, 2, 3 and 4; speakout-pitch, speakout-settings, run-ahead and numbers its
- * ssa_voice_break 1, 2, 3 and 4.
+ * ssa_engine.h's ssa_accent_break 1, 2, 3 and 4; speakout-pitch, speakout-settings, run-ahead, numbers,
+ * mockingboard-pitch and mockingboard-numbers its ssa_voice_break 1 to 6.
  *
  * Built by the desktop compiler (test_android_native.py) and by build_android.sh --test (static, for a device).
  */
@@ -44,6 +51,7 @@
 #include "accentsa/as_voice.h"
 #include "speakout/so_voice.h"
 #include "accentmini/am_voice.h"
+#include "mockingboard/mb_voice.h"
 
 static const char *HELLO = "Hello there. This is the Braille Lite, speaking on a phone.";
 static const char *LONG = "This is a long message for the stop test, with a comma or two, that keeps going well "
@@ -514,6 +522,107 @@ static int am_direct(const char *dvc)
     return 0;
 }
 
+/* ---- the Mockingboard (imported): one unit kept across the cases, as the app keeps it ---------------------------- */
+
+static const char *HELLO_MB = "Hello there. This is the Mockingboard, speaking on a phone.";
+
+/* test_android_native.py's MB_CASES, in the same order: name, text, the app's rate and pitch sliders, the request's
+   rate and pitch percentages, volume, numbers, sample rate, pull size, blocks before a stop */
+typedef struct {
+    const char *name, *text;
+    int rate, pitch, req_rate, req_pitch, volume, numbers, sample_rate, chunk, stop;
+} mb_case;
+
+static const mb_case *mb_cases(int *n)
+{
+    static mb_case c[24];
+    int k = 0;
+#define B(nm, tx, r, p, rr, rp, v, nu, sr, ch, st) \
+    do { mb_case x = {nm, tx, r, p, rr, rp, v, nu, sr, ch, st}; c[k++] = x; } while (0)
+    B("mb-default", HELLO_MB, 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("mb-default-97", HELLO_MB, 50, 50, 100, 100, 100, 1, 22050, 97, 0);
+    B("mb-fast", HELLO_MB, 50, 50, 200, 100, 100, 1, 22050, 4096, 0);
+    B("mb-sliders", HELLO_MB, 70, 80, 100, 100, 100, 1, 22050, 4096, 0);
+    B("mb-pitch-100", "B", 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("mb-pitch-150", "B", 50, 50, 100, 150, 100, 1, 22050, 4096, 0);
+    B("mb-pitch-75", "B", 50, 50, 100, 75, 100, 1, 22050, 4096, 0);
+    B("mb-pitch-120", "B", 50, 50, 100, 120, 100, 1, 22050, 4096, 0);
+    B("mb-pitch-100-again", "B", 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("mb-num", NUM_EN, 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("mb-num-off", NUM_EN, 50, 50, 100, 100, 100, 0, 22050, 4096, 0);
+    B("mb-stopped", LONG, 50, 50, 100, 100, 100, 1, 22050, 4096, 8);
+    B("mb-after-stop", "Next message.", 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("mb-volume-150", HELLO_MB, 50, 50, 100, 100, 150, 1, 22050, 4096, 0);
+    B("mb-11k", HELLO_MB, 50, 50, 100, 100, 100, 1, 11025, 4096, 0);
+#undef B
+    *n = k;
+    return c;
+}
+
+static int mockingboard(const char *data)
+{
+    ssa_engine *e = ssa_new(data);
+    const mb_case *c;
+    char err[256];
+    digest d;
+    int n, i, rc = 0;
+    if (!e) return 1;
+    if (!ssa_has_voice(e, SSA_MOCKINGBOARD)) { ssa_free(e); return 0; }   /* no firmware: no cases (said by the .py) */
+    c = mb_cases(&n);
+    for (i = 0; i < n && !rc; i++) {
+        ssa_settings s;
+        ssa_default_settings(&s);
+        s.rate = c[i].rate; s.pitch = c[i].pitch; s.volume = c[i].volume; s.numbers = c[i].numbers;
+        ssa_configure(e, c[i].sample_rate, 1, 0);
+        if (ssa_load(e, SSA_MOCKINGBOARD, err, sizeof err) != 0) { fprintf(stderr, "boot: %s\n", err); rc = 1; break; }
+        if (speak(e, SSA_MOCKINGBOARD, c[i].text, &s, c[i].req_rate, c[i].req_pitch, c[i].chunk, c[i].stop, &d))
+            rc = 1;
+        else
+            report(c[i].name, &d);
+    }
+    ssa_free(e);
+    return rc;
+}
+
+/* --mb-direct: the reference -- mb_voice itself, driven as mb_voice.h says, with the settings the .py computed */
+static int mb_direct(const char *dir)
+{
+    char line[16384], name[64], texthex[8192], text[4096], err[256];
+    mb_voice *v = NULL;
+    int cur_rate = 0;
+    while (fgets(line, sizeof line, stdin)) {
+        int sr, rate, pitch, volume, numbers, offset, stop, done = 0, blocks = 0, n;
+        const short *pcm;
+        digest d = {1469598103934665603ULL, 0};
+        texthex[0] = 0;
+        if (sscanf(line, "%63s %d %d %d %d %d %d %d %8191s", name, &sr, &rate, &pitch, &volume, &numbers, &offset,
+                   &stop, texthex) < 8)
+            continue;
+        unhex(texthex, text, sizeof text);
+        if (!v || sr != cur_rate) {          /* the app boots a new unit at a new sample rate (ssa_configure) */
+            mbv_destroy(v);
+            v = mbv_create_dir(dir, (double)sr, err, sizeof err);
+            if (!v) { fprintf(stderr, "mbv_create: %s\n", err); return 1; }
+            cur_rate = sr;
+        }
+        mbv_set(v, rate, pitch, volume, numbers);
+        if (mbv_speak(v, text, offset) > 0)
+            while (!done) {
+                n = mbv_render(v, &pcm, &done);
+                if (n > 0) {
+                    add(&d, pcm, n);
+                    if (stop > 0 && ++blocks == stop && !done) {
+                        mbv_cancel(v);
+                        break;
+                    }
+                }
+            }
+        report(name, &d);
+    }
+    mbv_destroy(v);
+    return 0;
+}
+
 /* --import: the import's judgement on a file, as the app's nativeImportFirmware gives it */
 static int import(const char *file, const char *out)
 {
@@ -554,18 +663,21 @@ int main(int argc, char **argv)
     ssa_accent_break = !brk ? 0 : !strcmp(brk, "accent-pitch") ? 1 : !strcmp(brk, "accent-glide") ? 2
                      : !strcmp(brk, "accent-reuse") ? 3 : !strcmp(brk, "accent-step") ? 4 : 0;
     ssa_voice_break = !brk ? 0 : !strcmp(brk, "speakout-pitch") ? 1 : !strcmp(brk, "speakout-settings") ? 2
-                    : !strcmp(brk, "run-ahead") ? 3 : !strcmp(brk, "numbers") ? 4 : 0;
+                    : !strcmp(brk, "run-ahead") ? 3 : !strcmp(brk, "numbers") ? 4
+                    : !strcmp(brk, "mockingboard-pitch") ? 5 : !strcmp(brk, "mockingboard-numbers") ? 6 : 0;
     ssa_import_break = brk && !strcmp(brk, "import-hash");
     if (argc >= 2 && !strcmp(argv[1], "--texts")) return texts();
     if (argc >= 6 && !strcmp(argv[1], "--level"))
         return level(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), argc >= 7 ? argv[6] : NULL);
     if (argc >= 3 && !strcmp(argv[1], "--so-direct")) return so_direct(argv[2]);
     if (argc >= 3 && !strcmp(argv[1], "--am-direct")) return am_direct(argv[2]);
+    if (argc >= 3 && !strcmp(argv[1], "--mb-direct")) return mb_direct(argv[2]);
     if (argc >= 4 && !strcmp(argv[1], "--import")) return import(argv[2], argv[3]);
     if (argc < 2) { fprintf(stderr, "usage: test_android_native <data folder> [<aicom folder>] | --texts\n"); return 2; }
     if (argc >= 3 && block("accent") && accent(argv[2])) return 1;
-    if (argc >= 4 && block("mini") && mini(argv[3])) return 1;
+    if (argc >= 4 && strcmp(argv[3], "-") && block("mini") && mini(argv[3])) return 1;
     if (block("so") && speakout(argv[1])) return 1;
+    if (block("mb") && mockingboard(argv[1])) return 1;
     /* the mapping itself: Android 100% is the slider; a doubling is SSIP 50 */
     if (ssa_rate(50, 100) != 50 || ssa_pitch(50, 50) != 25 || ssa_pitch(50, 400) != 100
             || ssa_ssip_from_percent(200) != 50 || ssa_to100(-100) != 0) {
@@ -653,6 +765,19 @@ int main(int argc, char **argv)
             n = ssa_probe(argv[1], SSA_SPEAKOUT, "Hello.", &h, err, sizeof err);
             if (n <= 0) { fprintf(stderr, "Speak-Out probe: %ld %s\n", n, err); return 1; }
             printf("s-probe %ld %016llx\n", n, h);
+        }
+    }
+    if (block("mb")) {                       /* the Mockingboard's import check: its "Hello." on a unit of its own */
+        unsigned long long h;
+        long n;
+        int has;
+        e = ssa_new(argv[1]);
+        has = e && ssa_has_voice(e, SSA_MOCKINGBOARD);
+        ssa_free(e);
+        if (has) {
+            n = ssa_probe(argv[1], SSA_MOCKINGBOARD, "Hello.", &h, err, sizeof err);
+            if (n <= 0) { fprintf(stderr, "Mockingboard probe: %ld %s\n", n, err); return 1; }
+            printf("mb-probe %ld %016llx\n", n, h);
         }
     }
     return 0;

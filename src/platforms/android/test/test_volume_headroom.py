@@ -15,6 +15,9 @@ The Aicom Accent-mini (built in, 0.7.5) takes the Accent SA's level (SSA_ACCENT_
 Speak-Out (imported, 0.7.5; measured when firmware/gw-micro-speakout/SPEAKOUT.HEX is there) shares it too:
 at the driver's full volume (so_voice's gain 1) it peaks at -5.6 dBFS on these lines with its speech RMS near
 -21 dBFS, the others' level; so_voice takes the app's 0-200 as as_voice does, and the default keeps its headroom.
+The Mockingboard (imported, 0.8; measured when firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin is there)
+takes it as its gain too (mb_voice.h): at the default 150 it peaks at -3.1 dBFS on these lines, a little under the
+others, unclipped.
 
     python test_volume_headroom.py        SSI263_VOLUME_TEST_BREAK=1: volume 250 for every voice -- must fail (all clip)
                                           SSI263_VOLUME_TEST_BREAK=accent: 250 for the Accent SA alone -- must fail
@@ -133,6 +136,15 @@ def speakout(volume):
         return app_level("speak-out", 3, tmp, ACCENT, volume)
 
 
+def mockingboard(volume):
+    if not os.path.isfile(T.MB_BIN):
+        print("mockingboard: skipped (no firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin)")
+        return True
+    with tempfile.TemporaryDirectory() as tmp:
+        T.shutil.copy2(T.MB_BIN, tmp)
+        return app_level("mockingboard", 5, tmp, ACCENT, volume)
+
+
 def main():
     brk = os.environ.get("SSI263_VOLUME_TEST_BREAK", "")
     firmware = os.environ.get("SSI263_FIRMWARE") or os.path.join(T.REPO, "firmware", "blazie")
@@ -141,6 +153,7 @@ def main():
     ok = accent(250 if brk in ("1", "accent") else default) and ok
     ok = speakout(250 if brk == "1" else default) and ok
     ok = mini(250 if brk == "1" else default) and ok
+    ok = mockingboard(250 if brk == "1" else default) and ok
     print("volume headroom: %s" % ("PASS" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

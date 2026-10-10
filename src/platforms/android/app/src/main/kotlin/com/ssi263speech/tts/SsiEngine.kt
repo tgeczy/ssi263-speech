@@ -1,8 +1,8 @@
 // The one engine in this process, shared by the TTS service and the settings screen's preview: opens the native
 // side on the imported unit files and the APK's Aicom ROMs, lists the voices -- every voice the NVDA add-ons have
 // (Tomi, 0.7.5): the Aicom Accent SA always, the default until a Braille Lite is imported (Tomi, 2026-09-30); the
-// Accent-mini when this build carries it; the Braille Lite voices and the GW Micro Speak-Out once their firmware is
-// imported -- and owns the engine for one utterance at a time.  A stop from any thread reaches the render in progress
+// Accent-mini when this build carries it; the Braille Lite voices, the GW Micro Speak-Out and the Mockingboard once
+// their firmware is imported -- and owns the engine for one utterance at a time.  A stop from any thread reaches the render in progress
 // (nativeStop); the synthesis thread then cancels, so the unit drops what it has not spoken and the next utterance
 // starts clean -- as the speech-dispatcher module does after STOP.
 package com.ssi263speech.tts
@@ -20,7 +20,9 @@ object SsiEngine {
         VoiceInfo(SsiNative.ACCENT_MINI, "en-US-accentmini", "Aicom Accent-mini (English)", Locale("en", "US")),
         VoiceInfo(SsiNative.ENGLISH, "en-US-braillelite", "Braille Lite 2000 (English)", Locale("en", "US")),
         VoiceInfo(SsiNative.SPANISH, "es-ES-braillelite", "Braille Lite 2000 (español)", Locale("es", "ES")),
-        VoiceInfo(SsiNative.SPEAKOUT, "en-US-speakout", "GW Micro Speak-Out (English)", Locale("en", "US")))
+        VoiceInfo(SsiNative.SPEAKOUT, "en-US-speakout", "GW Micro Speak-Out (English)", Locale("en", "US")),
+        VoiceInfo(SsiNative.MOCKINGBOARD, "en-US-mockingboard", "Mockingboard (Sweet Micro Systems)",
+                  Locale("en", "US")))
 
     private val lock = Any()
     @Volatile private var opened = false
@@ -52,7 +54,8 @@ object SsiEngine {
         }
     }
 
-    /** The voices that can speak now: the Accents built in, and the imported Braille Lite voices and Speak-Out. */
+    /** The voices that can speak now: the Accents built in, and the imported Braille Lite voices, Speak-Out and
+     * Mockingboard. */
     fun voices(ctx: Context): List<VoiceInfo> = ALL.filter { SsiData.has(ctx, it.index) }
 
     fun voiceByName(ctx: Context, name: String?): VoiceInfo? = voices(ctx).firstOrNull { it.name == name }
