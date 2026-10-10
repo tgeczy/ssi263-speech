@@ -14,7 +14,10 @@
 #   the Accents' (Aicom's, in the repository with firmware/AICOM.txt): firmware/aicom-accent-sa, and
 #     firmware/aicom-accent-mini when the module has the Accent-mini;
 #   the Speak-Out's (GW Micro's, never in the repository), when the module has the Speak-Out: SPEAKOUT.HEX from the
-#     firmware folder, its gw-micro-speakout/ or ../speakout-firmware/, or firmware/gw-micro-speakout/.
+#     firmware folder, its gw-micro-speakout/ or ../speakout-firmware/, or firmware/gw-micro-speakout/;
+#   the Mockingboard's (Sweet Micro Systems', never in the repository), when the module has the Mockingboard:
+#     mockingboard-tts-1.1.bin from the firmware folder, its sweet-micro-mockingboard/, or
+#     firmware/sweet-micro-mockingboard/ (a local copy; *.bin is ignored).
 # They go into share/ssi263-speech as the repository's firmware/ folders are laid out (sd_voices.h).
 # Output: build/ssi263-speech-<version>-linux-<arch>.tar.gz
 set -e
@@ -74,12 +77,30 @@ EOF
         echo "note: the module has the Speak-Out, but no SPEAKOUT.HEX was found, so the voice is not packaged"
     fi
 fi
-if has mockingboard; then                          # Sweet Micro's, in the repository with firmware/SWEETMICRO.txt
-    mkdir -p "$STAGE/share/ssi263-speech/sweet-micro-mockingboard"
-    cp "$ROOT/firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin" "$STAGE/share/ssi263-speech/sweet-micro-mockingboard/"
-    cp "$ROOT/firmware/SWEETMICRO.txt" "$STAGE/licenses/Sweet-Micro-notice.txt"
+if has mockingboard; then
+    # the 6502 core is in the module whether or not the firmware ships
     cp "$ROOT/src/csrc/cpu/fake6502/PINNED.txt" "$STAGE/licenses/Fake6502-6502-core.txt"
     cp "$ROOT/src/csrc/cpu/fake6502/LICENSE-EchoTalk-BSD-3-Clause.txt" "$STAGE/licenses/EchoTalk-BSD-3-Clause.txt"
+    MBF=""
+    for src in "$FW/mockingboard-tts-1.1.bin" "$FW/sweet-micro-mockingboard/mockingboard-tts-1.1.bin" \
+               "$ROOT/firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin"; do
+        [ -f "$src" ] && { MBF="$src"; break; }
+    done
+    if [ -n "$MBF" ]; then
+        mkdir -p "$STAGE/share/ssi263-speech/sweet-micro-mockingboard"
+        cp "$MBF" "$STAGE/share/ssi263-speech/sweet-micro-mockingboard/mockingboard-tts-1.1.bin"
+        cat > "$STAGE/licenses/Mockingboard-firmware-notice.txt" <<'EOF'
+The Mockingboard's text-to-speech -- notice
+
+This package carries Sweet Micro Systems' text-to-speech for the Mockingboard
+(share/ssi263-speech/sweet-micro-mockingboard/mockingboard-tts-1.1.bin: TEXT TO SPEECH and INFLECTION version 1.1,
+11 March 1985, the IIe TTS driver and the MKB:RULE files, from the Mockingboard Developers Toolkit disk). It is not
+ours; it is here so the card can speak again, and it will be removed if its rights holders ask. It is not covered by
+this package's MIT license.
+EOF
+    else
+        echo "note: the module has the Mockingboard, but no mockingboard-tts-1.1.bin was found, so the voice is not packaged"
+    fi
 fi
 # the Blazie emulator (src/apps/blazie/README-linux.md): bin/blazie_emu finds the firmware in ../share/ssi263-speech,
 # the Type 'n Speak's in its tns folder (from the firmware folder's tns/, or beside the Braille Lite's)

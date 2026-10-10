@@ -249,7 +249,7 @@ if [ -f "$SRC/speakout/so_voice.c" ]; then
     SD_DEFS="$SD_DEFS -DSSV_HAVE_SPEAKOUT"
 fi
 if [ -f "$SRC/mockingboard/mb_voice.c" ]; then     # the Mockingboard (0.8): Fake6502, the board, the host, the voice
-    VOICE_SRCS="$VOICE_SRCS $SRC/cpu/m6502.c $SRC/mockingboard/mb_board.c $SRC/mockingboard/mb_host.c $SRC/mockingboard/mb_voice.c"
+    VOICE_SRCS="$VOICE_SRCS $SRC/cpu/m6502.c $SRC/mockingboard/mb_board.c $SRC/mockingboard/mb_host.c $SRC/mockingboard/mb_voice.c $SRC/mockingboard/mb_dsk.c"
     SD_DEFS="$SD_DEFS -DSSV_HAVE_MOCKINGBOARD"
 fi
 for f in $VOICE_SRCS; do

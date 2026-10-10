@@ -59,6 +59,7 @@ KEYS = {
     "W64DEVKIT_X86": "w64devkit's bin folder, i686",
     "PYTHON64": "64-bit Python 3.13 (python.exe), for the C-vs-Python gate",
     "PYTHON32": "32-bit Python 3.13 (python.exe), for the C-vs-Python gate",
+    "MOCKINGBOARD_DISKS": "a folder with Sweet Micro's disk images: the Developers Toolkit .dsk and mockingboard1.dsk",
 }
 
 _local = None

@@ -15,3 +15,6 @@
 # PYTHON64 = <64-bit Python 3.13 python.exe>
 # PYTHON32 = <32-bit Python 3.13 python.exe>
 # Z180EMU = <z180emu checkout with this project's bns.c; the Braille Lite add-on only>
+
+# Test data (not in the repo)
+# MOCKINGBOARD_DISKS = <folder with "Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk" and mockingboard1.dsk>

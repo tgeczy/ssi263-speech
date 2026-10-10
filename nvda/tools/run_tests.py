@@ -1385,6 +1385,28 @@ for brk, marks in (
                    r"^hard G: 19 FAILED$"])):
     CHECKS.append(check("hard G CONTROL (%s, must fail)" % brk, [PY, HARD_G], env={"HARD_G_BREAK": brk},
                         expect_fail=True, fail_marks=marks))
+# The Mockingboard (src/csrc/mockingboard, 0.8): Sweet Micro's text-to-speech on Fake6502 and the board -- the 6502
+# core's contract (test_m6502_contract.c) with its must-fail controls (cpu/m6502_controls.py), and the host's, the
+# voice's and the disk reader's tests with theirs (mockingboard/mb_controls.py: each suite as it is, then each rule
+# undone must fail exactly its tests).  The firmware file is a local copy (firmware/sweet-micro-mockingboard, never
+# committed); the disk images come from MOCKINGBOARD_DISKS (paths.local).
+REPO = os.path.dirname(os.path.dirname(HERE))
+MB_FW = os.path.join(REPO, "firmware", "sweet-micro-mockingboard")
+if os.path.isfile(os.path.join(MB_FW, "mockingboard-tts-1.1.bin")):
+    sys.path.insert(0, REPO)
+    from tools import repo_paths      # noqa: E402
+    MB_DISKS = repo_paths.lookup("MOCKINGBOARD_DISKS") or ""
+    MB_DSK = [os.path.join(MB_DISKS, n) for n in ("Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk",
+                                                   "mockingboard1.dsk")]
+    have_dsk = all(os.path.isfile(p) for p in MB_DSK)
+    CHECKS.append(check("6502 core (Fake6502): contract and its controls",
+                        [PY, os.path.join(REPO, "src", "csrc", "cpu", "m6502_controls.py")],
+                        ok=lambda out: bool(re.search(r"^controls: all as expected$", out, re.M))))
+    CHECKS.append(check("Mockingboard: host, voice%s tests and their controls" % (", disk" if have_dsk else ""),
+                        [PY, os.path.join(REPO, "src", "csrc", "mockingboard", "mb_controls.py"), MB_FW]
+                        + (MB_DSK if have_dsk else []),
+                        ok=lambda out, d=have_dsk: bool(re.search(r"^controls: all as expected$", out, re.M))
+                        and (not d or bool(re.search(r"^ok +dsk as it is -> 5 tests", out, re.M)))))
 GEN_DEFAULTS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "gen_chip_defaults.py")
 CHECKS.append(check("chip defaults header", [PY, GEN_DEFAULTS, "--check"]))
 # and on Python 3.7 (NVDA 2021-2023): the defaults must not depend on the Python version (3.12 changed float sum())

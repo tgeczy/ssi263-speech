@@ -1,7 +1,7 @@
 """Must-fail controls for test_m6502_contract.c: each variant undoes one rule of the 6502 core -- our step driver
 (m6502.c), a named change of the extraction, or an upstream rule the contract relies on (m6502_fake_machine.c) -- in a
 temporary copy, and exactly that rule's tests must then fail.  The runner guard (exit code, summary line, the full
-test inventory) is contract_controls.py's.  Not in run_tests: ten C builds take a few seconds.
+test inventory) is contract_controls.py's.  nvda/tools/run_tests.py runs it (ten C builds, a few seconds).
 
     python src/csrc/cpu/m6502_controls.py
 """

@@ -145,7 +145,7 @@ class Ref:
 # ---- the other voices: the module's data folder, and each voice driven directly ------------------------------------
 TO100 = lambda s: max(0, min(100, (s + 100) // 2))      # noqa: E731  (sd_ssi263.c's to100)
 FW_DIRS = {"aicom-accent-sa": ("u2.BIN", "u3.BIN", "u4.BIN"), "aicom-accent-mini": ("SPKEMS.DVC",),
-           "gw-micro-speakout": ("SPEAKOUT.HEX",)}
+           "gw-micro-speakout": ("SPEAKOUT.HEX",), "sweet-micro-mockingboard": ("mockingboard-tts-1.1.bin",)}
 
 
 def voices_data():
@@ -186,7 +186,7 @@ def _api(prefix, create_args, set_args):
 
 # Each voice: its name, its engine's prefix, how its unit is made, and its settings from the config's defaults (or
 # the keys given) -- the calls sd_voices.c makes.
-ENGINES = {"as": ("Accent SA",), "am": ("Accent-mini",), "so": ("Speak-Out",)}
+ENGINES = {"as": ("Accent SA",), "am": ("Accent-mini",), "so": ("Speak-Out",), "mb": ("Mockingboard",)}
 
 
 class EngineRef:
@@ -202,6 +202,12 @@ class EngineRef:
             self.f = _api("amv_", [_S, _D, _S, _I], 6)
             self.v = self.f("create")(os.path.join(VDATA, "aicom-accent-mini", "SPKEMS.DVC").encode(), float(rate),
                                       err, 256)
+        elif key == "mb":
+            self.f = _api("mbv_", [_S, ctypes.c_size_t, _D, _S, _I], 4)
+            ref_lib.mbv_create_dir.restype = _P              # from its folder (mb_voice.h), not _api's create
+            ref_lib.mbv_create_dir.argtypes = [_S, _D, _S, _I]
+            self.v = self.f("create_dir")(os.path.join(VDATA, "sweet-micro-mockingboard").encode(), float(rate),
+                                          err, 256)
         else:
             self.f = _api("sov_", [_S, _D, _S, _I], 6)
             self.v = self.f("create")(os.path.join(VDATA, "gw-micro-speakout", "SPEAKOUT.HEX").encode(),
@@ -215,6 +221,8 @@ class EngineRef:
             self.f("set")(self.v, r, p, self.accent_inflection, v, 1)
         elif self.key == "am":      # amv_set(rate, pitch, inflection, volume, numbers, voice 5)
             self.f("set")(self.v, r, p, self.accent_inflection, v, 1, 5)
+        elif self.key == "mb":      # mbv_set(rate, pitch, volume, numbers)
+            self.f("set")(self.v, r, p, v, 1)
         else:                       # sov_set(rate, pitch, tone I, volume, join, short pauses)
             self.f("set")(self.v, r, p, 8, v, 1, 1)
 
@@ -347,7 +355,8 @@ EXPECTED = [("Braille Lite 2000", "en-US", ("BL2ENG.BNS", "bl2_2003_warm.state")
             ("Braille Lite 2000 (español)", "es-ES", ("BL2SPA.BNS", "bl2spa_fresh.state")),
             ("Accent SA", "en-US", tuple("aicom-accent-sa/" + f for f in FW_DIRS["aicom-accent-sa"])),
             ("Accent-mini", "en-US", ("aicom-accent-mini/SPKEMS.DVC",)),
-            ("Speak-Out", "en-US", ("gw-micro-speakout/SPEAKOUT.HEX",))]
+            ("Speak-Out", "en-US", ("gw-micro-speakout/SPEAKOUT.HEX",)),
+            ("Mockingboard", "en-US", ("sweet-micro-mockingboard/mockingboard-tts-1.1.bin",))]
 want = ["200-%s\t%s\tMALE1" % (n, lang) for n, lang, files in EXPECTED
         if n in BUILT_NAMES and all(os.path.isfile(os.path.join(VDATA, f)) for f in files)] + ["249 OK VOICES LISTED"]
 ok = voices == want and "Accent SA" in listed and set(BUILT_NAMES) <= {e[0] for e in EXPECTED}
@@ -543,10 +552,10 @@ def voice_session(key):
     return ok
 
 
-# the Accent-mini's and the Speak-Out's checks are counted apart, so the controls' counts (tools/linux_tests.sh) hold
-# whether or not those voices are built in
+# the Accent-mini's, the Speak-Out's and the Mockingboard's checks are counted apart, so the controls' counts
+# (tools/linux_tests.sh) hold whether or not those voices are built in
 others = []
-for key in ("as", "am", "so"):
+for key in ("as", "am", "so", "mb"):
     if ENGINES[key][0] in listed:
         (results if key == "as" else others).extend(voice_session(key))
     else:
@@ -567,5 +576,6 @@ results.append(same("as_infl", pcm, flat) and flat != full)
 print("%d of %d checks passed (stop after %d blocks, %d with run ahead)" % (sum(results), len(results), blocks,
                                                                           ra_blocks))
 if others:
-    print("the Accent-mini's and the Speak-Out's: %d of %d checks passed" % (sum(others), len(others)))
+    print("the Accent-mini's, the Speak-Out's and the Mockingboard's: %d of %d checks passed" % (sum(others),
+                                                                                                    len(others)))
 sys.exit(0 if all(results) and all(others) else 1)

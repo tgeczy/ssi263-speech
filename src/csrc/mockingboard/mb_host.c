@@ -130,6 +130,13 @@ static int hex_is(const unsigned char *d, const char *hex)
     return 1;
 }
 
+MB_API int mbh_is_known(const unsigned char *image, size_t n)
+{
+    unsigned char sum[32];
+    sha256(image, n, sum);
+    return hex_is(sum, SHA256_HEX);
+}
+
 /* the six files placed; 0 (the reason in err) if the image is not the set */
 static int place(mb_board *b, const unsigned char *image, size_t n, char *err, int errlen)
 {

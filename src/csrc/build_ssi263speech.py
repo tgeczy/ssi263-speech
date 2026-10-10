@@ -72,7 +72,8 @@ def units():
         have.append("-DSSV_HAVE_ACCENTMINI")
     if os.path.isfile(os.path.join(SRC, "mockingboard", "mb_voice.c")):      # mb-voice's sources (mb_voice.h, 0.8)
         mb = ["-O2", "-std=gnu99", "-ffp-contract=off", "-w"] + inc("cpu", "mockingboard", "")
-        u += [(mb, "cpu/m6502.c")] + [(mb, "mockingboard/%s.c" % n) for n in ("mb_board", "mb_host", "mb_voice")]
+        u += [(mb, "cpu/m6502.c")] + [(mb, "mockingboard/%s.c" % n)
+                                      for n in ("mb_board", "mb_host", "mb_voice", "mb_dsk")]
         have.append("-DSSV_HAVE_MOCKINGBOARD")
     u.append((FRONT + have, "voices.c"))
     return u, have

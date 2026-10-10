@@ -74,6 +74,8 @@ typedef struct {
 #define MBH_FAULT_STUCK 2                  /* "fault": the 6502 did not come back within the limit */
 
 MB_API mb_host *mbh_create(const unsigned char *image, size_t n, ssi263 *chip, double out_rate, char *err, int errlen);
+/* 1 when these bytes are the known firmware file (MB_SHA256): what an importer checks */
+MB_API int mbh_is_known(const unsigned char *image, size_t n);
 MB_API mb_host *mbh_create_dir(const char *dir, ssi263 *chip, double out_rate, char *err, int errlen);
 MB_API void mbh_destroy(mb_host *h);
 MB_API ssi263 *mbh_chip(mb_host *h);
