@@ -7,12 +7,13 @@
 # instructions, src/csrc/cpu/m6502.c) -- the same sources and flags
 # as build_linux.sh -- plus the app's front end
 # (src/platforms/android/app/src/main/cpp), cross-built with the NDK's clang and dropped where Gradle packages
-# prebuilt libraries.  Then it stages what the APK carries besides code: the Accent SA's ROMs (Aicom's, the one
-# firmware the app ships: Tomi, 2026-09-30) and the licences: the project's MIT, and MAME's BSD-3-Clause notices for
-# the Z180, 8085 and V40 cores (and the 8086's with the Accent-mini; Fake6502's credit and EchoTalk's BSD-3-Clause
-# with the Mockingboard).  No GPL code (src/platforms/android/test/check_apk_no_firmware.py audits the APK).
-# Not the Braille Lite's firmware, the Speak-Out's nor the Mockingboard's: the app's users import their own (Sweet
-# Micro's is treated as Blazie's: Tomi, 2026-10-09).  The Accent-mini's SPKEMS.DVC
+# prebuilt libraries.  Then it stages what the APK carries besides code: the Accent SA's ROMs (Aicom's: Tomi,
+# 2026-09-30), the two Mockingboard files (Sweet Micro's, from the local firmware/sweet-micro-mockingboard when they
+# are there: Tomi, 2026-10-10, the GitHub APK carries them until a store build exists) and the licences: the
+# project's MIT, and MAME's BSD-3-Clause notices for the Z180, 8085 and V40 cores (and the 8086's with the
+# Accent-mini; Fake6502's credit, EchoTalk's BSD-3-Clause and Sweet Micro's notice with the Mockingboard).  No GPL
+# code (src/platforms/android/test/check_apk_no_firmware.py audits the APK).  Not the Braille Lite's firmware nor
+# the Speak-Out's: the app's users import their own.  The Accent-mini's SPKEMS.DVC
 # (Aicom's, beside the Accent SA's ROMs) only in a build with the Accent-mini.
 #
 #   sh build_android.sh                  arm64-v8a, armeabi-v7a and x86_64
@@ -76,6 +77,7 @@ MOCKING="-O2 -std=gnu99 -ffp-contract=off -fPIC -fvisibility=hidden -w -I$SRC/cp
 CPP="$APP/cpp"
 AICOM="$ROOT/firmware/aicom-accent-sa"
 AICOM_MINI="$ROOT/firmware/aicom-accent-mini"
+SWEET="$ROOT/firmware/sweet-micro-mockingboard"    # the Mockingboards' files: local copies, never committed
 # The voices' table (src/csrc/voices.c, the SAPI engine's too) gets the engines whose sources are in the tree, as
 # src/csrc/build_ssi263speech.py builds it: the Speak-Out (so_voice.h) and the Accent-mini (am_voice.h, Aicom's
 # SPKEMS.DVC on an emulated PC; its driver is then staged beside the Accent SA's ROMs) and the Mockingboard
@@ -203,6 +205,21 @@ stage_assets() {
         [ -f "$AICOM_MINI/SPKEMS.DVC" ] || { echo "missing $AICOM_MINI/SPKEMS.DVC"; exit 1; }
         cp "$AICOM_MINI/SPKEMS.DVC" "$A/aicom/"
     fi
+    # The Mockingboards' files (Sweet Micro Systems'), from the local, gitignored firmware/sweet-micro-mockingboard: the
+    # GitHub APK carries both until a store build exists (Tomi, 2026-10-10), with their notice.  A file not there
+    # leaves its voice import only; the build goes on.  check_apk_no_firmware.py lets exactly these two through.
+    if [ "$MB" = 1 ]; then
+        MBN=0
+        for f in mockingboard-tts-1.1.bin mockingboard-tts-early.bin; do
+            if [ -f "$SWEET/$f" ]; then
+                mkdir -p "$A/sweet-micro"
+                cp "$SWEET/$f" "$A/sweet-micro/"
+                MBN=$((MBN + 1))
+            else
+                echo "note: no $SWEET/$f -- that Mockingboard voice is import only in this APK"
+            fi
+        done
+    fi
     # No firmware: the app is where it can NOT ship, so its users import their own (SettingsActivity).  A developer
     # build may carry it, by asking: SSI263_ANDROID_BUNDLE_FIRMWARE=1 (never a release).
     if [ "${SSI263_ANDROID_BUNDLE_FIRMWARE:-0}" = 1 ]; then
@@ -218,11 +235,6 @@ stage_assets() {
                 break
             fi
         done
-        # the Mockingboard's, when it is in the repository's firmware folder
-        MBFW="$ROOT/firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin"
-        if [ "$MB" = 1 ] && [ -f "$MBFW" ]; then
-            cp "$MBFW" "$A/firmware/"
-        fi
         echo "DEVELOPER BUILD: the firmware is bundled; do not distribute this APK"
     fi
     cp "$ROOT/src/platforms/android/licenses/"*.txt "$A/licenses/"
@@ -235,10 +247,13 @@ stage_assets() {
         cp "$SRC/cpu/mame_i86/LICENSE-BSD-3-Clause.txt" "$A/licenses/MAME-8086-core-BSD-3-Clause.txt"
     fi
     # the Mockingboard's 6502: Fake6502 (public domain, credit asked) by way of EchoTalk (BSD-3-Clause), the names
-    # tools/package_linux.sh gives them; no Sweet Micro notice, as the app carries none of its firmware
+    # tools/package_linux.sh gives them; and Sweet Micro's notice when the APK carries a Mockingboard file
     if [ "$MB" = 1 ]; then
         cp "$SRC/cpu/fake6502/PINNED.txt" "$A/licenses/Fake6502-6502-core.txt"
         cp "$SRC/cpu/fake6502/LICENSE-EchoTalk-BSD-3-Clause.txt" "$A/licenses/EchoTalk-BSD-3-Clause.txt"
+        if [ "$MBN" -gt 0 ]; then
+            cp "$ROOT/src/platforms/android/notices/Sweet-Micro-Mockingboard-notice.txt" "$A/licenses/"
+        fi
     fi
     cp "$ROOT/third_party/casso/LICENSE" "$A/licenses/Casso-MIT.txt"
     ls -R "$A" | head -20

@@ -17,8 +17,9 @@ JNI bridge, the APK's Accent SA ROMs and the framework's hand-over.
   pitch mapped as ssa_engine.c maps them; and the capital's pitches as the Accent SA's.
 - The Aicom Accent-mini (built in, when this build carries it): against am_voice driven directly (--am-direct), the
   same way.
-- The Mockingboard (when its mockingboard-tts-1.1.bin is imported on the device): against mb_voice driven directly
-  (--mb-direct) from the device's own file, the same way.
+- The two Mockingboards (built in, or imported): against mb_voice driven directly (--mb-direct) from the file the
+  device speaks from -- its imported copy, else the local copy the APK was built with -- the same way (--voice
+  mockingboard runs both).
 
 Each voice is chosen for the run through SettingsActivity's setvoice hook, as the Voice button would, and the choice
 the device had before (or none) is put back afterwards, as is run ahead.
@@ -52,7 +53,9 @@ TEXT = {"braillelite": "Hello there. This is the Braille Lite, speaking on a pho
 TEXT["speakout"] = "Hello there. This is the Speak-Out, speaking on a phone."
 TEXT["accentmini"] = "Hello there. This is the Accent-mini, speaking on a phone."
 TEXT["mockingboard"] = "Hello there. This is the Mockingboard, speaking on a phone."
-VOICE = {"braillelite": 0, "accent": 2, "speakout": 3, "accentmini": 4, "mockingboard": 5}   # SsiNative's indices
+TEXT["mockingboardearly"] = "Hello there. This is the early Mockingboard, speaking on a phone."
+VOICE = {"braillelite": 0, "accent": 2, "speakout": 3, "accentmini": 4, "mockingboard": 5,
+         "mockingboardearly": 6}                                                     # SsiNative's indices
 CAPITAL = "B"
 SETTINGS = os.path.join(T.REPO, "src", "platforms", "android", "app", "src", "main", "kotlin", "com", "ssi263speech",
                         "tts", "SsiSettings.kt")
@@ -249,25 +252,32 @@ def accent_mini(a):
     return run_cases(a, "accentmini", want, "Accent-mini")
 
 
-def mockingboard(a):
-    """The Mockingboard, against mb_voice driven directly from the device's own imported file."""
+def mockingboard(a, voice="mockingboard"):
+    """A Mockingboard voice ("mockingboard", "mockingboardearly"), against mb_voice driven directly from the file the
+    device speaks from: its imported copy when there is one, else the APK's built-in one (the repository's local copy,
+    the one build_android.sh bundles)."""
+    name_ = "mockingboard-tts-early.bin" if voice == "mockingboardearly" else "mockingboard-tts-1.1.bin"
+    label = "Mockingboard, early" if voice == "mockingboardearly" else "Mockingboard"
     tmp = tempfile.mkdtemp(prefix="ssi263-device-mb-")
     try:
-        if not pulled("/data/user_de/0/%s/files/unit/mockingboard-tts-1.1.bin" % PKG, tmp, "mockingboard-tts-1.1.bin"):
-            print("skip  Mockingboard: no mockingboard-tts-1.1.bin imported on the device")
-            return 0
+        fw = pulled("/data/user_de/0/%s/files/unit/%s" % (PKG, name_), tmp, name_)
+        if not fw:
+            fw = os.path.join(T.MB_BUILTIN, name_)
+            if not os.path.isfile(fw):
+                print("skip  %s: none imported on the device and no local copy of %s" % (label, name_))
+                return 0
         volume, pct = default_volume(), int(round(a.rate * 100))
         lines = []
-        for name, text, rate, pitch in (("sentence", TEXT["mockingboard"], pct, 100), ("cap-100", CAPITAL, 100, 100),
+        for name, text, rate, pitch in (("sentence", TEXT[voice], pct, 100), ("cap-100", CAPITAL, 100, 100),
                                         ("cap-150", CAPITAL, 100, 150), ("cap-120", CAPITAL, 100, 120),
                                         ("cap-75", CAPITAL, 100, 75)):
             lines.append("%s 22050 %d 50 %d 1 %d 0 %s\n" % (name, T.on_top(50, rate), volume,
                                                             T.step_pitch(50, pitch, T.mb_step) - 50,
                                                             text.encode("utf-8").hex()))
-        want = direct("--mb-direct", tmp, lines)
+        want = direct("--mb-direct", fw, lines)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    return run_cases(a, "mockingboard", want, "Mockingboard")
+    return run_cases(a, voice, want, label)
 
 
 def device_unit(tmp, spanish):
@@ -359,7 +369,7 @@ def main():
         if a.voice in ("accentmini", "all"):
             bad += accent_mini(a)
         if a.voice in ("mockingboard", "all"):
-            bad += mockingboard(a)
+            bad += mockingboard(a) + mockingboard(a, "mockingboardearly")
     finally:
         set_run_ahead(before_ra)                # the device's own run ahead back (-1: never set)
         set_voice(before)                       # the device's own choice back (-1: none)

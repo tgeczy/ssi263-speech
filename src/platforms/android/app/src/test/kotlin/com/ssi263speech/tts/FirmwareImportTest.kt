@@ -1,7 +1,7 @@
 // FirmwareImport's layout and wording on the JVM, with no phone and no firmware: the native side's judgement is
 // played by a fake that knows a made-up image by the same signature (F3 C3 xx xx FF "COPYRIGHT") plus a letter for
 // what it is, and a made-up Intel HEX text (":" records) as the Speak-Out's when it says GOOD, a damaged one when not,
-// and made-up bytes starting "SWEETMICRO" as the Mockingboard's file.
+// and made-up bytes starting "SWEETMICRO" and "SWEETEARLY" as the Mockingboards' files ("DOS33DISK" as their disks).
 // The real judgement (bl_firmware.c, its list of releases; ssa_import.c, SPEAKOUT.HEX's sha256) has its own tests,
 // test_import_native.py and test_android_native.py, on the real files.
 //     gradlew testDebugUnitTest                              every case
@@ -45,11 +45,16 @@ class FirmwareImportTest {
     private fun disk(toolkit: Boolean) = "DOS33DISK".toByteArray() + (if (toolkit) "TOOLKIT" else "OTHER").toByteArray() +
         ByteArray(3000)
 
+    /** A made-up Mockingboard disk 1: the fake gives the early file from it. */
+    private fun disk1() = "DOS33DISK".toByteArray() + "DISK1".toByteArray() + ByteArray(3000)
+
     /** A made-up state: the size every state has, whatever is in it. */
     private fun state() = ByteArray(FirmwareImport.STATE_SIZE) { (it * 13).toByte() }
 
     private companion object {
         val MOCKINGBOARD_FILE = "SWEETMICRO".toByteArray() + ByteArray(2000) { (it * 5).toByte() }
+        val EARLY_FILE = "SWEETEARLY".toByteArray() + ByteArray(1900) { (it * 3).toByte() }
+        const val EARLY_LABEL = "Mockingboard, early: Sweet Micro Systems' text-to-speech of Mockingboard disk 1"
     }
 
     private object Fake : FirmwareImport.Identify {
@@ -63,11 +68,20 @@ class FirmwareImportTest {
                 return FirmwareImport.SPEAKOUT to "GW Micro Speak-Out: SPEAKOUT.HEX"
             }
             if (String(data, 0, minOf(9, data.size), Charsets.ISO_8859_1) == "DOS33DISK") {
-                if (!String(data, Charsets.ISO_8859_1).contains("TOOLKIT"))
+                val text = String(data, Charsets.ISO_8859_1)
+                if (text.contains("DISK1")) {
+                    out.writeBytes(EARLY_FILE)
+                    return FirmwareImport.MOCKINGBOARD_EARLY to EARLY_LABEL
+                }
+                if (!text.contains("TOOLKIT"))
                     return FirmwareImport.OTHER_DISK to "a Mockingboard disk, but not the text-to-speech version 1.1 " +
                         "this voice runs"
                 out.writeBytes(MOCKINGBOARD_FILE)
                 return FirmwareImport.MOCKINGBOARD to "Mockingboard: Sweet Micro Systems' text-to-speech 1.1"
+            }
+            if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "SWEETEARLY") {
+                out.writeBytes(data)
+                return FirmwareImport.MOCKINGBOARD_EARLY to EARLY_LABEL
             }
             if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "SWEETMICRO") {
                 out.writeBytes(data)
@@ -389,7 +403,31 @@ class FirmwareImportTest {
             "runs; it is left out.", plan.notes.single())
     }
 
+    // ---- the early Mockingboard: disk 1's text-to-speech, its file or the disk (Tomi, 2026-10-10) ----------------------
+
+    @Test fun theEarlyFileAlone() {
+        val plan = inspect("mockingboard-tts-early.bin", EARLY_FILE)
+        assertNull(plan.refusal)
+        assertEquals(listOf(FirmwareImport.MOCKINGBOARD_EARLY), languages(plan))
+        assertEquals(EARLY_LABEL, plan.found[0].label)
+    }
+
+    @Test fun diskOneInAFolderOfAZipGivesTheEarlyFile() {
+        val plan = inspect("apple.zip", zip("disks/mockingboard1.dsk" to disk1()))
+        assertEquals(listOf(FirmwareImport.MOCKINGBOARD_EARLY), languages(plan))
+        assertEquals("disks/mockingboard1.dsk", plan.found[0].from)
+        assertTrue(plan.found[0].firmware.readBytes().contentEquals(EARLY_FILE))
+    }
+
+    @Test fun bothMockingboardsFromOneZip() {
+        val plan = inspect("mockingboard.zip", zip("toolkit.dsk" to disk(true), "disk1/mockingboard1.dsk" to disk1()))
+        assertEquals(listOf(FirmwareImport.MOCKINGBOARD, FirmwareImport.MOCKINGBOARD_EARLY), languages(plan))
+        assertEquals(FirmwareImport.FILES[FirmwareImport.MOCKINGBOARD_EARLY], listOf("mockingboard-tts-early.bin"))
+    }
+
     @Test fun theMockingboardHasNoStateToMake() {
+        assertTrue(FirmwareImport.MOCKINGBOARD_EARLY in FirmwareImport.NO_STATE)
+        assertEquals(FirmwareImport.BUILT_IN, setOf(FirmwareImport.MOCKINGBOARD, FirmwareImport.MOCKINGBOARD_EARLY))
         assertTrue(FirmwareImport.MOCKINGBOARD in FirmwareImport.NO_STATE)
         assertEquals(listOf("mockingboard-tts-1.1.bin"), FirmwareImport.FILES[FirmwareImport.MOCKINGBOARD])
         assertTrue(FirmwareImport.MOCKINGBOARD in FirmwareImport.IMPORTED)

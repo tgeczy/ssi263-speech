@@ -1,0 +1,16 @@
+The Mockingboard's text-to-speech -- notice
+
+This app carries Sweet Micro Systems' text-to-speech for the Mockingboard, the
+Apple II's sound and speech card:
+
+- mockingboard-tts-1.1.bin: TEXT TO SPEECH and INFLECTION version 1.1
+  (11 March 1985), the IIe TTS driver and the MKB:RULE files, from the
+  Mockingboard Developers Toolkit disk;
+- mockingboard-tts-early.bin: the earlier TEXT TO SPEECH and its MKB:RULE
+  files, from Mockingboard disk 1.
+
+They are Sweet Micro Systems' work, not ours. They are here so the card can
+speak again, and they will be removed if their rights holders ask. They are
+not covered by this app's MIT license, nor by any other license shown here.
+A copy you import yourself replaces the one the app carries, and stays on
+this device.

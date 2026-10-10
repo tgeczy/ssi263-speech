@@ -997,15 +997,20 @@ if os.path.isfile(ANDROID_TEST):
     ANDROID_FW = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware")
     ANDROID_SO = os.path.isfile(os.path.join(ANDROID_FW, "gw-micro-speakout", "SPEAKOUT.HEX"))
     ANDROID_MINI = os.path.isfile(os.path.join(ANDROID_FW, "aicom-accent-mini", "SPKEMS.DVC"))
-    # the Mockingboard's firmware is imported by the user, never committed: its cases run where the file is
-    ANDROID_MB = os.path.isfile(os.path.join(ANDROID_FW, "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin"))
-    # ... and its disk images, from MOCKINGBOARD_DISKS (paths.local; never committed): the toolkit's, and another
+    # the Mockingboards' files (local copies, never committed; the GitHub APK carries both): their cases run where
+    # both are, the controls' counts being for the two voices
+    _MBFW = os.path.join(ANDROID_FW, "sweet-micro-mockingboard")
+    ANDROID_MB = all(os.path.isfile(os.path.join(_MBFW, n))
+                     for n in ("mockingboard-tts-1.1.bin", "mockingboard-tts-early.bin"))
+    # ... and the disk images, from MOCKINGBOARD_DISKS (paths.local; never committed): the toolkit's (1.1), disk 1 (the
+    # early one) and disk 2 (refused)
     sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
     from tools import repo_paths as _rp      # noqa: E402
     _MBD = _rp.lookup("MOCKINGBOARD_DISKS") or ""
     ANDROID_DSK = bool(_MBD) and os.path.isfile(
         os.path.join(_MBD, "Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk"))
-    ANDROID_DSK2 = bool(_MBD) and os.path.isfile(os.path.join(_MBD, "mockingboard1.dsk"))
+    ANDROID_DSK1 = bool(_MBD) and os.path.isfile(os.path.join(_MBD, "mockingboard1.dsk"))
+    ANDROID_DSK2 = bool(_MBD) and os.path.isfile(os.path.join(_MBD, "mockingboard2.dsk"))
     # the number words' reference (bl.dll has none): ssi263speech.dll, src/csrc/build_ssi263speech.py
     ANDROID_NUM = os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", "win",
                                               "x64" if sys.maxsize > 2 ** 32 else "x86", "ssi263speech.dll"))
@@ -1042,22 +1047,35 @@ if os.path.isfile(ANDROID_TEST):
              [r"^FAIL +desktop +s-settings +got ", r"^ok +desktop +s-sliders ", r"^FAILED: 9 case\(s\) differ$"]),
             ("import-hash", "Speak-Out and Mockingboard import: the sha256 dropped",
              [r"^FAIL +import +another HEX ", r"^ok +import +a HEX with one digit changed"] +
-             ([r"^FAIL +import +the file with one byte changed: Mockingboard", r"^ok +import +the file cut short",
-               r"^FAILED: 2 case\(s\) differ$"] if ANDROID_MB else [r"^FAILED: 1 case\(s\) differ$"])),)
+             ([r"^FAIL +import +mockingboard-tts-1\.1\.bin with one byte changed: Mockingboard",
+               r"^FAIL +import +mockingboard-tts-early\.bin with one byte changed: Mockingboard, early",
+               r"^ok +import +mockingboard-tts-1\.1\.bin cut short", r"^FAILED: 3 case\(s\) differ$"] if ANDROID_MB
+              else [r"^FAILED: 1 case\(s\) differ$"])),)
             if ANDROID_SO else ()) + ((
-            ("mockingboard-pitch", "Mockingboard: the request's pitch dropped",
-             [r"^FAIL +desktop +mb-pitch-150 +got ", r"^ok +desktop +mb-pitch-100 ", r"^FAILED: 9 case\(s\) differ$"]),
-            ("mockingboard-numbers", "Mockingboard: number words dropped",
-             [r"^FAIL +desktop +mb-num +got ", r"^FAIL +desktop +mb-num-off +got ", r"^ok +desktop +mb-pitch-120 ",
-              r"^FAILED: 5 case\(s\) differ$"])) if ANDROID_MB else ()) + ((
+            ("mockingboard-pitch", "Mockingboards: the request's pitch dropped",
+             [r"^FAIL +desktop +mb-pitch-150 +got ", r"^FAIL +desktop +mbe-pitch-150 +got ", r"^ok +desktop +mb-pitch-100 ",
+              r"^FAILED: 18 case\(s\) differ$"]),
+            ("mockingboard-numbers", "Mockingboards: number words dropped",
+             [r"^FAIL +desktop +mb-num +got ", r"^FAIL +desktop +mbe-num +got ", r"^ok +desktop +mb-pitch-120 ",
+              r"^FAILED: 10 case\(s\) differ$"]),
+            ("mockingboard-import-ignored", "Mockingboards: the imported copy ignored",
+             [r"^FAIL +desktop +mb-default +got None", r"^FAIL +desktop +mbe: its built-in copy used with no import, "
+              r"an imported one over it \(source 2 then 2\)", r"^FAILED: 44 case\(s\) differ$"]),
+            ("mockingboard-builtin-ignored", "Mockingboards: the built-in copies ignored",
+             [r"^FAIL +desktop +mb-builtin +got \(0, ", r"^FAIL +desktop +mbe-builtin +got \(0, ",
+              r"^ok +desktop +mb-default ", r"^FAILED: 4 case\(s\) differ$"]),
+            ("mockingboard-variant", "Mockingboards: either file taken for either voice",
+             [r"^FAIL +desktop +mb: the other Mockingboard's file refused", r"^ok +desktop +mbe-builtin ",
+              r"^FAILED: 2 case\(s\) differ$"])) if ANDROID_MB else ()) + ((
             ("import-dsk", "Mockingboard import: the disk image never tried",
              [r"^FAIL +import +the toolkit's \.dsk: ", r"^FAIL +import +a zip's toolkit \.dsk: "] +
+             ([r"^FAIL +import +Mockingboard disk 1's \.dsk: "] if ANDROID_DSK1 else []) +
              ([r"^ok +import +mockingboard-tts-1\.1\.bin: "] if ANDROID_MB else []) +
-             [r"^FAILED: %d case\(s\) differ$" % (4 + ANDROID_DSK2)]),) if ANDROID_DSK else ()):
-        # each control runs the blocks its bug touches (SSI263_ANDROID_TEST_ONLY), not all six voices: the gate's time
+             [r"^FAILED: %d case\(s\) differ$" % (4 + 3 * ANDROID_DSK1 + ANDROID_DSK2)]),) if ANDROID_DSK else ()):
+        # each control runs the blocks its bug touches (SSI263_ANDROID_TEST_ONLY), not all seven voices: the gate's time
         only = {"1": "bl,accent", "accent-pitch": "accent,mini", "run-ahead": "bl,ra", "numbers": "num",
-                "speakout-pitch": "so", "speakout-settings": "so", "import-hash": "import",
-                "mockingboard-pitch": "mb", "mockingboard-numbers": "mb", "import-dsk": "import"}.get(brk, "accent")
+                "speakout-pitch": "so", "speakout-settings": "so", "import-hash": "import", "import-dsk": "import"
+                }.get(brk, "mb" if brk.startswith("mockingboard-") else "accent")
         CHECKS.append(check("Android engine CONTROL (%s, must fail)" % what, [PY, ANDROID_TEST],
                             env={"SSI263_ANDROID_TEST_BREAK": brk, "SSI263_ANDROID_TEST_ONLY": only}, expect_fail=True,
                             fail_marks=marks))
@@ -1106,17 +1124,38 @@ if os.path.isfile(ANDROID_TEST):
                                     r"^FAIL control\.apk: .*i8085\.py: a legacy payload by name",
                                     r"^no-GPL audit: 1 of 1 FAILED$"]))
     ROOT_FW = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware")
+    _TOOLKIT = os.path.join(_MBD, "Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk")
     for fw, what, mark in ((os.path.join(ROOT_FW, "blazie", "BL2ENG.BNS"), "a Blazie image beside Aicom's ROMs",
                             r"unit\.dat: a Braille Lite ROM image; Aicom ROMs allowed: [34] "),
                            (os.path.join(ROOT_FW, "gw-micro-speakout", "SPEAKOUT.HEX"), "the Speak-Out's firmware",
                             r"unit\.dat: the Speak-Out's SPEAKOUT\.HEX; .*unit\.dat: an Intel HEX image"),
                            (os.path.join(ROOT_FW, "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin"),
-                            "the Mockingboard's firmware",
-                            r"unit\.dat: the Mockingboard's mockingboard-tts-1\.1\.bin")):
-        if os.path.isfile(fw):
+                            "a Mockingboard file outside assets/sweet-micro",
+                            r"unit\.dat: the Mockingboard's mockingboard-tts-1\.1\.bin outside assets/sweet-micro/"),
+                           (_TOOLKIT if ANDROID_DSK else "", "an Apple II disk image, the toolkit's",
+                            r"unit\.dat: a 140 KB Apple II disk image \(DOS or ProDOS order\), by its content")):
+        if fw and os.path.isfile(fw):
             CHECKS.append(check("Android APK check CONTROL (%s, must fail)" % what,
                                 [PY, APK_CHECK, "--control", fw, "--synthetic"], expect_fail=True,
                                 fail_marks=[r"^synthetic\.apk: \d+ entries, FIRMWARE: ", mark]))
+    # the Mockingboards' files (Sweet Micro's: the GitHub APK carries both, Tomi 2026-10-10) pass by sha256 in
+    # assets/sweet-micro with Sweet Micro's notice; one byte changed, or the notice gone, must fail
+    if ANDROID_MB:
+        CHECKS.append(check("Android APK check: the two Mockingboard files pass, with Sweet Micro's notice",
+                            [PY, APK_CHECK, "--synthetic"],
+                            ok=lambda out: bool(re.search(r"^synthetic\.apk: Sweet Micro's files allowed: 2 "
+                                                          r"\(mockingboard-tts-1\.1\.bin, mockingboard-tts-early\.bin\), "
+                                                          r"with its notice$", out, re.M))))
+        CHECKS.append(check("Android APK check CONTROL (a Mockingboard file changed, must fail)",
+                            [PY, APK_CHECK, "--control-mockingboard-flipped", "--synthetic"], expect_fail=True,
+                            fail_marks=[r"assets/sweet-micro/mockingboard-tts-1\.1\.bin: in assets/sweet-micro/ but "
+                                        r"not one of the Mockingboards' files",
+                                        r"^synthetic\.apk: Sweet Micro's files allowed: 1 \(mockingboard-tts-early\.bin\)"]))
+        CHECKS.append(check("Android APK check CONTROL (the Mockingboard files without Sweet Micro's notice, must fail)",
+                            [PY, APK_CHECK, "--control-no-sweet-notice", "--synthetic"], expect_fail=True,
+                            fail_marks=[r"^synthetic\.apk: \d+ entries, no firmware; ",
+                                        r"Sweet Micro's files allowed: 2 .*WITHOUT its notice$",
+                                        r"^synthetic\.apk: licences WRONG: .*Sweet-Micro-Mockingboard-notice\.txt"]))
 # ... its firmware import (src/csrc/blazie/bl_firmware.c, bl_state.c): files found and refused by content, only the
 # releases on the list taken, and the states made from the firmware alone = the listed ones (MAME-made, 0.7), byte
 # for byte, the z180emu-made shipped states refused; one control holds the wrong chord at the English warm reset and

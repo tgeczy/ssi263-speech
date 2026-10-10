@@ -6,8 +6,9 @@ plugins {
 }
 
 // Everything the APK carries besides code is staged by build_android.sh at the repository root into
-// build/android/assets: the Accent SA's ROMs (Aicom's, the built-in voice), and the licences (MIT, MAME's BSD notices).
-// No Braille Lite, Speak-Out or Mockingboard firmware: the app's users import their own (FirmwareImport.kt); only a
+// build/android/assets: the Accent SA's ROMs (Aicom's, the built-in voice), the Mockingboards' files when they were
+// there to stage (Sweet Micro's, assets/sweet-micro), and the licences (MIT, MAME's BSD notices, Sweet Micro's notice).
+// No Braille Lite or Speak-Out firmware: the app's users import their own (FirmwareImport.kt); only a
 // developer build asked for with SSI263_ANDROID_BUNDLE_FIRMWARE=1 carries it.  The native library, from the same
 // sources as the Linux and Windows builds, is dropped under jniLibs.  Gradle only checks both are there.
 val repoRoot = rootProject.file("../../..")
@@ -47,6 +48,12 @@ val verifyNativeBuild = tasks.register("verifyNativeBuild") {
                 "Re-stage with `sh build_android.sh`, or bundle it on purpose with -Pssi263BundleFirmware=1 " +
                 "(never a release)"
         }
+        // The Mockingboards' files (Sweet Micro's, carried by the GitHub APK: Tomi, 2026-10-10) only with their notice
+        val sweet = File(stagedAssets, "sweet-micro").listFiles()?.filter { it.isFile }.orEmpty()
+        check(sweet.isEmpty() || File(stagedAssets, "licenses/Sweet-Micro-Mockingboard-notice.txt").isFile) {
+            "build/android/assets/sweet-micro holds ${sweet.map { it.name }} without Sweet Micro's notice: " +
+                "run `sh build_android.sh`"
+        }
     }
 }
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(verifyNativeBuild) }
@@ -75,7 +82,7 @@ android {
 
     // The firmware, states and ROMs are read as they are: no compression, so they copy out of the APK quickly.
     androidResources {
-        noCompress += listOf("BNS", "state", "tgz", "BIN")
+        noCompress += listOf("BNS", "state", "tgz", "BIN", "bin")
     }
 
     // Release signing, as outspoken's and TGSpeechBox's builds: a `signing.properties` beside settings.gradle.kts,

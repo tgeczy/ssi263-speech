@@ -3,13 +3,14 @@
  * it -- an Android request's rate and pitch percentages on top of the app's sliders, the audio pulled in chunks, a
  * stop between chunks and a cancel after it -- and each case's PCM hashed.
  *
- *     test_android_native <data folder> [<aicom folder> [<SPKEMS.DVC>]]
+ *     test_android_native <data folder> [<aicom folder> [<SPKEMS.DVC> [<the Mockingboards' built-in files' folder>]]]
  *                                           one line per case: "<name> <samples> <fnv-1a 64 of the PCM bytes>";
  *                                           with the Aicom folder (u2/u3/u4.BIN), the Accent SA's cases first; with
  *                                           the Accent-mini's driver ("-": none), its cases; the Speak-Out's when the
- *                                           data folder has SPEAKOUT.HEX, the Mockingboard's when it has
- *                                           mockingboard-tts-1.1.bin; the Braille Lite's, lockstep and run ahead, and
- *                                           its number words on and off (English, and Spanish when it is there)
+ *                                           data folder has SPEAKOUT.HEX, each Mockingboard's when it has its file
+ *                                           (mockingboard-tts-1.1.bin, mockingboard-tts-early.bin), and with the last
+ *                                           folder the built-in copies' cases; the Braille Lite's, lockstep and run
+ *                                           ahead, and its number words on and off (English, and Spanish when there)
  *     test_android_native --texts           stdin's lines as the Accent SA's front end sends them
  *     test_android_native --so-direct <SPEAKOUT.HEX>
  *                                           the Speak-Out's reference: so_voice driven directly (sov_create, sov_set,
@@ -22,8 +23,8 @@
  *                                           one, made again when the boot key changes; stdin: "<name> <boot key>
  *                                           <sample rate> <rate> <pitch> <inflection> <volume> <numbers> <voice>
  *                                           <pitch offset> <blocks before a cancel> <text, hex>" per case
- *     test_android_native --mb-direct <folder with mockingboard-tts-1.1.bin>
- *                                           the Mockingboard's reference: mb_voice driven directly (mbv_create_dir,
+ *     test_android_native --mb-direct <mockingboard-tts-1.1.bin or mockingboard-tts-early.bin>
+ *                                           a Mockingboard's reference: mb_voice driven directly (mbv_create,
  *                                           mbv_set, mbv_speak, mbv_render, mbv_cancel), one unit as the app keeps
  *                                           one, made again at a new sample rate; stdin: "<name> <sample rate> <rate>
  *                                           <pitch> <volume> <numbers> <pitch offset> <blocks before a cancel>
@@ -37,7 +38,8 @@
  * desktop and over adb.  SSI263_ANDROID_TEST_BREAK in the environment puts a bug back, the controls: 1 breaks the rate
  * mapping (ssa_map.h), so the "fast" cases must differ; accent-pitch, accent-glide, accent-reuse and accent-step are
  * ssa_engine.h's ssa_accent_break 1, 2, 3 and 4; speakout-pitch, speakout-settings, run-ahead, numbers,
- * mockingboard-pitch and mockingboard-numbers its ssa_voice_break 1 to 6; import-hash and import-dsk ssa_import.h's
+ * mockingboard-pitch, mockingboard-numbers, mockingboard-import-ignored, mockingboard-builtin-ignored and
+ * mockingboard-variant its ssa_voice_break 1 to 9; import-hash and import-dsk ssa_import.h's
  * ssa_import_break 1 and 2.
  *
  * Built by the desktop compiler (test_android_native.py) and by build_android.sh --test (static, for a device).
@@ -560,37 +562,93 @@ static const mb_case *mb_cases(int *n)
     return c;
 }
 
-static int mockingboard(const char *data)
+/* The Mockingboard's cases on one voice (SSA_MOCKINGBOARD, or SSA_MOCKINGBOARD_EARLY with "mbe" for "mb" in the
+   names), its file imported in the data folder */
+static int mockingboard(const char *data, int voice)
 {
     ssa_engine *e = ssa_new(data);
     const mb_case *c;
-    char err[256];
+    char err[256], name[64];
     digest d;
     int n, i, rc = 0;
     if (!e) return 1;
-    if (!ssa_has_voice(e, SSA_MOCKINGBOARD)) { ssa_free(e); return 0; }   /* no firmware: no cases (said by the .py) */
+    if (!ssa_has_voice(e, voice)) { ssa_free(e); return 0; }   /* no firmware: no cases (said by the .py) */
     c = mb_cases(&n);
     for (i = 0; i < n && !rc; i++) {
         ssa_settings s;
         ssa_default_settings(&s);
         s.rate = c[i].rate; s.pitch = c[i].pitch; s.volume = c[i].volume; s.numbers = c[i].numbers;
         ssa_configure(e, c[i].sample_rate, 1, 0);
-        if (ssa_load(e, SSA_MOCKINGBOARD, err, sizeof err) != 0) { fprintf(stderr, "boot: %s\n", err); rc = 1; break; }
-        if (speak(e, SSA_MOCKINGBOARD, c[i].text, &s, c[i].req_rate, c[i].req_pitch, c[i].chunk, c[i].stop, &d))
+        if (ssa_load(e, voice, err, sizeof err) != 0) { fprintf(stderr, "boot: %s\n", err); rc = 1; break; }
+        if (speak(e, voice, c[i].text, &s, c[i].req_rate, c[i].req_pitch, c[i].chunk, c[i].stop, &d))
             rc = 1;
-        else
-            report(c[i].name, &d);
+        else {
+            snprintf(name, sizeof name, "%s%s", voice == SSA_MOCKINGBOARD_EARLY ? "mbe" : "mb", c[i].name + 2);
+            report(name, &d);
+        }
     }
     ssa_free(e);
     return rc;
 }
 
-/* --mb-direct: the reference -- mb_voice itself, driven as mb_voice.h says, with the settings the .py computed */
-static int mb_direct(const char *dir)
+/* The built-in copies (the APK's, handed over in memory: ssa_set_mockingboard), from the folder holding both files:
+   each voice's "Hello." at the defaults with no imported copy ("mb-builtin", "mbe-builtin"); where each voice's file
+   comes from, built in alone and beside an imported copy in data ("mb-source <voice> <builtin> <imported>": 2, then
+   1 -- the import wins); and each voice refusing the other's file ("mb-refused <voice> <1 when refused>"). */
+static int mockingboard_builtin(const char *data, const char *dir)
+{
+    static const char *const FILES[2] = {SSA_MOCKINGBOARD_FILE, SSA_MOCKINGBOARD_EARLY_FILE};
+    static const char *const NAMES[2] = {"mb-builtin", "mbe-builtin"};
+    unsigned char *bin[2];
+    size_t n[2];
+    int k, rc = 0;
+    for (k = 0; k < 2; k++)
+        bin[k] = slurp(dir, FILES[k], &n[k]);
+    for (k = 0; k < 2 && !rc; k++) {
+        int voice = SSA_MOCKINGBOARD + k;
+        ssa_engine *e = ssa_new("no-such-folder"), *f = ssa_new(data);
+        ssa_settings s;
+        digest d;
+        if (!bin[k]) { ssa_free(e); ssa_free(f); continue; }
+        ssa_default_settings(&s);
+        printf("mb-refused %d %d\n", voice, !(bin[1 - k] && ssa_set_mockingboard(e, voice, bin[1 - k], n[1 - k])));
+        if (!ssa_set_mockingboard(e, voice, bin[k], n[k]) || !ssa_set_mockingboard(f, voice, bin[k], n[k])) {
+            fprintf(stderr, "voice %d refused its own built-in file\n", voice);
+            rc = 1;
+        } else {
+            printf("mb-source %d %d %d\n", voice, ssa_mockingboard_source(e, voice), ssa_mockingboard_source(f, voice));
+            if (speak(e, voice, "Hello.", &s, 100, 100, 4096, 0, &d))
+                d.samples = 0;                 /* it could not speak: reported as silence, which the .py refuses */
+            report(NAMES[k], &d);
+        }
+        ssa_free(e);
+        ssa_free(f);
+    }
+    free(bin[0]);
+    free(bin[1]);
+    return rc;
+}
+
+/* --mb-direct: the reference -- mb_voice itself, driven as mb_voice.h says, with the settings the .py computed, on
+   the firmware file given (either known one: mbv_create takes the version by its sha256) */
+static int mb_direct(const char *file)
 {
     char line[16384], name[64], texthex[8192], text[4096], err[256];
     mb_voice *v = NULL;
     int cur_rate = 0;
+    size_t fn = 0;
+    unsigned char *fw = slurp(".", file, &fn);
+    if (!fw) {                               /* an absolute path: slurp joins it to "." */
+        FILE *f = fopen(file, "rb");
+        long len;
+        if (f) {
+            fseek(f, 0, SEEK_END); len = ftell(f); fseek(f, 0, SEEK_SET);
+            fw = (unsigned char *)malloc(len > 0 ? (size_t)len : 1);
+            fn = fw ? fread(fw, 1, (size_t)len, f) : 0;
+            fclose(f);
+        }
+    }
+    if (!fw) { fprintf(stderr, "cannot read %s\n", file); return 1; }
     while (fgets(line, sizeof line, stdin)) {
         int sr, rate, pitch, volume, numbers, offset, stop, done = 0, blocks = 0, n;
         const short *pcm;
@@ -602,8 +660,8 @@ static int mb_direct(const char *dir)
         unhex(texthex, text, sizeof text);
         if (!v || sr != cur_rate) {          /* the app boots a new unit at a new sample rate (ssa_configure) */
             mbv_destroy(v);
-            v = mbv_create_dir(dir, (double)sr, err, sizeof err);
-            if (!v) { fprintf(stderr, "mbv_create: %s\n", err); return 1; }
+            v = mbv_create(fw, fn, (double)sr, err, sizeof err);
+            if (!v) { fprintf(stderr, "mbv_create: %s\n", err); free(fw); return 1; }
             cur_rate = sr;
         }
         mbv_set(v, rate, pitch, volume, numbers);
@@ -621,6 +679,7 @@ static int mb_direct(const char *dir)
         report(name, &d);
     }
     mbv_destroy(v);
+    free(fw);
     return 0;
 }
 
@@ -665,7 +724,9 @@ int main(int argc, char **argv)
                      : !strcmp(brk, "accent-reuse") ? 3 : !strcmp(brk, "accent-step") ? 4 : 0;
     ssa_voice_break = !brk ? 0 : !strcmp(brk, "speakout-pitch") ? 1 : !strcmp(brk, "speakout-settings") ? 2
                     : !strcmp(brk, "run-ahead") ? 3 : !strcmp(brk, "numbers") ? 4
-                    : !strcmp(brk, "mockingboard-pitch") ? 5 : !strcmp(brk, "mockingboard-numbers") ? 6 : 0;
+                    : !strcmp(brk, "mockingboard-pitch") ? 5 : !strcmp(brk, "mockingboard-numbers") ? 6
+                    : !strcmp(brk, "mockingboard-import-ignored") ? 7 : !strcmp(brk, "mockingboard-builtin-ignored") ? 8
+                    : !strcmp(brk, "mockingboard-variant") ? 9 : 0;
     ssa_import_break = !brk ? 0 : !strcmp(brk, "import-hash") ? 1 : !strcmp(brk, "import-dsk") ? 2 : 0;
     if (argc >= 2 && !strcmp(argv[1], "--texts")) return texts();
     if (argc >= 6 && !strcmp(argv[1], "--level"))
@@ -678,7 +739,9 @@ int main(int argc, char **argv)
     if (argc >= 3 && block("accent") && accent(argv[2])) return 1;
     if (argc >= 4 && strcmp(argv[3], "-") && block("mini") && mini(argv[3])) return 1;
     if (block("so") && speakout(argv[1])) return 1;
-    if (block("mb") && mockingboard(argv[1])) return 1;
+    if (block("mb") && (mockingboard(argv[1], SSA_MOCKINGBOARD) || mockingboard(argv[1], SSA_MOCKINGBOARD_EARLY)))
+        return 1;
+    if (argc >= 5 && block("mb") && mockingboard_builtin(argv[1], argv[4])) return 1;
     /* the mapping itself: Android 100% is the slider; a doubling is SSIP 50 */
     if (ssa_rate(50, 100) != 50 || ssa_pitch(50, 50) != 25 || ssa_pitch(50, 400) != 100
             || ssa_ssip_from_percent(200) != 50 || ssa_to100(-100) != 0) {
@@ -768,17 +831,22 @@ int main(int argc, char **argv)
             printf("s-probe %ld %016llx\n", n, h);
         }
     }
-    if (block("mb")) {                       /* the Mockingboard's import check: its "Hello." on a unit of its own */
-        unsigned long long h;
-        long n;
-        int has;
-        e = ssa_new(argv[1]);
-        has = e && ssa_has_voice(e, SSA_MOCKINGBOARD);
-        ssa_free(e);
-        if (has) {
-            n = ssa_probe(argv[1], SSA_MOCKINGBOARD, "Hello.", &h, err, sizeof err);
-            if (n <= 0) { fprintf(stderr, "Mockingboard probe: %ld %s\n", n, err); return 1; }
-            printf("mb-probe %ld %016llx\n", n, h);
+    if (block("mb")) {                       /* each Mockingboard's import check: its "Hello." on a unit of its own */
+        static const int voices[2] = {SSA_MOCKINGBOARD, SSA_MOCKINGBOARD_EARLY};
+        static const char *const names[2] = {"mb-probe", "mbe-probe"};
+        int k;
+        for (k = 0; k < 2; k++) {
+            unsigned long long h;
+            long n;
+            int has;
+            e = ssa_new(argv[1]);
+            has = e && ssa_has_voice(e, voices[k]);
+            ssa_free(e);
+            if (has) {
+                n = ssa_probe(argv[1], voices[k], "Hello.", &h, err, sizeof err);
+                if (n <= 0) { fprintf(stderr, "Mockingboard probe: %ld %s\n", n, err); return 1; }
+                printf("%s %ld %016llx\n", names[k], n, h);
+            }
         }
     }
     return 0;

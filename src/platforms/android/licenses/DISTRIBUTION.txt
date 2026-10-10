@@ -26,18 +26,27 @@ https://github.com/tgeczy/ssi263-speech
 
 The app also carries the Kotlin runtime (Apache License 2.0).
 
-The built-in voices are Aicom's Accent SA and Accent-mini: the app carries
-the Accent SA's 8085 firmware and dictionary ROMs (u2, u3 and u4) and the
-Accent-mini's DOS driver (SPKEMS.DVC), Aicom Corporation's work, with the
-notice under Full licenses (Aicom Accent SA notice). They are not ours and
-are not covered by the licenses above; they are the only firmware this app
-carries.
+The built-in voices are Aicom's Accent SA and Accent-mini and the two
+Mockingboards. For the Accents the app carries the Accent SA's 8085
+firmware and dictionary ROMs (u2, u3 and u4) and the Accent-mini's DOS
+driver (SPKEMS.DVC), Aicom Corporation's work, with the notice under Full
+licenses (Aicom Accent SA notice). They are not ours and are not covered by
+the licenses above.
 
-This app carries no Blazie Braille Lite 2000 firmware, no GW Micro
-Speak-Out firmware and no Sweet Micro Systems Mockingboard firmware. You
-import your own copy, which stays in the app's storage on this device; the
-Braille Lite's battery-backed state is made from it here. That firmware is
-not ours and is not covered by the licenses above.
+The Mockingboard voices are Sweet Micro Systems' text-to-speech: the app
+carries its two versions (mockingboard-tts-1.1.bin, from the Developers
+Toolkit, and mockingboard-tts-early.bin, from Mockingboard disk 1), with
+the notice under Full licenses (Sweet Micro Mockingboard notice). They are
+not ours; they are here so the card can speak again, and they will be
+removed if their rights holders ask. They are not covered by the MIT
+license or the other licenses above. A copy you import replaces the one
+the app carries.
+
+This app carries no Blazie Braille Lite 2000 firmware and no GW Micro
+Speak-Out firmware. You import your own copy, which stays in the app's
+storage on this device; the Braille Lite's battery-backed state is made
+from it here. That firmware is not ours and is not covered by the licenses
+above.
 
 Use Full licenses to read the included terms. Third-party components retain
 their own licenses.

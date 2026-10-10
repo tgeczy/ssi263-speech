@@ -57,7 +57,7 @@ object SsiSettings {
             p.getBoolean(INFLECTION, true),
             p.getInt(WHINE, 0).coerceIn(0, 2),
             p.getInt(SAMPLE_RATE, 22050).takeIf { it in SAMPLE_RATES } ?: 22050,
-            p.getInt(VOICE, SsiEngine.defaultVoice(ctx)).coerceIn(SsiNative.ENGLISH, SsiNative.MOCKINGBOARD),
+            p.getInt(VOICE, SsiEngine.defaultVoice(ctx)).coerceIn(SsiNative.ENGLISH, SsiNative.MOCKINGBOARD_EARLY),
             p.getBoolean(OVERRIDE_VOICE, true),
             p.getBoolean(RUN_AHEAD, false),
             p.getInt(SO_TONE, SO_DEFAULT_TONE).coerceIn(0, 25),

@@ -9,7 +9,8 @@
 #include "ssa_engine.h"                /* ssa_voice_built */
 #include "ssa_import.h"
 
-#define MB_SIZE 11948L                 /* the Mockingboard's file: the toolkit's six DOS files back to back */
+#define MB_SIZE 11948L                 /* the Mockingboard's 1.1 file: the toolkit's six DOS files back to back */
+#define MB_SIZE_EARLY 11309L           /* the earlier file: disk 1's four */
 #define MAX_HEX (4L << 20)             /* the firmware is 78 KB of text; 1 MB of ROM is under 3 MB of it */
 
 int ssa_import_break = 0;
@@ -119,11 +120,14 @@ int ssa_import_speakout(const unsigned char *data, long n, const char *out, char
     return fail(msg, msglen, SSA_HEX_SPEAKOUT, SSA_SPEAKOUT_LABEL);
 }
 
-/* The known file, written to out as it is. */
-static int write_mockingboard(const unsigned char *data, size_t n, const char *out, char *msg, int msglen)
+/* A known file (mbh_variant: MBH_V11 or MBH_VEARLY), written to out as it is; the voice's index (SSA_FW_MOCKINGBOARD,
+   SSA_FW_MOCKINGBOARD_EARLY) and its label. */
+static int write_mockingboard(int variant, const unsigned char *data, size_t n, const char *out, char *msg,
+                              int msglen)
 {
+    int voice = variant == MBH_VEARLY ? SSA_FW_MOCKINGBOARD_EARLY : SSA_FW_MOCKINGBOARD;
     FILE *f;
-    if (!ssa_voice_built(SSA_MOCKINGBOARD))
+    if (!ssa_voice_built(voice))
         return fail(msg, msglen, SSA_FW_MB_BUILD,
                     "the Mockingboard's firmware, but this copy of the app has no Mockingboard voice");
     if (!out || !(f = fopen(out, "wb"))) return fail(msg, msglen, BLV_FW_WRITE, "cannot write it");
@@ -133,45 +137,45 @@ static int write_mockingboard(const unsigned char *data, size_t n, const char *o
         return fail(msg, msglen, BLV_FW_WRITE, "cannot write it");
     }
     fclose(f);
-    return fail(msg, msglen, SSA_FW_MOCKINGBOARD, SSA_MOCKINGBOARD_LABEL);
+    return fail(msg, msglen, voice, voice == SSA_FW_MOCKINGBOARD_EARLY ? SSA_MOCKINGBOARD_EARLY_LABEL
+                                                                       : SSA_MOCKINGBOARD_LABEL);
 }
 
-/* A 140 KB disk image: the toolkit's six files out of it (mb_dsk.h), the known set only. */
+#ifdef SSV_HAVE_MOCKINGBOARD
+/* A 140 KB disk image: a known set of files out of it (mb_dsk.h) -- the toolkit's 1.1, or disk 1's earlier one. */
 static int from_disk(const unsigned char *data, long n, const char *out, char *msg, int msglen)
 {
-#ifdef SSV_HAVE_MOCKINGBOARD
     unsigned char *fw;
     size_t fn;
     char why[200];
     int r;
     if (!mb_firmware_from_dsk(data, (size_t)n, &fw, &fn, why, (int)sizeof why))
         return fail(msg, msglen, SSA_FW_MB_DISK, why);
-    r = write_mockingboard(fw, fn, out, msg, msglen);
+    r = write_mockingboard(mbh_variant(fw, fn), fw, fn, out, msg, msglen);
     free(fw);
     return r;
-#else
-    (void)data; (void)n; (void)out;
-    return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
-#endif
 }
+#endif
 
 int ssa_import_mockingboard(const unsigned char *data, long n, const char *out, char *msg, int msglen)
 {
-    static const char HEXD[] = "0123456789abcdef";
-    unsigned char digest[32];
-    char got[65];
-    int i;
+#ifdef SSV_HAVE_MOCKINGBOARD
+    int variant;
     if (out) remove(out);
     if (data && n == MB_DSK_SIZE && ssa_import_break != 2)
         return from_disk(data, n, out, msg, msglen);
-    if (!data || n != MB_SIZE)
+    if (!data || (n != MB_SIZE && n != MB_SIZE_EARLY))
         return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
-    blv_sha256(data, n, digest);
-    for (i = 0; i < 32; i++) { got[2 * i] = HEXD[digest[i] >> 4]; got[2 * i + 1] = HEXD[digest[i] & 15]; }
-    got[64] = 0;
-    if (strcmp(got, MB_SHA256) && ssa_import_break != 1)
+    variant = ssa_import_break == 1 ? (n == MB_SIZE ? MBH_V11 : MBH_VEARLY)  /* the control: any file of its size */
+            : mbh_variant(data, (size_t)n);
+    if (!variant)
         return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
-    return write_mockingboard(data, (size_t)n, out, msg, msglen);
+    return write_mockingboard(variant, data, (size_t)n, out, msg, msglen);
+#else
+    (void)data; (void)n; (void)write_mockingboard;
+    if (out) remove(out);
+    return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
+#endif
 }
 
 int ssa_import_firmware(const unsigned char *data, long n, const char *out, char *msg, int msglen)

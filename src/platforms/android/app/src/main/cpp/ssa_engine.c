@@ -39,6 +39,7 @@ static const voice_def VOICES[SSA_VOICES] = {
     {"speakout:speakout", {SSA_SPEAKOUT_FILE, NULL}},
     {"accentmini:mini", {NULL}},
     {"mockingboard:mockingboard", {SSA_MOCKINGBOARD_FILE, NULL}},
+    {"mockingboard:early", {SSA_MOCKINGBOARD_EARLY_FILE, NULL}},
 };
 static const size_t ROM_SIZES[3] = {0x10000, 0x8000, 0x8000};
 
@@ -51,7 +52,9 @@ struct ssa_engine {
     unsigned char *rom[3];             /* the Accent SA's u2, u3, u4 */
     unsigned char *mini;               /* the Accent-mini's SPKEMS.DVC */
     size_t mini_n;
-    ssv_voice *spare;                  /* the Accent SA's next unit: booted, not yet spoken on */
+    unsigned char *mb[2];              /* the Mockingboards' built-in files (1.1, early), from ssa_set_mockingboard */
+    size_t mb_n[2];
+    ssv_voice *spare;                 /* the Accent SA's next unit: booted, not yet spoken on */
     ssv_voice *accent;                 /* the unit speaking the current utterance */
     int cur;                           /* the utterance's voice; -1 when none is running */
     const short *block;                /* the last block rendered, valid until the next render */
@@ -89,6 +92,28 @@ static int readable(const char *p)
     return 1;
 }
 
+static int is_mb(int voice) { return voice == SSA_MOCKINGBOARD || voice == SSA_MOCKINGBOARD_EARLY; }
+
+/* Every one of the voice's files is in the data folder (imported). */
+static int imported(const ssa_engine *e, int voice)
+{
+    const char *const *f;
+    if (!VOICES[voice].files[0]) return 0;
+    for (f = VOICES[voice].files; *f; f++) {
+        char p[1200];
+        path(e, *f, p, sizeof p);
+        if (!readable(p)) return 0;
+    }
+    return 1;
+}
+
+int ssa_mockingboard_source(const ssa_engine *e, int voice)
+{
+    if (!is_mb(voice)) return 0;
+    if (imported(e, voice) && ssa_voice_break != 7) return 1;
+    return e->mb[voice - SSA_MOCKINGBOARD] && ssa_voice_break != 8 ? 2 : 0;
+}
+
 /* A unit of the voice, made by voices.c from where the app keeps its files. */
 static ssv_voice *make_unit(ssa_engine *e, int voice, char *err, int errlen)
 {
@@ -102,6 +127,9 @@ static ssv_voice *make_unit(ssa_engine *e, int voice, char *err, int errlen)
     else if (voice == SSA_ACCENT_MINI) {
         src.data[0] = e->mini;
         src.size[0] = e->mini_n;
+    } else if (is_mb(voice) && ssa_mockingboard_source(e, voice) == 2) {   /* no imported copy: the built-in one */
+        src.data[0] = e->mb[voice - SSA_MOCKINGBOARD];
+        src.size[0] = e->mb_n[voice - SSA_MOCKINGBOARD];
     } else
         for (k = 0; k < 3 && VOICES[voice].files[k]; k++) {
             path(e, VOICES[voice].files[k], paths[k], sizeof paths[k]);
@@ -159,7 +187,8 @@ static void settings_for(const ssa_engine *e, int voice, const ssa_settings *s, 
         }
         break;
     }
-    case SSA_MOCKINGBOARD:             /* as the Speak-Out: the slider's pitch as the setting, the request's as a
+    case SSA_MOCKINGBOARD:
+    case SSA_MOCKINGBOARD_EARLY:       /* as the Speak-Out: the slider's pitch as the setting, the request's as a
                                           capital's offset; the number words from the settings, as the Braille Lite */
         o->pitch = clamp100(s->pitch);
         *offset = ssa_mockingboard_pitch(s->pitch, ssa_voice_break == 5 ? 100 : request_pitch) - o->pitch;
@@ -219,6 +248,8 @@ void ssa_free(ssa_engine *e)
     shut_down(e);
     for (i = 0; i < 3; i++) free(e->rom[i]);
     free(e->mini);
+    free(e->mb[0]);
+    free(e->mb[1]);
     free(e->datadir);
     free(e);
 }
@@ -262,18 +293,35 @@ int ssa_set_accent_mini(ssa_engine *e, const unsigned char *dvc, size_t n)
     return 1;
 }
 
+int ssa_set_mockingboard(ssa_engine *e, int voice, const unsigned char *bin, size_t n)
+{
+    unsigned char *p;
+    int k = voice - SSA_MOCKINGBOARD;
+    if (!is_mb(voice) || !ssa_voice_built(voice) || !bin || !n) return 0;
+#ifdef SSV_HAVE_MOCKINGBOARD
+    if (ssa_voice_break != 9 && mbh_variant(bin, n) != (voice == SSA_MOCKINGBOARD ? MBH_V11 : MBH_VEARLY))
+        return 0;                      /* not this voice's file: the other one, or none */
+#endif
+    if (!(p = (unsigned char *)malloc(n))) return 0;
+    memcpy(p, bin, n);
+    if (e->units[voice]) {             /* a unit made from another copy is let go: the next use makes it again */
+        if (e->cur == voice) ssa_cancel(e);
+        ssv_destroy(e->units[voice]);
+        e->units[voice] = NULL;
+    }
+    free(e->mb[k]);
+    e->mb[k] = p;
+    e->mb_n[k] = n;
+    return 1;
+}
+
 int ssa_has_voice(const ssa_engine *e, int voice)
 {
-    const char *const *f;
     if (!ssa_voice_built(voice)) return 0;
     if (voice == SSA_ACCENT_SA) return e->rom[0] && e->rom[1] && e->rom[2];
     if (voice == SSA_ACCENT_MINI) return e->mini != NULL;
-    for (f = VOICES[voice].files; *f; f++) {
-        char p[1200];
-        path(e, *f, p, sizeof p);
-        if (!readable(p)) return 0;
-    }
-    return 1;
+    if (is_mb(voice)) return ssa_mockingboard_source(e, voice) != 0;
+    return imported(e, voice);
 }
 
 void ssa_configure(ssa_engine *e, int sample_rate, int inflection, int whine)
@@ -304,6 +352,11 @@ int ssa_load(ssa_engine *e, int voice, char *err, int errlen)
     if (e->units[voice]) return 0;
     if (voice == SSA_ACCENT_MINI && !e->mini) {
         snprintf(err, (size_t)errlen, "the Accent-mini's SPKEMS.DVC is not set");
+        return -1;
+    }
+    if (is_mb(voice) && !ssa_mockingboard_source(e, voice)) {
+        snprintf(err, (size_t)errlen, "the Mockingboard's %s is neither imported nor built in",
+                 VOICES[voice].files[0]);
         return -1;
     }
     e->units[voice] = make_unit(e, voice, err, errlen);

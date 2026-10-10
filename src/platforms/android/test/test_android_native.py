@@ -21,15 +21,17 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
   firmware/aicom-accent-mini/SPKEMS.DVC is there): against am_voice driven directly (test_android_native --am-direct:
   amv_set, amv_speak with the capital's offset, amv_render, amv_cancel on one kept unit), the settings computed here
   as the Accent SA's are.  am_voice itself is the NVDA Accent driver's "mini" voice (nvda/tools/am_voice_equiv.py).
-- The Mockingboard (imported, Sweet Micro Systems' firmware; its cases run when
-  firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin is there): against mb_voice driven directly
-  (test_android_native --mb-direct: mbv_set, mbv_speak with the capital's offset, mbv_render, mbv_cancel on one kept
-  unit), the settings computed here as the Speak-Out's are, its inflection's steps (mbv_pitch_step) for the capital's
-  move, and the number words from the settings: on and off must sound different.  Its import: the file taken by its
-  sha256, as it is; the same file with one byte changed, and one cut short, refused.  And the Mockingboard Developers
-  Toolkit's disk image, when MOCKINGBOARD_DISKS (paths.local) has it (never in the repository; skipped, and said so,
-  without it): the file made from it by mb_dsk.h, in DOS and ProDOS order and out of a zip; another Mockingboard
-  disk and a blank 140 KB one refused with the disk reader's reason.
+- The two Mockingboards (Sweet Micro Systems' firmware: mockingboard-tts-1.1.bin and mockingboard-tts-early.bin,
+  built into the GitHub APK and importable; each one's cases run when its file is in
+  firmware/sweet-micro-mockingboard): against mb_voice driven directly on the same file (test_android_native
+  --mb-direct: mbv_set, mbv_speak with the capital's offset, mbv_render, mbv_cancel on one kept unit), the settings
+  computed here as the Speak-Out's are, its inflection's steps (mbv_pitch_step) for the capital's move, and the
+  number words from the settings: on and off must sound different.  Their built-in copies, handed over in memory: each
+  speaks from its own with no import, an imported copy wins, neither takes the other's file.  Their import: each file
+  taken by its sha256, as it is; with one byte changed, or cut short, refused.  And the disk images, when
+  MOCKINGBOARD_DISKS (paths.local) has them (never in the repository; skipped, and said so, without them): the
+  toolkit's gives the 1.1 file, Mockingboard disk 1's the early one, in DOS and ProDOS order and out of a zip; disk 2
+  and a blank 140 KB disk refused with the disk reader's reason.
 - The import: GW Micro's SPEAKOUT.HEX recognised by content (Intel HEX, then the known sha256) as it is, with LF
   line endings, with a DOS end-of-file mark, and out of a speakout.zip like GW Micro's; a HEX with one digit
   changed, one whose checksums were fixed after the change (another HEX), one cut short, and other files refused;
@@ -59,10 +61,12 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
                              numbers              ssa_voice_break 4: its number words dropped (always off)
                              mockingboard-pitch   ssa_voice_break 5: the Mockingboard's request pitch dropped
                              mockingboard-numbers ssa_voice_break 6: its number words dropped (always off)
+                             mockingboard-import-ignored   7: the imported copy ignored (the built-in one used)
+                             mockingboard-builtin-ignored  8: the built-in copies ignored (import only)
+                             mockingboard-variant          9: either file taken for either voice
                              import-hash          ssa_import_break: any well-formed Intel HEX taken as the Speak-Out,
-                                                  any file of its size as the Mockingboard's
-                             import-dsk           ssa_import_break 2: a disk image never tried (the toolkit's .dsk
-                                                  cases fail)
+                                                  any file of a Mockingboard file's size as that one
+                             import-dsk           ssa_import_break 2: a disk image never tried (the .dsk cases fail)
 
 SSI263_ANDROID_TEST_ONLY=<blocks>, a comma list of bl (the Braille Lite in lockstep, its Spanish unit and the probe),
 ra (run ahead), num (the number words), accent (the Accent SA and its text), so (the Speak-Out), mini (the
@@ -126,10 +130,17 @@ FILES = {"en": ("BL2ENG.BNS", "bl2_2003_warm.state"), "es": ("BL2SPA.BNS", "bl2s
 AICOM = os.path.join(REPO, "firmware", "aicom-accent-sa")
 SPEAKOUT_HEX = os.path.join(REPO, "firmware", "gw-micro-speakout", "SPEAKOUT.HEX")
 MINI_DVC = os.path.join(REPO, "firmware", "aicom-accent-mini", "SPKEMS.DVC")
-MB_BIN = os.path.join(REPO, "firmware", "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin")
+# the Mockingboards' files: local copies (never committed), imported here as the app's data folder has them, and the
+# same folder handed over as the built-in copies (the APK's assets/sweet-micro)
+MB_BUILTIN = os.path.join(REPO, "firmware", "sweet-micro-mockingboard")
+MB_BIN = os.path.join(MB_BUILTIN, "mockingboard-tts-1.1.bin")
+MB_BIN_EARLY = os.path.join(MB_BUILTIN, "mockingboard-tts-early.bin")
 MB_SHA256 = "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"    # mb_host.h's MB_SHA256
-# the disk images in MOCKINGBOARD_DISKS (run_tests.py's names): the toolkit, and the Mockingboard C's own disk
-MB_DISK_NAMES = ("Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk", "mockingboard1.dsk")
+MB_SHA256S = {5: MB_SHA256, 6: "c7c049b1b61792719e21e461a2a8c25fc32c12882c81305814a3dc67af6e5835"}  # ... _EARLY
+# the disk images in MOCKINGBOARD_DISKS (run_tests.py's names): the toolkit (1.1), Mockingboard disks 1 (the early
+# text-to-speech) and 2 (the same program, other rules: refused)
+MB_DISK_NAMES = ("Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk", "mockingboard1.dsk",
+                 "mockingboard2.dsk")
 SPEAKOUT_SHA256 = "1c6930c8c6aed0550bc267c14032f9195b450ed95de606f2fa9727e2b7eb1eb1"   # its README's
 
 # The Accent-mini's cases: test_android_native.c's mini_cases, in the same order -- (name, text, the app's rate and
@@ -483,14 +494,15 @@ def mb_step(p):                                     # mb_voice.c's mbv_pitch_ste
     return int(p * 8 / 50.0 + 0.5) if p <= 50 else 8 + int((p - 50) * 18 / 50.0 + 0.5)
 
 
-def mb_reference(exe, data, cases=None):
+def mb_reference(exe, data, cases=None, prefix="mb"):
     """The app's mapping, computed here as the Speak-Out's: the request's rate on the slider, the slider's pitch as the
-    setting and the request's as a capital's offset, moved at least one of the inflection's steps."""
+    setting and the request's as a capital's offset, moved at least one of the inflection's steps.  data: the voice's
+    firmware file; prefix "mbe" names the early voice's cases."""
     lines = []
     for name, text, rate, pitch, rr, rp, volume, numbers, sr, chunk, stop in cases or MB_CASES:
         slider = max(0, min(100, pitch))
-        lines.append("%s %d %d %d %d %d %d %d %s\n" % (name, sr, on_top(rate, rr), slider, volume, numbers,
-                                                     step_pitch(pitch, rp, mb_step) - slider, stop,
+        lines.append("%s %d %d %d %d %d %d %d %s\n" % (prefix + name[2:], sr, on_top(rate, rr), slider, volume,
+                                                     numbers, step_pitch(pitch, rp, mb_step) - slider, stop,
                                                      text.encode("utf-8").hex()))
     out = subprocess.run([exe, "--mb-direct", data], input="".join(lines), capture_output=True, text=True)
     if out.returncode:
@@ -498,20 +510,51 @@ def mb_reference(exe, data, cases=None):
     return parse(out.stdout)
 
 
-def mb_heard(label, got):
-    """The Mockingboard's capitals (one kept unit, as the Speak-Out's: the same text twice in a row differs by the
+def mb_voices():
+    """The Mockingboard voices whose file is here: [(the file, the cases' prefix, ssa_engine.h's index)]."""
+    return [(f, p, v) for f, p, v in ((MB_BIN, "mb", 5), (MB_BIN_EARLY, "mbe", 6)) if os.path.isfile(f)]
+
+
+def mb_want(exe):
+    """Every Mockingboard voice's cases from mb_voice itself, each from a folder holding its file alone; its probe (a
+    fresh unit's "Hello."), which its built-in copy must also say."""
+    want = {}
+    for f, p, v in mb_voices():
+        want.update(mb_reference(exe, f, prefix=p))
+        probe = mb_reference(exe, f, [("mb-probe", "Hello.", 50, 50, 100, 100, 100, 1, 22050, 4096, 0)], p)
+        want[p + "-probe"] = want[p + "-builtin"] = probe[p + "-probe"]
+    return want
+
+
+def mb_heard(label, got, out=""):
+    """Each Mockingboard's capitals (one kept unit, as the Speak-Out's: the same text twice in a row differs by the
     unit's own timing, so the pitch coming back is the reference's, compared above) and its number words: on and off
-    sound different."""
-    bad = capitals(label, got, "mb")
-    on, off = got.get("mb-num"), got.get("mb-num-off")
-    ok = on is not None and off is not None and on[1] != off[1]
-    print("%-5s %-8s mb-num differs from mb-num-off (the number words heard)" % ("ok" if ok else "FAIL", label))
-    return bad + (not ok)
+    sound different.  And the built-in copies (out: the program's output): each voice speaks from its own with no
+    imported copy, an imported copy wins over it, and neither voice takes the other's file."""
+    bad = 0
+    for f, p, v in mb_voices():
+        bad += capitals(label, got, p)
+        on, off = got.get(p + "-num"), got.get(p + "-num-off")
+        ok = on is not None and off is not None and on[1] != off[1]
+        print("%-5s %-8s %s-num differs from %s-num-off (the number words heard)" % ("ok" if ok else "FAIL", label,
+                                                                                    p, p))
+        bad += not ok
+        src = re.search(r"^mb-source %d (\d) (\d)$" % v, out, re.M)
+        ok = bool(src) and src.groups() == ("2", "1")
+        print("%-5s %-8s %s: its built-in copy used with no import, an imported one over it (source %s)" % (
+            "ok" if ok else "FAIL", label, p, " then ".join(src.groups()) if src else "not reported"))
+        bad += not ok
+        ref = re.search(r"^mb-refused %d (\d)$" % v, out, re.M)
+        ok = bool(ref) and ref.group(1) == "1"
+        print("%-5s %-8s %s: the other Mockingboard's file refused as its built-in copy" % ("ok" if ok else "FAIL",
+                                                                                           label, p))
+        bad += not ok
+    return bad
 
 
 def mb_disks():
-    """The toolkit's disk image and another Mockingboard disk, from MOCKINGBOARD_DISKS (paths.local; never in the
-    repository): (toolkit, other), each None when it is not there."""
+    """The Mockingboard disk images in MOCKINGBOARD_DISKS (paths.local; never in the repository): (the toolkit, disk 1,
+    disk 2), each None when it is not there."""
     folder = repo_paths.lookup("MOCKINGBOARD_DISKS") or ""
     found = [os.path.join(folder, n) for n in MB_DISK_NAMES]
     return tuple(p if folder and os.path.isfile(p) else None for p in found)
@@ -530,10 +573,10 @@ def to_prodos(dos):
 
 
 def mb_import_cases(exe, tmp):
-    """The Mockingboard's file as a user may bring it: taken by its sha256, written as it is; changed or cut, refused.
-    And the toolkit's disk image, when MOCKINGBOARD_DISKS has it: the file made from it (DOS or ProDOS order, alone or
-    in a zip), written as a .bin import writes it; another Mockingboard disk and a blank one refused with the disk
-    reader's reason."""
+    """Each Mockingboard file as a user may bring it: taken by its sha256 (5: the 1.1 file, 6: the early one), written
+    as it is; changed or cut, refused.  And the disk images, when MOCKINGBOARD_DISKS has them: the toolkit's gives the
+    1.1 file, Mockingboard disk 1's the early one (DOS or ProDOS order, alone or in a zip, at its root or in a folder),
+    written as a .bin import writes it; disk 2 and a blank disk refused with the disk reader's reason."""
     import hashlib
     import io
     import zipfile
@@ -546,16 +589,18 @@ def mb_import_cases(exe, tmp):
         with zipfile.ZipFile(io.BytesIO(zbuf.getvalue())) as z:
             return z.read(name)
     cases = []
-    if os.path.isfile(MB_BIN):
-        data = open(MB_BIN, "rb").read()
+    for path, code, label in ((MB_BIN, 5, "mockingboard-tts-1.1.bin"), (MB_BIN_EARLY, 6, "mockingboard-tts-early.bin")):
+        if not os.path.isfile(path):
+            continue
+        data = open(path, "rb").read()
         flipped = bytearray(data)
         flipped[0x800] ^= 0x01
-        cases += [("mockingboard-tts-1.1.bin", data, 5, data),
-                  ("a renamed copy (speech.dat)", data, 5, data),
-                  ("a zip's mockingboard-tts-1.1.bin", zipped("mockingboard-tts-1.1.bin", data), 5, data),
-                  ("the file with one byte changed", bytes(flipped), -1, None),
-                  ("the file cut short", data[:-1], -1, None)]
-    toolkit, other = mb_disks()
+        cases += [(label, data, code, True),
+                  ("a renamed copy of %s (speech.dat)" % label, data, code, True),
+                  ("a zip's %s" % label, zipped("mb/" + label, data), code, True),
+                  ("%s with one byte changed" % label, bytes(flipped), -1, None),
+                  ("%s cut short" % label, data[:-1], -1, None)]
+    toolkit, disk1, disk2 = mb_disks()
     if toolkit:
         dsk = open(toolkit, "rb").read()
         cases += [("the toolkit's .dsk", dsk, 5, True),
@@ -564,8 +609,13 @@ def mb_import_cases(exe, tmp):
                   ("a blank 140 KB disk", bytes(len(dsk)), -7, None)]
     else:
         print("skip  the Mockingboard's disk import: no toolkit .dsk in MOCKINGBOARD_DISKS (paths.local)")
-    if other:
-        cases.append(("another Mockingboard disk (%s)" % os.path.basename(other), open(other, "rb").read(), -7, None))
+    if disk1:
+        dsk = open(disk1, "rb").read()
+        cases += [("Mockingboard disk 1's .dsk", dsk, 6, True),
+                  ("Mockingboard disk 1's .dsk in ProDOS order (.po)", to_prodos(dsk), 6, True),
+                  ("a zip's Mockingboard disk 1 .dsk, in a folder", zipped("apple/mockingboard1.dsk", dsk), 6, True)]
+    if disk2:
+        cases.append(("Mockingboard disk 2 (%s)" % os.path.basename(disk2), open(disk2, "rb").read(), -7, None))
     for name, blob, code, want in cases:
         src, out = os.path.join(tmp, "import.in"), os.path.join(tmp, "import.out")
         with open(src, "wb") as f:
@@ -577,9 +627,8 @@ def mb_import_cases(exe, tmp):
         got = int(m.group(1)) if m else None
         written = open(out, "rb").read() if os.path.exists(out) else None
         ok = got == code
-        if ok and want is not None:          # True: the known file, whatever its source (a disk: no .bin to hand)
-            ok = (want is True or written == want) and written is not None \
-                and hashlib.sha256(written).hexdigest() == MB_SHA256
+        if ok and want:                      # the known file of that voice, whatever its source
+            ok = written is not None and hashlib.sha256(written).hexdigest() == MB_SHA256S[code]
         if ok and code < 0:
             ok = written is None
         print("%-5s import   %s: %s" % ("ok" if ok else "FAIL", name, m.group(2) if m else r.stdout + r.stderr))
@@ -788,11 +837,14 @@ def parse(text):
 
 
 def run_desktop(exe, data, aicom):
-    r = subprocess.run([exe, data, aicom, MINI_DVC if os.path.isfile(MINI_DVC) else "-"], capture_output=True,
-                       text=True)
+    # the data folder holds the Mockingboards' files as imported ones, and is also where the built-in copies are read
+    r = subprocess.run([exe, data, aicom, MINI_DVC if os.path.isfile(MINI_DVC) else "-"] +
+                       ([data] if mb_voices() else []), capture_output=True, text=True)
     if r.returncode:
         sys.exit("test_android_native failed (%d): %s" % (r.returncode, r.stderr.strip()))
-    return parse(r.stdout)
+    got = parse(r.stdout)
+    got["_out"] = r.stdout
+    return got
 
 
 def run_texts(exe):
@@ -822,10 +874,13 @@ def run_adb(abi, data, aicom):
             mini = " aicom/SPKEMS.DVC"
         brk = os.environ.get("SSI263_ANDROID_TEST_BREAK", "")
         r = subprocess.run([adb, "shell", "cd %s && chmod 755 test_android_native && SSI263_ANDROID_TEST_BREAK=%s "
-                            "./test_android_native . aicom%s" % (where, brk, mini)], capture_output=True, text=True)
+                            "./test_android_native . aicom%s%s" % (where, brk, mini, " ." if mb_voices() else "")],
+                           capture_output=True, text=True)
         if r.returncode:
             sys.exit("on the device, test_android_native failed (%d): %s" % (r.returncode, r.stderr.strip()))
-        return parse(r.stdout)
+        got = parse(r.stdout)
+        got["_out"] = r.stdout
+        return got
     finally:
         subprocess.run([adb, "shell", "rm -rf %s" % where], capture_output=True)
 
@@ -835,7 +890,7 @@ def data_folder(firmware, tmp):
     Speak-Out's HEX and the Mockingboard's file when they are in the repository's firmware folder)."""
     for f in FILES["en"]:
         shutil.copy2(os.path.join(firmware, f), tmp)
-    for f in (SPEAKOUT_HEX, MB_BIN):
+    for f in (SPEAKOUT_HEX, MB_BIN, MB_BIN_EARLY):
         if os.path.isfile(f):
             shutil.copy2(f, tmp)
     for d in (firmware, os.path.join(firmware, "spanish")):
@@ -862,7 +917,7 @@ def capitals(label, got, p="a"):
     Speak-Out ("s") keeps one unit, as the NVDA driver keeps one box: the same text twice in a row already differs a
     little (the box's own timing carries over), so its pitch coming back is the reference's -- so_voice itself, given
     no offset -- matched byte for byte above, not a repeat of the first.  The Mockingboard ("mb") keeps one unit too,
-    and is checked the same way."""
+    and is checked the same way, as is the early one ("mbe")."""
     bad = 0
     base, again = got.get(p + "-pitch-100"), got.get(p + "-pitch-100-again")
     for name, other in (("-pitch-150", "-pitch-100"), ("-pitch-75", "-pitch-100"), ("-pitch-150", "-pitch-75"),
@@ -871,7 +926,7 @@ def capitals(label, got, p="a"):
         ok = got.get(name) is not None and got.get(name)[1] != (got.get(other) or (0, None))[1]
         print("%-5s %-8s %s sounds different from %s" % ("ok" if ok else "FAIL", label, name, other))
         bad += not ok
-    if p in ("s", "mb"):
+    if p in ("s", "mb", "mbe"):
         return bad
     ok = base is not None and base == again
     print("%-5s %-8s %s-pitch-100-again = %s-pitch-100, byte for byte (the pitch came back)" % (
@@ -941,14 +996,12 @@ def main():
             want.update(mini_reference(exe))
         elif not mini:
             print("skip  the Accent-mini: no firmware/aicom-accent-mini/SPKEMS.DVC")
-        mb = os.path.isfile(MB_BIN)
+        mb = bool(mb_voices())
         if mb and block("mb"):
-            want.update(mb_reference(exe, data))
-            # ssa_probe on the Mockingboard: a fresh unit says the import's "Hello." at the defaults
-            want["mb-probe"] = mb_reference(exe, data, [("mb-probe", "Hello.", 50, 50, 100, 100, 100, 1, 22050,
-                                                         4096, 0)])["mb-probe"]
-        elif not mb:
-            print("skip  the Mockingboard: no firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin")
+            want.update(mb_want(exe))
+        for f, what in ((MB_BIN, "Mockingboard"), (MB_BIN_EARLY, "early Mockingboard")):
+            if not os.path.isfile(f):
+                print("skip  the %s: no firmware/sweet-micro-mockingboard/%s" % (what, os.path.basename(f)))
 
         def checks(label, got):
             bad = compare(label, got, want)
@@ -963,7 +1016,7 @@ def main():
             if mini and block("mini"):
                 bad += mini_capitals(label, got)
             if mb and block("mb"):
-                bad += mb_heard(label, got)
+                bad += mb_heard(label, got, got.get("_out", ""))
             return bad
         bad = 0
         if want:

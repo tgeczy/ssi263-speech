@@ -93,7 +93,7 @@ object SsiImport {
         /** English's state is 150 million instructions, Spanish's 1150 million; the Speak-Out and the Mockingboard
          * have no state to make, only their check. */
         private fun weight(language: Int) = when (language) {
-            FirmwareImport.SPANISH -> 1150; FirmwareImport.SPEAKOUT, FirmwareImport.MOCKINGBOARD -> 15; else -> 150 }
+            FirmwareImport.SPANISH -> 1150; in FirmwareImport.NO_STATE -> 15; else -> 150 }
 
         fun start(ctx: Context) = Thread({
             result = runCatching { commit(ctx.applicationContext) }

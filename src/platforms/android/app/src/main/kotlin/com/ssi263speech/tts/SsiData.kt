@@ -1,10 +1,12 @@
 // The units' files.  The Braille Lite's: the firmware each user imports (SsiImport) and the state made from it; the
-// Speak-Out's: GW Micro's SPEAKOUT.HEX, and the Mockingboard's: Sweet Micro Systems' mockingboard-tts-1.1.bin,
-// imported the same way.  In device-protected storage, where the native side
+// Speak-Out's: GW Micro's SPEAKOUT.HEX, and the Mockingboards': Sweet Micro Systems' mockingboard-tts-1.1.bin and
+// mockingboard-tts-early.bin, imported the same way.  In device-protected storage, where the native side
 // opens them by path -- and where they can be read before the phone is first unlocked, so the voice works on the lock
-// screen after a restart.  A release APK carries neither; a developer build made with SSI263_ANDROID_BUNDLE_FIRMWARE=1
-// carries the Braille Lite's as assets, copied in once per installed version.  The Accents': Aicom's ROMs (and the
-// Accent-mini's SPKEMS.DVC, in a build that has that voice), in the APK (assets/aicom), handed over in memory.
+// screen after a restart.  A release APK carries neither of the first two; a developer build made with
+// SSI263_ANDROID_BUNDLE_FIRMWARE=1 carries the Braille Lite's as assets, copied in once per installed version.  The
+// Accents': Aicom's ROMs (and the Accent-mini's SPKEMS.DVC, in a build that has that voice), in the APK
+// (assets/aicom), handed over in memory; the Mockingboards' too, from assets/sweet-micro (Tomi, 2026-10-10: the
+// GitHub APK carries them until a store build exists), an imported copy winning.
 package com.ssi263speech.tts
 
 import android.content.Context
@@ -27,17 +29,40 @@ object SsiData {
     /** Where an import is judged and made ready, beside the real folder; gone when the import is. */
     fun staging(ctx: Context): File = File(protectedContext(ctx).filesDir, "unit.importing")
 
-    /** The voice can speak: the Accents' ROMs are in the APK; an imported voice's files are all here. */
+    /** The voice can speak: the Accents' ROMs are in the APK; an imported voice's files are all here; a Mockingboard's
+     * file is here or in the APK. */
     fun has(ctx: Context, voice: Int): Boolean {
         if (voice == SsiNative.ACCENT_SA) return accentRoms(ctx) != null
         if (voice == SsiNative.ACCENT_MINI) return accentMini(ctx) != null
+        return imported(ctx, voice) || (voice in FirmwareImport.BUILT_IN && mockingboard(ctx, voice) != null)
+    }
+
+    /** The voice's files were imported: all of them are here. */
+    fun imported(ctx: Context, voice: Int): Boolean {
         stageBundled(ctx)
         val files = FILES[voice] ?: return false
         return files.all { File(dir(ctx), it).isFile }
     }
 
-    /** Firmware has been imported: a Braille Lite voice, the Speak-Out or the Mockingboard. */
-    fun any(ctx: Context): Boolean = FirmwareImport.IMPORTED.any { has(ctx, it) }
+    /** Firmware has been imported: a Braille Lite voice, the Speak-Out or a Mockingboard. */
+    fun any(ctx: Context): Boolean = FirmwareImport.IMPORTED.any { imported(ctx, it) }
+
+    // ---- the Mockingboards' files: Sweet Micro Systems', carried by the GitHub APK (Tomi, 2026-10-10) ----------------
+
+    private const val SWEET_MICRO = "sweet-micro"
+    private val mb = HashMap<Int, ByteArray?>()
+
+    /** A Mockingboard voice's file from the APK's assets/sweet-micro, read once; null when this APK has none (a build
+     * made without the local firmware: the voice is then import only) or no Mockingboard. */
+    fun mockingboard(ctx: Context, voice: Int): ByteArray? = synchronized(mb) {
+        mb.getOrPut(voice) {
+            try {
+                val name = FILES[voice]?.get(0)
+                if (voice !in FirmwareImport.BUILT_IN || name == null || !SsiNative.nativeVoiceBuilt(voice)) null
+                else ctx.assets.open("$SWEET_MICRO/$name").use { it.readBytes() }.takeIf { it.isNotEmpty() }
+            } catch (e: Exception) { null }           // not in this APK: import only, nothing wrong
+        }
+    }
 
     // ---- the Accent SA's ROMs: Aicom's, the one firmware the APK carries (firmware/AICOM.txt; Tomi, 2026-09-30) ----
 
@@ -88,7 +113,7 @@ object SsiData {
 
     /** What was imported for the voice, in words; null when nothing was. */
     fun label(ctx: Context, voice: Int): String? {
-        if (!has(ctx, voice)) return null
+        if (!imported(ctx, voice)) return null
         val files = FILES[voice] ?: return null
         return try { File(dir(ctx), files[0] + LABEL).readText() }
             catch (e: Exception) { "Braille Lite ${FirmwareImport.languageName(voice)} (built into this app)" }

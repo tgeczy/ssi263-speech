@@ -74,6 +74,21 @@ JNIEXPORT jboolean JNICALL FN(nativeAccentMini)(JNIEnv *env, jclass cls, jbyteAr
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
+/* A Mockingboard voice's built-in file (the APK's assets/sweet-micro), copied into the engine; an imported copy wins. */
+JNIEXPORT jboolean JNICALL FN(nativeMockingboard)(JNIEnv *env, jclass cls, jint voice, jbyteArray jbin)
+{
+    jbyte *p;
+    jsize n;
+    int ok;
+    (void)cls;
+    if (!g_engine || !jbin) return JNI_FALSE;
+    n = (*env)->GetArrayLength(env, jbin);
+    if (!(p = (*env)->GetByteArrayElements(env, jbin, NULL))) return JNI_FALSE;
+    ok = ssa_set_mockingboard(g_engine, voice, (const unsigned char *)p, (size_t)n);
+    (*env)->ReleaseByteArrayElements(env, jbin, p, JNI_ABORT);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+
 /* This build carries the voice's engine (no engine needs to be open). */
 JNIEXPORT jboolean JNICALL FN(nativeVoiceBuilt)(JNIEnv *env, jclass cls, jint voice)
 {
@@ -196,7 +211,8 @@ static unsigned char *bytes_of(JNIEnv *env, jbyteArray a, jsize *n)
 
 /* ssa_import.h's ssa_import_firmware, the firmware in these bytes by content: BLV_FW_ENGLISH 0 or _SPANISH 1 (a
    Braille Lite release on the list, written to `out` as a .BNS), SSA_HEX_SPEAKOUT 3 (the known SPEAKOUT.HEX,
-   written to `out`) or SSA_FW_MOCKINGBOARD 5 (the known mockingboard-tts-1.1.bin, written to `out`), the label in
+   written to `out`) or SSA_FW_MOCKINGBOARD 5 / _EARLY 6 (a known Mockingboard file, from itself or a disk image,
+   written to `out`), the label in
    nativeImportError; else negative (_NONE, _REFUSED, _WRITE, _UNKNOWN; SSA_HEX_OTHER -5: an Intel HEX file but not
    the Speak-Out's; SSA_FW_MB_BUILD -6: the Mockingboard's in a build without it), the reason in nativeImportError. */
 JNIEXPORT jint JNICALL FN(nativeImportFirmware)(JNIEnv *env, jclass cls, jbyteArray jdata, jstring jout)

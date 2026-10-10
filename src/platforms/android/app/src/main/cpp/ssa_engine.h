@@ -10,8 +10,10 @@
  *   SSA_SPEAKOUT     GW Micro Speak-Out         so_voice.h  <data>/SPEAKOUT.HEX                       (imported)
  *   SSA_ACCENT_MINI  Aicom Accent-mini          am_voice.h  SPKEMS.DVC in memory (assets/aicom)       (when
  *                                                           voices.c has it: SSV_HAVE_ACCENTMINI, build_android.sh)
- *   SSA_MOCKINGBOARD Mockingboard               mb_voice.h  <data>/mockingboard-tts-1.1.bin           (imported;
- *                    (Sweet Micro Systems)                  when voices.c has it: SSV_HAVE_MOCKINGBOARD, build_android.sh)
+ *   SSA_MOCKINGBOARD Mockingboard               mb_voice.h  <data>/mockingboard-tts-1.1.bin           (imported,
+ *                    (Sweet Micro Systems)                  else the APK's copy in memory (assets/sweet-micro);
+ *   SSA_MOCKINGBOARD_EARLY  Mockingboard, early mb_voice.h  <data>/mockingboard-tts-early.bin, the same way
+ *                                               (when voices.c has them: SSV_HAVE_MOCKINGBOARD, build_android.sh)
  *
  * The Aicom Accent SA (the built-in voice, Tomi 2026-09-30: Aicom's ROMs ship in the APK, handed over in memory) runs
  * through as_voice.h, the NVDA Accent driver's front end in C.  Each utterance gets a unit of its own, booted as the
@@ -50,13 +52,15 @@ typedef struct ssa_engine ssa_engine;
 #define SSA_ACCENT_SA 2                /* Aicom's u2, u3, u4, from ssa_set_accent_roms */
 #define SSA_SPEAKOUT 3                 /* GW Micro's SPEAKOUT.HEX, imported */
 #define SSA_ACCENT_MINI 4              /* Aicom's SPKEMS.DVC, from ssa_set_accent_mini */
-#define SSA_MOCKINGBOARD 5             /* Sweet Micro Systems' mockingboard-tts-1.1.bin, imported */
-#define SSA_VOICES 6
+#define SSA_MOCKINGBOARD 5             /* Sweet Micro Systems' mockingboard-tts-1.1.bin, imported or built in */
+#define SSA_MOCKINGBOARD_EARLY 6       /* ... and mockingboard-tts-early.bin (Mockingboard disk 1's), the same way */
+#define SSA_VOICES 7
 
 /* The imported files' names in the data folder (the Speak-Out's and the Mockingboard's: SsiImport writes them there;
    the Mockingboard's is mb_host.h's MB_FILE). */
 #define SSA_SPEAKOUT_FILE "SPEAKOUT.HEX"
 #define SSA_MOCKINGBOARD_FILE "mockingboard-tts-1.1.bin"
+#define SSA_MOCKINGBOARD_EARLY_FILE "mockingboard-tts-early.bin"
 
 /* The Accents' level at the app's volume 100, in their drivers' percent (as_voice.h's asv_set): the engine volume
    times this over 100.  test_volume_headroom.py measures it against the Braille Lite's. */
@@ -90,11 +94,21 @@ int ssa_set_accent_roms(ssa_engine *e, const unsigned char *u2, size_t n2, const
 /* The Accent-mini's SPKEMS.DVC, copied.  1, or 0 (empty, out of memory, or this build has no Accent-mini). */
 int ssa_set_accent_mini(ssa_engine *e, const unsigned char *dvc, size_t n);
 
-/* This build carries the voice's engine (every one but the Accent-mini and the Mockingboard always does). */
+/* A Mockingboard voice's built-in file (the APK's assets/sweet-micro: Tomi, 2026-10-10, the GitHub APK carries both
+   until a store build exists), copied; used whenever the data folder has no imported copy, which wins.  1, or 0 (not
+   a Mockingboard voice, not that voice's file -- mbh_variant's 1.1 for SSA_MOCKINGBOARD, the early one for
+   SSA_MOCKINGBOARD_EARLY --, empty, out of memory, or this build has no Mockingboard). */
+int ssa_set_mockingboard(ssa_engine *e, int voice, const unsigned char *bin, size_t n);
+
+/* Where a Mockingboard voice's file comes from now: 1 imported (the data folder), 2 built in, 0 neither (or not a
+   Mockingboard voice). */
+int ssa_mockingboard_source(const ssa_engine *e, int voice);
+
+/* This build carries the voice's engine (every one but the Accent-mini and the Mockingboards always does). */
 int ssa_voice_built(int voice);
 
-/* The voice can speak: its files are in the data folder (the Braille Lite's two, the Speak-Out's HEX, the
-   Mockingboard's file); the Accents' ROMs are set. */
+/* The voice can speak: its files are in the data folder (the Braille Lite's two, the Speak-Out's HEX, a
+   Mockingboard's file -- or its built-in copy is set); the Accents' ROMs are set. */
 int ssa_has_voice(const ssa_engine *e, int voice);
 
 /* The settings a unit is booted with: sample rate (11025, 22050 or 44100; anything else is 22050, as sd_ssi263),
@@ -150,7 +164,9 @@ int ssa_mockingboard_pitch(int slider, int request);   /* ... with the Mockingbo
    100 % -- the Accent SA's and the Speak-Out's alike.  ssa_voice_break -- 1: the Speak-Out's request pitch dropped
    (no capital offset); 2: the Speak-Out's own settings (tone, join, short pauses) dropped, the defaults sent; 3: the
    Braille Lite's run ahead dropped; 4: the Braille Lite's number words dropped (always off, as before 0.7.5); 5: the
-   Mockingboard's request pitch dropped (no capital offset); 6: the Mockingboard's number words dropped (always off). */
+   Mockingboard's request pitch dropped (no capital offset); 6: the Mockingboard's number words dropped (always off);
+   7: a Mockingboard's imported copy ignored (the built-in one always used); 8: the built-in copies ignored (import
+   only); 9: ssa_set_mockingboard takes any file for either voice (no mbh_variant check). */
 extern int ssa_accent_break;
 extern int ssa_voice_break;
 

@@ -22,6 +22,8 @@ object SsiEngine {
         VoiceInfo(SsiNative.SPANISH, "es-ES-braillelite", "Braille Lite 2000 (español)", Locale("es", "ES")),
         VoiceInfo(SsiNative.SPEAKOUT, "en-US-speakout", "GW Micro Speak-Out (English)", Locale("en", "US")),
         VoiceInfo(SsiNative.MOCKINGBOARD, "en-US-mockingboard", "Mockingboard (Sweet Micro Systems)",
+                  Locale("en", "US")),
+        VoiceInfo(SsiNative.MOCKINGBOARD_EARLY, "en-US-mockingboard-early", "Mockingboard, early (Sweet Micro Systems)",
                   Locale("en", "US")))
 
     private val lock = Any()
@@ -39,6 +41,9 @@ object SsiEngine {
                 Log.e("SsiEngine", "the Accent SA's ROMs were refused")
             SsiData.accentMini(ctx)?.let { dvc ->
                 if (!SsiNative.nativeAccentMini(dvc)) Log.e("SsiEngine", "the Accent-mini's SPKEMS.DVC was refused")
+            }
+            for (voice in FirmwareImport.BUILT_IN) SsiData.mockingboard(ctx, voice)?.let { bin ->
+                if (!SsiNative.nativeMockingboard(voice, bin)) Log.e("SsiEngine", "the built-in Mockingboard file $voice was refused")
             }
             opened = true
             return true

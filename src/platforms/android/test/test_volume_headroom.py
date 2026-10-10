@@ -17,7 +17,7 @@ at the driver's full volume (so_voice's gain 1) it peaks at -5.6 dBFS on these l
 -21 dBFS, the others' level; so_voice takes the app's 0-200 as as_voice does, and the default keeps its headroom.
 The Mockingboard (imported, 0.8; measured when firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin is there)
 takes it as its gain too (mb_voice.h): at the default 150 it peaks at -3.1 dBFS on these lines, a little under the
-others, unclipped.
+others, unclipped; the early one (mockingboard-tts-early.bin, 0.8) at -1.1 dBFS, unclipped too.
 
     python test_volume_headroom.py        SSI263_VOLUME_TEST_BREAK=1: volume 250 for every voice -- must fail (all clip)
                                           SSI263_VOLUME_TEST_BREAK=accent: 250 for the Accent SA alone -- must fail
@@ -136,13 +136,14 @@ def speakout(volume):
         return app_level("speak-out", 3, tmp, ACCENT, volume)
 
 
-def mockingboard(volume):
-    if not os.path.isfile(T.MB_BIN):
-        print("mockingboard: skipped (no firmware/sweet-micro-mockingboard/mockingboard-tts-1.1.bin)")
+def mockingboard(volume, early=False):
+    path, label, voice = (T.MB_BIN_EARLY, "mockingboard, early", 6) if early else (T.MB_BIN, "mockingboard", 5)
+    if not os.path.isfile(path):
+        print("%s: skipped (no firmware/sweet-micro-mockingboard/%s)" % (label, os.path.basename(path)))
         return True
     with tempfile.TemporaryDirectory() as tmp:
-        T.shutil.copy2(T.MB_BIN, tmp)
-        return app_level("mockingboard", 5, tmp, ACCENT, volume)
+        T.shutil.copy2(path, tmp)
+        return app_level(label, voice, tmp, ACCENT, volume)
 
 
 def main():
@@ -154,6 +155,7 @@ def main():
     ok = speakout(250 if brk == "1" else default) and ok
     ok = mini(250 if brk == "1" else default) and ok
     ok = mockingboard(250 if brk == "1" else default) and ok
+    ok = mockingboard(250 if brk == "1" else default, early=True) and ok
     print("volume headroom: %s" % ("PASS" if ok else "FAILED"))
     sys.exit(0 if ok else 1)
 

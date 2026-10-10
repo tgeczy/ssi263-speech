@@ -16,7 +16,8 @@ object SsiNative {
     const val ACCENT_SA = 2                 // the Aicom Accent SA (built in)
     const val SPEAKOUT = 3                  // the GW Micro Speak-Out (imported)
     const val ACCENT_MINI = 4               // the Aicom Accent-mini (built in, when the build carries it)
-    const val MOCKINGBOARD = 5              // the Mockingboard, Sweet Micro Systems' (imported)
+    const val MOCKINGBOARD = 5              // the Mockingboard, Sweet Micro Systems' (built in; an import replaces it)
+    const val MOCKINGBOARD_EARLY = 6        // the Mockingboard, early: disk 1's text-to-speech (the same way)
 
     /** Open the engine on the folder holding the unit's files (once per process; later calls keep it). */
     external fun nativeOpen(dataDir: String): Boolean
@@ -27,8 +28,12 @@ object SsiNative {
     /** The Accent-mini's SPKEMS.DVC, copied into the open engine.  False when this build has no Accent-mini. */
     external fun nativeAccentMini(dvc: ByteArray): Boolean
 
+    /** A Mockingboard voice's built-in file (the APK's assets/sweet-micro), copied into the open engine; an imported
+     * copy in the data folder wins.  False when it is not that voice's file or this build has no Mockingboard. */
+    external fun nativeMockingboard(voice: Int, bin: ByteArray): Boolean
+
     /** This build carries the voice's engine (no engine need be open): every voice but the Accent-mini and the
-     * Mockingboard always. */
+     * Mockingboards always. */
     external fun nativeVoiceBuilt(voice: Int): Boolean
 
     /** The voice can speak: its files are in the data folder, or its ROMs were handed over. */
@@ -78,7 +83,7 @@ object SsiNative {
      * (bl_firmware.c's), written to `out` as a .BNS -- [ENGLISH] or [SPANISH] -- or GW Micro's SPEAKOUT.HEX (Intel
      * HEX, the known sha256: ssa_import.c), written to `out` as it is -- [SPEAKOUT] -- or the Mockingboard's
      * mockingboard-tts-1.1.bin (its sha256), written to `out` as it is, or made from the Developers Toolkit's disk
-     * image (mb_dsk.h) -- [MOCKINGBOARD]; the label in [nativeImportError].  Else [FW_NONE] when there is no firmware
+     * image (mb_dsk.h) -- [MOCKINGBOARD], or the early one, [MOCKINGBOARD_EARLY]; the label in [nativeImportError].  Else [FW_NONE] when there is no firmware
      * in them, [FW_REFUSED] when it is another Blazie unit's, [FW_UNKNOWN] when it is a Braille Lite 2000 release not
      * on the list, [FW_OTHER_HEX] when it is an Intel HEX file but not the Speak-Out's (damaged, or another),
      * [FW_NOT_BUILT] when it is the Mockingboard's in a build without that voice, [FW_OTHER_DISK] when it is a 140 KB
