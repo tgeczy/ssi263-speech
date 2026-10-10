@@ -366,6 +366,9 @@ tar -czf build/audit/bns-control.tar.gz -C build/audit/bns-control pkg
 control "no-BNS CONTROL (a package with the Braille 'n Speak 2000's firmware, must fail)" \
     "^FAIL Braille 'n Speak 2000 firmware in the package: pkg/share/ssi263-speech/bns2000/BS03ENG\.BNS$" \
     "^no-BNS check: FAILED$" -- no_bns build/audit/bns-control.tar.gz
+# one package only: the checks below read build/ssi263-speech-*-linux-<arch>.tar.gz, and an earlier version's left
+# in build/ (0.7.7 beside 0.8.0) made that two files and tar fail
+rm -f build/ssi263-speech-*-linux-"$(uname -m)".tar.gz
 check "package" sh tools/package_linux.sh "$DATA"
 # Every voice on every platform (Tomi: a green suite that hides a broken integration is worse than a red one): voices.c's
 # voices by id, here from the built module (sd_ssi263 --voices) and the package's ssi263.conf just made (the Braille
