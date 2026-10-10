@@ -18,8 +18,9 @@ different points, the cut audio must still agree as far as both go and the next 
 checks it (voiced, as long as alone within 10 %), with the difference said.
 
 Every voice of the reference, and every voice 0.7.0's drivers never had (NATIVE_ONLY: the Mockingboard, new in 0.8),
-must be in the native host's listing on both widths, or the run FAILS naming it: a voice whose firmware is missing is
-not listed, and a request for it would quietly speak another (ssi_voice's fallback: the first voice there).
+-- both its versions, 1.1 and the early one -- must be in the native host's listing on both widths, or the run FAILS
+naming it: a voice whose firmware is missing is not listed, and a request for it would quietly speak another
+(ssi_voice's fallback: the first voice there).
 
 The NATIVE_ONLY voices have no Python server to be held to.  They are held to themselves ("own", own_checks): on each
 width every utterance whole and voiced -- texts with numbers and money, SAPI's rates and pitches, each changing the
@@ -77,7 +78,7 @@ TEXTS = {
            "1.234.567"],
 }
 # the voices with no Python reference, held to themselves (own_checks)
-NATIVE_ONLY = ["mockingboard:mockingboard"]
+NATIVE_ONLY = ["mockingboard:mockingboard", "mockingboard:early"]
 OWN = [("default", TEXTS["en"][0], 50, 50), ("numbers and money", TEXTS["en"][1], 50, 50),
        ("faster, higher", TEXTS["en"][0], 75, 60), ("slowest, highest", TEXTS["en"][0], 0, 100),
        ("lowest", TEXTS["en"][0], 50, 0), ("long", LONG_EN, 50, 50), ("OK button", "OK button", 50, 50)]

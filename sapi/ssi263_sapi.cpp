@@ -329,9 +329,10 @@ public:
 #ifdef SSI263_SAPI_DEV
                 if(idx>=0&&!strcmp(brk,"voice")){                     /* a control: English and Spanish swapped, */
                     int e=g_api.find("blazie:blazie"),s=g_api.find("blazie:blazie_es");
-                    int m=g_api.find("mockingboard:mockingboard");    /* the Mockingboard as ssi_voice's fallback */
+                    int m=g_api.find("mockingboard:mockingboard"),q=g_api.find("mockingboard:early");
                     if(idx==e&&g_api.available(s,g_fwdir))idx=s; else if(idx==s&&g_api.available(e,g_fwdir))idx=e;
-                    else if(idx==m&&g_api.available(e,g_fwdir))idx=e;  /* would speak it: the Braille Lite */
+                    else if((idx==m||idx==q)&&g_api.available(e,g_fwdir))idx=e;   /* either Mockingboard as
+                                                         ssi_voice's fallback would speak it: the Braille Lite */
                 }
 #endif
                 ssv_boot b; ssi_boot(&o,&b); g_api.bank_boot(g_bank,&b);

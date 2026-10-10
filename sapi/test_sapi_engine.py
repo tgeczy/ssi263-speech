@@ -24,10 +24,11 @@ checks first -- SSI263_SAPI_REF_BREAK=dist, the reference on nvda/dist's drivers
   - SAPI's abort after a few writes: Speak returns S_OK at once, nothing more is written (no events, no silence),
     and the next text comes out whole (voiced, as long as alone within 10 %);
   - the controls, in the same run (each must make its cases differ): SSI263_SAPI_TEST_BREAK=voice (English and
-    Spanish swapped; the Mockingboard spoken by the Braille Lite, as ssi_voice's fallback would), =setting (the
+    Spanish swapped; each Mockingboard spoken by the Braille Lite, as ssi_voice's fallback would), =setting (the
     dialog's settings dropped) and =bl-numbers (BrailleLiteNumbers 0 ignored).
 
-The voices 0.7.0's drivers never had (NATIVE_ONLY: the Mockingboard, new in 0.8) have no Python server to be held to:
+The voices 0.7.0's drivers never had (NATIVE_ONLY: the Mockingboard, 1.1 and early, new in 0.8) have no Python
+server to be held to:
 their reference is the native serve host (ssi263_serve.exe, build/win/x64) on the stage's firmware with the same
 settings on its command line -- the voice as the engine's own mapping makes it (sapi/ssi_native.c), so what is held is
 the DLL's side: SAPI's fragments, rates and pitches, the declared rate, the 150 ms of silence, the bookmark and the
@@ -70,7 +71,7 @@ NUMBERS = (("numbers unset", DEFAULTS), ("numbers on", dict(DEFAULTS, BrailleLit
 NUMBERS_TEXT = {"en": "1,234,567", "es": "1.234.567"}
 TEXT_EN = ["Hello, how are you??", "Room 12, $3.50 and 1,234,567 items; the 21st of 3, -2.5 degrees."]
 TEXT_ES = ["Mañana, ¿qué tal? Son 1.234.567 y 3,5."]
-NATIVE_ONLY = ("mockingboard:mockingboard",)
+NATIVE_ONLY = ("mockingboard:mockingboard", "mockingboard:early")
 LONG = "This sentence is long enough to be cut somewhere in the middle of it, surely. And a few more words follow it."
 ABORT_AFTER = 6
 

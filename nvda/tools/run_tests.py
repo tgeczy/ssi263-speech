@@ -355,7 +355,16 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
                         expect_fail=True,
                         fail_marks=[r"^FAIL listing x64: mockingboard:mockingboard is not offered ",
                                     r"^FAIL listing x86: mockingboard:mockingboard is not offered ",
-                                    r"; native only: none$", r"^native: 2 FAILED$"]))
+                                    r"; native only: mockingboard:early$", r"^native: 2 FAILED$"]))
+    # ... and the early one's (disk 1's text-to-speech, mockingboard-tts-early.bin): named alone, 1.1 still checked
+    CHECKS.append(check("SAPI native voices CONTROL (the early Mockingboard's firmware missing, must fail)",
+                        [PY, SAPI_NATIVE, "--only", "own"], env={"SSI263_NATIVE_WITHOUT": "mockingboard:early"},
+                        expect_fail=True,
+                        fail_marks=[r"^FAIL listing x64: mockingboard:early is not offered ",
+                                    r"^FAIL listing x86: mockingboard:early is not offered ",
+                                    r"; native only: mockingboard:mockingboard$",
+                                    r"^native only mockingboard:mockingboard: (\d+) of \1 checks right",
+                                    r"^native: 2 FAILED$"]))
     # the number words alone, on random texts: the driver's _numbers against bl_numbers (English, and Spain's Spanish)
     CHECKS.append(check("bl_voice number words = the driver's, 5000 random texts",
                         [PY, "voice_text_equiv.py", "5000", "1", "--numbers"]))

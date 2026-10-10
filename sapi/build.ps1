@@ -118,15 +118,20 @@ Copy-Item (Join-Path $d "LICENSE-EchoTalk-BSD-3-Clause.txt") (Join-Path $lic "LI
 Copy-Item (Join-Path $d "PINNED.txt") (Join-Path $lic "Fake6502-provenance.txt")
 # Sweet Micro Systems' text-to-speech is the Braille Lite's and the Speak-Out's kind of file: never in the repository,
 # taken from the firmware folder the build is given (--files lists it only when it is there; absent, the voice is
-# simply not staged), and its notice goes with it.
+# simply not staged), and its notice goes with it: one notice naming each version staged (1.1, the toolkit's; the
+# early one, disk 1's).
+$mbFiles = @()
 if (Test-Path (Join-Path $fw "sweet-micro-mockingboard\mockingboard-tts-1.1.bin")) {
-  [System.IO.File]::WriteAllText((Join-Path $lic "Mockingboard-firmware-notice.txt"), "The Mockingboard's firmware -- notice
-
-This installation carries the Mockingboard's own text-to-speech
-(firmware\sweet-micro-mockingboard\mockingboard-tts-1.1.bin: Sweet Micro Systems' version 1.1 of 1985, by Mike
-LePage, from the Mockingboard Developers Toolkit). It is not ours; it is here so the card can speak again, and it
-will be removed if its rights holders ask. It is not covered by this package's MIT license.
-", (New-Object System.Text.UTF8Encoding($false)))
+  $mbFiles += "  firmware\sweet-micro-mockingboard\mockingboard-tts-1.1.bin`r`n    Sweet Micro Systems' version 1.1 of 1985, by Mike LePage, from the Mockingboard Developers Toolkit"
+}
+if (Test-Path (Join-Path $fw "sweet-micro-mockingboard\mockingboard-tts-early.bin")) {
+  $mbFiles += "  firmware\sweet-micro-mockingboard\mockingboard-tts-early.bin`r`n    Sweet Micro Systems' earlier text-to-speech, from Mockingboard disk 1"
+}
+if ($mbFiles.Count) {
+  [System.IO.File]::WriteAllText((Join-Path $lic "Mockingboard-firmware-notice.txt"), "The Mockingboard's firmware -- notice`r`n`r`n" +
+    "This installation carries the Mockingboard's own text-to-speech:`r`n`r`n" + ($mbFiles -join "`r`n`r`n") + "`r`n`r`n" +
+    "It is not ours; it is here so the card can speak again, and it will be removed if its rights holders ask. It is`r`n" +
+    "not covered by this package's MIT license.`r`n", (New-Object System.Text.UTF8Encoding($false)))
 }
 Write-Host "SSI-263 SAPI stage$(if ($Dev) { ' (development)' }): $Stage"
 Write-Host ("voices: " + (($listing -split "`r?`n" | Where-Object { $_ -match "`t" } | ForEach-Object { $_.Split("`t")[0] }) -join ', '))
