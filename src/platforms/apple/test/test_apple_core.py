@@ -4,8 +4,8 @@ Android's host-side program (src/platforms/android/test/test_android_native.c: t
 ssa_import over every voice) is linked against each runnable slice's libssi263core.a, the library the apps link, and
 run on the same firmware as test_android_native.py's desktop program; every case's samples and PCM hash must be the
 desktop's, and so must the Accent SA's front-end text.  test_android_native.py holds that desktop program to the
-references (bl_voice as sd_ssi263 drives it, so_voice, am_voice, the NVDA Accent driver), so the slices are held to
-them too.
+references (bl_voice as sd_ssi263 drives it, so_voice, am_voice, mb_voice, the NVDA Accent driver), so the slices are
+held to them too.
 
     macos-arm64      run natively
     macos-x86_64     run under Rosetta (skipped, and said so, without it)
@@ -122,7 +122,7 @@ def main():
     for k in ("SSI263_ANDROID_TEST_ONLY",):
         if k in os.environ:
             sim_env["SIMCTL_CHILD_" + k] = os.environ[k]
-    mini = [tan.MINI_DVC] if os.path.isfile(tan.MINI_DVC) else []
+    mini = [tan.MINI_DVC if os.path.isfile(tan.MINI_DVC) else "-"]    # as test_android_native.py's run_desktop
     texts_in = "".join(t.encode("utf-8").hex() + "\n" for t in tan.TEXTS)
     tmp = tempfile.mkdtemp(prefix="ssi263-apple-test-")
     bad = 0

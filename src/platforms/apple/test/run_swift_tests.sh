@@ -1,6 +1,6 @@
 #!/bin/sh
 # The Apple apps' Swift that needs no device, on the Mac: FirmwareImport.swift and ZipReader.swift, compiled with the
-# tests (FirmwareImportTests.swift) into one program and run.  SSI263_IMPORT_BREAK=1|state|speakout|accent puts one
+# tests (FirmwareImportTests.swift) into one program and run.  SSI263_IMPORT_BREAK=1|state|speakout|mockingboard|accent puts one
 # bug back (the controls): the run must then FAIL.
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"

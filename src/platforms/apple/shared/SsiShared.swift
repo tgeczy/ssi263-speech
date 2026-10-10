@@ -41,7 +41,7 @@ enum SsiShared {
     // ---- the voices -------------------------------------------------------------------------------------------------
 
     struct Voice {
-        let index: Int32                // ssa_engine.h's SSA_ENGLISH ... SSA_ACCENT_MINI
+        let index: Int32                // ssa_engine.h's SSA_ENGLISH ... SSA_MOCKINGBOARD
         let key: String                 // the system voice's identifier: com.ssi263speech.voice.<key>
         let name: String
         let language: String            // BCP 47
@@ -54,6 +54,8 @@ enum SsiShared {
         Voice(index: 1, key: "braillelite-es", name: "Braille Lite 2000 (español)", language: "es-ES",
               files: ["BL2SPA.BNS", "bl2spa_fresh.state"]),
         Voice(index: 3, key: "speakout", name: "Speak-Out", language: "en-US", files: ["SPEAKOUT.HEX"]),
+        Voice(index: 5, key: "mockingboard", name: "Mockingboard (Sweet Micro Systems)", language: "en-US",
+              files: ["mockingboard-tts-1.1.bin"]),
         Voice(index: 2, key: "accentsa", name: "Accent SA", language: "en-US", files: ["u2.BIN", "u3.BIN", "u4.BIN"]),
         Voice(index: 4, key: "accentmini", name: "Accent-mini", language: "en-US", files: ["SPKEMS.DVC"]),
     ]
@@ -104,7 +106,7 @@ enum SsiShared {
         static let volume = "engine_volume"             // 0-200
         static let tone = "tone"                        // the Braille Lite's, 0-26
         static let shortPauses = "short_pauses"         // the Braille Lite's
-        static let numbers = "numbers"                  // the Braille Lite's "Read numbers as words"
+        static let numbers = "numbers"                  // "Read numbers as words": the Braille Lite's, the Mockingboard's
         static let runAhead = "run_ahead"               // the Braille Lite's, EXPERIMENTAL
         static let inflection = "inflection"            // the Braille Lite's and the Accents' voice inflection
         static let soTone = "speakout_tone"             // the Speak-Out's, 0-25 = A-Z

@@ -1,7 +1,8 @@
 // FirmwareInstaller.swift -- an import on the device, Android's SsiImport.kt: a source's bytes judged by
 // FirmwareImport with the native side's eyes (ssp_import.c), then brought in -- each Braille Lite unit's state made
 // here from its firmware (bl_state.c) and checked against the list's, the Speak-Out's HEX and Aicom's files taken as
-// they are -- each Braille Lite and Speak-Out unit made to speak once, and only then everything moved into the unit
+// they are, the Mockingboard's file as the native side made it (from the toolkit disk too) -- each Braille Lite,
+// Speak-Out and Mockingboard unit made to speak once, and only then everything moved into the unit
 // folder together.  Also the removal of every imported file.  MIT.
 
 import Foundation
@@ -152,11 +153,11 @@ enum FirmwareInstaller {
                                       "was tested with, so it was not imported.")
                     }
                 }
-                if f.kind == FirmwareImport.english || f.kind == FirmwareImport.spanish
-                    || f.kind == FirmwareImport.speakout {
+                if [FirmwareImport.english, FirmwareImport.spanish, FirmwareImport.speakout,
+                    FirmwareImport.mockingboard].contains(f.kind) {
                     say("Checking that the \(name) unit speaks")
                     var err = [CChar](repeating: 0, count: 256)
-                    let voice: Int32 = f.kind == FirmwareImport.speakout ? 3 : Int32(f.kind)
+                    let voice = Int32(f.kind)    // the Braille Lite's, the Speak-Out's and the Mockingboard's: ssa's
                     let samples = ssa_probe(ready.path, voice, probeText(f.kind), nil, &err, Int32(err.count))
                     if samples < 0 {
                         throw Failure(message: "The \(name) unit would not start: \(String(cString: err)).")

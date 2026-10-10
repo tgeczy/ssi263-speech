@@ -1,6 +1,7 @@
 #!/bin/sh
 # Build the Apple apps' native core, SSI263Core.xcframework: the SSI-263 chip, every voice's board, host and voice on
-# MAME's Z180, 8085, V40 and 8086 cores (C++17 interpreters, no JIT, so iOS allows them), the voice table
+# MAME's Z180, 8085, V40 and 8086 cores (C++17 interpreters, no JIT, so iOS allows them) and the 6502 (Fake6502's
+# instructions, src/csrc/cpu/m6502.c, for the Mockingboard), the voice table
 # (src/csrc/voices.c), Android's plain-C front end (src/platforms/android/app/src/main/cpp: ssa_engine, ssa_map,
 # ssa_import, used unchanged) and the Apple front end's own C (src/platforms/apple/core) -- the same sources and flags
 # as build_android.sh's objects(), built with Xcode's clang for each Apple platform, as static libraries:
@@ -36,12 +37,18 @@ Z180CXX="-O3 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fvisibility
 MAME="-O2 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fvisibility=hidden -Wall -Wno-sign-compare -I$SRC/cpu -I$SRC"
 ACCENT="-O2 -std=gnu89 -ffp-contract=off -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/accentsa -I$SRC"
 SPEAKOUT="-O2 -std=gnu89 -ffp-contract=off -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/speakout -I$SRC"
-# Every voice: the Accent-mini when its sources are in the tree, as build_android.sh decides
+MOCKING="-O2 -std=gnu99 -ffp-contract=off -fvisibility=hidden -w -I$SRC/cpu -I$SRC/mockingboard -I$SRC"
+# Every voice: the Accent-mini and the Mockingboard when their sources are in the tree, as build_android.sh decides
 MINI=0
+MB=0
 HAVE="-DSSV_HAVE_SPEAKOUT"
 if [ -f "$SRC/accentmini/am_voice.c" ]; then
     MINI=1
     HAVE="$HAVE -DSSV_HAVE_ACCENTMINI"
+fi
+if [ -f "$SRC/mockingboard/mb_voice.c" ]; then
+    MB=1
+    HAVE="$HAVE -DSSV_HAVE_MOCKINGBOARD"
 fi
 
 # slice -> SDK and clang target
@@ -102,13 +109,21 @@ slice() {
             cc $ACCENT -I$SRC/pc86 -c -o "$O/${f##*/}.o" "$SRC/$f.c"
         done
     fi
-    # Android's front end, unchanged, and the Apple front end's own C
-    for f in ssa_map ssa_engine ssa_import; do
-        cc $FRONT -c -o "$O/$f.o" "$CPP/$f.c"
+    # The Mockingboard (the 6502, its board, host and voice, and the disk reader the import uses)
+    if [ "$MB" = 1 ]; then
+        for f in cpu/m6502 mockingboard/mb_board mockingboard/mb_host mockingboard/mb_voice mockingboard/mb_dsk; do
+            cc $MOCKING -c -o "$O/${f##*/}.o" "$SRC/$f.c"
+        done
+    fi
+    # Android's front end, unchanged (the engine and the import with the voices' flags, as build_android.sh), and the
+    # Apple front end's own C
+    cc $FRONT -c -o "$O/ssa_map.o" "$CPP/ssa_map.c"
+    for f in ssa_engine ssa_import; do
+        cc $FRONT $HAVE -c -o "$O/$f.o" "$CPP/$f.c"
     done
     for f in "$CORE"/*.c; do
         [ -f "$f" ] || continue
-        cc $FRONT -I"$CPP" -I"$CORE" -c -o "$O/apple_$(basename "$f" .c).o" "$f"
+        cc $FRONT $HAVE -I"$CPP" -I"$CORE" -c -o "$O/apple_$(basename "$f" .c).o" "$f"
     done
     xcrun ar rcs "$O/libssi263core.a" "$O"/*.o
 }
@@ -139,7 +154,8 @@ EOF
 }
 
 # What the apps show under "Licenses and source", into build/apple/licenses (the project takes the folder as it is):
-# the project's MIT, Casso's, and MAME's BSD-3-Clause notices for the four cores, as build_android.sh stages them.
+# the project's MIT, Casso's, MAME's BSD-3-Clause notices for the four cores, and the 6502's (Fake6502, EchoTalk), as
+# build_android.sh stages them.
 # No firmware notice: the apps carry no firmware.
 licenses() {
     L="$OUT/licenses"
@@ -151,6 +167,12 @@ licenses() {
     cp "$SRC/cpu/mame_nec/LICENSE-BSD-3-Clause.txt" "$L/4 MAME NEC V40 core (BSD-3-Clause).txt"
     if [ "$MINI" = 1 ]; then
         cp "$SRC/cpu/mame_i86/LICENSE-BSD-3-Clause.txt" "$L/5 MAME 8086 core (BSD-3-Clause).txt"
+    fi
+    # the Mockingboard's 6502: Fake6502 (public domain, credit asked) by way of EchoTalk (BSD-3-Clause), as
+    # build_android.sh stages them; no Sweet Micro notice, as the apps carry none of its firmware
+    if [ "$MB" = 1 ]; then
+        cp "$SRC/cpu/fake6502/PINNED.txt" "$L/7 Fake6502 6502 core.txt"
+        cp "$SRC/cpu/fake6502/LICENSE-EchoTalk-BSD-3-Clause.txt" "$L/8 EchoTalk (BSD-3-Clause).txt"
     fi
     cp "$ROOT/third_party/casso/LICENSE" "$L/6 Casso (MIT).txt"
 }

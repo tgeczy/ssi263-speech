@@ -8,8 +8,9 @@
   Speak-Out; the Accent SA; the Accent-mini): byte for byte the segments through ssa_start/ssa_pull directly with the
   pauses' zeros between them -- the voice's own PCM, which test_android_native.py and test_apple_core.py hold to the
   desktop -- and a stop: nothing after it (-2, and again -2), and the next request clean.
-- Aicom's files (ssp_import): each known by its sha256 under any name, one changed byte not, and the Braille Lite's
-  and the Speak-Out's still judged as Android judges them.
+- Aicom's files (ssp_import): each known by its sha256 under any name, one changed byte not, and the Braille Lite's,
+  the Speak-Out's and the Mockingboard's still judged as Android judges them -- the Mockingboard's file, and the
+  toolkit's disk image (MOCKINGBOARD_DISKS in paths.local) in DOS and ProDOS order, a blank disk and another disk.
 
     sh src/platforms/apple/build_apple.sh macos            first
     python src/platforms/apple/test/test_apple_speech.py
@@ -179,6 +180,28 @@ def check_import(exe, data, tmp, env):
         cases.append(("BL2ENG.BNS (the Braille Lite's)", os.path.join(data, "BL2ENG.BNS"), 0))
     if os.path.isfile(tan.SPEAKOUT_HEX):
         cases.append(("SPEAKOUT.HEX (the Speak-Out's)", tan.SPEAKOUT_HEX, 3))
+    # the Mockingboard's file, and the toolkit's disk image (MOCKINGBOARD_DISKS, paths.local; never in the repository)
+    # in DOS and ProDOS order, through the Apple build's ssp_import_firmware (ssa_import_mockingboard behind it)
+    if os.path.isfile(tan.MB_BIN):
+        cases.append(("mockingboard-tts-1.1.bin (the Mockingboard's)", tan.MB_BIN, 5))
+        renamed_mb = os.path.join(tmp, "speech.dat")
+        shutil.copyfile(tan.MB_BIN, renamed_mb)
+        cases.append(("the Mockingboard's file renamed", renamed_mb, 5))
+    toolkit, other = tan.mb_disks()
+    if toolkit:
+        dsk = open(toolkit, "rb").read()
+        po = os.path.join(tmp, "toolkit.po")
+        with open(po, "wb") as f:
+            f.write(tan.to_prodos(dsk))
+        blank = os.path.join(tmp, "blank.dsk")
+        with open(blank, "wb") as f:
+            f.write(bytes(len(dsk)))
+        cases += [("the toolkit's .dsk", toolkit, 5), ("the toolkit's .dsk in ProDOS order (.po)", po, 5),
+                  ("a blank 140 KB disk", blank, -7)]
+        if other:
+            cases.append(("another Mockingboard disk", other, -7))
+    else:
+        print("skip  import the toolkit's disk image: MOCKINGBOARD_DISKS (paths.local) does not have it")
     bad = 0
     for label, path, want in cases:
         r = subprocess.run([exe, "--import", path, out], capture_output=True, text=True, env=env).stdout.strip()

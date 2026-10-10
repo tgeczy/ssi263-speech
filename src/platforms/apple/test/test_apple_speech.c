@@ -136,7 +136,7 @@ static void spoken(ssp_speech *p, int voice, const ssp_request *r, const ssa_set
     }
 }
 
-static const char *VOICE_NAMES[SSA_VOICES] = {"en", "es", "sa", "so", "mini"};
+static const char *VOICE_NAMES[SSA_VOICES] = {"en", "es", "sa", "so", "mini", "mb"};
 
 /* (name, SSML, pause mode, stop after this many pulls or -1) -- in this order on one engine per side */
 static const struct { const char *name, *ssml; int mode, stop; } CASES[] = {

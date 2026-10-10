@@ -14,6 +14,7 @@ enum FirmwareImport {
     static let english = 0                  // the Braille Lite, English
     static let spanish = 1                  // the Braille Lite, Spanish
     static let speakout = 3                 // the GW Micro Speak-Out
+    static let mockingboard = 5             // the Mockingboard: Sweet Micro Systems' file, or the toolkit disk's
     static let accentU2 = 10                // the Accent SA's program ROM
     static let accentU3 = 11                // its dictionary, part 1
     static let accentU4 = 12                // its dictionary, part 2
@@ -22,22 +23,24 @@ enum FirmwareImport {
     static let refused = -2                 // Blazie firmware, but another unit's: not one the voice can run
     static let unknown = -4                 // Braille Lite 2000 firmware, but not a release on the list
     static let otherHex = -5                // an Intel HEX file, but not the Speak-Out's SPEAKOUT.HEX
+    static let notBuilt = -6                // the Mockingboard's file, but this copy of the app has no Mockingboard
+    static let otherDisk = -7               // a 140 KB Apple II disk image, but not the Mockingboard toolkit's
 
     /// The file each found firmware is kept as, in the order an import takes them; the Braille Lite's state beside its
     /// .BNS is made on the device (`stateFiles`).
     static let files: [Int: String] = [english: "BL2ENG.BNS", spanish: "BL2SPA.BNS", speakout: "SPEAKOUT.HEX",
-                                       accentU2: "u2.BIN", accentU3: "u3.BIN", accentU4: "u4.BIN",
+                                       mockingboard: "mockingboard-tts-1.1.bin", accentU2: "u2.BIN", accentU3: "u3.BIN", accentU4: "u4.BIN",
                                        accentMini: "SPKEMS.DVC"]
     static let stateFiles: [Int: String] = [english: "bl2_2003_warm.state", spanish: "bl2spa_fresh.state"]
-    static let order = [english, spanish, speakout, accentU2, accentU3, accentU4, accentMini]
+    static let order = [english, spanish, speakout, mockingboard, accentU2, accentU3, accentU4, accentMini]
     static let accentRoms = [accentU2, accentU3, accentU4]
 
     static let stateSize = 786432           // battery-backed RAM + file flash: every state bl_save_state writes
     static let maxSource = 64 << 20         // an add-on is a few megabytes; firmware a few hundred kilobytes
     static let maxEntry = 4 << 20           // an update program is half a megabyte
 
-    static let noFirmwareZip = "This zip does not contain Braille Lite, Speak-Out or Accent firmware."
-    static let noFirmwareFile = "This file does not contain Braille Lite, Speak-Out or Accent firmware."
+    static let noFirmwareZip = "This zip does not contain Braille Lite, Speak-Out, Mockingboard or Accent firmware."
+    static let noFirmwareFile = "This file does not contain Braille Lite, Speak-Out, Mockingboard or Accent firmware."
     /// Tomi's words, for a state picked on its own.
     static let stateFile = "This is a state file, not firmware. Please import only firmware files, or zips " +
         "containing them, with this tool."
@@ -45,13 +48,16 @@ enum FirmwareImport {
     /// to get them, and never which package carries what.
     static let whatToChoose = "Choose firmware files you own. For the Braille Lite 2000: its update program (such " +
         "as blt2000.exe), or the BL2ENG.BNS or BL2SPA.BNS inside it. For the Speak-Out: GW Micro's SPEAKOUT.HEX, " +
-        "or the speakout.zip holding it. For the Accents: Aicom's u2.BIN, u3.BIN and u4.BIN for the Accent SA and " +
-        "SPKEMS.DVC for the Accent-mini. A .zip or .nvda-addon package containing them works too."
+        "or the speakout.zip holding it. For the Mockingboard: your own copy of the Mockingboard Developers " +
+        "Toolkit disk, as its image (.dsk, .do or .po), or the mockingboard-tts-1.1.bin made from it. For the " +
+        "Accents: Aicom's u2.BIN, u3.BIN and u4.BIN for the Accent SA and SPKEMS.DVC for the Accent-mini. A .zip " +
+        "or .nvda-addon package containing them works too."
     static let onlyTheHex = "Only GW Micro's SPEAKOUT.HEX, as it came, can be imported for the Speak-Out."
 
     /// The host-side tests' controls (SSI263_IMPORT_BREAK; never set in the app): `1` looks at a zip's top only -- no
     /// folder down, no add-on layout -- so the layout tests must fail; `state` stops knowing a state file;
-    /// `speakout` drops what the native side says is the Speak-Out's; `accent` drops Aicom's files.
+    /// `speakout` drops what the native side says is the Speak-Out's; `mockingboard` the Mockingboard's; `accent`
+    /// drops Aicom's files.
     static var control = ProcessInfo.processInfo.environment["SSI263_IMPORT_BREAK"] ?? ""
 
     /// What the native side says about some bytes: the app's NativeIdentify, a fake in the tests.
@@ -68,6 +74,7 @@ enum FirmwareImport {
         case english: return "English Braille Lite"
         case spanish: return "Spanish Braille Lite"
         case speakout: return "Speak-Out"
+        case mockingboard: return "Mockingboard"
         case accentU2, accentU3, accentU4: return "Accent SA"
         case accentMini: return "Accent-mini"
         default: return "unit"
@@ -75,7 +82,7 @@ enum FirmwareImport {
     }
 
     static func languageName(_ found: Int) -> String {
-        found == spanish ? "Spanish" : found == speakout ? "Speak-Out" : "English"
+        found == spanish ? "Spanish" : found == speakout ? "Speak-Out" : found == mockingboard ? "Mockingboard" : "English"
     }
 
     /// A unit's state, by its content: the size every state has.  Never imported, whatever its name.
@@ -132,6 +139,7 @@ enum FirmwareImport {
         var refused: [String] = []
         var unknown: [String] = []
         var otherHex: [(String, String)] = []     // where, and the native side's reason
+        var withReason: [(String, String)] = []   // ... the Mockingboard's in a copy without it, another disk image
         var states: [String] = []
         var deep: [String] = []
         private var n = 0
@@ -147,7 +155,8 @@ enum FirmwareImport {
             let out = staging.appendingPathComponent("candidate\(n).bin")
             n += 1
             var (kind, text) = id.firmware(bytes, out: out)
-            if (control == "speakout" && kind == speakout) || (control == "accent" && kind >= accentU2) {
+            if (control == "speakout" && kind == speakout) || (control == "mockingboard" && kind == mockingboard)
+                || (control == "accent" && kind >= accentU2) {
                 kind = FirmwareImport.none
                 text = ""
             }
@@ -159,6 +168,8 @@ enum FirmwareImport {
                 unknown.append(from)
             } else if kind == FirmwareImport.otherHex {
                 otherHex.append((from, text))
+            } else if kind == FirmwareImport.notBuilt || kind == FirmwareImport.otherDisk {
+                withReason.append((from, text))
             } else {
                 return false
             }
@@ -181,7 +192,8 @@ enum FirmwareImport {
                     let tooDeep = control == "1" ? parts.count > 1 : parts.count > 2 && !addon
                     if tooDeep {
                         let last = parts.last!.lowercased()
-                        if [".bns", ".exe", ".hex", ".bin", ".dvc"].contains(where: { last.hasSuffix($0) }) {
+                        if [".bns", ".exe", ".hex", ".bin", ".dvc", ".dsk", ".do", ".po"]
+                            .contains(where: { last.hasSuffix($0) }) {
                             deep.append(path)
                         }
                         continue
@@ -223,7 +235,7 @@ enum FirmwareImport {
             for from in unknown {
                 notes.append("\(from) is Braille Lite 2000 firmware of a release this app does not know; it is left out.")
             }
-            for (from, why) in otherHex { notes.append("\(from) is \(why); it is left out.") }
+            for (from, why) in otherHex + withReason { notes.append("\(from) is \(why); it is left out.") }
             if !states.isEmpty {
                 let one = states.count == 1
                 notes.append("\(states.joined(separator: ", ")) \(one ? "is a state file" : "are state files"), not " +
@@ -232,7 +244,8 @@ enum FirmwareImport {
             }
             if !found.isEmpty { return Plan(found: found, refusal: nil, notes: notes) }
 
-            if !states.isEmpty && unknown.isEmpty && refused.isEmpty && deep.isEmpty && otherHex.isEmpty {
+            if !states.isEmpty && unknown.isEmpty && refused.isEmpty && deep.isEmpty && otherHex.isEmpty
+                && withReason.isEmpty {
                 let what = states.count == 1 ? "a state file (\(states[0]))"
                     : "state files (\(states.joined(separator: ", ")))"
                 return Plan(found: [], refusal: "This \(zip ? "zip" : "file") holds \(what), not firmware. Please " +
@@ -246,6 +259,8 @@ enum FirmwareImport {
                     "releases this app knows: \(rank.joined(separator: "; "))."
             } else if !otherHex.isEmpty {
                 refusal = otherHex.map { "\($0.0) is \($0.1)." }.joined(separator: " ") + " " + onlyTheHex
+            } else if !withReason.isEmpty {
+                refusal = withReason.map { "\($0.0) is \($0.1)." }.joined(separator: " ")
             } else {
                 refusal = zip ? noFirmwareZip : noFirmwareFile
             }

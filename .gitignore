@@ -30,6 +30,11 @@ firmware/gw-micro-speakout/*
 !firmware/gw-micro-speakout/README.txt
 firmware/blazie/*
 !firmware/blazie/README.txt
+# Sweet Micro Systems' (the Mockingboard's), treated as Blazie's (Tomi, 2026-10-09), and Apple II disk images (the
+# toolkit disk also carries Apple's DOS 3.3; .po and .do ones are covered in the folder, as *.po would hide gettext's)
+firmware/sweet-micro-mockingboard/*
+!firmware/sweet-micro-mockingboard/README.txt
+*.dsk
 
 # The exception: Aicom's software, kept in the tree with its notice (firmware/AICOM.txt).
 !firmware/aicom-accent-sa/*.BIN

@@ -99,6 +99,12 @@ func hex(_ good: Bool) -> Data {
 /// A made-up Aicom file: its first line says which.
 func aicom(_ which: String) -> Data { bytes("AICOM \(which)\n") + filled(4000) { UInt8(($0 * 11) & 0xFF) } }
 
+/// A made-up Mockingboard file: the native side knows the real one by its sha256.
+let mockingboardFile = bytes("SWEETMICRO") + filled(2000) { UInt8(($0 * 5) & 0xFF) }
+
+/// A made-up disk image: the toolkit's when it says TOOLKIT (the fake then gives the file), another when not.
+func disk(_ toolkit: Bool) -> Data { bytes("DOS33DISK") + bytes(toolkit ? "TOOLKIT" : "OTHER") + Data(count: 3000) }
+
 /// A made-up state: the size every state has, whatever is in it.
 func state() -> Data { filled(FirmwareImport.stateSize) { UInt8(($0 * 13) & 0xFF) } }
 
@@ -107,6 +113,18 @@ struct Fake: FirmwareImport.Identify {
 
     func firmware(_ data: Data, out: URL) -> (Int, String) {
         let text = String(data: data.prefix(16), encoding: .isoLatin1) ?? ""
+        if text.hasPrefix("DOS33DISK") {
+            if !(String(data: data, encoding: .isoLatin1) ?? "").contains("TOOLKIT") {
+                return (FirmwareImport.otherDisk, "a Mockingboard disk, but not the text-to-speech version 1.1 this " +
+                        "voice runs")
+            }
+            try? mockingboardFile.write(to: out)
+            return (FirmwareImport.mockingboard, "Mockingboard: Sweet Micro Systems' text-to-speech 1.1")
+        }
+        if text.hasPrefix("SWEETMICRO") {
+            try? data.write(to: out)
+            return (FirmwareImport.mockingboard, "Mockingboard: Sweet Micro Systems' text-to-speech 1.1")
+        }
         if text.hasPrefix("AICOM ") {
             let which = String(text.dropFirst(6).prefix(while: { $0 != "\n" }))
             let kinds = ["u2": FirmwareImport.accentU2, "u3": FirmwareImport.accentU3, "u4": FirmwareImport.accentU4,
@@ -420,6 +438,72 @@ test("aStateBesideTheHexIsNotUsed") {
     check(plan.notes.first?.hasPrefix("unit.dat is a state file, not firmware") == true, "\(plan.notes)")
 }
 
+// ---- the Mockingboard: Sweet Micro Systems' file, by its sha256, or the toolkit disk holding it -------------------
+
+let MB = FirmwareImport.mockingboard
+
+test("theMockingboardFileAlone") {
+    let plan = inspect("mockingboard-tts-1.1.bin", mockingboardFile)
+    eq(plan.refusal, nil)
+    eq(kinds(plan), [MB])
+    eq(plan.found.first?.label, "Mockingboard: Sweet Micro Systems' text-to-speech 1.1")
+    eq(plan.found.first.flatMap { try? Data(contentsOf: $0.firmware) }, mockingboardFile)
+}
+
+test("theMockingboardFileOneFolderDownBesideTheOthers") {
+    let plan = inspect("units.zip", zip([("blt2000/BL2ENG.BNS", bns("E")), ("speakout/SPEAKOUT.HEX", hex(true)),
+                                         ("mockingboard/mockingboard-tts-1.1.bin", mockingboardFile)]))
+    eq(kinds(plan), [E, SO, MB])
+    eq(plan.found.count > 2 ? plan.found[2].from : "", "mockingboard/mockingboard-tts-1.1.bin")
+}
+
+test("theMockingboardFileTwoFoldersDownIsNamed") {
+    let plan = inspect("deep.zip", zip([("backup/mockingboard/mockingboard-tts-1.1.bin", mockingboardFile)]))
+    eq(plan.found.count, 0)
+    check(plan.refusal?.contains("backup/mockingboard/mockingboard-tts-1.1.bin is deeper than that") == true,
+          plan.refusal ?? "nil")
+}
+
+test("theToolkitDiskGivesTheFile") {
+    let plan = inspect("Mockingboard Developers toolkit.dsk", disk(true))
+    eq(plan.refusal, nil)
+    eq(kinds(plan), [MB])
+    eq(plan.found.first.flatMap { try? Data(contentsOf: $0.firmware) }, mockingboardFile)
+}
+
+test("theToolkitDiskInAZip") {
+    let plan = inspect("disks.zip", zip([("apple/toolkit.dsk", disk(true)), ("README.TXT", bytes("disks"))]))
+    eq(kinds(plan), [MB])
+    eq(plan.found.first?.from, "apple/toolkit.dsk")
+}
+
+test("aDiskTwoFoldersDownIsNamed") {
+    let plan = inspect("deep.zip", zip([("backup/apple/toolkit.po", disk(true))]))
+    eq(plan.found.count, 0)
+    check(plan.refusal?.contains("backup/apple/toolkit.po is deeper than that") == true, plan.refusal ?? "nil")
+}
+
+test("anotherDiskIsRefusedAndSaysWhy") {
+    let plan = inspect("mockingboard1.dsk", disk(false))
+    eq(plan.found.count, 0)
+    check(plan.refusal?.hasPrefix("mockingboard1.dsk is a Mockingboard disk, but not the text-to-speech version 1.1 " +
+        "this voice runs.") == true, plan.refusal ?? "nil")
+    check(plan.refusal?.hasSuffix(FirmwareImport.whatToChoose) == true, plan.refusal ?? "nil")
+}
+
+test("anotherDiskBesideFirmwareIsLeftOut") {
+    let plan = inspect("mixed.zip", zip([("BL2ENG.BNS", bns("E")), ("mockingboard1.dsk", disk(false))]))
+    eq(kinds(plan), [E])
+    eq(plan.notes, ["mockingboard1.dsk is a Mockingboard disk, but not the text-to-speech version 1.1 this voice " +
+        "runs; it is left out."])
+}
+
+test("theMockingboardHasNoStateToMake") {
+    eq(FirmwareImport.stateFiles[MB], nil)
+    eq(FirmwareImport.files[MB], "mockingboard-tts-1.1.bin")
+    check(FirmwareImport.order.contains(MB), "the order has no Mockingboard")
+}
+
 // ---- the Accents: Aicom's files, which the Apple apps never carry ------------------------------------------------
 
 let SA = [FirmwareImport.accentU2, FirmwareImport.accentU3, FirmwareImport.accentU4]
@@ -507,7 +591,9 @@ for (label, tool) in [("ditto (Finder's Compress)", ["/usr/bin/ditto", "-c", "-k
 // ---- the words ------------------------------------------------------------------------------------------------------
 
 test("theWordsNameEveryUnit") {
-    eq(FirmwareImport.noFirmwareFile, "This file does not contain Braille Lite, Speak-Out or Accent firmware.")
+    eq(FirmwareImport.noFirmwareFile, "This file does not contain Braille Lite, Speak-Out, Mockingboard or Accent " +
+        "firmware.")
+    check(FirmwareImport.whatToChoose.contains("your own copy of the Mockingboard Developers Toolkit disk"), "")
     check(FirmwareImport.whatToChoose.contains("GW Micro's SPEAKOUT.HEX, or the speakout.zip holding it"), "")
     check(FirmwareImport.whatToChoose.contains("u2.BIN, u3.BIN and u4.BIN for the Accent SA and SPKEMS.DVC"), "")
     // a store app's words name no source: the package types, but never which package carries the firmware

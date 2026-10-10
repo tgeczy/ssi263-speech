@@ -54,7 +54,8 @@ struct SetupView: View {
                 Text("Voices").accessibilityAddTraits(.isHeader)
             } footer: {
                 Text("This app carries no firmware. Each voice speaks once you import the firmware you own: the " +
-                     "Braille Lite 2000's, GW Micro's Speak-Out's, and Aicom's for the Accent SA and Accent-mini.")
+                     "Braille Lite 2000's, GW Micro's Speak-Out's, Aicom's for the Accent SA and Accent-mini, and " +
+                     "for the Mockingboard, your own copy of the Mockingboard Developers Toolkit disk.")
             }
 
             Section {
@@ -78,8 +79,8 @@ struct SetupView: View {
             } header: {
                 Text("Firmware").accessibilityAddTraits(.isHeader)
             } footer: {
-                Text("Choose firmware files you own, update programs, or .zip or .nvda-addon packages containing " +
-                     "them, one or several at once. Each file is known by its contents, whatever its name.")
+                Text("Choose firmware files you own, update programs, disk images, or .zip or .nvda-addon packages " +
+                     "containing them, one or several at once. Each file is known by its contents, whatever its name.")
             }
 
             Section {
@@ -251,17 +252,20 @@ struct VoiceSettingsView: View {
                     Text("22 kHz (recommended)").tag(22050)
                 }
                 Toggle("Voice inflection", isOn: $inflection)
+                Toggle("Read numbers as words", isOn: $numbers)
             } header: {
                 Text("Every voice").accessibilityAddTraits(.isHeader)
             } footer: {
                 Text("Rate and pitch at 50 are each unit's factory settings; VoiceOver's own rate and pitch come on " +
-                     "top. Inflection and the sample rate restart the units on the next utterance.")
+                     "top. Inflection and the sample rate restart the units on the next utterance. Reading numbers " +
+                     "as words is the Braille Lite's and the Mockingboard's: 1,234,567 as one number, in words. Off, " +
+                     "the unit's own firmware reads them (the Mockingboard's digit by digit). The Accents always " +
+                     "read numbers as words.")
             }
 
             Section {
                 Stepper("Tone: \(tone)", value: $tone, in: 0...26)
                 Toggle("Short pauses", isOn: $shortPauses)
-                Toggle("Read numbers as words", isOn: $numbers)
                 Toggle("Run the unit ahead (experimental)", isOn: $runAhead)
             } header: {
                 Text("Braille Lite").accessibilityAddTraits(.isHeader)
