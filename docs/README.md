@@ -8,6 +8,8 @@
 - [front-ends.md](front-ends.md): the four devices' own firmware and the machines they run on.
 - [open-questions.md](open-questions.md): what isn't known yet.
 - [sources.md](sources.md): data sheets, papers, patents, software and people.
+- [mockingboard-firmware.md](mockingboard-firmware.md): the Mockingboard voices' firmware: which disks, what
+  the importers recognize, and which archives keep them.
 
 The working letters these pages were drawn from stay with the project's private files.
 `src/HOLDOUT.md` is the engine's own change log, with every look at the hold-out.
