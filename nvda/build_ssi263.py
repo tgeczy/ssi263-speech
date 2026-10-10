@@ -25,6 +25,9 @@ BUILD = os.path.join(HERE, "dist", "ssi263-build")
 OUT = os.path.join(HERE, "dist", "ssi263-speech-%s.nvda-addon" % VERSION)
 UNITS = ("blazie", "speakout", "accent")
 MB_FILE = os.path.join(REPO, "firmware", "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin")
+# Apple II disk images are never shipped (Tomi, 2026-10-09): the toolkit's disk also carries Apple's DOS 3.3 and
+# Sweet Micro's other programs; only the voice's own file is staged
+DISK_IMAGES = (".dsk", ".do", ".po", ".nib", ".woz", ".2mg")
 MB_NOTICE = """The Mockingboard's text-to-speech -- notice
 
 This add-on carries Sweet Micro Systems' text-to-speech for the Mockingboard (mockingboard-tts-1.1.bin: TEXT TO SPEECH
@@ -84,6 +87,9 @@ def main():
     shutil.copytree(os.path.join(HERE, "blazie", "locale"), os.path.join(BUILD, "locale"))
     with open(os.path.join(BUILD, "manifest.ini"), "w", encoding="utf-8") as f:
         f.write(MANIFEST)
+    disks = [os.path.join(r, f) for r, _d, fs in os.walk(BUILD) for f in fs if f.lower().endswith(DISK_IMAGES)]
+    if disks:
+        sys.exit("disk images must never ship: %s" % ", ".join(os.path.relpath(d, BUILD) for d in disks))
     zip_build(BUILD, OUT)
 
 
