@@ -45,6 +45,7 @@ void ssi_options_defaults(ssi_options *o)
     o->whine = 0;
     o->accent_inflection = 100;
     o->run_ahead = 0;
+    o->line_lift = 0;
     o->numbers = 1;                                          /* blazie.py: numberWords, defaultVal=True */
 }
 
@@ -62,6 +63,7 @@ void ssi_settings(const ssi_api *api, int i, const ssi_options *o, int rate, int
     api->defaults(i, s);
     s->inflection = clamp(o->accent_inflection, 0, 100);     /* accentmini: d._set_inflection */
     s->run_ahead = o->run_ahead != 0;                        /* blazie: d._set_runAhead */
+    s->line_lift = o->line_lift != 0;                        /* blazie: d._set_lineLift */
     if (api->info(i)->engine == SSV_BLAZIE)                  /* blazie: d._set_numberWords; the Accents' and the
                                                                 Mockingboard's stay theirs (ssv_defaults: on) */
         s->numbers = o->numbers != 0;

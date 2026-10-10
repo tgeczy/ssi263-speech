@@ -50,6 +50,7 @@ one: the Braille Lite's files from <data folder>, and aicom-accent-sa/, aicom-ac
     python3 test_sd_ssi263.py <sd_ssi263> <libssi263speech.so> <data folder>
     SD_SSI263_TEST_NO_CANCEL=1 in the environment: the module leaves the unit uncancelled -- "stop" must FAIL
     SD_SSI263_TEST_IGNORE_RUN_AHEAD=1: the module drops SSI263RunAhead -- the ra_ checks must FAIL
+    SD_SSI263_TEST_IGNORE_LINE_LIFT=1: the module drops SSI263LineLift -- lift must FAIL
     SD_SSI263_TEST_IGNORE_BL_NUMBERS=1: the module drops SSI263BrailleLiteNumbers (the default reaches the unit) --
                                         num_off and num_es_off must FAIL
     SD_SSI263_TEST_IGNORE_ACCENT_INFLECTION=1: the module drops SSI263AccentInflection -- as_infl must FAIL
@@ -77,6 +78,7 @@ lib.blv_render.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.POINTER(ctypes
 lib.blv_cancel.argtypes = [ctypes.c_void_p]
 lib.blv_destroy.argtypes = [ctypes.c_void_p]
 lib.blv_set_run_ahead.argtypes = [ctypes.c_void_p, ctypes.c_int]
+lib.blv_set_line_lift.argtypes = [ctypes.c_void_p, ctypes.c_int]
 lib.blv_set_numbers.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 NUMBERS_FN = ctypes.cast(lib.bl_numbers, ctypes.c_void_p)     # bl_numbers.h: the driver's _numbers in C
 lib.blv_host.restype = ctypes.c_void_p
@@ -95,13 +97,14 @@ lib.bh_clear_writes.argtypes = [ctypes.c_void_p]
 
 # ---- the reference -----------------------------------------------------------------------------------------------
 class Ref:
-    def __init__(self, spanish=False, rate=22050, whine=0, run_ahead=0, numbers=1):
+    def __init__(self, spanish=False, rate=22050, whine=0, run_ahead=0, numbers=1, line_lift=0):
         fw, st = (("BL2SPA.BNS", "bl2spa_fresh.state") if spanish else ("BL2ENG.BNS", "bl2_2003_warm.state"))
         err = ctypes.create_string_buffer(256)
         self.v = lib.blv_create(os.path.join(DATA, fw).encode(), os.path.join(DATA, st).encode(), int(spanish),
                                 float(rate), 1, whine, err, 256)
         assert self.v, err.value
         lib.blv_set_run_ahead(self.v, run_ahead)
+        lib.blv_set_line_lift(self.v, line_lift)
         lib.blv_set_numbers(self.v, NUMBERS_FN if numbers else None)
         self.host = lib.blv_host(self.v)
         lib.bh_set_int(self.host, b"log_writes", 1)    # the chip's writes, for the phonemes (nothing else changes)
@@ -415,7 +418,7 @@ m.p.wait(timeout=10)
 
 
 # ---- the config: the module file, this user's own file (which wins), and a rate we do not offer -------------------
-def configured(label, conf, user_conf, rate, whine=0, run_ahead=0):
+def configured(label, conf, user_conf, rate, whine=0, run_ahead=0, line_lift=0):
     c = Module(conf, user_conf)
     c.send("INIT")
     assert c.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
@@ -424,7 +427,8 @@ def configured(label, conf, user_conf, rate, whine=0, run_ahead=0):
     c.p.wait(timeout=10)
     ok = c.rates == {rate}
     print("%-8s audio blocks declare %s Hz (want %d)" % (label, sorted(c.rates), rate))
-    return same(label, pcm, Ref(rate=rate, whine=whine, run_ahead=run_ahead).say("Is it ready?")) and ok
+    return same(label, pcm, Ref(rate=rate, whine=whine, run_ahead=run_ahead,
+                                line_lift=line_lift).say("Is it ready?")) and ok
 
 
 results.append(configured("conf44", "SSI263SampleRate 44100\n", None, 44100))
@@ -474,6 +478,13 @@ print("ra_sys   \"Is it ready?\": run ahead's reference %s the lockstep's" % ("d
                                                                              "is IDENTICAL to"))
 results.append(configured("ra_sys", "SSI263RunAhead 1\n", None, 22050, run_ahead=1) and ra_q != lock_q)
 results.append(configured("ra_user0", "SSI263RunAhead 1\n", "SSI263RunAhead 0\n", 22050))
+
+# ---- the line-start lift (off by default): the module file's SSI263LineLift 1 -------------------------------------
+# the module's first message is fresh, so it is lifted; the references must differ, or the check could not tell
+lift_q, flat_q = Ref(line_lift=1).say("Is it ready?"), Ref().say("Is it ready?")
+print("lift     \"Is it ready?\": the lifted reference %s the unlifted one" % ("differs from" if lift_q != flat_q
+                                                                         else "is IDENTICAL to"))
+results.append(configured("lift", "SSI263LineLift 1\n", None, 22050, line_lift=1) and lift_q != flat_q)
 
 # ---- the Braille Lite's number words: the driver's default, the key, this user's key over the module file's -------
 def driver_numbers_default():

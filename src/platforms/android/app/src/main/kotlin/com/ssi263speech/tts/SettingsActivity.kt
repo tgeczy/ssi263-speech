@@ -563,6 +563,12 @@ class SettingsActivity : Activity() {
         }
         root.addView(ui.body("Braille Lite only, experimental and off by default, as in the NVDA add-on: the unit " +
             "runs ahead of its speech chip, so long text starts sooner. It needs short pauses on."))
+        ui.checkBox(root, "Lift line starts (as note-taking mode)", s.lineLift) {
+            put(SsiSettings.LINE_LIFT, it)
+        }
+        root.addView(ui.body("Braille Lite only, off by default, as in the NVDA add-on: like the unit when you move " +
+            "by line, the start of a line spoken after you interrupt speech, or after a pause, slides up in pitch. " +
+            "Reading on is never lifted."))
 
         ui.choice(root, "Idle sound", listOf("Off", "Hiss", "Whine"), s.whine) { put(SsiSettings.WHINE, it) }
         root.addView(ui.body("Braille Lite only: the faint sound a real unit makes under its speech, hiss at even " +

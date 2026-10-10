@@ -75,7 +75,9 @@ static const DWORD LOG_CAP = 4u * 1024u * 1024u;
  * this user's): Inflection (the Braille Lite's own on/off: 1 = on, the default), AccentInflection (the Accent's
  * intonation, 0 25 50 75 100 as its NVDA slider; 100 = full, the default), Whine (0 off, 1 hiss, 2 whine),
  * SampleRate (11025 / 22050 / 44100, every voice), RunAhead (the Braille Lite's "Run the unit ahead", EXPERIMENTAL:
- * 0 = off, the default; 1 = on, both its voices), BrailleLiteNumbers (the Braille Lite's "Read numbers as words",
+ * 0 = off, the default; 1 = on, both its voices), LineLift (the Braille Lite's "Lift line starts (as note-taking
+ * mode)": 0 = off, the default; 1 = on, both its voices -- a line spoken after a cancel or into a pause is lifted as
+ * the unit lifts a line moved to, bl_voice.h), BrailleLiteNumbers (the Braille Lite's "Read numbers as words",
  * its NVDA driver's custom number processing: 1 = on, the default; 0 = the firmware reads the digits; both its voices,
  * the Accents and the Mockingboard keep their own) and Diagnostics (0 = off).  The Mockingboard has none of the
  * others: SAPI's rate and pitch and SampleRate are all it takes (the volume stays SAPI's, as for every voice).  Each
@@ -310,6 +312,7 @@ public:
         o.whine=(int)setting_dword(L"Whine",0);
         o.accent_inflection=(int)setting_dword(L"AccentInflection",100);
         o.run_ahead=setting_dword(L"RunAhead",0)!=0;
+        o.line_lift=setting_dword(L"LineLift",0)!=0;
         o.numbers=setting_dword(L"BrailleLiteNumbers",1)!=0;
 #ifdef SSI263_SAPI_DEV
         char brk[16]={0}; GetEnvironmentVariableA("SSI263_SAPI_TEST_BREAK",brk,sizeof brk);

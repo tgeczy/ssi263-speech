@@ -64,12 +64,13 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
                              mockingboard-import-ignored   7: the imported copy ignored (the built-in one used)
                              mockingboard-builtin-ignored  8: the built-in copies ignored (import only)
                              mockingboard-variant          9: either file taken for either voice
+                             line-lift            ssa_voice_break 10: the Braille Lite's line-start lift dropped
                              import-hash          ssa_import_break: any well-formed Intel HEX taken as the Speak-Out,
                                                   any file of a Mockingboard file's size as that one
                              import-dsk           ssa_import_break 2: a disk image never tried (the .dsk cases fail)
 
 SSI263_ANDROID_TEST_ONLY=<blocks>, a comma list of bl (the Braille Lite in lockstep, its Spanish unit and the probe),
-ra (run ahead), num (the number words), accent (the Accent SA and its text), so (the Speak-Out), mini (the
+ra (run ahead), lift (the line-start lift), num (the number words), accent (the Accent SA and its text), so (the Speak-Out), mini (the
 Accent-mini), mb (the Mockingboard), import (the Speak-Out's and the Mockingboard's import): only those blocks, on
 both sides -- for the controls, so each runs what
 its bug touches (the 3-minute gate).
@@ -942,6 +943,14 @@ def run_ahead_taken(label, got):
     return not ok
 
 
+def lift_heard(label, got):
+    """The line-start lift reached the unit: a fresh unit's first line, lifted, is not the same line unlifted."""
+    ok = got.get("lift-on") is not None and got.get("lift-on") != got.get("lift-off")
+    print("%-5s %-8s lift-on differs from lift-off (the line-start lift reached bl_voice)" % ("ok" if ok else "FAIL",
+                                                                                             label))
+    return not ok
+
+
 def compare_texts(got, want):
     bad = 0
     for i, t in enumerate(TEXTS):
@@ -1011,6 +1020,8 @@ def main():
                 bad += run_ahead_taken(label, got)
             if numbers:
                 bad += numbers_heard(label, got)
+            if block("lift"):
+                bad += lift_heard(label, got)
             if speakout and block("so"):
                 bad += capitals(label, got, "s")
             if mini and block("mini"):

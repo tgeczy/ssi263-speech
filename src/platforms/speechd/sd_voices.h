@@ -35,6 +35,7 @@ typedef struct {
     int tone;                          /* SSI263Tone 0-26 */
     int short_pauses;                  /* SSI263ShortPauses 0/1 */
     int run_ahead;                     /* SSI263RunAhead 0/1 (EXPERIMENTAL; the Braille Lite only) */
+    int line_lift;                     /* SSI263LineLift 0/1 (the Braille Lite only; bl_voice.h blv_set_line_lift) */
     int numbers;                       /* SSI263BrailleLiteNumbers 0/1 (the driver's custom number processing: 1) */
     /* the Accents' (the SA and the mini) */
     int accent_inflection;             /* SSI263AccentInflection 0-100 (100 = full intonation) */

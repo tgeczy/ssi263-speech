@@ -2,7 +2,8 @@
 // The scales are the NVDA drivers' (and the speech-dispatcher module's): rate and pitch 0-100 with 50 the unit's
 // factory rate and pitch (the Braille Lite's 11 and 16, the Accent SA's 5 and 5, the Speak-Out's 5 and 3), volume
 // 0-200 (100 = the desktop voices' level, for every voice), the Braille Lite's tone 0-26 (factory 7), short pauses,
-// numbers read as words (on, as its NVDA driver's "Custom number processing") and run ahead (experimental, off), the
+// numbers read as words (on, as its NVDA driver's "Custom number processing"), run ahead (experimental, off) and the
+// line-start lift (off), the
 // Speak-Out's tone A-Z (0-25, factory I = 8), join phrases and short pauses (both
 // on, as its NVDA driver), and the units' own boot settings.
 package com.ssi263speech.tts
@@ -21,6 +22,7 @@ object SsiSettings {
     const val MAX_VOLUME = 200
     const val SHORT_PAUSES = "short_pauses"
     const val RUN_AHEAD = "run_ahead"          // the Braille Lite's, EXPERIMENTAL: off by default (NVDA's runAhead)
+    const val LINE_LIFT = "line_lift"          // the Braille Lite's "Lift line starts": off (NVDA's lineLift)
     const val NUMBERS = "numbers"              // "Read numbers as words", the Braille Lite's and the Mockingboard's:
                                                // on (NVDA's numberWords)
     const val SO_TONE = "speakout_tone"        // the Speak-Out's tone, 0-25 = A-Z
@@ -44,7 +46,7 @@ object SsiSettings {
                         val sampleRate: Int = 22050, val voice: Int = SsiNative.ACCENT_SA,
                         val overrideVoice: Boolean = true, val runAhead: Boolean = false,
                         val soTone: Int = SO_DEFAULT_TONE, val soJoin: Boolean = true, val soShortPauses: Boolean = true,
-                        val numbers: Boolean = true)
+                        val numbers: Boolean = true, val lineLift: Boolean = false)
 
     fun snapshot(ctx: Context): Snapshot {
         val p = prefs(ctx)
@@ -63,6 +65,7 @@ object SsiSettings {
             p.getInt(SO_TONE, SO_DEFAULT_TONE).coerceIn(0, 25),
             p.getBoolean(SO_JOIN, true),
             p.getBoolean(SO_SHORT_PAUSES, true),
-            p.getBoolean(NUMBERS, true))
+            p.getBoolean(NUMBERS, true),
+            p.getBoolean(LINE_LIFT, false))
     }
 }

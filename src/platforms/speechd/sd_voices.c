@@ -4,7 +4,8 @@
  * data folder's layout, and its config keys put on voices.h's settings (settings_for).
  *
  * Test hooks, each a must-fail control of test_sd_ssi263.py: SD_SSI263_TEST_IGNORE_RUN_AHEAD=1 drops SSI263RunAhead
- * on its way to the Braille Lite, SD_SSI263_TEST_IGNORE_BL_NUMBERS=1 drops SSI263BrailleLiteNumbers (the Braille Lite
+ * on its way to the Braille Lite, SD_SSI263_TEST_IGNORE_LINE_LIFT=1 drops SSI263LineLift likewise,
+ * SD_SSI263_TEST_IGNORE_BL_NUMBERS=1 drops SSI263BrailleLiteNumbers (the Braille Lite
  * gets the driver's default, number words on), SD_SSI263_TEST_IGNORE_ACCENT_INFLECTION=1 drops SSI263AccentInflection
  * on its way to the Accents (they get the default, full intonation). */
 #include <stdio.h>
@@ -141,10 +142,12 @@ static void settings_for(int i, const sd_settings *s, int rate, int pitch, int v
     o->pitch = pitch;
     o->volume = volume;
     switch (ssv_voice_info(v)->engine) {
-    case SSV_BLAZIE:                   /* blv_set's tone and short pauses; run ahead; the number words */
+    case SSV_BLAZIE:                   /* blv_set's tone and short pauses; run ahead; the line-start lift; the number
+                                          words */
         o->tone = s->tone;
         o->pack = s->short_pauses;
         o->run_ahead = s->run_ahead && !getenv("SD_SSI263_TEST_IGNORE_RUN_AHEAD");
+        o->line_lift = s->line_lift && !getenv("SD_SSI263_TEST_IGNORE_LINE_LIFT");
         if (!getenv("SD_SSI263_TEST_IGNORE_BL_NUMBERS")) o->numbers = s->numbers;
         break;
     case SSV_ACCENT_SA:

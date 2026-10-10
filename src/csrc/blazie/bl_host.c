@@ -88,6 +88,14 @@ struct bl_host {
        RA_SETTLE_S of CPU time; ra_settle's rule for run ahead); bit 1: A/R not requesting over the first ^X slice */
     int cancel_settle;
     int settling, cancel_settled, cancel_dropped;
+    /* The line-start lift (bh_set_int "line_lift"): note-taking mode's lift of a line read because the user moved
+       to it, which speech-box lines never get.  The firmware opens every line's phonemes with a pitch marker -- in
+       note-taking mode, on a moved-to line, a raise (the pitch byte + 1Bh), else a normal one -- and a normal
+       marker a few slots on.  A marker shows in the chip writes as a second R1 write before the next R0 (its own,
+       then the usual one).  Armed, the line's first marker is made the raise and the second ends it, as the
+       emulated unit does in note-taking mode; with the unit's voice inflection off it drops its markers, and so
+       there is no lift -- as on the unit.  0 off, 1 armed (the next line), 2 lifting. */
+    int lift, lift_r1s, lift_val;
 };
 
 enum { BH_FAULT_RUN_AHEAD = 1, BH_FAULT_EVENT = 2 };
@@ -166,6 +174,18 @@ static int request(const bl_host *h)
 /* a write of the unit's, applied to the chip now, with the host's bookkeeping */
 static void chip_write(bl_host *h, int reg, int val)
 {
+    if (h->lift && reg == 1) {
+        if (++h->lift_r1s == 2) {                      /* a marker */
+            if (h->lift == 1) {
+                h->lift = 2;
+                h->lift_val = (val + 0x1B) & 0xFF;     /* the raise: + 1Bh, wrapping as the firmware's does */
+            } else
+                h->lift = 0;                           /* the second: the firmware's own pitch again */
+        }
+        if (h->lift == 2)
+            val = h->lift_val;
+    } else if (reg == 0)
+        h->lift_r1s = 0;
     HTR("PLAY t=%.6f cyc=%llu r%d=%02X ra=%d/%d ri=%d nw=%d\n", ssi263_time(h->chip), (unsigned long long)bl_cycles(h->unit),
         reg, val, h->ra.active, h->ra.capturing, h->ra.ri, h->ra.nw);
     ssi263_write(h->chip, reg, val);
@@ -585,6 +605,7 @@ BL_API double bh_cancel(bl_host *h, double limit, double quiet, double cut)
         h->ra.active, h->ra.capturing, h->ra.nw, h->ra.ri, h->ra.nack, h->ra.seg, h->ra.pending, h->ra.end,
         request(h), h->sent_f, h->echo_f, h->stale_f, h->n_held);
     h->n_held = h->n_held_bytes = 0;                       /* held input: dropped, as the unit's unread input is */
+    h->lift = h->lift_r1s = 0;                             /* a line-start lift not reached: cut with its line */
     h->ra.stop_trailing = 0;
     h->sent_f -= bl_drop(h->unit);                         /* _cmd("D"): drop what the unit has not taken yet */
     events(h);
@@ -856,6 +877,7 @@ BL_API int bh_get_int(const bl_host *h, const char *name)
     if (!strcmp(name, "turbo_between_lines")) return h->turbo_between_lines;
     if (!strcmp(name, "ar")) return h->ar;
     if (!strcmp(name, "log_writes")) return h->log_on;
+    if (!strcmp(name, "line_lift")) return h->lift;
     if (!strcmp(name, "run_ahead")) return h->ra_on;
     if (!strcmp(name, "run_ahead_state")) return ra_state(&h->ra, h->chip);
     if (!strcmp(name, "run_ahead_end")) return h->ra.end;
@@ -892,6 +914,10 @@ BL_API void bh_set_int(bl_host *h, const char *name, int v)
     else if (!strcmp(name, "preparing")) h->preparing = v;
     else if (!strcmp(name, "turbo_between_lines")) h->turbo_between_lines = v;
     else if (!strcmp(name, "log_writes")) h->log_on = v != 0;
+    else if (!strcmp(name, "line_lift")) {             /* 1: lift the next line's start; 0: not (bh_cancel too) */
+        h->lift = v ? 1 : 0;
+        h->lift_r1s = 0;
+    }
     else if (!strcmp(name, "run_ahead"))                   /* off by default (run_ahead.h): from the next say; an */
         h->ra_on = v != 0;                                 /* utterance playing ends as it would (bh_cancel stops) */
     else if (!strcmp(name, "run_ahead_break")) h->ra.brk = v;   /* the tests' controls only (run_ahead.h RA_BRK_*) */

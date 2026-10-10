@@ -726,7 +726,7 @@ int main(int argc, char **argv)
                     : !strcmp(brk, "run-ahead") ? 3 : !strcmp(brk, "numbers") ? 4
                     : !strcmp(brk, "mockingboard-pitch") ? 5 : !strcmp(brk, "mockingboard-numbers") ? 6
                     : !strcmp(brk, "mockingboard-import-ignored") ? 7 : !strcmp(brk, "mockingboard-builtin-ignored") ? 8
-                    : !strcmp(brk, "mockingboard-variant") ? 9 : 0;
+                    : !strcmp(brk, "mockingboard-variant") ? 9 : !strcmp(brk, "line-lift") ? 10 : 0;
     ssa_import_break = !brk ? 0 : !strcmp(brk, "import-hash") ? 1 : !strcmp(brk, "import-dsk") ? 2 : 0;
     if (argc >= 2 && !strcmp(argv[1], "--texts")) return texts();
     if (argc >= 6 && !strcmp(argv[1], "--level"))
@@ -788,6 +788,21 @@ int main(int argc, char **argv)
         if (speak(e, SSA_ENGLISH, "Next message.", &ra, 100, 100, 4096, 0, &d)) return 1;
         report("ra-after-stop", &d);
         ssa_free(e);
+    }
+
+    /* the line-start lift ("Lift line starts", off by default): a fresh unit's first line, on and off, each on a unit of
+       its own -- so they differ by the setting alone: the setting reaches bl_voice */
+    if (block("lift")) {
+        ssa_settings on = s;
+        int k;
+        on.line_lift = 1;
+        for (k = 0; k < 2; k++) {
+            e = ssa_new(argv[1]);
+            ssa_configure(e, 22050, 1, 0);
+            if (speak(e, SSA_ENGLISH, "Writing functions.", k ? &s : &on, 100, 100, 4096, 0, &d)) return 1;
+            report(k ? "lift-off" : "lift-on", &d);
+            ssa_free(e);
+        }
     }
 
     /* the number words ("Read numbers as words", the driver's default: on), each case on a fresh unit -- so on and

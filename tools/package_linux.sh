@@ -211,6 +211,11 @@ cat > "$STAGE/share/ssi263-speech/speech-dispatcher/ssi263.conf" <<'EOF'
 # phonemes, without the pauses where the unit reads its next line.  Only with SSI263ShortPauses 1.
 # SSI263RunAhead 0
 
+# Lift line starts (1) or not (0, default), as the NVDA add-on's "Lift line starts (as note-taking mode)": like the
+# unit when you move by line, a line spoken after you interrupt speech, or after a pause, slides up in pitch at its
+# start.  Reading on is never lifted.  Needs the unit's voice inflection on.
+# SSI263LineLift 0
+
 # Numbers read as words (1, default), as the NVDA add-on's "Custom number processing": "1,234,567" as one million two
 # hundred thirty four thousand..., and the Spanish unit in Spain's way ("1.234.567", "3,5" as tres coma cinco).  0: the
 # unit's own firmware reads them (digit by digit above its limit).

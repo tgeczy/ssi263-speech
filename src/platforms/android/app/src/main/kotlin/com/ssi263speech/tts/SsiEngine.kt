@@ -107,7 +107,8 @@ object SsiEngine {
     /** Inside withEngine: begin an utterance.  0 audio to pull, 1 nothing to say, negative on failure. */
     fun start(voice: VoiceInfo, text: String, s: SsiSettings.Snapshot, requestRate: Int, requestPitch: Int): Int =
         SsiNative.nativeStart(voice.index, text.toByteArray(Charsets.UTF_8), s.rate, s.pitch, s.tone, s.volume,
-                              bit(s.shortPauses), bit(s.runAhead), bit(s.numbers), s.soTone, bit(s.soJoin),
+                              bit(s.shortPauses), bit(s.runAhead), bit(s.lineLift), bit(s.numbers), s.soTone,
+                              bit(s.soJoin),
                               bit(s.soShortPauses),
                               requestRate, requestPitch)
 

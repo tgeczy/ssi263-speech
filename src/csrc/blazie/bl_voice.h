@@ -37,6 +37,17 @@ BL_API void blv_set(bl_voice *v, int rate, int pitch, int tone, int volume, int 
    mode (bl_host.h "run_ahead", run_ahead.h): its completion in blv_render's done, its faults in blv_speak's -1 and
    blv_fault, its settle before a cancel in blv_cancel.  Off: the lockstep, byte for byte as before. */
 BL_API void blv_set_run_ahead(bl_voice *v, int on);
+/* "Lift line starts (as note-taking mode)", off by default.  In note-taking mode the unit lifts the pitch at the
+   start of a line it reads because the user moved to it (dot 4 or dot 1 with space): the first slots of the line
+   (four phonemes, or fewer and a word gap) at the pitch byte + 1Bh, sliding up, then back.  Reading on (its say-
+   all) never does, and speech-box lines never do.  On, the first line of an utterance that follows a cancel (or
+   the voice's first), or that starts after half a second of silence, is lifted that way: moving by line
+   interrupts speech, or speaks into a pause; say-all queues the next line at once.  With the unit's voice
+   inflection off (blv_create) there is no lift, as on the unit.  blv_clock: the pause's clock, in seconds (a
+   monotonic one; the tests may set their own). */
+BL_API extern double (*blv_clock)(void);
+BL_API void blv_set_line_lift(bl_voice *v, int on);
+BL_API int blv_get_line_lift(const bl_voice *v);
 /* The driver's "Custom number processing" (numberWords; the driver's default is on, this voice's off until set): fn
    rewrites the cleaned text before it is cut into lines, as the driver's _numbers -- bl_numbers.h's bl_numbers is it.
    A function rather than a flag so this file links without the number words (bl.dll has none).  fn gets the text as

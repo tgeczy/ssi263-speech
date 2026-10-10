@@ -68,7 +68,8 @@ typedef struct ssa_engine ssa_engine;
 
 /* The app's own settings, on the NVDA drivers' scales.  rate, pitch 0-100 (50 = the unit's factory rate and pitch);
    volume 0-200 (100 = the desktop voices' level), every voice's.  The Braille Lite's (bl_voice.h's blv_set): tone
-   0-26 (7), pack = short pauses, run_ahead = "Run the unit ahead" (EXPERIMENTAL, off by default), numbers = "Read
+   0-26 (7), pack = short pauses, run_ahead = "Run the unit ahead" (EXPERIMENTAL, off by default), line_lift = "Lift
+   line starts (as note-taking mode)" (off by default; a request after a stop or a pause), numbers = "Read
    numbers as words" (1, the driver's default; English, and Spain's Spanish for the Spanish unit).  The Speak-Out's
    (so_voice.h's sov_set): so_tone 0-25 = A-Z (8 = I), so_join = "Join phrases", so_short = "Shorten pauses between
    sentences".  The Accents take rate, pitch and volume; the Mockingboard (mb_voice.h's mbv_set) rate, pitch, volume
@@ -76,6 +77,7 @@ typedef struct ssa_engine ssa_engine;
 typedef struct {
     int rate, pitch, tone, volume, pack;
     int run_ahead;
+    int line_lift;
     int so_tone, so_join, so_short;
     int numbers;
 } ssa_settings;
@@ -166,7 +168,8 @@ int ssa_mockingboard_pitch(int slider, int request);   /* ... with the Mockingbo
    Braille Lite's run ahead dropped; 4: the Braille Lite's number words dropped (always off, as before 0.7.5); 5: the
    Mockingboard's request pitch dropped (no capital offset); 6: the Mockingboard's number words dropped (always off);
    7: a Mockingboard's imported copy ignored (the built-in one always used); 8: the built-in copies ignored (import
-   only); 9: ssa_set_mockingboard takes any file for either voice (no mbh_variant check). */
+   only); 9: ssa_set_mockingboard takes any file for either voice (no mbh_variant check); 10: the Braille Lite's
+   line-start lift dropped. */
 extern int ssa_accent_break;
 extern int ssa_voice_break;
 

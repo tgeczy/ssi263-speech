@@ -85,6 +85,8 @@ typedef struct {
     int inflection;                /* the Accents' intonation 0-100 (100 = full) */
     int numbers;                   /* "Custom number processing": the Braille Lite, the Accents (1) */
     int run_ahead;                 /* the Braille Lite's "Run the unit ahead", EXPERIMENTAL (0) */
+    int line_lift;                 /* the Braille Lite's "Lift line starts (as note-taking mode)" (0): the first
+                                      line after a cancel lifted as the unit lifts a line moved to (bl_voice.h) */
 } ssv_settings;
 SSV_API void ssv_defaults(int i, ssv_settings *s);
 

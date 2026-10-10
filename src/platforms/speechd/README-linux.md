@@ -34,7 +34,7 @@ Settings are in `ssi263.conf` beside speech-dispatcher's other module settings (
 explained in the file: the sample rate (11, 22 or 44 kHz) for every voice; the Braille Lite's voice inflection, hiss
 or whine, tone, "short pauses" line packing, numbers read as words (`SSI263BrailleLiteNumbers`; on by default, as in
 the NVDA add-on, English and Spain's Spanish) and the experimental "run the unit ahead" (`SSI263RunAhead 1`; off by
-default, as in the NVDA add-on); the Accents' inflection, number reading and (the Accent-mini's) voice; the
+default, as in the NVDA add-on), "lift line starts" (`SSI263LineLift 1`; off by default: like the unit when you move by line, a line spoken after a cancel or a pause slides up at its start); the Accents' inflection, number reading and (the Accent-mini's) voice; the
 Speak-Out's tone, "join phrases" and "shorten pauses". For your own settings, without root and kept when you reinstall, copy any of
 those lines into `~/.config/ssi263-speech/sd_ssi263.conf`: they win over the module's file. After a change,
 `killall speech-dispatcher` (Orca reconnects by itself). Rate, pitch and volume come from Orca or spd-say, mapped

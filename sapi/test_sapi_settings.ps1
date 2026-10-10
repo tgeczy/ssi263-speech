@@ -2,7 +2,7 @@
 # defaults, the defaults again (the control: identical), inflection off, the whine on and "run the unit ahead" (each
 # must differ: run ahead keeps the phonemes and changes the timing, sapi/test_serve.py; the English and the Spanish
 # voice both); "read numbers as words" off for "1,234,567" and Spain's "1.234.567" (must differ; no value must be the
-# same as on); the Accent with its inflection at 0 (must differ from its default); and every sample rate (the WAV SAPI writes carries
+# same as on); "lift line starts" on (a fresh unit's first line, lifted: must differ); the Accent with its inflection at 0 (must differ from its default); and every sample rate (the WAV SAPI writes carries
 # that rate and lasts as long as the default's), with the diagnostic log on for the timing.  This user's settings
 # are put back as they were afterwards.
 #
@@ -10,7 +10,7 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Speech
 $key = 'HKCU:\Software\SSI-263 SAPI'
-$names = @('Inflection', 'Whine', 'Diagnostics', 'AccentInflection', 'SampleRate', 'RunAhead', 'BrailleLiteNumbers')
+$names = @('Inflection', 'Whine', 'Diagnostics', 'AccentInflection', 'SampleRate', 'RunAhead', 'BrailleLiteNumbers', 'LineLift')
 $saved = @{}
 if (Test-Path $key) { foreach ($n in $names) { try { $saved[$n] = (Get-ItemProperty $key -Name $n -ErrorAction Stop).$n } catch {} } }
 New-Item -Path $key -Force | Out-Null
@@ -38,7 +38,7 @@ function WavSeconds($b) {
 $bad = 0
 try {
     Set-S 'Diagnostics' 1; Set-S 'Inflection' 1; Set-S 'Whine' 0; Set-S 'AccentInflection' 100; Set-S 'SampleRate' 22050
-    Set-S 'BrailleLiteNumbers' 1
+    Set-S 'BrailleLiteNumbers' 1; Set-S 'LineLift' 0
     $default = Say 'default'
     # every boot setting changed boots the units again; the control must be fresh too, so toggle one and come back
     Set-S 'Whine' 1; $null = Say 'toggle'; Set-S 'Whine' 0
@@ -70,6 +70,11 @@ try {
     Set-S 'Whine' 1; $null = Say 'toggle_nx'; Set-S 'Whine' 0
     $numUnset = Say 'numbers_unset' $english $numEn; $esNumUnset = Say 'es_numbers_unset' $spanish $numEs
     Set-S 'BrailleLiteNumbers' 1
+    # "Lift line starts": a fresh unit's first line (the Whine toggle reboots them) is lifted, against the default's
+    Set-S 'LineLift' 1
+    Set-S 'Whine' 1; $null = Say 'toggle_lift'; Set-S 'Whine' 0
+    $lifted = Say 'line_lift'
+    Set-S 'LineLift' 0
     $accent = Say 'accent_default' 'Accent-mini'
     Set-S 'AccentInflection' 0
     $accentFlat = Say 'accent_inflection0' 'Accent-mini'
@@ -86,6 +91,7 @@ try {
                 @('numbers as words off changes the Braille Lite''s "1.234.567" (Spanish)', -not (Same $esNumOn $esNumOff)),
                 @('numbers as words with no value is on (English)', (Same $numOn $numUnset)),
                 @('numbers as words with no value is on (Spanish)', (Same $esNumOn $esNumUnset)),
+                @('lift line starts changes the Braille Lite''s first line', -not (Same $default $lifted)),
                 @('the Accent''s inflection 0 changes its sound', -not (Same $accent $accentFlat)))
     # System.Speech writes its WAV in its own default format and converts what the engine gives it, so the file's
     # header cannot show the engine's rate.  Two checks instead: the engine's own log (the last three utterances)

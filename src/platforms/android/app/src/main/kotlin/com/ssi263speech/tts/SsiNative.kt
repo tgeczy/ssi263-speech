@@ -51,11 +51,11 @@ object SsiNative {
     external fun nativeError(): String
 
     /** Begin an utterance (UTF-8).  The app's settings on the NVDA drivers' scales: rate, pitch, volume (every voice);
-     * tone, pack, runAhead, numbers (the Braille Lite's; numbers the Mockingboard's too); soTone, soJoin, soShort (the Speak-Out's).  requestRate,
+     * tone, pack, runAhead, lineLift, numbers (the Braille Lite's; numbers the Mockingboard's too); soTone, soJoin, soShort (the Speak-Out's).  requestRate,
      * requestPitch: the request's percentages (100 = normal), put on top by the C side (ssa_map.h, ssa_engine.h).
      * 0 when there is audio to pull, 1 when there is nothing to say, negative on failure. */
     external fun nativeStart(voice: Int, utf8: ByteArray, rate: Int, pitch: Int, tone: Int, volume: Int, pack: Int,
-                             runAhead: Int, numbers: Int, soTone: Int, soJoin: Int, soShort: Int,
+                             runAhead: Int, lineLift: Int, numbers: Int, soTone: Int, soJoin: Int, soShort: Int,
                              requestRate: Int, requestPitch: Int): Int
 
     /** Fill `out` with 16-bit little-endian PCM: the byte count, 0 when the utterance is over, -2 when stopped. */

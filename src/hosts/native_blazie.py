@@ -234,6 +234,9 @@ class NativeBlazie:
     # the unit run ahead of the chip (src/csrc/blazie/run_ahead.h; EXPERIMENTAL, opt-in): 0 = today's lockstep (the
     # default), 1 = on from the next say.  The Python pipe host has no such mode.  run_ahead_break: the tests' controls.
     run_ahead = _int_attr("run_ahead")
+    # note-taking mode's line-start lift for the next line said (bl_host.c; the NVDA driver's lineLift): 1 arms
+    # it, the line's second pitch marker ends it, a cancel drops it
+    line_lift = _int_attr("line_lift")
     run_ahead_break = _int_attr("run_ahead_break")
     log_ar = _int_attr("log_ar")
 

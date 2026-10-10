@@ -414,6 +414,19 @@ if os.path.isfile(os.path.join(LIB, "bl_live.exe")):
     if os.path.isfile(os.path.join(LIB, "test_z180_legacy.exe")):
         CHECKS.append(check("z180emu legacy path: its exceptions (development reference)",
                             [os.path.join(LIB, "test_z180_legacy.exe")]))
+# the line-start lift (bl_voice.h blv_set_line_lift) against the emulated unit's own note-taking mode, and its
+# must-fail controls (src/csrc/blazie/lift_controls.py)
+if os.path.isfile(os.path.join(ENG, "BL2ENG.BNS")):
+    CHECKS.append(check("Blazie line-start lift = note-taking mode, and its controls",
+                        [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "blazie",
+                                          "lift_controls.py"),
+                         os.path.join(ENG, "BL2ENG.BNS"), os.path.join(ENG, "bl2_2003_warm.state")]))
+    # ... and through the real driver: lifted after a cancel, into a pause and first; never queued or off
+    CHECKS.append(check("Blazie line-start lift through the driver", [PY, "line_lift_driver.py"]))
+    CHECKS.append(check("Blazie line-start lift CONTROL (the request never reaches the unit, must fail)",
+                        [PY, "line_lift_driver.py"], env={"LINE_LIFT_BREAK": "noarm"}, expect_fail=True,
+                        fail_marks=[r"^FAIL first:", r"^FAIL cancel:", r"^FAIL pause:", r"^ok +queued:",
+                                    r"^line lift: 3 FAILED$"]))
 # the Blazie emulator app (src/apps/blazie): its chord logic, and the unit headless (boot greeting heard, a chord
 # answered against the no-chord control, faster than real time)
 EMU = os.path.join(os.path.dirname(HERE), "dist", "blazie-emu")
@@ -1036,7 +1049,10 @@ if os.path.isfile(ANDROID_TEST):
               r"^FAILED: 2 case\(s\) differ$"]),
             ("run-ahead", "Braille Lite: run ahead dropped",
              [r"^FAIL +desktop +ra-default +got ", r"^FAIL +desktop +ra-default differs from default",
-              r"^ok +desktop +default ", r"^FAILED: 5 case\(s\) differ$"])) + ((
+              r"^ok +desktop +default ", r"^FAILED: 5 case\(s\) differ$"]),
+            ("line-lift", "Braille Lite: the line-start lift dropped",
+             [r"^FAIL +desktop +lift-on differs from lift-off", r"^ok +desktop +default ",
+              r"^FAILED: 1 case\(s\) differ$"])) + ((
             ("numbers", "Braille Lite: number words dropped",
              [r"^FAIL +desktop +num-en +got ", r"^FAIL +desktop +num-es +got ", r"^ok +desktop +num-en-off ",
               r"^FAIL +desktop +num-en differs from num-en-off", r"^FAILED: 4 case\(s\) differ$"]),) if ANDROID_NUM
@@ -1073,7 +1089,8 @@ if os.path.isfile(ANDROID_TEST):
              ([r"^ok +import +mockingboard-tts-1\.1\.bin: "] if ANDROID_MB else []) +
              [r"^FAILED: %d case\(s\) differ$" % (4 + 3 * ANDROID_DSK1 + ANDROID_DSK2)]),) if ANDROID_DSK else ()):
         # each control runs the blocks its bug touches (SSI263_ANDROID_TEST_ONLY), not all seven voices: the gate's time
-        only = {"1": "bl,accent", "accent-pitch": "accent,mini", "run-ahead": "bl,ra", "numbers": "num",
+        only = {"1": "bl,accent", "accent-pitch": "accent,mini", "run-ahead": "bl,ra", "line-lift": "bl,lift",
+                "numbers": "num",
                 "speakout-pitch": "so", "speakout-settings": "so", "import-hash": "import", "import-dsk": "import"
                 }.get(brk, "mb" if brk.startswith("mockingboard-") else "accent")
         CHECKS.append(check("Android engine CONTROL (%s, must fail)" % what, [PY, ANDROID_TEST],

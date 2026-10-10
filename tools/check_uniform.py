@@ -23,15 +23,16 @@ matched by its stable id, voices.h's "<NVDA driver module>:<voice>" ("blazie:bla
   Android  SsiEngine.kt's voice list (the TTS service's onGetVoices), its SsiNative indexes (which must equal
            ssa_engine.h's), each index's id in ssa_engine.c's table, and the engines build_android.sh compiles in.
 
-The Braille Lite voices (voices.c's SSV_BLAZIE ones) must also carry "run ahead" and "number words" on each:
-  NVDA     the runAhead and numberWords driver settings with their getters and setters (run ahead: the voice in
+The Braille Lite voices (voices.c's SSV_BLAZIE ones) must also carry "run ahead", "number words" and the line-start
+lift on each:
+  NVDA     the runAhead, numberWords and lineLift driver settings with their getters and setters (run ahead: the voice in
            RUN_AHEAD_TESTED when the driver keeps one);
-  SAPI     the registry values RunAhead and BrailleLiteNumbers, in both stage DLLs (ssi263_sapi.dll, x86 and x64)
+  SAPI     the registry values RunAhead, BrailleLiteNumbers and LineLift, in both stage DLLs (ssi263_sapi.dll, x86 and x64)
            and in the stage's settings dialog (settings.ps1);
-  Linux    SSI263RunAhead and SSI263BrailleLiteNumbers in the packaged ssi263.conf (the built package's, else the one
+  Linux    SSI263RunAhead, SSI263BrailleLiteNumbers and SSI263LineLift in the packaged ssi263.conf (the built package's, else the one
            tools/package_linux.sh writes), read by sd_ssi263.c into a field that sd_voices.c's settings_for puts on
            the voice's engine (and in the binary's strings when it is given);
-  Android  the RUN_AHEAD and NUMBERS settings: a checkbox in SettingsActivity, passed to nativeStart (SsiEngine.kt,
+  Android  the RUN_AHEAD, NUMBERS and LINE_LIFT settings: a checkbox in SettingsActivity, passed to nativeStart (SsiEngine.kt,
            ssa_jni.c), and put on the voice's case in ssa_engine.c's settings_for.
 
 A platform whose artifacts are not there is "skip <platform>: not built" -- a failure when --require names it.
@@ -39,7 +40,7 @@ A platform whose artifacts are not there is "skip <platform>: not built" -- a fa
     python tools/check_uniform.py [--require nvda,sapi,linux,android] [--sd-binary PATH] [--linux-conf PATH]
                                   [--sapi-stage DIR]
 
-Must-fail control: SSI263_UNIFORM_DROP=<platform>:<voice id>[:run-ahead|:numbers][,...] drops that voice (or that
+Must-fail control: SSI263_UNIFORM_DROP=<platform>:<voice id>[:run-ahead|:numbers|:line-lift][,...] drops that voice (or that
 feature) from that platform's discovered list, after discovery -- e.g. android:speakout:speakout.  The run must then
 fail naming exactly that cell.  Exit 0: no gap; 1: a gap or a required platform skipped.  Stdlib only.
 """
@@ -62,8 +63,8 @@ ANDROID = os.path.join(REPO, "src", "platforms", "android", "app", "src", "main"
 SPEECHD = os.path.join(REPO, "src", "platforms", "speechd")
 PLATFORMS = ("nvda", "sapi", "linux", "android")
 LABEL = {"nvda": "NVDA", "sapi": "SAPI", "linux": "Linux", "android": "Android"}
-FEATURES = ("run-ahead", "numbers")
-FEATURE_LABEL = {"run-ahead": "run ahead", "numbers": "number words"}
+FEATURES = ("run-ahead", "numbers", "line-lift")
+FEATURE_LABEL = {"run-ahead": "run ahead", "numbers": "number words", "line-lift": "line-start lift"}
 ADDONS = ("blazie", "speakout", "accent")
 
 
@@ -264,7 +265,7 @@ def nvda(voices, p):
             p.voices[vid] = name
             if vid not in blazie:
                 continue
-            for feat, setting in (("run-ahead", "runAhead"), ("numbers", "numberWords")):
+            for feat, setting in (("run-ahead", "runAhead"), ("numbers", "numberWords"), ("line-lift", "lineLift")):
                 have = [setting in drv["settings"], "_get_" + setting in drv["accessors"],
                         "_set_" + setting in drv["accessors"]]
                 if feat == "run-ahead" and drv["run_ahead_tested"] is not None:
@@ -318,7 +319,7 @@ def sapi(voices, p, stage=None):
     blobs = [open(d, "rb").read() if os.path.isfile(d) else b"" for d in dlls]
     dialog = os.path.join(stage, "settings.ps1")
     ps1 = read(dialog) if os.path.isfile(dialog) else ""
-    for feat, value in (("run-ahead", "RunAhead"), ("numbers", "BrailleLiteNumbers")):
+    for feat, value in (("run-ahead", "RunAhead"), ("numbers", "BrailleLiteNumbers"), ("line-lift", "LineLift")):
         wide = value.encode("utf-16-le")
         in_dlls = [rel(d) for d, b in zip(dlls, blobs) if wide in b]
         in_dialog = bool(re.search(r"^[^#\n]*Save-Setting\s+'%s'" % value, ps1, re.M))    # not in a comment
@@ -374,7 +375,8 @@ def linux(voices, p, binary=None, conf=None):
     reader = read(os.path.join(SPEECHD, "sd_ssi263.c"))
     cases = switch_cases(sdv, "settings_for")
     for feat, key, field in (("run-ahead", "SSI263RunAhead", "run_ahead"), ("numbers", "SSI263BrailleLiteNumbers",
-                                                                             "numbers")):
+                                                                             "numbers"),
+                             ("line-lift", "SSI263LineLift", "line_lift")):
         in_conf = bool(re.search(r"^#?\s*%s\s+\S" % key, conf_text, re.M))
         m = re.search(r'"%s"\)\)\s*conf\.(\w+)\s*=' % key, reader)
         conf_field = m.group(1) if m else None
@@ -419,7 +421,8 @@ def android(voices, p):
     jni = read(os.path.join(ANDROID, "cpp", "ssa_jni.c"))
     cases = switch_cases(engine_c, "settings_for")
     for feat, const, kt_field, c_field in (("run-ahead", "RUN_AHEAD", "runAhead", "run_ahead"),
-                                           ("numbers", "NUMBERS", "numbers", "numbers")):
+                                           ("numbers", "NUMBERS", "numbers", "numbers"),
+                                           ("line-lift", "LINE_LIFT", "lineLift", "line_lift")):
         chain = [bool(re.search(r"ui\.checkBox\([^\n]*\n?\s*put\(SsiSettings\.%s\b" % const, settings)),
                  "bit(s.%s)" % kt_field in engine_kt,
                  bool(re.search(r"s\.%s\s*=\s*%s;" % (c_field, c_field), jni))]

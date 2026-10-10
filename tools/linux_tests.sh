@@ -101,24 +101,28 @@ control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^s
     "^after +module .*DIFFER" "^set +module .*DIFFER" "^key +module .*DIFFER" "^spanish +module .*identical" \
     "^ra_stop +module .*identical" "^ra_after +module .*DIFFER" \
     "^as_stop +module .*identical" "^as_after +module .*DIFFER" "^as_bl +module .*identical" \
-    "^num_off +module .*identical" "^23 of 31 checks passed" -- env SD_SSI263_TEST_NO_CANCEL=1 \
+    "^num_off +module .*identical" "^24 of 32 checks passed" -- env SD_SSI263_TEST_NO_CANCEL=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # the run-ahead key (SSI263RunAhead, EXPERIMENTAL) dropped on its way to the voice: the module speaks the lockstep, so
 # every run-ahead check against the run-ahead reference fails, and this user's 0 over the module file's 1 still passes
 control "module CONTROL (SSI263RunAhead ignored, must fail)" "^speak +module .*identical" \
     "^ra_speak +module .*DIFFER" "^ra_stop +module .*DIFFER" "^ra_after +module .*DIFFER" "^ra_sys +module .*DIFFER" \
-    "^ra_user0 +module .*identical" "^as_speak +module .*identical" "^27 of 31 checks passed" \
+    "^ra_user0 +module .*identical" "^as_speak +module .*identical" "^28 of 32 checks passed" \
     -- env SD_SSI263_TEST_IGNORE_RUN_AHEAD=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # the Braille Lite's number words key (SSI263BrailleLiteNumbers) dropped on its way to the voice: the driver's default
 # (on) reaches it, so this user's 0 is not heard -- English and Spanish -- while the default and this user's 1 still pass
 control "module CONTROL (SSI263BrailleLiteNumbers ignored, must fail)" "^num_dflt +module .*identical" \
     "^num_es +module .*identical" "^num_user +module .*identical" "^num_off +module .*DIFFER" \
-    "^num_es_off +module .*DIFFER" "^29 of 31 checks passed" -- env SD_SSI263_TEST_IGNORE_BL_NUMBERS=1 \
+    "^num_es_off +module .*DIFFER" "^30 of 32 checks passed" -- env SD_SSI263_TEST_IGNORE_BL_NUMBERS=1 \
+    python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
+# the line-start lift's key (SSI263LineLift) dropped on its way to the voice: only lift fails
+control "module CONTROL (SSI263LineLift ignored, must fail)" "^ra_sys +module .*identical" \
+    "^lift +module .*DIFFER" "^31 of 32 checks passed" -- env SD_SSI263_TEST_IGNORE_LINE_LIFT=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # the Accent's own key (SSI263AccentInflection) dropped on its way to the Accent SA: only as_infl fails
 control "module CONTROL (SSI263AccentInflection ignored, must fail)" "^as_speak +module .*identical" \
-    "^as_infl +module .*DIFFER" "^30 of 31 checks passed" -- env SD_SSI263_TEST_IGNORE_ACCENT_INFLECTION=1 \
+    "^as_infl +module .*DIFFER" "^31 of 32 checks passed" -- env SD_SSI263_TEST_IGNORE_ACCENT_INFLECTION=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # Accented letters (src/csrc/translit.h, first on every voice's text): the module, every voice's bytes, and the voices
 # speaking on fresh units, from a firmware folder laid out as firmware/ (the data folder's Braille Lites, the

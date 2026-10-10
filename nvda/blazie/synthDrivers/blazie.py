@@ -90,6 +90,8 @@ VOICES = {"blazie": ("Braille Lite 2000 (June 2003)", "en", FIRMWARE, STATE, "la
 # the voices whose firmware run ahead's interaction contract has been tested on (Astra, Reply 107): the mechanism is
 # board-independent, its use is not -- another release or unit gets the lockstep until its own tests exist
 RUN_AHEAD_TESTED = ("blazie", "blazie_es")
+# lineLift: speech after this much silence starts fresh, as speech after a cancel (bl_voice.c LIFT_PAUSE_S)
+LIFT_PAUSE_S = 0.5
 UNIT_VOLUME = 6         # the unit's factory volume; NVDA's slider is applied digitally
 MAKEUP = 2.0            # +6 dB so volume 6 sits at a normal level
 # A roll-off after the chip (hosts/blazie.py) that matches the unit's line out: first order at 5 kHz matched
@@ -293,6 +295,11 @@ class SynthDriver(SynthDriver):
         # run_ahead_driver.py).  With "short pauses" on only, the in-process unit only, and only the voices whose
         # firmware those tests cover (RUN_AHEAD_TESTED).
         BooleanDriverSetting("runAhead", "&Run the unit ahead (experimental: with short pauses)", defaultVal=False),
+        # Off by default: note-taking mode's lift of a line moved to (dot 4 or dot 1 with space) -- its first slots
+        # at the pitch byte + 1Bh, sliding up -- which speech-box lines never get.  The first line of speech after a
+        # cancel (moving by line cancels; say-all queues without one); the host applies it (bl_host.c "line_lift",
+        # src/csrc/blazie/test_line_lift.c holds it to the emulated unit's note-taking mode).  In-process unit only.
+        BooleanDriverSetting("lineLift", "&Lift line starts (as note-taking mode)", defaultVal=False),
     )
     # LangChangeCommand: NVDA's automatic language switching (and MultiLang passing a language on) sends each
     # stretch of text to the unit for its language
@@ -327,6 +334,9 @@ class SynthDriver(SynthDriver):
         self._keep_open = True
         self._play_end = 0.0             # when the listener will have heard everything fed (_feed); 0: nothing queued
         self._run_ahead = False
+        self._line_lift = False
+        self._lift_next = True           # the next utterance follows a cancel (or is the first): lift its start
+        self._quiet_since = None         # _now() when the last utterance's audio ended; None while one runs
         self._player = self._makePlayer()
         self._queue = queue.Queue()
         self._cancelFlag = threading.Event()
@@ -388,6 +398,7 @@ class SynthDriver(SynthDriver):
         self._wake.set()
 
     def cancel(self):
+        self._lift_next = True
         self._cancelFlag.set()
         self._wake.set()
         try:
@@ -492,6 +503,12 @@ class SynthDriver(SynthDriver):
 
     def _set_runAhead(self, v):
         self._run_ahead = bool(v)        # the worker applies it at the next utterance (_speakSegment)
+
+    def _get_lineLift(self):
+        return self._line_lift
+
+    def _set_lineLift(self, v):
+        self._line_lift = bool(v)        # from the next utterance after a cancel
 
     def _get_keepOpen(self):
         return self._keep_open
@@ -612,6 +629,9 @@ class SynthDriver(SynthDriver):
             if job is None:
                 break
             self._cancelFlag.clear()
+            if self._quiet_since is not None and _now() - self._quiet_since >= LIFT_PAUSE_S:
+                self._lift_next = True       # spoken into a pause: fresh, as after a cancel
+            self._quiet_since = None
             if self._want_rate != self._out_rate or self._want_infl != self._infl or self._want_whine != self._whine:
                 try:
                     self._switch_rate()
@@ -626,6 +646,7 @@ class SynthDriver(SynthDriver):
                     self._unit = self._unit_for(self._voice)
                 except Exception:
                     log.error("Blazie restart failed", exc_info=True)
+            self._quiet_since = max(_now(), self._play_end)   # quiet once the listener has heard it all
             if self._cancelFlag.is_set():
                 try:
                     self._unit.cancel()
@@ -826,6 +847,10 @@ class SynthDriver(SynthDriver):
             # all lines at once: the unit goes from one to the next itself, without a host
             # round trip per line (line breaks 280-360 ms -> 150-260 ms, measured)
             unit.turbo_between_lines = self._short
+            if self._lift_next:              # this utterance's first text: lifted when it follows a cancel
+                self._lift_next = False
+                if self._line_lift and hasattr(type(unit), "line_lift"):
+                    unit.line_lift = 1
             t_start = unit.chip.time
             unit.say(lines)
             while not self._cancelFlag.is_set():

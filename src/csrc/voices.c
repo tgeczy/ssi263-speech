@@ -98,8 +98,8 @@ typedef struct {
     void (*destroy)(void *u);
 } ssv_engine;
 
-/* the Braille Lite: blazie.py (rate, pitch, volume, tone, short pauses, number words, run ahead; inflection and whine
-   are the unit's boot) */
+/* the Braille Lite: blazie.py (rate, pitch, volume, tone, short pauses, number words, run ahead, line-start lift;
+   inflection and whine are the unit's boot) */
 static void *eng_bl_create(const ssv_info *info, const ssv_source *src, const ssv_boot *b, char *err, int errlen)
 {
     if (!src->path[0] || !src->path[1]) { snprintf(err, errlen, "the Braille Lite's files: no path"); return NULL; }
@@ -110,6 +110,7 @@ static void eng_bl_set(void *u, const ssv_settings *s)
 {
     blv_set((bl_voice *)u, s->rate, s->pitch, s->tone, s->volume, s->pack);
     blv_set_run_ahead((bl_voice *)u, s->run_ahead);
+    blv_set_line_lift((bl_voice *)u, s->line_lift);
     blv_set_numbers((bl_voice *)u, s->numbers ? bl_numbers : NULL);
 }
 static int eng_bl_speak(void *u, const char *utf8, int pitch_offset)
@@ -283,6 +284,7 @@ SSV_API void ssv_defaults(int i, ssv_settings *s)
     s->inflection = 100;           /* accentmini.py: self._inflection = 100 */
     s->numbers = 1;                /* blazie.py, accentmini.py: self._numbers = True */
     s->run_ahead = 0;              /* blazie.py: self._run_ahead = False */
+    s->line_lift = 0;              /* blazie.py: self._line_lift = False */
     s->tone = kind == SSV_BLAZIE ? 7          /* DEFAULT_TONE */
             : kind == SSV_SPEAKOUT ? 8        /* self._tone = "i" */
             : kind == SSV_ACCENT_MINI ? 5     /* self._voice_char = "5" */

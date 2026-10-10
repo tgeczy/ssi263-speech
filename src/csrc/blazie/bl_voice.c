@@ -3,6 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI                   /* wingdi.h has a DEFAULT_PITCH of its own */
+#include <windows.h>
+#else
+#include <time.h>
+#endif
 #include "bl_voice.h"
 #include "bl_cp850.h"
 #include "../translit.h"
@@ -20,6 +27,7 @@
 #define MAX_WORDS 14
 #define LEAD_THRESHOLD 0.003
 #define LEAD_PREROLL 220
+#define LIFT_PAUSE_S 0.5         /* blazie.py LIFT_PAUSE_S: speech after this much silence starts fresh */
 /* hosts/blazie.py boot_keys(menu=("punct_none", "numbers_toggle"), start=3000000, gap=1500000, status) */
 #define KEY_START 3000000ULL
 #define KEY_GAP 1500000ULL
@@ -34,6 +42,8 @@ struct bl_voice {
     int sent_rate, sent_pitch, sent_tone;         /* unit.sent_settings */
     double gain;
     int lead, active;
+    int line_lift, lift_next;     /* blv_set_line_lift; the next utterance comes after a cancel (or is the first) */
+    double quiet_since;           /* blv_clock() when the last utterance ended; < 0 while one is under way */
     int fault;                    /* the host refused or failed an utterance (bh_say/bh_busy < 0: run ahead's sticky
                                      faults, Astra's Reply 112); the next blv_speak recovers with bh_cancel first */
     short *pcm;
@@ -82,6 +92,8 @@ BL_API bl_voice *blv_create(const char *firmware, const char *state, int encodin
     v->encoding = encoding;
     v->sent_rate = DEFAULT_RATE; v->sent_pitch = DEFAULT_PITCH; v->sent_tone = DEFAULT_TONE;
     v->rate = 50; v->pitch = 50; v->tone = DEFAULT_TONE; v->volume = 100; v->pack = 1;
+    v->lift_next = 1;
+    v->quiet_since = -1.0;
     return v;
 }
 
@@ -94,6 +106,25 @@ BL_API void blv_destroy(bl_voice *v)
     free(v);
 }
 
+/* a monotonic clock in seconds (the lift's pause); the tests may set their own */
+static double monotonic_s(void)
+{
+#ifdef _WIN32
+    LARGE_INTEGER f, c;                      /* every Windows (GetTickCount64 is Vista's, not in the
+                                                x86 headers for Windows 7) */
+    QueryPerformanceFrequency(&f);
+    QueryPerformanceCounter(&c);
+    return (double)c.QuadPart / (double)f.QuadPart;
+#else
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)t.tv_sec + t.tv_nsec / 1e9;
+#endif
+}
+BL_API double (*blv_clock)(void) = monotonic_s;
+
+BL_API void blv_set_line_lift(bl_voice *v, int on) { v->line_lift = on != 0; }
+BL_API int blv_get_line_lift(const bl_voice *v) { return v->line_lift; }
 BL_API bl_host *blv_host(bl_voice *v) { return v->host; }
 BL_API ssi263 *blv_chip(bl_voice *v) { return v->chip; }
 
@@ -547,6 +578,12 @@ BL_API int blv_speak(bl_voice *v, const char *utf8)
     }
     nl = say_bytes(utf8, v->encoding, v->pack, v->numbers, &data, &len);
     if (nl) {
+        /* the line-start lift (blv_set_line_lift): the first line of speech that interrupted other speech (or
+           came first), as the unit lifts a line moved to; never speech queued behind other speech (say-all) */
+        if (v->line_lift && (v->lift_next || (v->quiet_since >= 0.0 && blv_clock() - v->quiet_since >= LIFT_PAUSE_S)))
+            bh_set_int(v->host, "line_lift", 1);
+        v->lift_next = 0;
+        v->quiet_since = -1.0;
         bh_set_int(v->host, "turbo_between_lines", v->pack);
         if (bh_say(v->host, data, len) < 0 && !blv_break_fault) {   /* refused: say so, never silently */
             v->fault = 1;
@@ -592,6 +629,7 @@ BL_API int blv_render(bl_voice *v, const short **pcm, int *done)
         if (busy <= 0) {
             v->active = 0;
             *done = 1;
+            v->quiet_since = blv_clock();
         }
     }
     return n - start;
@@ -600,6 +638,7 @@ BL_API int blv_render(bl_voice *v, const short **pcm, int *done)
 BL_API void blv_cancel(bl_voice *v)
 {
     bh_cancel(v->host, 3.0, -1.0, -1.0);
+    v->lift_next = 1;
     v->active = 0;
     v->fault = 0;
 }

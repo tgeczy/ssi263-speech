@@ -71,6 +71,7 @@ void ssa_default_settings(ssa_settings *s)
     s->volume = 100;
     s->pack = 1;
     s->run_ahead = 0;
+    s->line_lift = 0;
     s->so_tone = 8;
     s->so_join = 1;
     s->so_short = 1;
@@ -158,6 +159,7 @@ static void settings_for(const ssa_engine *e, int voice, const ssa_settings *s, 
         o->tone = s->tone;
         o->pack = s->pack;
         o->run_ahead = s->run_ahead && ssa_voice_break != 3;
+        o->line_lift = s->line_lift && ssa_voice_break != 10;  /* bl_voice.h blv_set_line_lift */
         o->numbers = s->numbers && ssa_voice_break != 4;    /* bl_numbers (voices.c), English or Spain's */
         break;
     case SSA_SPEAKOUT:                 /* the slider's pitch as the setting, the request's as a capital's offset */

@@ -46,6 +46,7 @@ typedef struct {
     int whine;                     /* Whine: 0 off, 1 hiss, 2 whine */
     int accent_inflection;         /* AccentInflection: 0-100 (100) */
     int run_ahead;                 /* RunAhead: the Braille Lite's (0) */
+    int line_lift;                 /* LineLift: the Braille Lite's "Lift line starts (as note-taking mode)" (0) */
     int numbers;                   /* BrailleLiteNumbers: the Braille Lite's number words, its driver's numberWords (1);
                                       the Accents keep their own driver's default, the Mockingboard its voice's */
 } ssi_options;
