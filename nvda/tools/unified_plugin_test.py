@@ -30,6 +30,15 @@ ring hook.
     UNIFIED_PLUGIN_BREAK=pending   control: the ledger written though the switch failed -- start_retry must FAIL
     UNIFIED_PLUGIN_BREAK=ready     control: removal without the readiness check -- manual_removal must FAIL
     UNIFIED_PLUGIN_BREAK=ringkey   control: the ring hook writes nothing -- ring_key must FAIL
+    UNIFIED_PLUGIN_BREAK=version   control: an unversioned (preview) ledger taken as done -- preview_ledger must FAIL
+    UNIFIED_PLUGIN_BREAK=context   control: only the pending profiles given to the migration -- late_profile must FAIL
+    UNIFIED_PLUGIN_BREAK=active    control: removal only while this driver speaks -- other_synth must FAIL
+
+  upgrade   a preview's unversioned ledger, "done" over a profile still on blazie: looked at once more, switched,
+            the ledger now versioned (Reply 165, 1); a profile added after the base was migrated still inherits the
+            base's Accent SA (Reply 165, 2)
+  removal+  NVDA on another synth (Eloquence), everything migrated: the 0.7 add-ons offered and removed (Tomi: the
+            ROG); NVDA on a 0.7 driver: kept, with the reason; the status lines name each profile and the reason
 
 Exit 0 when all pass.  Build first: nvda/build_ssi263.py.
 """
@@ -301,6 +310,7 @@ def test_migrate(tmp):
             r = orig_run()
             data = plugin3._load_settings()
             data["migrated"] = ["", "fast", "plain", "reading", "sa", "typing"]
+            data["version"] = 2
             real_save(data)
             return r
         plugin3.run_migration = marks_anyway
@@ -325,7 +335,7 @@ def test_removal():
         conf = Conf({"speech": {"synth": synth.name}}, {})
         plugin, state = install(tmp, conf, synth)
         if ledger is not None:
-            plugin._save_settings({"migrated": ledger})
+            plugin._save_settings({"migrated": ledger, "version": 2})
         removed, prompts = [], []
         plugin._old_addons = lambda: [types.SimpleNamespace(name="blazie_ssi263",
                                                             requestRemove=lambda: removed.append("blazie_ssi263"))]
@@ -341,17 +351,68 @@ def test_removal():
         sys.modules["wx"], sys.modules["gui"] = wx, gui
         if BREAK == "ready":
             plugin.removal_ready = lambda: (True, "")
-        plugin.offer_removal()
-        shutil.rmtree(tmp, ignore_errors=True)
-        return removed, prompts
+        if BREAK == "active":
+            real_ready = plugin.removal_ready
 
-    removed, prompts = session(Synth("blazie"), None)
+            def only_active():
+                r = real_ready()
+                return r if state["synth"].name == "ssi263" else (False, "NVDA is not using this driver.")
+            plugin.removal_ready = only_active
+        plugin._unified_check = lambda: unified_ok
+        plugin.offer_removal()
+        lines = plugin.status()
+        shutil.rmtree(tmp, ignore_errors=True)
+        return removed, prompts, lines
+
+    unified_ok = True
+
+    removed, prompts, _l = session(Synth("blazie"), None)
     check("manual_removal", removed == [] and prompts and "kept for now" in prompts[0],
           "on blazie, nothing migrated, Yes pressed: removed %s; said %r" % (removed, (prompts or [""])[0][:70]))
-    removed, _p = session(Synth("ssi263", booted=False), [""])
+    removed, _p, _l = session(Synth("ssi263", booted=False), [""])
     check("not_booted", removed == [], "this driver's unit not booted: removed %s" % removed)
-    removed, _p = session(Synth("ssi263"), [""])
+    removed, _p, _l = session(Synth("ssi263"), [""])
     check("ready_removal", removed == ["blazie_ssi263"], "this driver speaking, all migrated: removed %s" % removed)
+    removed, prompts, lines = session(Synth("eloquence"), [""])
+    check("other_synth", removed == ["blazie_ssi263"] and prompts and "were moved" in prompts[0],
+          "NVDA on Eloquence, all migrated: removed %s; asked %r" % (removed, (prompts or [""])[0][:60]))
+    removed, prompts, lines = session(Synth("blazie"), [""])
+    reason = [ln for ln in lines if ln.startswith("Removing them")]
+    check("old_driver_on", removed == [] and reason and "0.7 blazie driver" in reason[0]
+          and any(ln.startswith("The normal configuration: synthesizer blazie") for ln in lines),
+          "NVDA on the 0.7 blazie driver: removed %s; status %r" % (removed, reason))
+    unified_ok = False
+    removed, _p, lines = session(Synth("eloquence"), [""])
+    check("no_firmware", removed == [], "this driver finds no firmware: removed %s" % removed)
+
+
+# ---- upgrade from a preview -------------------------------------------------------------------------------------
+def test_upgrade():
+    base = {"speech": {"synth": "blazie", "blazie": {"rate": "70"}, "accentmini": {"voice": "sa"}}}
+    tmp = tempfile.mkdtemp(prefix="ssi263-plugin-")
+    conf = Conf(copy.deepcopy(base), {})
+    plugin, state = install(tmp, conf, Synth("blazie"))
+    plugin._save_settings({"migrated": [""]})          # preview 3 after a failed switch: "done", still on blazie
+    if BREAK == "version":
+        plugin._ledger = lambda: set(plugin._load_settings().get("migrated") or [])
+    switched = plugin.run_migration()
+    data = plugin._load_settings()
+    check("preview_ledger", switched and state["set"] == ["ssi263"] and data.get("version") == 2,
+          "switched %s, setSynth %s, ledger %s" % (switched, state["set"], data))
+    # a profile added after the base was migrated: only synth=accentmini, the base's voice sa
+    conf.stored["late"] = {"speech": {"synth": "accentmini"}}
+    if BREAK == "context":
+        real = plugin.migrate.migrate_all
+
+        def pending_only(profiles, ledger, undo=None):
+            return real([p for p in profiles if p[0] not in ledger], ledger, undo)
+        plugin.migrate.migrate_all = pending_only
+    state["synth"] = Synth("ssi263")
+    plugin.run_migration()
+    late = conf.stored["late"]["speech"].get("ssi263", {})
+    check("late_profile", late.get("firmwareType") == "accentsa",
+          "the later profile: %r (want the base's Accent SA)" % late)
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 # ---- ring --------------------------------------------------------------------------------------------------------
@@ -484,6 +545,7 @@ def main():
         test_ring(plugin.ring)
         test_migrate(tmp)
         test_removal()
+        test_upgrade()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("unified plugin: %s" % ("all passed" if all(results) else "%d FAILED" % results.count(False)))

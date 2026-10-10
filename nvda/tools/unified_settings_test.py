@@ -18,11 +18,19 @@ live only in fw_<type>_<setting>; the plain keys are never read (Astra, Reply 16
     worker_boot       a unit whose WORKER fails to boot its firmware: the switch refused, the old unit still current
                       and speaking, the new one stopped (Reply 163, 4)
     settings_list     the settings follow the type (the Braille Lite's whine, not the Speak-Out's)
+    ring_first_use    no config and no ring: the ring is this driver's (NVDA's first-load changeVoice)
+    ring_return       a saved SSI-263 chosen again while the ring is Eloquence's: the ring is this driver's, a change
+                      through it reaches the current unit and not Eloquence (Tomi's transcript; Reply 165)
+    ring_startup      a saved SSI-263 at NVDA's start, no ring yet: the ring is made, this driver's
+    ring_other_type   a saved Speak-Out loaded by a driver that started on the Braille Lite: the ring is this
+                      driver's, with the Speak-Out's settings
 
     UNIFIED_SETTINGS_BREAK=plain     control: the plain keys read after the firmware's own -- ring_type_only must FAIL
     UNIFIED_SETTINGS_BREAK=sametype  control: the same type's saved values not loaded -- profile_one_key must FAIL
     UNIFIED_SETTINGS_BREAK=cancel    control: loadSettings keeps what a switch remembered -- cancel must FAIL
     UNIFIED_SETTINGS_BREAK=ready     control: a unit taken without waiting for its boot -- worker_boot must FAIL
+    UNIFIED_SETTINGS_BREAK=announce  control: NVDA's changeVoice(self, None) after a load left out -- ring_return,
+                                     ring_startup and ring_other_type must FAIL (ring_first_use is NVDA's own)
 
 Exit 0 when all pass; 1 otherwise.  Build first: nvda/build_ssi263.py.
 """
@@ -111,9 +119,32 @@ class AutoPropertyType(type):
                 setattr(cls, prop, property(getter, setter))
 
 
+class Ring:
+    """NVDA's SynthSettingsRing as changeVoice drives it: it belongs to one synth, its entries are that synth's
+    ring settings, and a change goes to that synth (synthSettingsRing.SynthSetting._set_value)"""
+
+    def __init__(self, synth):
+        self.updateSupportedSettings(synth)
+
+    def updateSupportedSettings(self, synth):
+        self.owner = synth
+        self.ids = [st.id for st in synth.supportedSettings]
+
+    def set(self, sid, value):
+        setattr(self.owner, sid, value)
+
+
+GLOBALS = types.SimpleNamespace(settingsRing=None)
+
+
 def changeVoice(synth, voice):
+    """synthDriverHandler.changeVoice, 2026.2: the voice set, then the ring this synth's (created when there is none)"""
     if voice:
         synth.voice = voice
+    if GLOBALS.settingsRing:
+        GLOBALS.settingsRing.updateSupportedSettings(synth)
+    else:
+        GLOBALS.settingsRing = Ring(synth)
 
 
 class Base(metaclass=AutoPropertyType):
@@ -211,7 +242,11 @@ def install():
     sdh.SynthDriver, sdh.VoiceInfo = Base, (lambda *a: types.SimpleNamespace(id=a[0], displayName=a[1],
                                                                               language=a[2]))
     sdh.synthIndexReached, sdh.synthDoneSpeaking = _Notifier(), _Notifier()
-    sdh.getSynth = lambda: None
+    sdh.getSynth = lambda: None      # as during NVDA's getSynthInstance -> initSettings
+    sdh.changeVoice = changeVoice
+    gv = types.ModuleType("globalVars")
+    gv.settingsRing = None
+    sys.modules["globalVars"] = gv
     sys.modules["synthDriverHandler"] = sdh
     for name in ("autoSettingsUtils", "autoSettingsUtils.utils", "autoSettingsUtils.driverSetting"):
         sys.modules[name] = types.ModuleType(name)
@@ -283,6 +318,8 @@ def main():
             load(self, onlyChanged)
             self._memory.update(kept)
         W.loadSettings = keeps
+    if BREAK == "announce":
+        W._announce = lambda self: None
     if BREAK == "ready":
         for _name, m, _v in mod.FIRMWARE_TYPES.values():
             m.SynthDriver.booted = None          # what _make waits on, hidden: it takes the unit at once
@@ -443,6 +480,42 @@ def main():
     so_ids = [s.id for s in d.supportedSettings]
     check("settings_list", bl_ids[0] == "firmwareType" and "whine" in bl_ids and "whine" not in so_ids
           and "variant" in so_ids, "Braille Lite %d settings, Speak-Out %d" % (len(bl_ids), len(so_ids)))
+    d.terminate()
+
+    # the settings ring's owner (Reply 165): who NVDA's changeVoice made it belong to
+    STORE.update(base={}, profiles={}, active=[])
+    SECTION.spec.clear()
+    GLOBALS.settingsRing = None
+    d = new_driver()
+    check("ring_first_use", GLOBALS.settingsRing is not None and GLOBALS.settingsRing.owner is d,
+          "owner %s" % type(getattr(GLOBALS.settingsRing, "owner", None)).__name__)
+    d.rate = 70
+    d.saveSettings()
+    d.terminate()
+    eloquence = types.SimpleNamespace(name="eloquence", rate=75, supportedSettings=[_Setting("rate")])
+    GLOBALS.settingsRing = Ring(eloquence)
+    d = new_driver()
+    ring = GLOBALS.settingsRing
+    owned = ring.owner is d
+    if owned:
+        ring.set("rate", 33)
+    check("ring_return", owned and d.inner.rate == 33 and eloquence.rate == 75 and "firmwareType" in ring.ids,
+          "owner %s; the unit's rate %s, Eloquence's %s" % (type(ring.owner).__name__, d.inner.rate, eloquence.rate))
+    d.terminate()
+    GLOBALS.settingsRing = None
+    d = new_driver()
+    check("ring_startup", GLOBALS.settingsRing is not None and GLOBALS.settingsRing.owner is d,
+          "ring %s" % ("made, this driver's" if GLOBALS.settingsRing is not None and GLOBALS.settingsRing.owner is d
+                       else "NOT this driver's" if GLOBALS.settingsRing else "never made"))
+    d.firmwareType = "speakout"
+    d.saveSettings()
+    d.terminate()
+    GLOBALS.settingsRing = Ring(eloquence)
+    d = new_driver()
+    ring = GLOBALS.settingsRing
+    check("ring_other_type", d.firmwareType == "speakout" and ring.owner is d and "whine" not in ring.ids
+          and "variant" in ring.ids, "type %s; owner %s; entries %s" % (d.firmwareType, type(ring.owner).__name__,
+                                                                       ring.ids))
     d.terminate()
 
     print("unified settings: %s" % ("all passed" if all(results) else "%d FAILED" % results.count(False)))

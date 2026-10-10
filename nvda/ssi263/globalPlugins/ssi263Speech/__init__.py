@@ -135,25 +135,84 @@ def _profiles(conf):
     return out
 
 
+LEDGER_VERSION = 2       # 0.8 previews wrote an unversioned ledger, sometimes "done" after a failed switch
+
+
+def _ledger():
+    """the profiles whose migration is done; an older (unversioned) ledger counts as none, so its profiles are looked
+    at once more (a copy that finds its keys writes nothing; a profile still on a 0.7 synth is switched) -- after
+    that, a later choice of the 0.7 driver is the user's and is left alone (Reply 165, 1)"""
+    data = _load_settings()
+    return set(data.get("migrated") or []) if data.get("version") == LEDGER_VERSION else set()
+
+
+def _unified_check():
+    try:
+        from synthDrivers import ssi263
+        return bool(ssi263.SynthDriver.check())
+    except Exception:
+        log.debugWarning("SSI-263: the driver could not be checked", exc_info=True)
+        return False
+
+
 def removal_ready():
-    """(True, "") when the 0.7 add-ons may go: NVDA speaks with this driver, its unit booted, and every profile's
-    migration saved; else (False, why).  Both the start-up offer and the settings page's button ask this first: a
-    Yes cannot make those true (Astra, Reply 164)."""
+    """(True, "") when the 0.7 add-ons may go; else (False, why).  Every profile's migration saved, and no profile
+    still on a 0.7 synth; and either NVDA speaks with this driver, its unit booted, or NVDA uses another synth
+    altogether (Eloquence, eSpeak ...: the 0.7 add-ons are not what speaks) and this driver can start.  While NVDA
+    is ON a 0.7 driver, they stay.  Both the start-up offer and the settings page's button ask this first: a Yes
+    cannot make it true (Astra, Reply 164)."""
     import config
     import synthDriverHandler
-    synth = synthDriverHandler.getSynth()
-    if synth is None or synth.name != migrate.NEW:
-        return False, "NVDA is not using Votrax SC-02 / SSI-263 (emulated) yet."
-    inner = getattr(synth, "inner", None)
-    if inner is None or not getattr(getattr(inner, "booted", None), "is_set", lambda: True)() \
-            or getattr(inner, "bootError", None) is not None:
-        return False, "Votrax SC-02 / SSI-263 (emulated) has not started its unit."
-    ledger = set(_load_settings().get("migrated") or [])
-    missing = [n for n, _raw in _profiles(config.conf) if n not in ledger]
+    profiles = _profiles(config.conf)
+    ledger = _ledger()
+    missing = [n for n, _raw in profiles if n not in ledger]
     if missing:
-        return False, "The older add-ons' settings have not all been moved yet (%s)." % ", ".join(
-            n or "the base configuration" for n in missing)
+        return False, "the older add-ons' settings have not all been moved yet (%s)." % ", ".join(
+            n or "the normal configuration" for n in missing)
+    synth = synthDriverHandler.getSynth()
+    if synth is not None and synth.name in migrate.OLD_DRIVERS:
+        return False, "NVDA is speaking with the 0.7 %s driver." % synth.name
+    still = [n or "the normal configuration" for n, raw in profiles
+             if isinstance(raw.get("speech"), dict) and raw["speech"].get("synth") in migrate.OLD_DRIVERS]
+    if still:
+        return False, "%s still use%s a 0.7 synthesizer." % (", ".join(still), "s" if len(still) == 1 else "")
+    if synth is not None and synth.name == migrate.NEW:
+        inner = getattr(synth, "inner", None)
+        if inner is None or not getattr(getattr(inner, "booted", None), "is_set", lambda: True)() \
+                or getattr(inner, "bootError", None) is not None:
+            return False, "Votrax SC-02 / SSI-263 (emulated) has not started its unit."
+        return True, ""
+    if not _unified_check():
+        return False, "Votrax SC-02 / SSI-263 (emulated) finds no firmware to run."
     return True, ""
+
+
+def status():
+    """what the migration and the removal see, in lines for the settings page and the log (Reply 165): the config
+    folder, the synth in use and the saved one, each profile's 0.7 sections and migration, the ledger, the 0.7
+    add-ons found and whether they may go.  Nothing else of NVDA's settings."""
+    import config
+    import synthDriverHandler
+    lines = ["NVDA's configuration folder: %s" % globalVars.appArgs.configPath]
+    synth = synthDriverHandler.getSynth()
+    lines.append("NVDA is using: %s" % (synth.name if synth is not None else "no synthesizer"))
+    data = _load_settings()
+    ledger = _ledger()
+    for name, raw in _profiles(config.conf):
+        speech = raw.get("speech") if isinstance(raw.get("speech"), dict) else {}
+        old = [d for d in migrate.OLD_DRIVERS if isinstance(speech.get(d), dict) and speech.get(d)]
+        lines.append("%s: synthesizer %s; 0.7 settings %s; %s" % (
+            "The normal configuration" if not name else "Profile %s" % name, speech.get("synth", "(inherited)"),
+            ", ".join(old) or "none", "migrated" if name in ledger else "not migrated yet"))
+    lines.append("Migration record: %s" % ("version %d" % LEDGER_VERSION if data.get("version") == LEDGER_VERSION
+                                          else "from an earlier preview (looked at again)" if data.get("migrated")
+                                          else "none yet"))
+    old = _old_addons()
+    lines.append("0.7 add-ons installed: %s" % (", ".join(a.name for a in old) or "none"))
+    if old:
+        ready, why = removal_ready()
+        lines.append("Removing them: %s" % ("offered" if ready else "not yet, because " + why))
+    return lines
 
 
 def offer_removal(parent=None, asked_at_start=False):
@@ -167,13 +226,13 @@ def offer_removal(parent=None, asked_at_start=False):
     ready, why = removal_ready()
     if not ready:
         if not asked_at_start:
-            gui.messageBox("The older SSI-263 add-ons are kept for now: %s Switch NVDA to Votrax SC-02 / SSI-263 "
-                           "(emulated) in Select Synthesizer, restart NVDA, and try again." % why, TITLE,
-                           wx.OK | wx.ICON_WARNING, parent)
+            gui.messageBox("The older SSI-263 add-ons are kept for now: %s" % why, TITLE, wx.OK | wx.ICON_WARNING,
+                           parent)
         return
     names = ", ".join(a.manifest.get("summary", a.name) if hasattr(a, "manifest") else a.name for a in old)
-    answer = gui.messageBox("The older SSI-263 add-ons are now part of this one, and NVDA is using it: %s. "
-                            "Remove them? (You can also do it later from this add-on's settings page.)" % names,
+    answer = gui.messageBox("The older SSI-263 add-ons are now part of this one: %s. Your settings for them were "
+                            "moved into Votrax SC-02 / SSI-263 (emulated). Remove the older add-ons? (You can also "
+                            "do it later from this add-on's settings page.)" % names,
                             TITLE, wx.YES_NO | wx.ICON_QUESTION, parent)
     data = _load_settings()
     if answer != wx.YES:
@@ -213,14 +272,17 @@ def run_migration():
     import config
     conf = config.conf
     data = _load_settings()
-    ledger = set(data.get("migrated") or [])
-    todo = [(n, r) for n, r in _profiles(conf) if n not in ledger]
+    ledger = _ledger()
+    profiles = _profiles(conf)
+    todo = [(n, r) for n, r in profiles if n not in ledger]
     if not todo:
         return False
     before = {n: (r.get("speech") or {}).get("synth") if isinstance(r.get("speech"), dict) else None
               for n, r in todo}
     undo = []
-    changed = migrate.migrate_all(todo, ledger, undo)
+    # every profile, so the base's selectors are always the inherited context; the ledger keeps the writes to the
+    # pending ones (Reply 165, 2)
+    changed = migrate.migrate_all(profiles, ledger, undo)
     if changed:
         for name, keys in changed:
             log.info("SSI-263: moving the 0.7 settings of %s: %s" % (name or "the base configuration",
@@ -265,6 +327,7 @@ def run_migration():
             return False
     migrate.mark_done(ledger, todo)
     data["migrated"] = sorted(ledger)
+    data["version"] = LEDGER_VERSION
     _save_settings(data)
     return switched
 
@@ -282,6 +345,13 @@ def _panel_class():
         def makeSettings(self, sizer):
             h = guiHelper.BoxSizerHelper(self, sizer=sizer)
             h.addItem(wx.StaticText(self, label="Version %s. Units found: %s." % (_version(), _units())))
+            try:
+                text = "\n".join(status())
+            except Exception:
+                log.error("SSI-263: the status could not be made", exc_info=True)
+                text = "The status could not be read; see NVDA's log."
+            h.addLabeledControl("The 0.7 add-ons and your settings:", wx.TextCtrl,
+                                value=text, style=wx.TE_MULTILINE | wx.TE_READONLY, size=(600, 150))
             check = h.addItem(wx.Button(self, label="&Check for updates..."))
             check.Bind(wx.EVT_BUTTON, lambda evt: check_for_updates(self))
             if _old_addons():
@@ -349,6 +419,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 ui.message("Your SSI-263 settings were moved into the new add-on.")
             except Exception:
                 pass
+        try:
+            for line in status():
+                log.info("SSI-263 status: %s" % line)
+        except Exception:
+            log.debugWarning("SSI-263: the status could not be logged", exc_info=True)
         if _old_addons() and not _load_settings().get("removalDeclined") and removal_ready()[0]:
             offer_removal(asked_at_start=True)
 

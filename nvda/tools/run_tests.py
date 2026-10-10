@@ -161,9 +161,11 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
     CHECKS.append(check("0.8 driver settings: memory, order, Cancel, profiles, boot", [PY, "unified_settings_test.py"],
                         ok=lambda out: bool(re.search(r"^unified settings: all passed$", out, re.M))))
     for brk, marks in (("plain", [r"^FAIL ring_type_only ", r"^ok   profile_one_key ", r"^unified settings: 1 FAILED$"]),
-                       ("sametype", [r"^FAIL profile_one_key ", r"^ok   memory ", r"^unified settings: 3 FAILED$"]),
+                       ("sametype", [r"^FAIL profile_one_key ", r"^ok   memory ", r"^unified settings: 5 FAILED$"]),
                        ("cancel", [r"^FAIL cancel ", r"^ok   order ", r"^unified settings: 2 FAILED$"]),
-                       ("ready", [r"^FAIL worker_boot ", r"^ok   boot_failure ", r"^unified settings: 1 FAILED$"])):
+                       ("ready", [r"^FAIL worker_boot ", r"^ok   boot_failure ", r"^unified settings: 1 FAILED$"]),
+                       ("announce", [r"^FAIL ring_return ", r"^FAIL ring_startup ", r"^ok   ring_first_use ",
+                                     r"^unified settings: 3 FAILED$"])):
         CHECKS.append(check("0.8 driver settings CONTROL (%s, must fail)" % brk, [PY, "unified_settings_test.py"],
                             env={"UNIFIED_SETTINGS_BREAK": brk}, expect_fail=True, fail_marks=marks))
     # the release archive's own check (build_ssi263.py verify_archive): clean as built, and a changed DLL, a missing
@@ -177,7 +179,8 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
     for brk, case, n in (("hash", "wrong_hash", 1), ("fill", "kept_existing", 1), ("ledger", "second_run", 1),
                          ("options", "stale_choices", 1), ("revert", "switch_failed", 2),
                          ("inherit", "inherited_accent", 1), ("rollback", "save_retry", 2), ("pending", "start_retry", 1),
-                         ("ready", "manual_removal", 2), ("ringkey", "ring_key", 1)):
+                         ("ready", "manual_removal", 4), ("ringkey", "ring_key", 1),
+                         ("version", "preview_ledger", 1), ("context", "late_profile", 1), ("active", "other_synth", 2)):
         CHECKS.append(check("0.8 plugin CONTROL (%s, must fail)" % brk, [PY, "unified_plugin_test.py"],
                             env={"UNIFIED_PLUGIN_BREAK": brk}, expect_fail=True,
                             fail_marks=[r"^FAIL %s " % case, r"^ok   newer ", r"^unified plugin: %d FAILED$" % n]))

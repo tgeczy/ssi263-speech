@@ -164,7 +164,6 @@ class _Unified(SynthDriver):
         if "voice" in values and not (onlyChanged and cur.get("voice") == values["voice"]):
             try:
                 self._set_voice(values["voice"])
-                self._voice_changed()
             except Exception:
                 log.debugWarning("SSI-263: voice %r not applied" % (values["voice"],), exc_info=True)
         for k, v in values.items():
@@ -174,14 +173,6 @@ class _Unified(SynthDriver):
                 self._set(k, v)
             except Exception:
                 log.debugWarning("SSI-263: %s=%r not applied" % (k, v), exc_info=True)
-
-    def _voice_changed(self):
-        """what NVDA's changeVoice does after a voice change: the settings ring and the voice's dictionary"""
-        try:
-            import speechDictHandler
-            speechDictHandler.loadVoiceDict(self)
-        except Exception:
-            pass
 
     def _section(self):
         try:
@@ -238,17 +229,22 @@ class _Unified(SynthDriver):
         except Exception:
             log.debugWarning("SSI-263: the old unit did not stop cleanly", exc_info=True)
         self._apply(self._wanted(fw))
-        self._refresh_ring()
+        self._announce()
 
-    def _refresh_ring(self):
-        """NVDA's settings ring holds the old unit's settings (Reply 161, 1): rebuilt after every switch"""
+    def _announce(self):
+        """NVDA's own step after a synth's voice is loaded, which its loadSettings takes and ours must too:
+        changeVoice(self, None) makes the settings ring this synth's (creating it at start-up, when getSynth() is not
+        yet this one) and loads its voice's dictionary -- without it the ring kept the previous synth's settings,
+        Eloquence's voices and variants cycling on the SC-02 (Tomi; Astra, Reply 165).  None: the voice is not set
+        again (the unit is not restarted)."""
         try:
-            import globalVars
-            from synthDriverHandler import getSynth
-            if globalVars.settingsRing and getSynth() is self:
-                globalVars.settingsRing.updateSupportedSettings(self)
+            from synthDriverHandler import changeVoice
+        except ImportError:          # a stand-in NVDA without it (the byte-for-byte tests)
+            return
+        try:
+            changeVoice(self, None)
         except Exception:
-            log.debugWarning("SSI-263: the settings ring was not refreshed", exc_info=True)
+            log.error("SSI-263: the settings ring and voice dictionary were not set for this synth", exc_info=True)
 
     @property
     def inner(self):
@@ -357,6 +353,7 @@ class _Unified(SynthDriver):
             self._apply(self._wanted(self._fw), onlyChanged)
         finally:
             self._loading = False
+        self._announce()
 
 
 def _forwarders():
