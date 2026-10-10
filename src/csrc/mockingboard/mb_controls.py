@@ -25,7 +25,7 @@ from tools import repo_paths  # noqa: E402
 from contract_controls import RunError, run_tests  # noqa: E402
 
 SPEECH = ["golden_r0", "streams", "clean_core", "settings", "busy_refused", "overflow_guard", "overflow_in_rules",
-          "cancel"]
+          "cancel", "start_pitch"]
 SPEECH += ["early_" + t for t in SPEECH]           # the host's tests run on both versions (test_mockingboard.c)
 
 # a rule -> (its file under src/csrc, its code, the code with the rule undone, the tests that must then fail); a rule
@@ -56,10 +56,14 @@ VARIANTS = {
         "mockingboard/mb_host.c", "0x6000, 0x6600, 0x660E, 0x662C, 0x6617, 0x6600, 0x6600,",
         "0x6000, 0x6600, 0x660E, 0x662C, 0, 0x6600, 0x6600,",
         ["early_busy_refused", "early_cancel", "early_clean_core", "early_golden_r0", "early_overflow_guard",
-         "early_settings", "early_streams"]),
+         "early_settings", "early_start_pitch", "early_streams"]),
     "early: the guard on 6600h": (
         "mockingboard/mb_host.c", "0x6000, 0x6600, 0x660E, 0x662C, 0x6617, 0x6600, 0x6600,",
         "0x6000, 0x6600, 0x660E, 0x662C, 0x6617, 0xBFFF, 0xBFFF,", ["early_overflow_in_rules"]),
+    # each text starts at its first pitch, not climbing there from where the counter was (mbh_say)
+    "the text's first pitch snaps": (
+        "mockingboard/mb_host.c", "    h->snap_wait = 1;\n    ssi263_set_snap_pitch(h->chip, 1);\n", "",
+        ["start_pitch", "early_start_pitch"]),
     "the settings bytes": (
         "mockingboard/mb_host.c",
         "    mb_board_poke(h->b, (uint16_t)(h->L->settings + 1), (uint8_t)clamp(rate, 0, 15));\n", "",

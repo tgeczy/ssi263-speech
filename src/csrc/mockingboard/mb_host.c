@@ -62,6 +62,7 @@ struct mb_host {
     double *buf;
     int n_buf, cap_buf;
     int log_on;
+    int snap_wait, snap_val;               /* the text's first pitch write: 1 waiting, 2 written (mbh_say) */
     mbh_write *wl;
     int n_wl, cap_wl;
 };
@@ -72,6 +73,14 @@ static void chip_write(void *ctx, int reg, int val)
 {
     mb_host *h = (mb_host *)ctx;
     ssi263_write(h->chip, reg, val);
+    if (h->snap_wait == 1 && reg == 1) {
+        h->snap_wait = 2;
+        h->snap_val = val;
+    }
+    if (h->snap_wait == 2 && ssi263_reg(h->chip, 1) == h->snap_val) {   /* in the chip (not still held) */
+        ssi263_set_snap_pitch(h->chip, 0);
+        h->snap_wait = 0;
+    }
     if (h->log_on) {
         if (h->n_wl == h->cap_wl) {
             int cap = h->cap_wl ? h->cap_wl * 2 : 1024;
@@ -374,7 +383,13 @@ MB_API int mbh_say(mb_host *h, const unsigned char *text, int n)
         mb_board_guard(h->b, 0xFFFF, 0);
         return 0;
     }
-    /* INFLECTION and the driver's start */
+    /* INFLECTION and the driver's start.  The driver powers the chip up for every text (CTL 1 -> 0) and writes the
+       pitch with the first frame; the text starts AT that pitch (snap_pitch, as the Accent and Speak-Out drivers
+       do on a pitch command), not gliding there from where the chip's counter was -- the bottom of the range on a
+       fresh unit, the last text's end otherwise (a listener heard the climb; the snap is Tomi's pick by ear,
+       2026-10-10) */
+    h->snap_wait = 1;
+    ssi263_set_snap_pitch(h->chip, 1);
     run_to(h, MB_IDLE, start);
     mb_board_guard(h->b, 0xFFFF, 0);
     if (!mb_board_idle(h->b)) {
@@ -453,6 +468,11 @@ MB_API int mbh_get_int(const mb_host *h, const char *name)
     if (!strcmp(name, "frames")) return h->frames;
     if (!strcmp(name, "fault")) return h->fault;
     if (!strcmp(name, "variant")) return h->L->variant;
+    if (!strcmp(name, "pitch_gap")) {        /* the chip's pitch counter against its target, rounded */
+        double st[64];
+        ssi263_state(h->chip, st, 64);
+        return (int)floor(fabs(st[2] - st[3]) + 0.5);
+    }
     if (!strncmp(name, "mem:", 4))          /* a byte as the 6502 sees it now, "mem:6600" (the tests) */
         return mb_board_peek(h->b, (uint16_t)strtol(name + 4, NULL, 16));
     return (int)mb_board_get(h->b, name);

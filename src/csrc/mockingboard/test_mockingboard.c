@@ -332,6 +332,43 @@ static void t_cancel(const char *dir)
     mbh_destroy(h);
 }
 
+/* every text starts AT its first pitch: the driver powers the chip up for each one and the first frame's pitch
+   write snaps the counter there (mb_host.c, mbh_say).  Without it the pitch climbs from the bottom of the range on a
+   fresh unit (and from the last text's end after one), which a listener heard and the real card does not do. */
+static void t_start_pitch(const char *dir)
+{
+    mb_host *h = make(dir);
+    const mbh_write *w;
+    const double *a;
+    int k, text, gaps[2] = {-1, -1}, later = 0, n;
+    static const char *texts[2] = {"HELLO THERE.", "THE APPLE IS RED?"};
+    for (text = 0; text < 2; text++) {
+        double t = 0.0;
+        int seen = 0;
+        mbh_clear_writes(h);
+        mbh_say(h, (const unsigned char *)texts[text], (int)strlen(texts[text]));
+        while (t < 1.0 && !seen) {             /* to the first pitch write, 0.5 ms at a time */
+            mbh_run(h, 0.0005, 0.0005, &a);
+            t += 0.0005;
+            n = mbh_writes(h, &w);
+            for (k = 0; k < n; k++)
+                seen |= w[k].reg == 1;
+        }
+        gaps[text] = seen ? mbh_get_int(h, "pitch_gap") : -1;
+        n = 0;
+        while (mbh_busy(h) && n < 400) {        /* the rest of the text, and the pitch moves inside it again */
+            mbh_run(h, 0.01, 0.0005, &a);
+            later |= mbh_get_int(h, "pitch_gap") > 0;
+            n++;
+        }
+        mbh_run(h, 0.3, 0.0005, &a);
+    }
+    check("start_pitch", gaps[0] == 0 && gaps[1] == 0 && later,
+          "the counter from its target at the first pitch write: %d on a fresh unit, %d after a text; "
+          "glides inside the text: %d", gaps[0], gaps[1], later);
+    mbh_destroy(h);
+}
+
 static void t_wrong_image(const char *dir)
 {
     char path[4096], err[256] = "";
@@ -407,6 +444,7 @@ int main(int argc, char **argv)
             t_busy_refused(dir);
             t_overflow_guard(dir);
             t_cancel(dir);
+            t_start_pitch(dir);
             t_wrong_image(dir);
         }
     }

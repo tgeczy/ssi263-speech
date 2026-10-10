@@ -108,7 +108,7 @@ MB_API int mbh_run(mb_host *h, double seconds, double step, const double **audio
 MB_API int mbh_busy(const mb_host *h);       /* the firmware's own flag (1Eh), or its interrupt still pending */
 MB_API void mbh_cancel(mb_host *h);          /* the driver's own stop, at the next A/R (above) */
 
-/* State, by name.  Ints: "variant" (MBH_V11, MBH_VEARLY), "mem:HHHH" (that byte as the 6502 sees it; the tests),
+/* State, by name.  Ints: "variant" (MBH_V11, MBH_VEARLY), "mem:HHHH" (that byte as the 6502 sees it; the tests), "pitch_gap" (the chip's pitch counter from its target; the tests),
    "log_writes" (keep every write for mbh_writes), "frames" (the last text's, 0-255),
    "fault" (1: the last call into the firmware did not return), and mb_board_get's names.  -1: unknown. */
 MB_API int mbh_get_int(const mb_host *h, const char *name);
