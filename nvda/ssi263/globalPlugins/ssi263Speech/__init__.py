@@ -133,7 +133,7 @@ def offer_removal(parent=None, asked_at_start=False):
             gui.messageBox("The 0.7 SSI-263 add-ons are not installed.", TITLE, wx.OK, parent)
         return
     names = ", ".join(a.manifest.get("summary", a.name) if hasattr(a, "manifest") else a.name for a in old)
-    answer = gui.messageBox("The older SSI-263 add-ons are now part of this one, and your settings were moved: %s. "
+    answer = gui.messageBox("The older SSI-263 add-ons are now part of this one, and NVDA is using it: %s. "
                             "Remove them? (You can also do it later from this add-on's settings page.)" % names,
                             TITLE, wx.YES_NO | wx.ICON_QUESTION, parent)
     data = _load_settings()
@@ -175,6 +175,8 @@ def run_migration():
     todo = [(n, r) for n, r in profiles if n not in ledger]
     if not todo:
         return False
+    before = {n: (r.get("speech") or {}).get("synth") if isinstance(r.get("speech"), dict) else None
+              for n, r in todo}
     changed = migrate.migrate_all(todo, ledger)
     if changed:
         for name, keys in changed:
@@ -193,9 +195,30 @@ def run_migration():
     import synthDriverHandler
     synth = synthDriverHandler.getSynth()
     if synth is not None and synth.name in migrate.OLD_DRIVERS and conf["speech"]["synth"] == migrate.NEW:
-        if synthDriverHandler.setSynth(migrate.NEW) and synthDriverHandler.getSynth().name == migrate.NEW:
+        try:
+            ok = synthDriverHandler.setSynth(migrate.NEW) and synthDriverHandler.getSynth().name == migrate.NEW
+        except Exception:
+            log.error("SSI-263: starting this driver failed", exc_info=True)
+            ok = False
+        if ok:
             return True
+        # the old synth keeps working, now and at the next start: every profile this switched gets its own back
         log.error("SSI-263: the settings were moved, but NVDA could not start this driver; it keeps %s" % synth.name)
+        for name, raw in todo:
+            speech = raw.get("speech")
+            if (isinstance(speech, dict) and speech.get("synth") == migrate.NEW
+                    and before.get(name) in migrate.OLD_DRIVERS):
+                speech["synth"] = before[name]
+                if name:
+                    conf._dirtyProfiles.add(name)
+        conf.save()
+        try:
+            conf["speech"]._cache.clear()
+        except Exception:
+            pass
+        current = synthDriverHandler.getSynth()
+        if current is None or current.name != synth.name:
+            synthDriverHandler.setSynth(synth.name)
     return False
 
 

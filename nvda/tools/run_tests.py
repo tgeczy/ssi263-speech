@@ -169,7 +169,7 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
     CHECKS.append(check("0.8 plugin: updates, migration, panel refresh", [PY, "unified_plugin_test.py"],
                         ok=lambda out: bool(re.search(r"^unified plugin: all passed$", out, re.M))))
     for brk, case in (("hash", "wrong_hash"), ("fill", "kept_existing"), ("ledger", "second_run"),
-                      ("options", "stale_choices")):
+                      ("options", "stale_choices"), ("revert", "switch_failed")):
         CHECKS.append(check("0.8 plugin CONTROL (%s, must fail)" % brk, [PY, "unified_plugin_test.py"],
                             env={"UNIFIED_PLUGIN_BREAK": brk}, expect_fail=True,
                             fail_marks=[r"^FAIL %s " % case, r"^ok   newer ", r"^unified plugin: 1 FAILED$"]))

@@ -15,6 +15,8 @@
     UNIFIED_PLUGIN_BREAK=fill      control: the migration overwrites a key already set -- kept_existing must FAIL
     UNIFIED_PLUGIN_BREAK=ledger    control: the ledger ignored -- second_run must FAIL
     UNIFIED_PLUGIN_BREAK=options   control: the choices not replaced -- stale_choices must FAIL
+    UNIFIED_PLUGIN_BREAK=revert    control: no profile's synth put back when this driver fails to start --
+                                   switch_failed must FAIL
 
 Exit 0 when all pass.  Build first: nvda/build_ssi263.py.
 """
@@ -97,11 +99,13 @@ def install(tmp, conf, synth):
     cfg = types.ModuleType("config")
     cfg.conf = conf
     sdh = types.ModuleType("synthDriverHandler")
-    state = {"synth": synth, "set": []}
+    state = {"synth": synth, "set": [], "fail": ()}
     sdh.getSynth = lambda: state["synth"]
 
     def setSynth(name):
         state["set"].append(name)
+        if name in state["fail"]:
+            return False             # NVDA keeps the synth it had
         state["synth"] = Synth(name)
         return True
     sdh.setSynth = setSynth
@@ -232,6 +236,25 @@ def test_migrate(tmp):
           "raised %s, ledger written: %s" % (raised, os.path.isfile(os.path.join(tmp2, "ssi263-speech",
                                                                                  "settings.json"))))
     shutil.rmtree(tmp2, ignore_errors=True)
+
+    # this driver fails to start after the save: every switched profile gets its own synth back, saved
+    tmp3 = tempfile.mkdtemp(prefix="ssi263-plugin-")
+    conf3 = Conf(copy.deepcopy(base), copy.deepcopy(profiles))
+    plugin3, state3 = install(tmp3, conf3, Synth("blazie"))
+    state3["fail"] = ("ssi263",)
+    if BREAK == "revert":
+        class Gone(tuple):
+            """the old drivers, until setSynth was tried: then none (the revert finds nothing to put back)"""
+
+            def __contains__(self, x):
+                return not state3["set"] and tuple.__contains__(self, x)
+        plugin3.migrate.OLD_DRIVERS = Gone(plugin3.migrate.OLD_DRIVERS)
+    switched = plugin3.run_migration()
+    got = (conf3.profiles[0]["speech"]["synth"], conf3.stored["reading"]["speech"]["synth"])
+    check("switch_failed", not switched and got == ("blazie", "accentmini") and conf3.saved == 2
+          and state3["synth"].name == "blazie" and "reading" in conf3._dirtyProfiles,
+          "synths now %s (were blazie, accentmini), saves %d, NVDA on %s" % (got, conf3.saved, state3["synth"].name))
+    shutil.rmtree(tmp3, ignore_errors=True)
 
 
 # ---- panel -------------------------------------------------------------------------------------------------------

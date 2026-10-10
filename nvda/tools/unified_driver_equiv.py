@@ -29,6 +29,13 @@ sys.path.insert(0, HERE)
 import native_driver_equiv as nde      # noqa: E402  (its cases)
 
 T, I, P, case = nde.T, nde.I, nde.P, nde.case
+
+
+def L(lang):
+    """NVDA's LangChangeCommand: the Braille Lite switches to that language's unit for what follows"""
+    return ("l", lang)
+
+
 # firmware type -> (the reference add-on, its driver module, the reference driver's voice, the wrapper's language)
 UNITS = {
     "braillelite2000": ("blazie", "blazie", "blazie", "en"),
@@ -44,6 +51,8 @@ BRAILLE_LITE = [c for c in nde.COMMON if "sr" not in c["settings"]] + [
     case("short pauses off", [T("One. Two, three! Four? Five.")], short=False),
     case("numbers off", [T("Room 100, 45000 and $6723.")], numbers=False),
     case("tone 7 again", [T("Back to tone seven.")], variant="7", short=True, numbers=True),
+    case("language switch", [T("Hello."), L("es"), T("Hola, buenos d\u00edas."), I(9), L("en"),
+                             T("Back in English.")]),
 ]
 MOCKINGBOARD = [c for c in nde.COMMON] + [
     case("numbers off", [T("Room 100, 45000 and $6723.")], numbers=False),
@@ -78,7 +87,7 @@ def child(fw, side, out):
     src = open(os.path.join(HERE, "fake_nvda_driver_test.py"), encoding="utf-8").read().split("time.sleep(2.0)")[0]
     exec(compile(src, g["__file__"], "exec"), g)
     d, player, notifier = g["d"], g["FakePlayer"], g["Notifier"]
-    IndexCommand, PitchCommand = g["IndexCommand"], g["PitchCommand"]
+    IndexCommand, PitchCommand, LangChangeCommand = g["IndexCommand"], g["PitchCommand"], g["LangChangeCommand"]
     if side == "wrapper":
         if BREAK == "notify":
             d.inner.notifySynth = None
@@ -129,7 +138,8 @@ def child(fw, side, out):
     unit._notifyIndex = index_hook
 
     def nvda(seq):
-        return [s if k == "t" else IndexCommand(s) if k == "i" else PitchCommand(s) for k, s in seq]
+        return [s if k == "t" else IndexCommand(s) if k == "i" else LangChangeCommand(s) if k == "l"
+                else PitchCommand(s) for k, s in seq]
 
     results = []
     only = os.environ.get("UNIFIED_EQUIV_ONLY")
