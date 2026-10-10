@@ -261,7 +261,7 @@ $CC $BOARD -c -o "$OUT/sd_voices.o" "$ROOT/src/platforms/speechd/sd_voices.c"
 $CC $VOICE $SD_DEFS -c -o "$OUT/sd_ssv.o" "$SRC/voices.c"
 $CXX $SHARED_CXX -o "$OUT/sd_ssi263" "$OUT/sd_ssi263.o" "$OUT/sd_voices.o" "$OUT/sd_ssv.o" $LIB_OBJS $ENGINE_OBJS -lm
 $CXX -shared $SHARED_CXX -o "$OUT/libsd_voices_ref.so" $CHIP_OBJS $NUM_OBJS $ENGINE_OBJS -lm
-echo "built $OUT/sd_ssi263: $("$OUT/sd_ssi263" --voices | cut -f3 | tr '\n' ',' | sed 's/,$//; s/,/, /g')"
+echo "built $OUT/sd_ssi263: $("$OUT/sd_ssi263" --voices | cut -f3 | paste -sd ';' - | sed 's/;/; /g')"   # a name may hold a comma
 
 # The Accent-mini in C (src/csrc/accentmini: SPKEMS.DVC on MAME's 8086 above, accent.py's host and the NVDA driver's
 # front end): its objects, and am_render (the C API alone, the chip built in).  Own folder; nothing else links it.

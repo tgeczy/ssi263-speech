@@ -145,19 +145,31 @@ class Ref:
 # ---- the other voices: the module's data folder, and each voice driven directly ------------------------------------
 TO100 = lambda s: max(0, min(100, (s + 100) // 2))      # noqa: E731  (sd_ssi263.c's to100)
 FW_DIRS = {"aicom-accent-sa": ("u2.BIN", "u3.BIN", "u4.BIN"), "aicom-accent-mini": ("SPKEMS.DVC",),
-           "gw-micro-speakout": ("SPEAKOUT.HEX",), "sweet-micro-mockingboard": ("mockingboard-tts-1.1.bin",)}
+           "gw-micro-speakout": ("SPEAKOUT.HEX",),
+           "sweet-micro-mockingboard": ("mockingboard-tts-1.1.bin", "mockingboard-tts-early.bin")}
+FW_EACH = {"sweet-micro-mockingboard"}      # folders whose files are separate voices: each file found on its own
 
 
 def voices_data():
     """A fresh folder for the module: <data folder>'s files, and each firmware folder from the first place that has
-    all its files -- <data folder>/<sub>, the repository's firmware/<sub>, <data folder>/../speakout-firmware."""
+    all its files -- <data folder>/<sub>, the repository's firmware/<sub>, <data folder>/../speakout-firmware; in a
+    FW_EACH folder, each file from the first place that has it (the Mockingboard's two versions are two voices)."""
     out = tempfile.mkdtemp(prefix="sd_ssi263_data_")
     for name in os.listdir(DATA):
         if name not in FW_DIRS:
             os.symlink(os.path.join(DATA, name), os.path.join(out, name))
     for sub, files in FW_DIRS.items():
-        for cand in (os.path.join(DATA, sub), os.path.join(ROOT, "firmware", sub),
-                     os.path.join(DATA, "..", "speakout-firmware")):
+        cands = (os.path.join(DATA, sub), os.path.join(ROOT, "firmware", sub),
+                 os.path.join(DATA, "..", "speakout-firmware"))
+        if sub in FW_EACH:
+            for f in files:
+                for cand in cands:
+                    if os.path.isfile(os.path.join(cand, f)):
+                        os.makedirs(os.path.join(out, sub), exist_ok=True)
+                        os.symlink(os.path.abspath(os.path.join(cand, f)), os.path.join(out, sub, f))
+                        break
+            continue
+        for cand in cands:
             if all(os.path.isfile(os.path.join(cand, f)) for f in files):
                 os.symlink(os.path.abspath(cand), os.path.join(out, sub))
                 break
@@ -186,7 +198,8 @@ def _api(prefix, create_args, set_args):
 
 # Each voice: its name, its engine's prefix, how its unit is made, and its settings from the config's defaults (or
 # the keys given) -- the calls sd_voices.c makes.
-ENGINES = {"as": ("Accent SA",), "am": ("Accent-mini",), "so": ("Speak-Out",), "mb": ("Mockingboard",)}
+ENGINES = {"as": ("Accent SA",), "am": ("Accent-mini",), "so": ("Speak-Out",), "mb": ("Mockingboard",),
+           "mbe": ("Mockingboard, early",)}
 
 
 class EngineRef:
@@ -208,6 +221,13 @@ class EngineRef:
             ref_lib.mbv_create_dir.argtypes = [_S, _D, _S, _I]
             self.v = self.f("create_dir")(os.path.join(VDATA, "sweet-micro-mockingboard").encode(), float(rate),
                                           err, 256)
+        elif key == "mbe":
+            # from the file's bytes (mbv_create, as voices.c makes it): mbv_create_dir would take the 1.1 file, which
+            # shares the folder; the host picks the early layout by the bytes' sha256
+            self.f = _api("mbv_", [_S, ctypes.c_size_t, _D, _S, _I], 4)
+            with open(os.path.join(VDATA, "sweet-micro-mockingboard", "mockingboard-tts-early.bin"), "rb") as fh:
+                self.image = fh.read()
+            self.v = self.f("create")(self.image, len(self.image), float(rate), err, 256)
         else:
             self.f = _api("sov_", [_S, _D, _S, _I], 6)
             self.v = self.f("create")(os.path.join(VDATA, "gw-micro-speakout", "SPEAKOUT.HEX").encode(),
@@ -221,7 +241,7 @@ class EngineRef:
             self.f("set")(self.v, r, p, self.accent_inflection, v, 1)
         elif self.key == "am":      # amv_set(rate, pitch, inflection, volume, numbers, voice 5)
             self.f("set")(self.v, r, p, self.accent_inflection, v, 1, 5)
-        elif self.key == "mb":      # mbv_set(rate, pitch, volume, numbers)
+        elif self.key in ("mb", "mbe"):     # mbv_set(rate, pitch, volume, numbers)
             self.f("set")(self.v, r, p, v, 1)
         else:                       # sov_set(rate, pitch, tone I, volume, join, short pauses)
             self.f("set")(self.v, r, p, 8, v, 1, 1)
@@ -356,7 +376,8 @@ EXPECTED = [("Braille Lite 2000", "en-US", ("BL2ENG.BNS", "bl2_2003_warm.state")
             ("Accent SA", "en-US", tuple("aicom-accent-sa/" + f for f in FW_DIRS["aicom-accent-sa"])),
             ("Accent-mini", "en-US", ("aicom-accent-mini/SPKEMS.DVC",)),
             ("Speak-Out", "en-US", ("gw-micro-speakout/SPEAKOUT.HEX",)),
-            ("Mockingboard", "en-US", ("sweet-micro-mockingboard/mockingboard-tts-1.1.bin",))]
+            ("Mockingboard", "en-US", ("sweet-micro-mockingboard/mockingboard-tts-1.1.bin",)),
+            ("Mockingboard, early", "en-US", ("sweet-micro-mockingboard/mockingboard-tts-early.bin",))]
 want = ["200-%s\t%s\tMALE1" % (n, lang) for n, lang, files in EXPECTED
         if n in BUILT_NAMES and all(os.path.isfile(os.path.join(VDATA, f)) for f in files)] + ["249 OK VOICES LISTED"]
 ok = voices == want and "Accent SA" in listed and set(BUILT_NAMES) <= {e[0] for e in EXPECTED}
@@ -519,7 +540,13 @@ def voice_session(key):
     # the guard: the voice's reference is not the Braille Lite's, or a module stuck on the Braille Lite could pass
     print("%-8s the %s reference %s the Braille Lite's" % (key + "_speak", name,
                                                        "differs from" if want != lock_hello else "is IDENTICAL to"))
-    ok.append(same(key + "_speak", pcm, want) and ev == "702 END" and want != lock_hello)
+    apart = True
+    if key == "mbe" and ENGINES["mb"][0] in listed:
+        # and the early one's is not the 1.1's, or a module that loaded the 1.1 file for both could pass
+        apart = want != EngineRef("mb").say(HELLO)
+        print("%-8s the %s reference %s the 1.1 Mockingboard's" % (key + "_speak", name,
+                                                                "differs from" if apart else "is IDENTICAL to"))
+    ok.append(same(key + "_speak", pcm, want) and ev == "702 END" and want != lock_hello and apart)
     pcm1, ev1, n = s.speak(LONG, stop_after=5)
     pcm2, ev2, _ = s.speak("And the next message.")
     ok.append(ev1 == "703 STOP" and same(key + "_stop", pcm1, ref_v.say(LONG, blocks=n)))
@@ -552,10 +579,10 @@ def voice_session(key):
     return ok
 
 
-# the Accent-mini's, the Speak-Out's and the Mockingboard's checks are counted apart, so the controls' counts
+# the Accent-mini's, the Speak-Out's and the two Mockingboards' checks are counted apart, so the controls' counts
 # (tools/linux_tests.sh) hold whether or not those voices are built in
 others = []
-for key in ("as", "am", "so", "mb"):
+for key in ("as", "am", "so", "mb", "mbe"):
     if ENGINES[key][0] in listed:
         (results if key == "as" else others).extend(voice_session(key))
     else:
@@ -576,6 +603,6 @@ results.append(same("as_infl", pcm, flat) and flat != full)
 print("%d of %d checks passed (stop after %d blocks, %d with run ahead)" % (sum(results), len(results), blocks,
                                                                           ra_blocks))
 if others:
-    print("the Accent-mini's, the Speak-Out's and the Mockingboard's: %d of %d checks passed" % (sum(others),
-                                                                                                    len(others)))
+    print("the Accent-mini's, the Speak-Out's and the Mockingboards' (1.1 and early): %d of %d checks passed" % (
+        sum(others), len(others)))
 sys.exit(0 if all(results) and all(others) else 1)

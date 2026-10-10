@@ -11,6 +11,8 @@ rules, number reading and inflection are the firmware's own, live. Nothing is re
 | Accent SA | English | Aicom's serial speech box, its own 8085 firmware and dictionary ROMs |
 | Accent-mini | English | Aicom's Accent-mini, its DOS driver on an emulated PC (when the package has it) |
 | Speak-Out | English | GW Micro's 1995 talking box, its V40 firmware (when the package has it) |
+| Mockingboard | English | Sweet Micro Systems' Apple II speech card, its text-to-speech version 1.1 on an emulated 6502 (when the package has it) |
+| Mockingboard, early | English | the same card, the earlier text-to-speech of Mockingboard disk 1 with its own rules (when the package has it) |
 
 This is a speech-dispatcher module, so Orca and anything else that speaks through speech-dispatcher can use it.
 Each voice is the same voice as in its NVDA add-on.
@@ -61,6 +63,11 @@ below; `licenses/Aicom-notice.txt` says where they come from and why they are he
 When the package has the Speak-Out, it carries the Speak-Out's own firmware (hardware Daniel Weirich, software Douglas
 Geoffray, GW Micro). It is not ours; it is here so the box can speak again, and it will be removed if its rights
 holders ask (`licenses/Speak-Out-firmware-notice.txt`).
+
+When the package has the Mockingboard voices, it carries Sweet Micro Systems' text-to-speech for the card (version 1.1
+from the Mockingboard Developers Toolkit disk, and the earlier one from Mockingboard disk 1, whichever ship). They are
+not ours; they are here so the card can speak again, and they will be removed if their rights holders ask
+(`licenses/Mockingboard-firmware-notice.txt`).
 
 The program and library are MIT (`LICENSE`; the chip model draws on Casso's, also MIT:
 `licenses/Casso-MIT.txt`), except the CPU cores, which are MAME's and keep their BSD-3-Clause licences

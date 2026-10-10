@@ -8,6 +8,9 @@
  *   Accent SA                    en-US  as_voice.h  <data>/aicom-accent-sa/u2.BIN, u3.BIN, u4.BIN
  *   Accent-mini                  en-US  am_voice.h  <data>/aicom-accent-mini/SPKEMS.DVC     (built with its engine)
  *   Speak-Out                    en-US  so_voice.h  <data>/gw-micro-speakout/SPEAKOUT.HEX   (built with its engine)
+ *   Mockingboard                 en-US  mb_voice.h  <data>/sweet-micro-mockingboard/mockingboard-tts-1.1.bin
+ *   Mockingboard, early          en-US  mb_voice.h  <data>/sweet-micro-mockingboard/mockingboard-tts-early.bin
+ *                                                   (both built with their engine)
  * The data folder mirrors the repository's firmware/ folders.  A voice whose files are not there is not offered.
  * build_linux.sh compiles voices.c with SSV_HAVE_ACCENTMINI / SSV_HAVE_SPEAKOUT when those voices' sources are in the
  * tree; a voice whose engine is not built in is not listed.

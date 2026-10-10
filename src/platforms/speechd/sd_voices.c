@@ -49,6 +49,8 @@ static const voice_def ALL[] = {
     {"speakout:speakout", "Speak-Out", "en-US", "speakout", {"gw-micro-speakout/SPEAKOUT.HEX", NULL}},
     {"mockingboard:mockingboard", "Mockingboard", "en-US", "mockingboard",
      {"sweet-micro-mockingboard/mockingboard-tts-1.1.bin", NULL}},
+    {"mockingboard:early", "Mockingboard, early", "en-US", "mockingboard",      /* Mockingboard disk 1's program */
+     {"sweet-micro-mockingboard/mockingboard-tts-early.bin", NULL}},
 };
 #define N_ALL ((int)(sizeof ALL / sizeof ALL[0]))
 
