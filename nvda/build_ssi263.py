@@ -8,7 +8,7 @@ synthDrivers/_ssi263_unified -- so each unit here is that add-on's, file for fil
 the local firmware folder has it (firmware/sweet-micro-mockingboard, never in the repository; without it the voice is
 not staged) and its notices.
 
-    python nvda/build_ssi263.py                # a release: every unit built fresh, all six voices required
+    python nvda/build_ssi263.py                # a release: every unit built fresh, all seven voices required
     python nvda/build_ssi263.py --dev [--reuse] # development: a missing Mockingboard file allowed; --reuse takes
                                                 # dist/<name>-build as built instead of running the builders
 
@@ -35,15 +35,17 @@ BUILD = os.path.join(HERE, "dist", "ssi263-build")
 OUT = os.path.join(HERE, "dist", "ssi263-speech-%s.nvda-addon" % VERSION)
 UNITS = ("blazie", "speakout", "accent")
 MB_FILE = os.path.join(REPO, "firmware", "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin")
+MB_FILE_EARLY = os.path.join(REPO, "firmware", "sweet-micro-mockingboard", "mockingboard-tts-early.bin")
 # Apple II disk images are never shipped (Tomi, 2026-10-09): the toolkit's disk also carries Apple's DOS 3.3 and
 # Sweet Micro's other programs; only the voice's own file is staged
 DISK_IMAGES = (".dsk", ".do", ".po", ".nib", ".woz", ".2mg")
 MB_NOTICE = """The Mockingboard's text-to-speech -- notice
 
-This add-on carries Sweet Micro Systems' text-to-speech for the Mockingboard (mockingboard-tts-1.1.bin: TEXT TO SPEECH
+This add-on carries Sweet Micro Systems' text-to-speech for the Mockingboard: mockingboard-tts-1.1.bin (TEXT TO SPEECH
 and INFLECTION version 1.1, 11 March 1985, the IIe TTS driver and the MKB:RULE files, from the Mockingboard Developers
-Toolkit disk). It is not ours; it is here so the card can speak again, and it will be removed if its rights holders
-ask. It is not covered by this add-on's MIT license.
+Toolkit disk) and mockingboard-tts-early.bin (the earlier TEXT TO SPEECH and its MKB:RULE files, from Mockingboard disk
+1). They are not ours; they are here so the card can speak again, and they will be removed if their rights holders ask.
+They are not covered by this add-on's MIT license.
 """
 
 
@@ -57,8 +59,12 @@ def stage_mockingboard(unified):
     fake = os.path.join(REPO, "src", "csrc", "cpu", "fake6502")
     shutil.copy2(os.path.join(fake, "PINNED.txt"), os.path.join(lic, "Fake6502-provenance.txt"))
     shutil.copy2(os.path.join(fake, "LICENSE-EchoTalk-BSD-3-Clause.txt"), lic)
-    if os.path.isfile(MB_FILE):
-        shutil.copy2(MB_FILE, eng)
+    if os.path.isfile(MB_FILE) or os.path.isfile(MB_FILE_EARLY):
+        for f in (MB_FILE, MB_FILE_EARLY):
+            if os.path.isfile(f):
+                shutil.copy2(f, eng)
+            else:
+                print("note: no %s: that Mockingboard voice is not staged" % os.path.relpath(f, REPO))
         with open(os.path.join(lic, "Mockingboard-firmware-notice.txt"), "w", encoding="utf-8") as f:
             f.write(MB_NOTICE)
         return True
@@ -68,6 +74,7 @@ def stage_mockingboard(unified):
 
 U = "synthDrivers/_ssi263_unified/"
 MB_SHA256 = "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"
+MB_SHA256_EARLY = "c7c049b1b61792719e21e461a2a8c25fc32c12882c81305814a3dc67af6e5835"
 
 
 def expected_files():
@@ -87,6 +94,7 @@ def expected_files():
         U + "_ssi263_accent/SPKEMS.DVC": os.path.join(fw, "aicom-accent-mini", "SPKEMS.DVC"),
         U + "_ssi263_accent/AICOM.txt": os.path.join(fw, "AICOM.txt"),
         U + "_ssi263_mockingboard/mockingboard-tts-1.1.bin": MB_SHA256,
+        U + "_ssi263_mockingboard/mockingboard-tts-early.bin": MB_SHA256_EARLY,
         U + "_ssi263_mockingboard/licenses/Mockingboard-firmware-notice.txt": None,
         U + "_ssi263_mockingboard/licenses/Fake6502-provenance.txt":
             os.path.join(REPO, "src", "csrc", "cpu", "fake6502", "PINNED.txt"),
@@ -137,9 +145,10 @@ def main():
     reuse = dev and "--reuse" in sys.argv[1:]
     if "--reuse" in sys.argv[1:] and not dev:
         sys.exit("--reuse is for development builds only (--dev --reuse): a release builds every unit fresh")
-    if not dev and not os.path.isfile(MB_FILE):
-        sys.exit("a release needs the Mockingboard's firmware file: %s (or --dev to build without it)"
-                 % os.path.relpath(MB_FILE, REPO))
+    for f in (MB_FILE, MB_FILE_EARLY):
+        if not dev and not os.path.isfile(f):
+            sys.exit("a release needs the Mockingboard's firmware file: %s (or --dev to build without it)"
+                     % os.path.relpath(f, REPO))
     for unit in UNITS:
         built = os.path.join(HERE, "dist", "%s-build" % unit, "synthDrivers")
         if not (reuse and os.path.isdir(built)):
@@ -178,7 +187,7 @@ def main():
         if problems:
             os.remove(OUT)
             sys.exit("the archive is not what was built, removed:\n  " + "\n  ".join(problems))
-        print("checked: %s holds the six voices' files, each as its source" % os.path.basename(OUT))
+        print("checked: %s holds the seven voices' files, each as its source" % os.path.basename(OUT))
 
 
 if __name__ == "__main__":

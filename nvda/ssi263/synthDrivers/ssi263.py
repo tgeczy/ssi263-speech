@@ -7,7 +7,8 @@ starts with "_").  This driver runs ONE of them at a time, chosen by the firmwar
 settings and notifications through: what you hear is that driver's, byte for byte (nvda/tools/unified_driver_equiv.py).
 
 Settings (investigation/design-0.8-nvda-addon.md, its revisions after Astra's Reply 161, and Reply 163):
-  firmware type  the units whose firmware is here (Braille Lite 2000, Speak-Out, Accent SA, Accent-mini, Mockingboard)
+  firmware type  the units whose firmware is here (Braille Lite 2000, Speak-Out, Accent SA, Accent-mini, Mockingboard,
+                 Mockingboard early)
   voice          that firmware's languages, with their language codes, so NVDA's language switching works
   the rest       the unit's own settings, as its 0.7 add-on had them
 Each firmware type keeps its own values (Tomi).  Where they are kept is ONE place: NVDA's config, this driver's
@@ -47,6 +48,8 @@ FIRMWARE_TYPES = OrderedDict([
 ])
 if mockingboard is not None:
     FIRMWARE_TYPES["mockingboard"] = ("Mockingboard", mockingboard, OrderedDict([("en", "mockingboard")]))
+    # the earlier text-to-speech of Mockingboard disk 1: its own rules ("Mocking-bo-wrd", "dough-lars")
+    FIRMWARE_TYPES["mockingboardearly"] = ("Mockingboard, early", mockingboard, OrderedDict([("en", "early")]))
 LANGUAGES = {"en": "English", "es": "Español"}
 # the units' own string settings with choices (NVDA's available<Id>s, its id capitalized)
 CHOICES = ("variant", "sampleRate", "whine")

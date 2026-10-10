@@ -3,7 +3,8 @@ NVDA (fake_nvda_driver_test.py), the same NVDA sequences with the same settings 
 and the order of the index and done notifications must be equal, and every notification must name the driver NVDA
 was given (NVDA drops one whose synth is not getSynth(): the units' notifySynth).
 
-    python unified_driver_equiv.py [braillelite2000 braillelite2000-es speakout accentsa accentmini mockingboard]
+    python unified_driver_equiv.py [braillelite2000 braillelite2000-es speakout accentsa accentmini mockingboard
+                                    mockingboardearly]
     UNIFIED_EQUIV_BREAK=notify    control: the units report as themselves (notifySynth ignored) -- every case with
                                   a notification must fail on the synth, the PCM still equal
     UNIFIED_EQUIV_BREAK=memory    control: the wrapper does not forward the variant -- the variant cases must DIFFER
@@ -44,6 +45,7 @@ UNITS = {
     "accentsa": ("accent", "accentmini", "sa", "en"),
     "accentmini": ("accent", "accentmini", "mini", "en"),
     "mockingboard": (None, "mockingboard", None, "en"),
+    "mockingboardearly": (None, "mockingboard", "early", "en"),
 }
 BRAILLE_LITE = [c for c in nde.COMMON if "sr" not in c["settings"]] + [
     case("tone 0", [T("Tone zero, the lowest.")], variant="0"),
@@ -65,7 +67,7 @@ def cases(fw):
         return BRAILLE_LITE
     if fw == "speakout":
         return nde.SPEAKOUT
-    if fw == "mockingboard":
+    if fw.startswith("mockingboard"):
         return MOCKINGBOARD
     return nde.ACCENT
 
@@ -237,9 +239,11 @@ def main():
     fws = [a for a in sys.argv[1:] if not a.startswith("--")] or list(UNITS)
     if not os.path.isdir(os.path.join(DIST, "ssi263-build", "synthDrivers")):
         sys.exit("no nvda/dist/ssi263-build: run nvda/build_ssi263.py first")
-    if not os.path.isfile(os.path.join(DIST, "ssi263-build", "synthDrivers", "_ssi263_unified", "mockingboard.py")):
-        fws = [f for f in fws if f != "mockingboard"]
-        print("note: the build has no Mockingboard (no firmware file): not compared")
+    mb = os.path.join(DIST, "ssi263-build", "synthDrivers", "_ssi263_unified", "_ssi263_mockingboard")
+    for f, name in (("mockingboard", "mockingboard-tts-1.1.bin"), ("mockingboardearly", "mockingboard-tts-early.bin")):
+        if not os.path.isfile(os.path.join(mb, name)) and f in fws:
+            fws = [x for x in fws if x != f]
+            print("note: the build has no %s (no firmware file): not compared" % name)
     if BREAK:
         print("CONTROL: %s" % {"notify": "the units report as themselves",
                                "memory": "the wrapper drops the variant"}[BREAK])

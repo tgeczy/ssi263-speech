@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """NVDA synthesizer driver: Sweet Micro Systems' Mockingboard talking through an emulated SSI-263 (0.8).
 
-The card's own text-to-speech (version 1.1, 11 March 1985, from the Mockingboard Developers Toolkit) runs on
+Two voices, the two versions of the card's own text-to-speech, each its own rules: "mockingboard", version 1.1 of 11
+March 1985 from the Mockingboard Developers Toolkit (mockingboard-tts-1.1.bin), and "early", the program of
+Mockingboard disk 1 (mockingboard-tts-early.bin).  Either runs on
 Fake6502 and the board inside NVDA's process, in ssi263speech.dll (src/csrc/mockingboard: the board, the host's
 lockstep with the chip, and the voice's text path, mb_voice.h): its letter-to-sound rules and its inflection are the
 originals, byte for byte, driving a register-level model of the SSI-263.  Nothing is recorded or concatenated.  This
@@ -30,7 +32,10 @@ from ._ssi263_mockingboard import ssi263_rates as rates
 from ._ssi263_mockingboard.ssi263speech import MockingboardC, dll_path
 
 FIRMWARE = os.path.join(_ENGINE_DIR, "mockingboard-tts-1.1.bin")
+FIRMWARE_EARLY = os.path.join(_ENGINE_DIR, "mockingboard-tts-early.bin")   # Mockingboard disk 1's (0.8)
 DLL = dll_path(_ENGINE_DIR)
+# voice id: (its name, its firmware file) -- the two versions of Sweet Micro's text-to-speech, each its own rules
+VOICES = (("mockingboard", "Mockingboard", FIRMWARE), ("early", "Mockingboard, early", FIRMWARE_EARLY))
 
 
 def _nothing():
@@ -66,9 +71,15 @@ class SynthDriver(SynthDriver):
     # the synth NVDA's speech manager knows (blazie.py): this driver, or the 0.8 add-on's driver running it inside
     notifySynth = None
 
+    @staticmethod
+    def _present():
+        if not os.path.isfile(DLL):
+            return []
+        return [v for v, _name, fw in VOICES if os.path.isfile(fw)]
+
     @classmethod
     def check(cls):
-        return os.path.isfile(FIRMWARE) and os.path.isfile(DLL)
+        return bool(cls._present())
 
     def __init__(self, startVoice=None):
         super().__init__()
@@ -84,6 +95,10 @@ class SynthDriver(SynthDriver):
         self._cancelFlag = threading.Event()
         self._stopped = False
         self._box = None
+        # which version, "mockingboard" (1.1) or "early"; the worker boots it (startVoice: synthDrivers/ssi263.py)
+        present = self._present()
+        self._model = startVoice if startVoice in present else (present[0] if present else "mockingboard")
+        self._booted = None
         # the worker's first boot, for a driver running this one inside (synthDrivers/ssi263.py): set once it
         # is up, with bootError when it failed -- the constructor returning says nothing about the firmware
         self.booted = threading.Event()
@@ -200,17 +215,23 @@ class SynthDriver(SynthDriver):
         self._want_rate = rates.parse(v) or self._want_rate
 
     def _get_availableVoices(self):
-        return {"mockingboard": VoiceInfo("mockingboard", "Mockingboard", "en")}
+        names = dict((v, name) for v, name, _fw in VOICES)
+        return {v: VoiceInfo(v, names[v], "en") for v in self._present()}
 
     def _get_voice(self):
-        return "mockingboard"
+        return self._model
 
     def _set_voice(self, v):
-        pass
+        # the worker boots the other version before its next job (accentmini.py's two Accents)
+        if v in self._present():
+            self._model = v
 
     # -- worker: the only thread that touches the emulated card ----------------
     def _boot(self):
-        return MockingboardC(DLL, FIRMWARE, self._out_rate)
+        model = self._model
+        box = MockingboardC(DLL, dict((v, fw) for v, _n, fw in VOICES)[model], self._out_rate)
+        self._booted = model
+        return box
 
     def _run(self):
         try:
@@ -231,6 +252,11 @@ class SynthDriver(SynthDriver):
                     self._switch_rate()
                 except Exception:
                     log.error("Mockingboard: could not switch the sample rate", exc_info=True)
+            elif self._model != self._booted:
+                try:
+                    self._reboot()
+                except Exception:
+                    log.error("Mockingboard: could not switch to the %s voice" % self._model, exc_info=True)
             try:
                 self._speakJob(job)
             except Exception:
