@@ -24,7 +24,15 @@ checks first -- SSI263_SAPI_REF_BREAK=dist, the reference on nvda/dist's drivers
   - SAPI's abort after a few writes: Speak returns S_OK at once, nothing more is written (no events, no silence),
     and the next text comes out whole (voiced, as long as alone within 10 %);
   - the controls, in the same run (each must make its cases differ): SSI263_SAPI_TEST_BREAK=voice (English and
-    Spanish swapped), =setting (the dialog's settings dropped) and =bl-numbers (BrailleLiteNumbers 0 ignored).
+    Spanish swapped; the Mockingboard spoken by the Braille Lite, as ssi_voice's fallback would), =setting (the
+    dialog's settings dropped) and =bl-numbers (BrailleLiteNumbers 0 ignored).
+
+The voices 0.7.0's drivers never had (NATIVE_ONLY: the Mockingboard, new in 0.8) have no Python server to be held to:
+their reference is the native serve host (ssi263_serve.exe, build/win/x64) on the stage's firmware with the same
+settings on its command line -- the voice as the engine's own mapping makes it (sapi/ssi_native.c), so what is held is
+the DLL's side: SAPI's fragments, rates and pitches, the declared rate, the 150 ms of silence, the bookmark and the
+abort, byte for byte.  The voice itself is test_native.py's (both widths, voiced, its settings changing it) and
+src/csrc/mockingboard's.
 
     python sapi/test_sapi_engine.py [--arch x64|x86|both] [--verbose]
 """
@@ -43,6 +51,7 @@ import reference_drivers
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 STAGE = os.path.join(REPO, "nvda", "dist", "sapi-dev")
+SERVE = os.path.join(REPO, "build", "win", "x64", "ssi263_serve.exe")
 ARGS = sys.argv[1:]
 ARCHES = ["x64", "x86"]
 if "--arch" in ARGS and ARGS[ARGS.index("--arch") + 1] != "both":
@@ -61,6 +70,7 @@ NUMBERS = (("numbers unset", DEFAULTS), ("numbers on", dict(DEFAULTS, BrailleLit
 NUMBERS_TEXT = {"en": "1,234,567", "es": "1.234.567"}
 TEXT_EN = ["Hello, how are you??", "Room 12, $3.50 and 1,234,567 items; the 21st of 3, -2.5 degrees."]
 TEXT_ES = ["Mañana, ¿qué tal? Son 1.234.567 y 3,5."]
+NATIVE_ONLY = ("mockingboard:mockingboard",)
 LONG = "This sentence is long enough to be cut somewhere in the middle of it, surely. And a few more words follow it."
 ABORT_AFTER = 6
 
@@ -72,11 +82,12 @@ def cases(voices):
     every unit again in the engine, and is a new Python server), an abort last in its group (where it lands decides
     what the unit says next), and the controls after everything."""
     out = []
+    rates_voice = [v for v in voices if v[0] not in NATIVE_ONLY][-1][0]
     for group, s in (("", DEFAULTS), ("dialog settings", DIALOG), ("11025 Hz", dict(DEFAULTS, SampleRate=11025)),
                      ("44100 Hz", dict(DEFAULTS, SampleRate=44100))):
         for vid, _name, lang in voices:
             texts = TEXT_ES if lang == "es" else TEXT_EN
-            if group.endswith("Hz") and vid != voices[-1][0]:
+            if group.endswith("Hz") and vid != rates_voice:
                 continue                     # the rates: one voice shows the DLL declares and renders them (every
                                              # voice at every rate is test_native.py's, through the same mapping)
             if group:
@@ -96,26 +107,30 @@ def cases(voices):
                 out.append(("%s %s" % (vid, tag), vid, 0, 0, s, "-", 0, NUMBERS_TEXT[lang], None))
     for vid, _name, lang in voices:                                 # the controls
         texts = TEXT_ES if lang == "es" else TEXT_EN
-        if vid.startswith("blazie:"):
+        if vid.startswith("blazie:") or vid in NATIVE_ONLY:
             out.append(("%s CONTROL voice" % vid, vid, 0, 0, DEFAULTS, "voice", 0, texts[0], None))
+        if vid.startswith("blazie:"):
             out.append(("%s CONTROL numbers ignored" % vid, vid, 0, 0, NUMBERS[2][1], "bl-numbers", 0,
                         NUMBERS_TEXT[lang], None))
-        if not vid.startswith("speakout:"):    # the dialog has nothing for the Speak-Out: dropping it changes nothing
+        # the dialog has nothing for the Speak-Out or the Mockingboard: dropping it changes nothing
+        if not vid.startswith("speakout:") and vid not in NATIVE_ONLY:
             out.append(("%s CONTROL setting" % vid, vid, 0, 0, DIALOG, "setting", 0, texts[-1], None))
     return out
 
 
-# ---- the reference: the Python server with the same settings ---------------------------------------------------------
-def reference(opts, requests, env):
-    p = subprocess.Popen([sys.executable, os.path.join(HERE, "ssi_serve.py"), "--serve"] + opts, stdin=subprocess.PIPE,
-                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env)
+# ---- the reference: the Python server with the same settings (NATIVE_ONLY: the native serve host) ------------------
+def reference(opts, requests, env, native=False):
+    cmd = [SERVE, "--serve", "--firmware", os.path.join(STAGE, "firmware")] if native else \
+        [sys.executable, os.path.join(HERE, "ssi_serve.py"), "--serve"]
+    p = subprocess.Popen(cmd + opts, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                         env=None if native else env)
 
     def exact(n):
         b = b""
         while len(b) < n:
             c = p.stdout.read(n - len(b))
             if not c:
-                raise EOFError("the Python server closed the pipe")
+                raise EOFError("the reference server closed the pipe")
             b += c
         return b
     out = []
@@ -201,6 +216,8 @@ def harness(arch, todo, tmp, name):
 
 
 def main():
+    if not os.path.isfile(SERVE):
+        sys.exit("FAILED: %s is missing: python src/csrc/build_ssi263speech.py" % os.path.relpath(SERVE, REPO))
     for arch in ARCHES:
         for f in ("ssi263_sapi.dll", "sapi_harness.exe", "ssi263speech.dll"):
             if not os.path.isfile(os.path.join(STAGE, arch, f)):
@@ -219,16 +236,18 @@ def main():
                                                  if "CONTROL" in c[0]]
     runs += [(a, "%s-%s" % (a, tag.replace(" ", "-")), [k for k, c in enumerate(todo) if numbers_run(c[0]) == tag])
              for a in ARCHES for tag, _s in NUMBERS]
-    groups = {}                                                     # one Python server per settings, or per control
+    groups = {}                         # one Python server per settings, or per control; NATIVE_ONLY: a native host
     for k, (label, vid, rate, pitch, s, brk, abort, t1, t2) in enumerate(todo):
         text = t1 + " " + t2 if t2 else t1                          # the engine joins the fragments with a space
-        g = json.dumps(s, sort_keys=True) + (label if "CONTROL" in label else "") + (numbers_run(label) or "")
+        g = json.dumps(s, sort_keys=True) + (label if "CONTROL" in label else "") + (numbers_run(label) or "") + \
+            (" native" if vid in NATIVE_ONLY else "")
         groups.setdefault(g, []).append((k, (vid, text, (rate + 10) * 5, 50 + pitch * 5)))
     tmp = tempfile.mkdtemp(prefix="ssi263_sapi_engine_")
     bad = 0
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-            refs_f = {g: pool.submit(reference, opts_for(todo[items[0][0]][4]), [q for _k, q in items], ref_env)
+            refs_f = {g: pool.submit(reference, opts_for(todo[items[0][0]][4]), [q for _k, q in items], ref_env,
+                                     g.endswith(" native"))
                       for g, items in groups.items()}
             got_f = {name: pool.submit(harness, a, [todo[k] for k in idx], tmp, name) for a, name, idx in runs}
             refs = {}
@@ -248,6 +267,7 @@ def main():
                     sr = s["SampleRate"]
                     pad = b"\0" * ((sr * 3 // 20) * 2)
                     want = refs[k] + pad
+                    server = "the native host" if vid in NATIVE_ONLY else "the Python server"
                     if abort:
                         ok = hr == 0 and writes == abort and marks == "-" and not data.endswith(pad) and ms < 3000
                         what = "aborted after %d writes: S_OK, %d writes, events %s, %d ms" % (abort, writes, marks, ms)
@@ -257,10 +277,10 @@ def main():
                         what = "%.2f s (alone %.2f s), voiced" % (len(data) / 2 / sr, len(alone) / 2 / sr)
                     elif "CONTROL" in label:
                         ok = data != want
-                        what = "differs from the Python server, as it must" if ok else "the same: NOT caught"
+                        what = "differs from %s, as it must" % server if ok else "the same: NOT caught"
                     else:
                         ok = hr == 0 and declared == sr and data == want and (marks == "7" if t2 else marks == "-")
-                        what = ("byte-identical to the Python server" if data == want else
+                        what = ("byte-identical to " + server if data == want else
                                 "DIFFERS at sample %d (%d against %d)" % (
                                     next((i for i in range(0, min(len(data), len(want)), 2)
                                           if data[i:i + 2] != want[i:i + 2]), min(len(data), len(want))) // 2,
@@ -285,8 +305,10 @@ def main():
                     if ln.startswith("FAIL") or "--verbose" in ARGS:
                         print(ln)
                 print("sapi engine %s: %d of %d cases right (%d through SAPI's interface byte-identical to the Python "
-                      "server, controls caught)" % (a, sum(not ln.startswith("FAIL") for ln in lines), n,
-                                                    sum("byte-identical" in ln for ln in lines)))
+                      "server, %d to the native host, controls caught)" % (
+                          a, sum(not ln.startswith("FAIL") for ln in lines), n,
+                          sum("byte-identical to the Python server" in ln for ln in lines),
+                          sum("byte-identical to the native host" in ln for ln in lines)))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
         try:

@@ -47,7 +47,7 @@ typedef struct {
     int accent_inflection;         /* AccentInflection: 0-100 (100) */
     int run_ahead;                 /* RunAhead: the Braille Lite's (0) */
     int numbers;                   /* BrailleLiteNumbers: the Braille Lite's number words, its driver's numberWords (1);
-                                      the Accents keep their own driver's default */
+                                      the Accents keep their own driver's default, the Mockingboard its voice's */
 } ssi_options;
 void ssi_options_defaults(ssi_options *o);
 

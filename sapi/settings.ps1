@@ -123,7 +123,7 @@ $runAhead.AccessibleName = 'Run the unit ahead (experimental)'
 $runAhead.AccessibleDescription = 'Experimental, off by default. The unit writes a whole utterance at once and the chip plays it, with shorter pauses. Takes effect with the next thing spoken.'
 $runAhead.Location = New-Object Drawing.Point(12, 94); $runAhead.AutoSize = $true
 # The NVDA add-on's "Custom number processing" (numberWords), on by default; both Braille Lite voices.  The Accents
-# keep their own.
+# and the Mockingboard keep their own (on); it has nothing else here (rate, pitch and volume are SAPI's).
 $numbers = New-Object Windows.Forms.CheckBox
 $numbers.Text = 'Read numbers as &words'
 $numbers.AccessibleName = 'Read numbers as words'

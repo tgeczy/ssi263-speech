@@ -1,5 +1,5 @@
-/* The SSI-263 voices -- the Braille Lite 2000 (English and Spanish), the Speak-Out, the Accent-mini and the Accent
- * SA -- as a SAPI 5 engine, 32- and 64-bit.
+/* The SSI-263 voices -- the Braille Lite 2000 (English and Spanish), the Speak-Out, the Accent-mini, the Accent SA
+ * and the Mockingboard -- as a SAPI 5 engine, 32- and 64-bit.
  *
  * A fork of outspoken-nvda's sapi/outspoken_sapi.cpp, itself a fork of panthera-speech's panthera_sapi.cpp, which
  * is where the JAWS lessons live: only Speak/SpellOut/Pronounce fragments are assembled -- JAWS sends each word as
@@ -77,8 +77,9 @@ static const DWORD LOG_CAP = 4u * 1024u * 1024u;
  * SampleRate (11025 / 22050 / 44100, every voice), RunAhead (the Braille Lite's "Run the unit ahead", EXPERIMENTAL:
  * 0 = off, the default; 1 = on, both its voices), BrailleLiteNumbers (the Braille Lite's "Read numbers as words",
  * its NVDA driver's custom number processing: 1 = on, the default; 0 = the firmware reads the digits; both its voices,
- * the Accents keep their own) and Diagnostics (0 = off).  Each reaches the next thing spoken:
- * read fresh per Speak, and a boot setting that changed (the rate, the inflection, the whine) boots the units again,
+ * the Accents and the Mockingboard keep their own) and Diagnostics (0 = off).  The Mockingboard has none of the
+ * others: SAPI's rate and pitch and SampleRate are all it takes (the volume stays SAPI's, as for every voice).  Each
+ * reaches the next thing spoken: read fresh per Speak, and a boot setting that changed (the rate, the inflection, the whine) boots the units again,
  * as the NVDA drivers do. */
 static DWORD setting_dword(const wchar_t *name, DWORD def) {
     const HKEY roots[] = {HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
@@ -326,9 +327,11 @@ public:
             if(ok){
                 idx=ssi_voice(&g_api,voiceId.c_str(),g_fwdir);
 #ifdef SSI263_SAPI_DEV
-                if(idx>=0&&!strcmp(brk,"voice")){                     /* a control: English and Spanish swapped */
+                if(idx>=0&&!strcmp(brk,"voice")){                     /* a control: English and Spanish swapped, */
                     int e=g_api.find("blazie:blazie"),s=g_api.find("blazie:blazie_es");
+                    int m=g_api.find("mockingboard:mockingboard");    /* the Mockingboard as ssi_voice's fallback */
                     if(idx==e&&g_api.available(s,g_fwdir))idx=s; else if(idx==s&&g_api.available(e,g_fwdir))idx=e;
+                    else if(idx==m&&g_api.available(e,g_fwdir))idx=e;  /* would speak it: the Braille Lite */
                 }
 #endif
                 ssv_boot b; ssi_boot(&o,&b); g_api.bank_boot(g_bank,&b);

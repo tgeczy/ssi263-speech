@@ -101,7 +101,7 @@ $proc.WaitForExit()
 if ($proc.ExitCode -or $listing -notmatch "`t") { throw "the native voices listed nothing from the stage's firmware" }
 [System.IO.File]::WriteAllText((Join-Path $Stage "voices.txt"), $listing, (New-Object System.Text.UTF8Encoding($false)))
 # The licences: ours (MIT), Casso's (MIT) and each extracted MAME core's BSD notice with its provenance, as the
-# add-ons carry them (nvda/build_common.py).
+# add-ons carry them (nvda/build_common.py); the 6502's; the Mockingboard firmware's notice.
 $lic = Join-Path $Stage "licenses"
 New-Item -ItemType Directory -Force $lic | Out-Null
 Copy-Item (Join-Path $repo "LICENSE") (Join-Path $lic "LICENSE-MIT.txt")
@@ -110,6 +110,23 @@ foreach ($core in "z180","i8085","nec","i86") {
   $d = Join-Path $repo "src\csrc\cpu\mame_$core"
   Copy-Item (Join-Path $d "LICENSE-BSD-3-Clause.txt") (Join-Path $lic "LICENSE-$core-BSD-3-Clause.txt")
   Copy-Item (Join-Path $d "PINNED.txt") (Join-Path $lic "MAME-$core-provenance.txt")
+}
+# The Mockingboard's 6502: Fake6502 (Mike Chambers, public domain) by way of Jayson Smith's EchoTalk (BSD-3-Clause),
+# in ssi263speech.dll whether or not its firmware is staged.
+$d = Join-Path $repo "src\csrc\cpu\fake6502"
+Copy-Item (Join-Path $d "LICENSE-EchoTalk-BSD-3-Clause.txt") (Join-Path $lic "LICENSE-EchoTalk-BSD-3-Clause.txt")
+Copy-Item (Join-Path $d "PINNED.txt") (Join-Path $lic "Fake6502-provenance.txt")
+# Sweet Micro Systems' text-to-speech is the Braille Lite's and the Speak-Out's kind of file: never in the repository,
+# taken from the firmware folder the build is given (--files lists it only when it is there; absent, the voice is
+# simply not staged), and its notice goes with it.
+if (Test-Path (Join-Path $fw "sweet-micro-mockingboard\mockingboard-tts-1.1.bin")) {
+  [System.IO.File]::WriteAllText((Join-Path $lic "Mockingboard-firmware-notice.txt"), "The Mockingboard's firmware -- notice
+
+This installation carries the Mockingboard's own text-to-speech (firmware\sweet-micro-mockingboard\
+mockingboard-tts-1.1.bin: Sweet Micro Systems' version 1.1 of 1985, by Mike LePage, from the Mockingboard Developers
+Toolkit). It is not ours; it is here so the card can speak again, and it will be removed if its rights holders ask.
+It is not covered by this package's MIT license.
+", (New-Object System.Text.UTF8Encoding($false)))
 }
 Write-Host "SSI-263 SAPI stage$(if ($Dev) { ' (development)' }): $Stage"
 Write-Host ("voices: " + (($listing -split "`r?`n" | Where-Object { $_ -match "`t" } | ForEach-Object { $_.Split("`t")[0] }) -join ', '))

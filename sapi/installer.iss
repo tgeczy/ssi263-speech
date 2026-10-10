@@ -1,5 +1,5 @@
-; SSI-263 SAPI -- the Braille Lite 2000 (English and Spanish), the Speak-Out, the Accent-mini and the Accent SA as
-; SAPI 5 voices, for any Windows screen reader or program that speaks through SAPI.
+; SSI-263 SAPI -- the Braille Lite 2000 (English and Spanish), the Speak-Out, the Accent-mini, the Accent SA and the
+; Mockingboard as SAPI 5 voices, for any Windows screen reader or program that speaks through SAPI.
 ;
 ; It carries the engine DLLs, the native voices beside each (ssi263speech.dll: the SSI-263 chip model, the emulated
 ; units and each NVDA driver's text preparation, in C, run inside the program that speaks) and each device's own

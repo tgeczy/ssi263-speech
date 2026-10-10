@@ -269,8 +269,10 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "blazie-build")):
 # host, which maps settings with the SAPI DLL's own code (sapi/ssi_native.c), against the pipe server above -- the
 # 0.7.0 engine -- byte for byte over the same wire, 64- and 32-bit: texts with numbers and money, SAPI's rates and
 # pitches, the voices in turn, the dialog's settings, every sample rate, a cancel and the utterance after it, the
-# Braille Lite's number words with no value, on and off.  Its controls: the dialog's settings dropped, English and
-# Spanish swapped, the drivers' number words off, the Braille Lite's number-words setting ignored.
+# Braille Lite's number words with no value, on and off; the Mockingboard, which 0.7.0 never had, held to itself (both
+# widths byte-identical, voiced, its rates, pitches, cancel and sample rates, the dialog leaving it alone).  Its
+# controls: the dialog's settings dropped, English and Spanish swapped, the drivers' number words off, the Braille
+# Lite's number-words setting ignored, the Mockingboard's firmware missing.
 SAPI_NATIVE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_native.py")
 if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", "win", "x86", "ssi263_serve.exe")):
     CHECKS.append(check("SAPI native voices = the Python server, byte for byte", [PY, SAPI_NATIVE]))
@@ -299,6 +301,15 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
                         expect_fail=True,
                         fail_marks=[r"^DIFF blnum0  x64 blazie:blazie text 4 ", r"^DIFF blnum0  x64 blazie:blazie_es text 2 ",
                                     r"^native: 1 of 3 utterances byte-identical", r"^native: 2 FAILED$"]))
+    # every voice listed on both widths, the Mockingboard (no Python reference: held to itself, test_native's "own")
+    # among them: its firmware left out of a copy of the folder, the listing must fail naming it on each width -- a
+    # request for it would otherwise quietly speak the first voice there
+    CHECKS.append(check("SAPI native voices CONTROL (the Mockingboard's firmware missing, must fail)",
+                        [PY, SAPI_NATIVE, "--only", "own"], env={"SSI263_NATIVE_WITHOUT": "mockingboard:mockingboard"},
+                        expect_fail=True,
+                        fail_marks=[r"^FAIL listing x64: mockingboard:mockingboard is not offered ",
+                                    r"^FAIL listing x86: mockingboard:mockingboard is not offered ",
+                                    r"; native only: none$", r"^native: 2 FAILED$"]))
     # the number words alone, on random texts: the driver's _numbers against bl_numbers (English, and Spain's Spanish)
     CHECKS.append(check("bl_voice number words = the driver's, 5000 random texts",
                         [PY, "voice_text_equiv.py", "5000", "1", "--numbers"]))
@@ -308,8 +319,9 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
                         fail_marks=[r"^DIFF ", r"^(?!2000 )\d+ of 2000 texts give the unit the same bytes"]))
 # ... and the SAPI engine DLL itself, driven through SAPI's own interface (ISpTTSEngine, an engine site of the test's)
 # with nothing registered (sapi\build.ps1 -Dev's harness): every case byte-identical to the Python server, the
-# declared rate, bookmarks, SAPI's abort, BrailleLiteNumbers with no value, 1 and 0; its controls (English and Spanish
-# swapped, the dialog's settings dropped, BrailleLiteNumbers 0 ignored) run in the same check and must be caught
+# declared rate, bookmarks, SAPI's abort, BrailleLiteNumbers with no value, 1 and 0 (the Mockingboard against the
+# native host instead); its controls (English and Spanish swapped, the Mockingboard spoken by the Braille Lite, the
+# dialog's settings dropped, BrailleLiteNumbers 0 ignored) run in the same check and must be caught
 SAPI_ENGINE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_sapi_engine.py")
 if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "sapi-dev", "x86", "sapi_harness.exe")):
     CHECKS.append(check("SAPI engine DLL = the Python server, through SAPI's interface", [PY, SAPI_ENGINE]))

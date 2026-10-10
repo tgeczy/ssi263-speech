@@ -17,8 +17,15 @@ A cancel lands where the client's pipe lets it (both hosts stop at the same bloc
 different points, the cut audio must still agree as far as both go and the next utterance is checked as test_serve.py
 checks it (voiced, as long as alone within 10 %), with the difference said.
 
-Voices the native library does not have yet (the Speak-Out and the Accent-mini until their sources land) are named and
-skipped; every voice it does have must match.
+Every voice of the reference, and every voice 0.7.0's drivers never had (NATIVE_ONLY: the Mockingboard, new in 0.8),
+must be in the native host's listing on both widths, or the run FAILS naming it: a voice whose firmware is missing is
+not listed, and a request for it would quietly speak another (ssi_voice's fallback: the first voice there).
+
+The NATIVE_ONLY voices have no Python server to be held to.  They are held to themselves ("own", own_checks): on each
+width every utterance whole and voiced -- texts with numbers and money, SAPI's rates and pitches, each changing the
+audio the way it should; a cancel mid-utterance, and the next one as long as alone within 10 %; the dialog's settings
+(none of them its) leaving it byte for byte as it was; 11025 and 44100 Hz half and twice the samples -- and the x64 and
+x86 widths byte-identical throughout (-msse2 -mfpmath=sse), the cut audio as far as both go.
 
     python sapi/test_native.py [--arch x64|x86|both] [--only <session>]      default both, every session
     SSI263_SERVE_BREAK=setting     control: the native host drops the dialog's settings -- the "dialog" session FAILS
@@ -28,6 +35,8 @@ skipped; every voice it does have must match.
     SSI263_SERVE_BREAK=bl-numbers  control: the native host ignores --bl-numbers (the dialog's BrailleLiteNumbers) --
                                    the "blnum0" session FAILS on both Braille Lite voices
     SSI263_SAPI_REF_BREAK=dist     control: the reference on nvda/dist's (native) drivers -- the reference check FAILS
+    SSI263_NATIVE_WITHOUT=<id>     control: the native hosts on a copy of the firmware without that voice's files --
+                                   the listing FAILS naming it on both widths (--only own: the native-only checks alone)
 
 Build first: python src/csrc/build_ssi263speech.py (and the add-ons' libraries, which legacy_drivers.py puts under
 0.7.0's drivers for the reference: nvda/build_*.py).
@@ -67,6 +76,13 @@ TEXTS = {
            "Son 1.234.567 personas, 3,5 metros y el 21 de 1999; -4,25 grados y 2.000.000.000.000 de euros.",
            "1.234.567"],
 }
+# the voices with no Python reference, held to themselves (own_checks)
+NATIVE_ONLY = ["mockingboard:mockingboard"]
+OWN = [("default", TEXTS["en"][0], 50, 50), ("numbers and money", TEXTS["en"][1], 50, 50),
+       ("faster, higher", TEXTS["en"][0], 75, 60), ("slowest, highest", TEXTS["en"][0], 0, 100),
+       ("lowest", TEXTS["en"][0], 50, 0), ("long", LONG_EN, 50, 50), ("OK button", "OK button", 50, 50)]
+OWN_DIALOG = ["--inflection", "0", "--whine", "whine", "--accent-inflection", "50", "--run-ahead", "1",
+              "--bl-numbers", "0"]
 NUMBERS_REQS = [("blazie:blazie", 4, 50, 50), ("blazie:blazie_es", 2, 50, 50), ("accentmini:sa", 4, 50, 50)]
 
 # A session: the server's command-line options (the settings dialog's values) and its requests, in order.  A request
@@ -250,7 +266,110 @@ def numbers_checks(side, unset, on, off, requests):
     return bad, lines
 
 
+def own_play(cmd, voice, items, cancel=False):
+    """A NATIVE_ONLY voice's utterances on one fresh native host: {label: (status, pcm)}; with cancel, LONG_EN cut
+    after 15 chunks ("cut") and "OK button" after it ("after the cancel")."""
+    c = Client(cmd)
+    out = {}
+    try:
+        for label, text, rate, pitch in items:
+            c.send(voice, text, rate, pitch)
+            out[label] = c.response()
+        if cancel:
+            seq = c.send(voice, LONG_EN)
+            out["cut"] = c.response(15, seq)
+            c.send(voice, "OK button")
+            out["after the cancel"] = c.response()
+    finally:
+        c.close()
+    return out
+
+
+def own_checks(voice, runs):
+    """runs: {(arch, session): own_play's result}, sessions "own", "dialog", "11025", "44100".  [(ok, line)]"""
+    out = []
+    arches = [a for a in ARCHES if any(k[0] == a for k in runs)]
+
+    def add(ok, arch, what, note):
+        out.append((ok, "%-4s own %-3s %s %s: %s" % ("ok" if ok else "FAIL", arch, voice, what, note)))
+    for a in arches:
+        r = runs[a, "own"]
+        n = {k: len(pcm) // 2 for k, (_st, pcm) in r.items()}
+        for k, (st, pcm) in r.items():
+            if k != "cut":
+                add(st == 0 and bool(voiced(pcm)), a, k, "status %d, %.2f s%s" % (
+                    st, n[k] / 22050, ", voiced" if voiced(pcm) else ", NOT voiced"))
+        d = r["default"][1]
+        for k, longer in (("faster, higher", False), ("slowest, highest", True), ("lowest", None)):
+            ok = r[k][1] != d and (longer is None or (n[k] > n["default"]) == longer)
+            add(ok, a, k + " against default", "%s, %d samples against %d" % (
+                "differs" if r[k][1] != d else "the SAME audio", n[k], n["default"]))
+        st, cut = r["cut"]
+        add(st == 0 and 0 < n["cut"] < 0.9 * n["long"], a, "cut", "%.2f s of the %.2f s alone" % (
+            n["cut"] / 22050, n["long"] / 22050))
+        ok = abs(n["after the cancel"] - n["OK button"]) <= 0.1 * n["OK button"]
+        add(ok, a, "after the cancel against alone", "%.2f s against %.2f s" % (n["after the cancel"] / 22050,
+                                                                               n["OK button"] / 22050))
+        g = runs[a, "dialog"]
+        for k in g:
+            add(g[k] == r[k], a, "dialog settings, " + k, "the same as without them" if g[k] == r[k] else
+                "CHANGED by settings that are not its")
+        for rate, f in (("11025", 0.5), ("44100", 2.0)):
+            st, pcm = runs[a, rate]["default"]
+            ok = st == 0 and voiced(pcm) and abs(len(pcm) / 2 - f * n["default"]) <= 0.02 * f * n["default"]
+            add(ok, a, "%s Hz" % rate, "%d samples against %d at 22050" % (len(pcm) // 2, n["default"]))
+    if len(arches) == 2:
+        for sess in ("own", "dialog", "11025", "44100"):
+            x, y = runs[arches[0], sess], runs[arches[1], sess]
+            for k in x:
+                a, b = x[k][1], y[k][1]
+                if k == "cut":
+                    m = min(len(a), len(b))
+                    ok = a[:m] == b[:m]
+                    note = "the same as far as both go (%d and %d samples)" % (len(a) // 2, len(b) // 2)
+                elif k == "after the cancel" and len(x["cut"][1]) != len(y["cut"][1]):
+                    ok, note = True, "after cuts at other points: not compared"
+                else:
+                    ok = a == b
+                    note = "byte-identical, sha1 %s" % hashlib.sha1(a).hexdigest()[:10] if ok else \
+                        "DIFFER: %d against %d samples" % (len(a) // 2, len(b) // 2)
+                add(ok, "x64=x86", "%s %s" % (sess, k), note)
+    return out
+
+
+def firmware_without(voice, tmp):
+    """SSI263_NATIVE_WITHOUT's firmware folder: every file of the repository's firmware folder but voice's."""
+    import ctypes
+    import shutil
+
+    class Info(ctypes.Structure):
+        _fields_ = [("id", ctypes.c_char_p), ("name", ctypes.c_char_p), ("lang", ctypes.c_char_p),
+                    ("engine", ctypes.c_int), ("slot", ctypes.c_int), ("files", ctypes.c_char_p * 4)]
+    lib = ctypes.CDLL(os.path.join(REPO, "build", "win", "x64" if sys.maxsize > 2 ** 32 else "x86", "ssi263speech.dll"))
+    lib.ssv_voice_info.restype = ctypes.POINTER(Info)
+    i = lib.ssv_find(voice.encode("utf-8"))
+    if i < 0:
+        sys.exit("FAILED: SSI263_NATIVE_WITHOUT names no voice of the table: %s" % voice)
+    drop = {os.path.normpath(f.decode("utf-8")) for f in lib.ssv_voice_info(i).contents.files if f}
+    for root, _dirs, files in os.walk(FIRMWARE):
+        for f in files:
+            rel_path = os.path.relpath(os.path.join(root, f), FIRMWARE)
+            if os.path.normpath(rel_path) not in drop:
+                os.makedirs(os.path.dirname(os.path.join(tmp, rel_path)), exist_ok=True)
+                # copyfile: not the source's read-only flag, so the folder can be removed afterwards
+                shutil.copyfile(os.path.join(FIRMWARE, rel_path), os.path.join(tmp, rel_path))
+    return tmp
+
+
 def main():
+    global FIRMWARE
+    without = os.environ.get("SSI263_NATIVE_WITHOUT")
+    if without:                                                     # the control: that voice's firmware not there
+        import atexit
+        import shutil
+        import tempfile
+        FIRMWARE = firmware_without(without, tempfile.mkdtemp(prefix="ssi263_native_without_"))
+        atexit.register(shutil.rmtree, FIRMWARE, True)
     ref_cmd = [sys.executable, os.path.join(HERE, "ssi_serve.py"), "--serve"]
     nat_cmd = {a: [os.path.join(REPO, "build", "win", a, "ssi263_serve.exe"), "--serve", "--firmware", FIRMWARE]
                for a in ARCHES}
@@ -264,10 +383,17 @@ def main():
     ref_voices = listing([sys.executable, os.path.join(HERE, "ssi_serve.py")], ref_env)
     nat_voices = {a: listing(nat_cmd[a][:1] + ["--firmware", FIRMWARE]) for a in ARCHES}
     common = [v for v in ref_voices if all(v in nat_voices[a] for a in ARCHES)]
-    missing = [v for v in ref_voices if v not in common]
-    print("voices: %s%s" % (", ".join(common), "; not in the native library yet: " + ", ".join(missing) if missing else ""))
+    own = [v for v in NATIVE_ONLY if all(v in nat_voices[a] for a in ARCHES)]
+    print("voices: %s; native only: %s" % (", ".join(common), ", ".join(own) or "none"))
     if not common:
         sys.exit("FAILED: no voice in common")
+    lbad = 0                                     # every voice listed on both widths, or the run fails naming it
+    for a in ARCHES:
+        for v in ref_voices + NATIVE_ONLY:
+            if v not in nat_voices[a]:
+                lbad += 1
+                print("FAIL listing %s: %s is not offered by the native library (its firmware is not in %s)" % (
+                    a, v, FIRMWARE if without else os.path.relpath(FIRMWARE, REPO)))
     jobs, results = [], {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
         for name, (opts, reqs) in SESSIONS.items():
@@ -278,7 +404,15 @@ def main():
             results[name, "ref"] = pool.submit(play, ref_cmd + opts, reqs, ref_env, True)
             for a in ARCHES:
                 results[name, a] = pool.submit(play, nat_cmd[a] + opts, reqs)
-        bad, total, nbad = 0, 0, 0
+        own_f = {}
+        if not ONLY or ONLY == "own":
+            for v in own:
+                for a in ARCHES:
+                    own_f[v, a, "own"] = pool.submit(own_play, nat_cmd[a], v, OWN, True)
+                    own_f[v, a, "dialog"] = pool.submit(own_play, nat_cmd[a] + OWN_DIALOG, v, OWN[:2])
+                    for rate in ("11025", "44100"):
+                        own_f[v, a, rate] = pool.submit(own_play, nat_cmd[a] + ["--rate", rate], v, OWN[:1])
+        bad, total, nbad, obad = 0, 0, 0, 0
         for name, opts, reqs in jobs:
             rate = int(opts[opts.index("--rate") + 1]) if "--rate" in opts else 22050
             ref = results[name, "ref"].result()
@@ -301,10 +435,19 @@ def main():
                         print(ln)
                 print("numbers %s: %d of %d right (no value = 1; 0 changes the Braille Lite, not the Accent)" % (
                     side, len(lines) - b, len(lines)))
+        for v in own if own_f else []:
+            lines = own_checks(v, {(a, sess): f.result() for (vv, a, sess), f in own_f.items() if vv == v})
+            obad += sum(not ok for ok, _ln in lines)
+            for ok, ln in lines:
+                if not ok or "--verbose" in ARGS:
+                    print(ln)
+            print("native only %s: %d of %d checks right (%s)" % (v, sum(ok for ok, _ln in lines), len(lines),
+                                                                  ", ".join(ARCHES)))
     print("native: %d of %d utterances byte-identical to the Python server (%s)" % (total - bad, total,
                                                                                   ", ".join(ARCHES)))
-    print("native: %s" % ("ok" if not bad + nbad else "%d FAILED" % (bad + nbad)))
-    sys.exit(1 if bad + nbad else 0)
+    fails = bad + nbad + obad + lbad
+    print("native: %s" % ("ok" if not fails else "%d FAILED" % fails))
+    sys.exit(1 if fails else 0)
 
 
 if __name__ == "__main__":
