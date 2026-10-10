@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""The Speak-Out and the Accents in ssi263speech.dll (src/csrc/voices.h: so_voice.h, am_voice.h, as_voice.h), for
-their NVDA drivers (0.7.5: no Python host, no Python front end).  ctypes only, Python 3.7 to 3.13, 32- and 64-bit.
+"""The Speak-Out, the Accents and the Mockingboard in ssi263speech.dll (src/csrc/voices.h: so_voice.h, am_voice.h,
+as_voice.h, mockingboard/mb_voice.h), for their NVDA drivers (0.7.5: no Python host, no Python front end; the
+Mockingboard since 0.8).  ctypes only, Python 3.7 to 3.13, 32- and 64-bit.
 
 One class per unit, with the methods the drivers' 0.7.0 Python boxes had where the drivers call them -- say() (the
 text as the unit is sent it), cancel() (the flush after a cancelled job), a chip with time and regs, on_write for the
@@ -86,6 +87,16 @@ def load(path):
         _sig(lib, p + "_text", _I, [_P, _S, _I])
         _sig(lib, p + "_end", None if p == "sov" else _I, [_P])
         _sig(lib, p + "_flush", None if p == "sov" else _I, [_P])
+    if hasattr(lib, "mbv_create"):                        # the Mockingboard (0.8): mb_voice.h's one-text API
+        _sig(lib, "mbv_create", _P, [_S, ctypes.c_size_t, _D] + err)
+        _sig(lib, "mbv_destroy", None, [_P])
+        _sig(lib, "mbv_set", None, [_P] + [_I] * 4)
+        _sig(lib, "mbv_speak", _I, [_P, _S, _I])
+        _sig(lib, "mbv_render", _I, [_P, ctypes.POINTER(_SHORTS), ctypes.POINTER(_I)])
+        _sig(lib, "mbv_cancel", None, [_P])
+        _sig(lib, "mbv_host", _P, [_P])
+        _sig(lib, "mbh_chip", _P, [_P])
+        _sig(lib, "mbh_get_int", _I, [_P, _S])
     _libs[path] = lib
     return lib
 
@@ -312,3 +323,65 @@ class AccentSAC(_Accent):
     def limit(self):
         """the last text was called done at as_voice's safety limit, the firmware still at work (asv_limit)"""
         return bool(self._lib.asv_limit(self._v))
+
+
+class MockingboardC:
+    """Sweet Micro Systems' Mockingboard: its text-to-speech on Fake6502 and the board, and the voice's text path
+    (mb_voice.h).  Not the job API of the others: one text at a time, said in parts the firmware can take, a capital
+    as that text's pitch offset; render() until done."""
+
+    def __init__(self, lib_path, firmware, out_rate):
+        self._lib = load(lib_path)
+        if not hasattr(self._lib, "mbv_create"):
+            raise NativeVoiceError("MockingboardC: this ssi263speech.dll has no Mockingboard")
+        self.out_rate = out_rate
+        self._pcm = _SHORTS()
+        self._done = _I(0)
+        self._v = None
+        data = _read(firmware)
+        err = ctypes.create_string_buffer(256)
+        v = self._lib.mbv_create(data, len(data), float(out_rate), err, 256)
+        if not v:
+            raise NativeVoiceError("MockingboardC: %s" % err.value.decode("latin-1", "replace"))
+        self._v = v
+
+    def set(self, rate, pitch, volume, numbers):
+        """NVDA's scales (mb_voice.h); used from the next say()"""
+        self._lib.mbv_set(self._v, int(rate), int(pitch), int(volume), 1 if numbers else 0)
+
+    def say(self, text, pitch_offset=0):
+        """one text item, with a capital's offset; False when there is nothing to say"""
+        data = text.encode("utf-8", "replace")
+        return bool(self._lib.mbv_speak(self._v, data, int(pitch_offset or 0)))
+
+    def render(self):
+        """the next 30 ms block: (16-bit PCM bytes, done)"""
+        n = self._lib.mbv_render(self._v, ctypes.byref(self._pcm), ctypes.byref(self._done))
+        data = ctypes.string_at(self._pcm, 2 * n) if n > 0 else b""
+        return data, bool(self._done.value)
+
+    def cancel(self):
+        self._lib.mbv_cancel(self._v)
+
+    @property
+    def fault(self):
+        h = self._lib.mbv_host(self._v)
+        # MBH_FAULT_STUCK: the 6502 did not come back; a refusal (MBH_FAULT_LONG) the voice splits and says again
+        return self._lib.mbh_get_int(h, b"fault") == 2 if h else False
+
+    @property
+    def regs(self):
+        """the chip's five registers, for the tests"""
+        chip = self._lib.mbh_chip(self._lib.mbv_host(self._v))
+        return [self._lib.ssi263_reg(chip, i) for i in range(5)]
+
+    def close(self):
+        v, self._v = self._v, None
+        if v:
+            self._lib.mbv_destroy(v)
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass

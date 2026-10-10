@@ -8,10 +8,12 @@ speech-dispatcher module and Android all speak through.  Every platform must off
 matched by its stable id, voices.h's "<NVDA driver module>:<voice>" ("blazie:blazie", "blazie:blazie_es",
 "speakout:speakout", "accentmini:mini", "accentmini:sa"), never by its name, which differs per platform:
 
-  NVDA     the three built add-ons (nvda/dist/<addon>-ssi263-<version>.nvda-addon, the version from
-           nvda/<addon>/manifest.ini), unpacked and their drivers imported against stand-in NVDA modules (never
-           instantiated): a voice is offered when the driver's check() passes and its availableVoices has it; its id
-           is the driver's name and the voice's key.
+  NVDA     the 0.8 add-on (nvda/dist/ssi263-speech-<version>.nvda-addon, the version from nvda/ssi263/manifest.ini),
+           unpacked, its units' drivers (synthDrivers/_ssi263_unified) and its own driver imported against stand-in
+           NVDA modules (never instantiated): a voice is offered when a firmware type of that driver reaches it
+           (FIRMWARE_TYPES, present_languages) and the unit's check() and availableVoices have it; its id is the
+           unit's driver name and the voice's key.  Without nvda/ssi263, the three 0.7 add-ons
+           (nvda/dist/<addon>-ssi263-<version>.nvda-addon), each driver's own voices.
   SAPI     the stage (nvda/dist/sapi-<version>-final, else sapi-dev): voices.txt (what register.ps1 registers, ids in
            its first column) and, through ctypes, the stage's own ssi263speech.dll (ssv_count, ssv_voice_info,
            ssv_engine_built, ssv_available on the stage's firmware); the two must agree.
@@ -187,16 +189,29 @@ mod("logHandler", log=Log())
 cmds = mod("speech.commands", IndexCommand=type("IndexCommand", (Cmd,), {}), PitchCommand=type("PitchCommand", (Cmd,), {}),
            LangChangeCommand=type("LangChangeCommand", (Cmd,), {}))
 mod("speech", commands=cmds)
+unified = dirs[0] == "--unified"
+if unified:
+    dirs = dirs[1:]
 pkg = mod("synthDrivers"); pkg.__path__ = dirs
 out = []
+reach = None
+if unified:      # the 0.8 driver: the unit voices its firmware types reach
+    w = importlib.import_module("synthDrivers.ssi263")
+    reach = {(t[1].SynthDriver.name, t[2][lang]) for fw, t in w.FIRMWARE_TYPES.items()
+             for lang in w.present_languages(fw)}
 for d in dirs:
-    for f in sorted(os.listdir(d)):
+    sub = os.path.join(d, "_ssi263_unified") if unified else d
+    for f in sorted(os.listdir(sub)):
         if not f.endswith(".py") or f.startswith("_"):
             continue
-        m = importlib.import_module("synthDrivers." + f[:-3])
+        if unified and f == "ssi263.py":
+            continue
+        m = importlib.import_module(("synthDrivers._ssi263_unified." if unified else "synthDrivers.") + f[:-3])
         cls = m.SynthDriver
         ok = bool(cls.check())
         voices = {k: list(v)[1] for k, v in cls._get_availableVoices(cls).items()} if ok else {}
+        if reach is not None:
+            voices = {k: v for k, v in voices.items() if (cls.name, k) in reach}
         ids = [s.id for s in cls.supportedSettings]
         acc = sorted(n for n in dir(cls) if n.startswith(("_get_", "_set_")))
         tested = getattr(m, "RUN_AHEAD_TESTED", None)
@@ -208,9 +223,15 @@ print("PROBE " + json.dumps(out))
 
 def nvda(voices, p):
     built, missing = [], []
-    for addon in ADDONS:
+    unified = os.path.isfile(os.path.join(REPO, "nvda", "ssi263", "manifest.ini"))
+    for addon in ADDONS if not unified else ():
         ver = re.search(r"^version\s*=\s*(\S+)", read(os.path.join(REPO, "nvda", addon, "manifest.ini")), re.M).group(1)
         path = os.path.join(DIST, "%s-ssi263-%s.nvda-addon" % (addon, ver))
+        (built if os.path.isfile(path) else missing).append(path)
+    if unified:
+        ver = re.search(r"^version\s*=\s*(\S+)", read(os.path.join(REPO, "nvda", "ssi263", "manifest.ini")),
+                        re.M).group(1)
+        path = os.path.join(DIST, "ssi263-speech-%s.nvda-addon" % ver)
         (built if os.path.isfile(path) else missing).append(path)
     if missing:
         p.skip = "not built (%s)" % ", ".join(rel(m) for m in missing)
@@ -224,7 +245,8 @@ def nvda(voices, p):
             with zipfile.ZipFile(b) as z:
                 z.extractall(d)
             dirs.append(os.path.join(d, "synthDrivers"))
-        r = subprocess.run([sys.executable, "-S", "-c", PROBE] + dirs, capture_output=True, text=True,
+        r = subprocess.run([sys.executable, "-S", "-c", PROBE] + (["--unified"] if unified else []) + dirs,
+                           capture_output=True, text=True,
                            encoding="utf-8", errors="replace", env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
         line = [ln for ln in r.stdout.splitlines() if ln.startswith("PROBE ")]
         if r.returncode or not line:

@@ -138,6 +138,32 @@ for seed in (1, 2, 3, 4):
 for synth in ("speakout", "accent"):
     CHECKS.append(check("complete_fuzz %s" % synth, [PY, "complete_fuzz.py", "150", "1"],
                         env={"SIM_SPEED": "10", "COMPLETE_FUZZ_SYNTH": synth}))
+# The 0.8 add-on's driver (synthDrivers/ssi263.py: every unit in one, by firmware type) against each unit's own driver
+# (the 0.7-style builds, the Mockingboard's own), byte for byte, with the notifications the same and every one naming
+# the 0.8 driver (NVDA drops the others).  Controls: the units reporting as themselves must fail every case on the
+# synth; the variant not forwarded must fail the tone cases and pass the first.  Built by nvda/build_ssi263.py.
+UNIFIED_SUM = r"^(?!(\d+) of \1 )\d+ of \d+ sequences byte-identical to the units' own drivers"
+if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "synthDrivers")):
+    CHECKS.append(check("0.8 driver = each unit's own driver, byte for byte", [PY, "unified_driver_equiv.py"],
+                        ok=lambda out: bool(re.search(r"^(\d+) of \1 sequences byte-identical", out, re.M))))
+    CHECKS.append(check("0.8 driver CONTROL (units report as themselves, must fail)", [PY, "unified_driver_equiv.py"],
+                        env={"UNIFIED_EQUIV_BREAK": "notify"}, expect_fail=True,
+                        fail_marks=[r"^DIFF  speakout plain +a notification NOT from the wrapper",
+                                    r"^DIFF  braillelite2000 plain +a notification NOT from the wrapper",
+                                    r"^0 of \d+ sequences byte-identical"]))
+    CHECKS.append(check("0.8 driver CONTROL (the variant not forwarded, must fail)", [PY, "unified_driver_equiv.py"],
+                        env={"UNIFIED_EQUIV_BREAK": "memory"}, expect_fail=True,
+                        fail_marks=[r"^same  speakout plain ", r"^DIFF  speakout tone a +PCM differs",
+                                    r"^DIFF  braillelite2000 tone 0 +PCM differs", UNIFIED_SUM]))
+    # its settings under NVDA's own load and save order, profiles and Cancel (unified_settings_test.py): per-firmware
+    # memory, the firmware type loaded before the voice, a missing firmware kept out of NVDA's load; one control per rule
+    CHECKS.append(check("0.8 driver settings: memory, order, Cancel, profiles", [PY, "unified_settings_test.py"],
+                        ok=lambda out: bool(re.search(r"^unified settings: all passed$", out, re.M))))
+    for brk, marks in (("order", [r"^FAIL order ", r"^ok   memory ", r"^unified settings: 2 FAILED$"]),
+                       ("cancel", [r"^FAIL cancel ", r"^ok   order ", r"^unified settings: 1 FAILED$"]),
+                       ("loading", [r"^FAIL missing .*RAISED", r"^ok   order ", r"^unified settings: 1 FAILED$"])):
+        CHECKS.append(check("0.8 driver settings CONTROL (%s, must fail)" % brk, [PY, "unified_settings_test.py"],
+                            env={"UNIFIED_SETTINGS_BREAK": brk}, expect_fail=True, fail_marks=marks))
 # its must-fail control: 0.5.0's cancel put back on four seeds in parallel; it passes when a seed catches it (one seed
 # alone missed it under this suite's load about 1 run in 6)
 CHECKS.append(check("complete_fuzz CONTROL (0.5.0 cancel, must be caught)", [PY, "complete_fuzz_control.py", "150"]))

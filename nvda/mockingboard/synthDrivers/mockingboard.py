@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-"""NVDA synthesizer driver: the Speak-Out (1995) talking through an emulated SSI-263.
+"""NVDA synthesizer driver: Sweet Micro Systems' Mockingboard talking through an emulated SSI-263 (0.8).
 
-The box's own firmware runs on MAME's V40 inside NVDA's process, in ssi263speech.dll (src/csrc/speakout: the board,
-the host's lockstep with the chip, and this driver's front end in C since 0.7.5 -- no Python host): its
-letter-to-sound rules, number reading and settings are the originals, byte for byte.  Its phoneme frames go to a
-register-level model of the SSI-263 chip, whose A/R request drives the firmware exactly as the real chip's did.
-Nothing is recorded or concatenated.  This file keeps NVDA's side: the worker thread, the player, index and done
-callbacks, cancel; nvda/tools/native_driver_equiv.py holds it to 0.7.0's Python driver byte for byte.
+The card's own text-to-speech (version 1.1, 11 March 1985, from the Mockingboard Developers Toolkit) runs on
+Fake6502 and the board inside NVDA's process, in ssi263speech.dll (src/csrc/mockingboard: the board, the host's
+lockstep with the chip, and the voice's text path, mb_voice.h): its letter-to-sound rules and its inflection are the
+originals, byte for byte, driving a register-level model of the SSI-263.  Nothing is recorded or concatenated.  This
+file keeps NVDA's side, as speakout.py does: the worker thread, the player, index and done callbacks, cancel.
 
-This add-on carries the Speak-Out's firmware (GW Micro), which is not ours.
+It runs inside the 0.8 add-on's driver (synthDrivers/ssi263.py), not as an add-on of its own.  The firmware is
+Sweet Micro Systems', not ours.
 """
 
 import os
@@ -23,16 +23,14 @@ from logHandler import log
 import speech.commands
 
 _HERE = os.path.dirname(__file__)
-_ENGINE_DIR = os.path.join(_HERE, "_ssi263_speakout")
+_ENGINE_DIR = os.path.join(_HERE, "_ssi263_mockingboard")
 
-# The engine is this add-on's own package, imported relatively and never through sys.path:
-# the other add-ons ship modules of the same names, and one process has one module per name.
-from ._ssi263_speakout import ssi263_rates as rates
-from ._ssi263_speakout.ssi263speech import SpeakOutC, dll_path
+# the engine is this add-on's own package, imported relatively and never through sys.path (speakout.py)
+from ._ssi263_mockingboard import ssi263_rates as rates
+from ._ssi263_mockingboard.ssi263speech import MockingboardC, dll_path
 
-FIRMWARE = os.path.join(_ENGINE_DIR, "SPEAKOUT.HEX")
+FIRMWARE = os.path.join(_ENGINE_DIR, "mockingboard-tts-1.1.bin")
 DLL = dll_path(_ENGINE_DIR)
-TONES = "abcdefghijklmnopqrstuvwxyz"
 
 
 def _nothing():
@@ -40,8 +38,7 @@ def _nothing():
 
 
 def _joined(items):
-    """NVDA often sends one item in pieces ("select synthesizer", "dialog").  Each piece
-    sent as its own line gets the unit's end-of-line pause; joined, they flow."""
+    """NVDA often sends one item in pieces ("select synthesizer", "dialog"); joined, they are one text (speakout.py)."""
     out = []
     for kind, value in items:
         if kind == "text" and out and out[-1][0] == "text":
@@ -52,23 +49,21 @@ def _joined(items):
 
 
 class SynthDriver(SynthDriver):
-    name = "speakout"
-    description = "Speak-Out (SSI-263 emulation)"
+    name = "mockingboard"
+    description = "Mockingboard (SSI-263 emulation)"
 
     supportedSettings = (
         SynthDriver.VoiceSetting(),
-        SynthDriver.VariantSetting(),
         SynthDriver.RateSetting(),
         SynthDriver.PitchSetting(),
         SynthDriver.VolumeSetting(),
         BooleanDriverSetting("joinPhrases", "&Join phrases (fewer pauses between words)", defaultVal=True),
-        BooleanDriverSetting("shortPauses", "S&horten pauses between sentences", defaultVal=True),
+        BooleanDriverSetting("numberWords", "Custom n&umber processing (fix digit-by-digit numbers)", defaultVal=True),
         DriverSetting(rates.SETTING_ID, rates.SETTING_LABEL, defaultVal=str(rates.DEFAULT)),
     )
     supportedCommands = {speech.commands.IndexCommand, speech.commands.PitchCommand}
     supportedNotifications = {synthIndexReached, synthDoneSpeaking}
-    # The synth NVDA's speech manager knows: this driver, or the 0.8 add-on's driver (synthDrivers/ssi263.py)
-    # running it inside -- NVDA drops a notification whose synth is not getSynth().
+    # the synth NVDA's speech manager knows (blazie.py): this driver, or the 0.8 add-on's driver running it inside
     notifySynth = None
 
     @classmethod
@@ -77,23 +72,19 @@ class SynthDriver(SynthDriver):
 
     def __init__(self):
         super().__init__()
-        self._rate = 50       # box rate 5, its default
-        self._pitch = 50      # box pitch 3, its default
+        self._rate = 50       # the firmware's rate 8, the toolkit demo's
+        self._pitch = 50      # its inflection 8, the demo's
         self._volume = 100
         self._join = True
-        self._short = True
-        self._tone = "i"      # box tone i, its default
-        # Defaults only: NEVER read config.conf["speech"][<driver>] here.  NVDA registers this driver's settings
-        # after __init__, and its config caches a failed lookup as missing, so an early read of a new key made
-        # NVDA's own loadSettings fail ("setSynth failed ... KeyError: 'voiceInflection'", Tomi, 0.6.0 draft).
-        # NVDA applies the saved values through the setters right after; the worker restarts once if needed.
-        self._out_rate = self._want_rate = rates.DEFAULT   # the worker switches to _want_rate
+        self._numbers = True
+        # Defaults only: never read config.conf here (blazie.py: the 0.6.0 setSynth KeyError).
+        self._out_rate = self._want_rate = rates.DEFAULT
         self._player = self._makePlayer()
         self._queue = queue.Queue()
         self._cancelFlag = threading.Event()
         self._stopped = False
         self._box = None
-        self._worker = threading.Thread(target=self._run, name="speakout-ssi263", daemon=True)
+        self._worker = threading.Thread(target=self._run, name="mockingboard-ssi263", daemon=True)
         self._worker.start()
 
     def _makePlayer(self):
@@ -109,8 +100,7 @@ class SynthDriver(SynthDriver):
             return nvwave.WavePlayer(outputDevice=config.conf["audio"]["outputDevice"], **base, **purpose)
 
         def legacy():
-            # NVDA 2021-2024: WinMM (or opt-in WASAPI).  WinMM stutters on small blocks
-            # unless buffered, which is what NVDA's own eSpeak asked for there.
+            # NVDA 2021-2024 (speakout.py): WinMM stutters on small blocks unless buffered
             return nvwave.WavePlayer(outputDevice=config.conf["speech"]["outputDevice"], buffered=True, **base)
 
         def default():
@@ -133,7 +123,7 @@ class SynthDriver(SynthDriver):
             elif isinstance(item, speech.commands.IndexCommand):
                 items.append(("index", item.index))
             elif isinstance(item, speech.commands.PitchCommand):
-                # How NVDA marks a capital: an offset on the user's own 0-100 pitch.
+                # a capital: an offset on the user's own pitch, for the texts after it until the next PitchCommand
                 items.append(("pitch", item.offset))
         self._queue.put(_joined(items) if self._join else items)
 
@@ -164,7 +154,7 @@ class SynthDriver(SynthDriver):
         except Exception:
             pass
 
-    # -- settings: the box's own 0-9 / a-z values ----------------------------
+    # -- settings ----------------------------------------------------------
     def _get_rate(self):
         return self._rate
 
@@ -177,11 +167,11 @@ class SynthDriver(SynthDriver):
     def _set_pitch(self, v):
         self._pitch = max(0, min(100, int(v)))
 
-    def _get_shortPauses(self):
-        return self._short
+    def _get_volume(self):
+        return self._volume
 
-    def _set_shortPauses(self, v):
-        self._short = bool(v)
+    def _set_volume(self, v):
+        self._volume = max(0, min(100, int(v)))
 
     def _get_joinPhrases(self):
         return self._join
@@ -189,22 +179,11 @@ class SynthDriver(SynthDriver):
     def _set_joinPhrases(self, v):
         self._join = bool(v)
 
-    def _get_volume(self):
-        return self._volume
+    def _get_numberWords(self):
+        return self._numbers
 
-    def _set_volume(self, v):
-        self._volume = max(0, min(100, int(v)))
-
-    def _get_availableVariants(self):
-        return {t: StringParameterInfo(t, "Tone %s%s" % (t.upper(), " (default)" if t == "i" else ""))
-                for t in TONES}
-
-    def _get_variant(self):
-        return self._tone
-
-    def _set_variant(self, v):
-        if v in TONES:
-            self._tone = v
+    def _set_numberWords(self, v):
+        self._numbers = bool(v)
 
     def _get_availableSamplerates(self):
         return {str(r): StringParameterInfo(str(r), rates.LABELS[r]) for r in rates.RATES}
@@ -213,32 +192,27 @@ class SynthDriver(SynthDriver):
         return str(self._want_rate)
 
     def _set_sampleRate(self, v):
-        # the worker applies it before the next utterance: new player, box rebooted at the new rate
+        # the worker applies it before the next utterance: a new player, the card rebooted at the new rate
         self._want_rate = rates.parse(v) or self._want_rate
 
     def _get_availableVoices(self):
-        return {"speakout": VoiceInfo("speakout", "Speak-Out", "en")}
+        return {"mockingboard": VoiceInfo("mockingboard", "Mockingboard", "en")}
 
     def _get_voice(self):
-        return "speakout"
+        return "mockingboard"
 
     def _set_voice(self, v):
         pass
 
-    # -- worker: the only thread that touches the emulated box -----------------
+    # -- worker: the only thread that touches the emulated card ----------------
     def _boot(self):
-        # power-on, the greeting flushed, punctuation none (NVDA speaks symbols itself): so_voice.c's boot
-        return SpeakOutC(DLL, FIRMWARE, self._out_rate)
-
-    def _apply(self, box):
-        """the settings as they are now; the box sends them at begin() when they changed"""
-        box.set(self._rate, self._pitch, TONES.index(self._tone), self._volume, self._join, self._short)
+        return MockingboardC(DLL, FIRMWARE, self._out_rate)
 
     def _run(self):
         try:
             self._box = self._boot()
         except Exception:
-            log.error("Speak-Out: could not start the emulated box", exc_info=True)
+            log.error("Mockingboard: could not start the emulated card", exc_info=True)
             return
         while not self._stopped:
             job = self._queue.get()
@@ -249,23 +223,21 @@ class SynthDriver(SynthDriver):
                 try:
                     self._switch_rate()
                 except Exception:
-                    log.error("Speak-Out: could not switch the sample rate", exc_info=True)
+                    log.error("Mockingboard: could not switch the sample rate", exc_info=True)
             try:
                 self._speakJob(job)
             except Exception:
-                log.error("Speak-Out speech failed; rebooting the emulated box", exc_info=True)
+                log.error("Mockingboard speech failed; rebooting the emulated card", exc_info=True)
                 try:
                     self._reboot()
                 except Exception:
-                    log.error("Speak-Out reboot failed", exc_info=True)
+                    log.error("Mockingboard reboot failed", exc_info=True)
             if self._cancelFlag.is_set():
                 try:
-                    self._box.cancel()           # the box's flush, and the pitch said again if it was dropped
+                    self._box.cancel()
                 except Exception:
                     pass
-                # NVDA stopped the player on its own thread; a block this thread had
-                # already computed may have been fed after that and would play at the
-                # head of the next utterance.  Stop again from here, after the last feed.
+                # a block computed before NVDA's stop may have been fed after it (speakout.py): stop again
                 try:
                     self._player.stop()
                 except Exception:
@@ -278,7 +250,7 @@ class SynthDriver(SynthDriver):
         old.close()
 
     def _switch_rate(self):
-        """A new sample rate: the chip renders at the host rate, so a new player and a rebooted box."""
+        """A new sample rate: the chip renders at the host rate, so a new player and a rebooted card."""
         self._out_rate = self._want_rate
         old, self._player = self._player, self._makePlayer()
         try:
@@ -289,15 +261,8 @@ class SynthDriver(SynthDriver):
 
     def _speakJob(self, items):
         box = self._box
-        self._apply(box)
-        box.begin()
-        try:
-            self._speakItems(items, box)
-        finally:
-            # restore the user's pitch only after the capital's audio exists
-            box.end()
-
-    def _speakItems(self, items, box):
+        box.set(self._rate, self._pitch, self._volume, self._numbers)
+        offset = 0
         for kind, value in items:
             if self._cancelFlag.is_set():
                 return
@@ -305,20 +270,17 @@ class SynthDriver(SynthDriver):
                 self._notifyIndex(value)
                 continue
             if kind == "pitch":
-                self._apply(box)                 # the user's pitch now, the offset on it
-                box.pitch(value or 0)
+                offset = value or 0
                 continue
-            text = box.prepare(value)            # currencies ("£2.63": the firmware reads only "$"), clean, strip
-            if not text:
+            if not box.say(value, offset):
                 continue
-            box.say(text + "\r")
             while not self._cancelFlag.is_set():
-                pcm, done = box.render()         # 30 ms of the box; its reading time trimmed at the head
+                pcm, done = box.render()
                 if pcm and not self._cancelFlag.is_set():
                     self._player.feed(pcm)
                 if done:
                     if box.fault:
-                        raise RuntimeError("the emulated V40 faulted")
+                        raise RuntimeError("the emulated 6502 did not come back")
                     break
         if self._cancelFlag.is_set():
             return
@@ -326,9 +288,7 @@ class SynthDriver(SynthDriver):
             if self._queue.empty():
                 self._player.idle()
             else:
-                # NVDA 2021-2023's buffered player holds blocks until it has 300 ms of them,
-                # unless a feed carries onDone: without this the last one waited there
-                # and came out at the head of the next utterance (a tester, 0.5.0)
+                # NVDA 2021-2023's buffered player (speakout.py): the last block must not wait for the next utterance
                 self._player.feed(b"", onDone=_nothing)
         except Exception:
             pass

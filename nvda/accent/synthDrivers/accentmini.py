@@ -97,6 +97,9 @@ class SynthDriver(SynthDriver):
     )
     supportedCommands = {speech.commands.IndexCommand, speech.commands.PitchCommand}
     supportedNotifications = {synthIndexReached, synthDoneSpeaking}
+    # The synth NVDA's speech manager knows: this driver, or the 0.8 add-on's driver (synthDrivers/ssi263.py)
+    # running it inside -- NVDA drops a notification whose synth is not getSynth().
+    notifySynth = None
 
     @staticmethod
     def _present():
@@ -387,7 +390,7 @@ class SynthDriver(SynthDriver):
                     pass
             else:
                 _dbg("job done in %.0f ms" % ((time.monotonic() - t_job) * 1e3))
-                synthDoneSpeaking.notify(synth=self)
+                synthDoneSpeaking.notify(synth=self.notifySynth or self)
 
     def _speakJob(self, items):
         box = self._box
@@ -459,7 +462,7 @@ class SynthDriver(SynthDriver):
 
     def _notifyIndex(self, index):
         _dbg("index %s queued" % index)
-        cb = lambda: synthIndexReached.notify(synth=self, index=index)   # noqa: E731
+        cb = lambda: synthIndexReached.notify(synth=self.notifySynth or self, index=index)   # noqa: E731
         try:
             self._player.feed(b"", onDone=cb)
         except Exception:

@@ -88,8 +88,20 @@ class Notifier:
             notified.append((self.name, kw.get("index")))
 
 
+class _Setting:
+    """a driver setting as the drivers declare it: its id (the 0.8 driver, synthDrivers/ssi263.py, reads them)"""
+
+    def __init__(self, id, *a, **k):
+        self.id, self.defaultVal, self.configSpec, self.useConfig = id, k.get("defaultVal"), "string()", True
+
+
 class Base:
-    VoiceSetting = RateSetting = PitchSetting = VolumeSetting = VariantSetting = InflectionSetting = staticmethod(lambda: None)
+    VoiceSetting = staticmethod(lambda: _Setting("voice"))
+    RateSetting = staticmethod(lambda: _Setting("rate"))
+    PitchSetting = staticmethod(lambda: _Setting("pitch"))
+    VolumeSetting = staticmethod(lambda: _Setting("volume"))
+    VariantSetting = staticmethod(lambda: _Setting("variant"))
+    InflectionSetting = staticmethod(lambda: _Setting("inflection"))
 
     def __init__(self):
         pass
@@ -107,8 +119,8 @@ asu_utils.StringParameterInfo = lambda *a: a
 sys.modules["autoSettingsUtils"] = asu
 sys.modules["autoSettingsUtils.utils"] = asu_utils
 asu_ds = types.ModuleType("autoSettingsUtils.driverSetting")
-asu_ds.BooleanDriverSetting = lambda *a, **k: None
-asu_ds.DriverSetting = lambda *a, **k: None
+asu_ds.BooleanDriverSetting = _Setting
+asu_ds.DriverSetting = _Setting
 sys.modules["autoSettingsUtils.driverSetting"] = asu_ds
 lh = types.ModuleType("logHandler")
 
@@ -120,6 +132,9 @@ class _Log:
         return True
 
     def debug(self, msg):
+        self.debug_lines.append(msg)
+
+    def debugWarning(self, msg, exc_info=False):
         self.debug_lines.append(msg)
 
     def warning(self, msg):
@@ -165,6 +180,9 @@ _sd.__path__ = [BUILD]
 sys.modules["synthDrivers"] = _sd
 drv_mod = importlib.import_module("synthDrivers." + {"accent": "accentmini"}.get(WHICH, WHICH))
 d = drv_mod.SynthDriver()
+# SSI263_FIRMWARE_TYPE: the 0.8 driver (WHICH ssi263) on that firmware type, as NVDA's setting would switch it
+if os.environ.get("SSI263_FIRMWARE_TYPE"):
+    d._set_firmwareType(os.environ["SSI263_FIRMWARE_TYPE"])
 
 
 # ---- completion, owned (Astra, Reply 104) -------------------------------------------

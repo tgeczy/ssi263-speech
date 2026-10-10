@@ -298,6 +298,9 @@ class SynthDriver(SynthDriver):
     # stretch of text to the unit for its language
     supportedCommands = {speech.commands.IndexCommand, speech.commands.PitchCommand, speech.commands.LangChangeCommand}
     supportedNotifications = {synthIndexReached, synthDoneSpeaking}
+    # The synth NVDA's speech manager knows: this driver, or the 0.8 add-on's driver (synthDrivers/ssi263.py)
+    # running it inside -- NVDA drops a notification whose synth is not getSynth().
+    notifySynth = None
 
     @classmethod
     def check(cls):
@@ -636,7 +639,7 @@ class SynthDriver(SynthDriver):
 
                 def done(played=played):
                     played.set()
-                    synthDoneSpeaking.notify(synth=self)
+                    synthDoneSpeaking.notify(synth=self.notifySynth or self)
                 try:
                     self._player.feed(b"", onDone=done)
                 except Exception:
@@ -646,7 +649,7 @@ class SynthDriver(SynthDriver):
                 except Exception:
                     log.error("Blazie: the idle tail failed", exc_info=True)
             else:
-                synthDoneSpeaking.notify(synth=self)
+                synthDoneSpeaking.notify(synth=self.notifySynth or self)
         self._close_units()
 
     def _feed(self, pcm, rate):
@@ -862,7 +865,7 @@ class SynthDriver(SynthDriver):
         self._cur_pitch = base
 
     def _notifyIndex(self, index):
-        cb = lambda: synthIndexReached.notify(synth=self, index=index)   # noqa: E731
+        cb = lambda: synthIndexReached.notify(synth=self.notifySynth or self, index=index)   # noqa: E731
         try:
             self._player.feed(b"", onDone=cb)
         except Exception:
