@@ -58,7 +58,8 @@ It takes:
 
 - a zip, with the firmware at its top or one folder down -- GW Micro's `speakout.zip`, a Braille Lite update -- and
   the NVDA add-on (`.nvda-addon`: `synthDrivers/_ssi263_blazie/`); a zip holding both units' files imports both;
-- one file: the Speak-Out's `SPEAKOUT.HEX`; the Mockingboard's `mockingboard-tts-1.1.bin`; a `.BNS`, or an update
+- one file: the Speak-Out's `SPEAKOUT.HEX`; the Mockingboard's `mockingboard-tts-1.1.bin`, or the Developers
+  Toolkit's disk image it comes from; a `.BNS`, or an update
   program (`.exe`/`.com`) holding the image, raw or as a zip behind its code (`blt2000.exe`), also inside a zip.
 
 ### The Mockingboard: Sweet Micro's text-to-speech, one file
@@ -67,8 +68,11 @@ It takes:
 (`tools/mockingboard_firmware.py` makes it from the disk image), known by content alone (`ssa_import.c`): its sha256,
 `88e1e90f…` (`src/csrc/mockingboard/mb_host.h`'s `MB_SHA256`, the only file its host runs; `check_apk_no_firmware.py`
 refuses the same hash in an APK). It is written as it is, under that name; like the Speak-Out's it has no state to
-make, so it is checked once (`ssa_probe` says "Hello.") and moved into place. The toolkit's `.dsk` image itself is not
-taken yet: that waits for the shared C that turns a disk into the file. Its voice takes the app's rate, pitch (a
+make, so it is checked once (`ssa_probe` says "Hello.") and moved into place. The toolkit's disk image itself (a
+143,360-byte `.dsk`/`.do` in DOS order or `.po` in ProDOS order, alone or in a zip) is taken too: `mb_dsk.h`'s
+`mb_firmware_from_dsk` reads its six files out of it, the known set only, and the file is written exactly as a `.bin`
+import writes it; another disk is refused with the disk reader's reason ("a Mockingboard disk, but not the
+text-to-speech version 1.1 this voice runs", "not a DOS 3.3 disk"). Its voice takes the app's rate, pitch (a
 capital's as an offset, at least one of its inflection steps), volume and "Read numbers as words" (`mb_voice.h`).
 
 ### The Speak-Out: GW Micro's SPEAKOUT.HEX
@@ -155,7 +159,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     SSI263_ANDROID_TEST_BREAK=1 python src/platforms/android/test/test_android_native.py   # control: must FAIL
     SSI263_ANDROID_TEST_BREAK=accent-pitch|accent-glide|accent-reuse|accent-step ...      # the Accents': must FAIL
     SSI263_ANDROID_TEST_BREAK=speakout-pitch|speakout-settings|run-ahead|import-hash ...  # the 0.7.5 ones: must FAIL
-    SSI263_ANDROID_TEST_BREAK=mockingboard-pitch|mockingboard-numbers ...                 # the Mockingboard's: must FAIL
+    SSI263_ANDROID_TEST_BREAK=mockingboard-pitch|mockingboard-numbers|import-dsk ...      # the Mockingboard's: must FAIL
     python src/platforms/android/test/test_volume_headroom.py              # the default volume, every voice
     python src/platforms/android/test/test_device_service.py [--rate 2.0] [--aloud]
                                   [--voice accent|braillelite|speakout|accentmini|mockingboard|both|all]
@@ -204,8 +208,11 @@ said so, without it), copied into the data folder as an import leaves it, agains
 (`--mb-direct`: one kept unit, the settings computed in Python as the Speak-Out's, the capital's offset at least one
 of `mbv_pitch_step`'s steps) on 15 cases: rates, sliders, the capitals at 150/75/120 %, the number words on and off
 (which must differ), a stop and the utterance after it, volume 150, 11 kHz; and the import's probe. Its import: the
-file as it is, renamed, out of a zip, taken; one byte changed, or cut short, refused. Its controls: the request's
-pitch dropped (`mockingboard-pitch`), the number words dropped (`mockingboard-numbers`); `import-hash` also takes the
+file as it is, renamed, out of a zip, taken; one byte changed, or cut short, refused. With `MOCKINGBOARD_DISKS` in
+`paths.local` (the disk images are never committed; skipped, and said so, without them): the toolkit's `.dsk`, the
+same in ProDOS order and in a zip give the known file; a blank 140 KB disk and the Mockingboard C's `mockingboard1.dsk`
+are refused with the reader's reason. Its controls: the request's pitch dropped (`mockingboard-pitch`), the number
+words dropped (`mockingboard-numbers`), the disk image never tried (`import-dsk`); `import-hash` also takes the
 changed file. The JVM tests play it with a fake too (alone, beside the other units one folder down, two folders down
 named; `-Pssi263ImportBreak=mockingboard` must fail those).
 

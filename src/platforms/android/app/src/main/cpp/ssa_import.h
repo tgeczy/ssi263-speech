@@ -34,26 +34,30 @@ int ssa_import_speakout(const unsigned char *data, long n, const char *out, char
    it is treated as Blazie's is (Tomi, 2026-10-09). */
 #define SSA_FW_MOCKINGBOARD 5          /* = ssa_engine.h's SSA_MOCKINGBOARD */
 #define SSA_FW_MB_BUILD (-6)           /* the Mockingboard's file, but this build has no Mockingboard */
+#define SSA_FW_MB_DISK (-7)            /* a 140 KB disk image, but not the toolkit's (mb_dsk.h's reason) */
 
-/* Judges data: when it is the Mockingboard's file, byte for byte, writes it to out and returns SSA_FW_MOCKINGBOARD
-   with its label in msg; else BLV_FW_NONE (not it), SSA_FW_MB_BUILD or BLV_FW_WRITE with the reason in msg (out
-   removed). */
+/* Judges data: when it is the Mockingboard's file, byte for byte -- or a 140 KB Apple II disk image (MB_DSK_SIZE)
+   holding it, the Mockingboard Developers Toolkit in DOS or ProDOS order, which mb_dsk.h's mb_firmware_from_dsk
+   turns into the file -- writes the file to out and returns SSA_FW_MOCKINGBOARD with its label in msg (the same,
+   whichever it came from); else BLV_FW_NONE (not it), SSA_FW_MB_DISK (another disk, mb_firmware_from_dsk's reason in
+   msg), SSA_FW_MB_BUILD or BLV_FW_WRITE with the reason in msg (out removed). */
 int ssa_import_mockingboard(const unsigned char *data, long n, const char *out, char *msg, int msglen);
 
 /* Every firmware the app imports, by content (the JNI bridge's nativeImportFirmware): bl_firmware.h's
    blv_import_firmware first -- BLV_FW_ENGLISH 0 or _SPANISH 1, written to out as a .BNS -- and, when it finds no
    Braille Lite firmware, ssa_import_mockingboard -- SSA_FW_MOCKINGBOARD 5, written to out as it is -- then
    ssa_import_speakout -- SSA_HEX_SPEAKOUT 3, written to out as SPEAKOUT.HEX.  Else negative (BLV_FW_NONE,
-   _REFUSED, _WRITE, _UNKNOWN; SSA_HEX_OTHER; SSA_FW_MB_BUILD), the reason in msg. */
+   _REFUSED, _WRITE, _UNKNOWN; SSA_HEX_OTHER; SSA_FW_MB_BUILD, SSA_FW_MB_DISK), the reason in msg. */
 int ssa_import_firmware(const unsigned char *data, long n, const char *out, char *msg, int msglen);
 
 /* The labels of an imported Speak-Out and Mockingboard. */
 #define SSA_SPEAKOUT_LABEL "GW Micro Speak-Out: SPEAKOUT.HEX"
 #define SSA_MOCKINGBOARD_LABEL "Mockingboard: Sweet Micro Systems' text-to-speech 1.1"
 
-/* The test's control (test_android_native.c sets it; the app never does): nonzero drops the sha256 check, so any
+/* The test's controls (test_android_native.c sets them; the app never does): 1 drops the sha256 check, so any
    well-formed Intel HEX is taken as the Speak-Out's -- the "another HEX" cases must then fail; and any file of the
-   Mockingboard's size as the Mockingboard's -- its "one byte changed" case must then fail. */
+   Mockingboard's size as the Mockingboard's -- its "one byte changed" case must then fail.  2 never tries a disk
+   image, so the toolkit's .dsk cases must fail. */
 extern int ssa_import_break;
 
 #ifdef __cplusplus

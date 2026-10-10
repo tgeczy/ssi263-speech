@@ -944,6 +944,13 @@ if os.path.isfile(ANDROID_TEST):
     ANDROID_MINI = os.path.isfile(os.path.join(ANDROID_FW, "aicom-accent-mini", "SPKEMS.DVC"))
     # the Mockingboard's firmware is imported by the user, never committed: its cases run where the file is
     ANDROID_MB = os.path.isfile(os.path.join(ANDROID_FW, "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin"))
+    # ... and its disk images, from MOCKINGBOARD_DISKS (paths.local; never committed): the toolkit's, and another
+    sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
+    from tools import repo_paths as _rp      # noqa: E402
+    _MBD = _rp.lookup("MOCKINGBOARD_DISKS") or ""
+    ANDROID_DSK = bool(_MBD) and os.path.isfile(
+        os.path.join(_MBD, "Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk"))
+    ANDROID_DSK2 = bool(_MBD) and os.path.isfile(os.path.join(_MBD, "mockingboard1.dsk"))
     # the number words' reference (bl.dll has none): ssi263speech.dll, src/csrc/build_ssi263speech.py
     ANDROID_NUM = os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", "win",
                                               "x64" if sys.maxsize > 2 ** 32 else "x86", "ssi263speech.dll"))
@@ -987,11 +994,15 @@ if os.path.isfile(ANDROID_TEST):
              [r"^FAIL +desktop +mb-pitch-150 +got ", r"^ok +desktop +mb-pitch-100 ", r"^FAILED: 9 case\(s\) differ$"]),
             ("mockingboard-numbers", "Mockingboard: number words dropped",
              [r"^FAIL +desktop +mb-num +got ", r"^FAIL +desktop +mb-num-off +got ", r"^ok +desktop +mb-pitch-120 ",
-              r"^FAILED: 5 case\(s\) differ$"])) if ANDROID_MB else ()):
+              r"^FAILED: 5 case\(s\) differ$"])) if ANDROID_MB else ()) + ((
+            ("import-dsk", "Mockingboard import: the disk image never tried",
+             [r"^FAIL +import +the toolkit's \.dsk: ", r"^FAIL +import +a zip's toolkit \.dsk: "] +
+             ([r"^ok +import +mockingboard-tts-1\.1\.bin: "] if ANDROID_MB else []) +
+             [r"^FAILED: %d case\(s\) differ$" % (4 + ANDROID_DSK2)]),) if ANDROID_DSK else ()):
         # each control runs the blocks its bug touches (SSI263_ANDROID_TEST_ONLY), not all six voices: the gate's time
         only = {"1": "bl,accent", "accent-pitch": "accent,mini", "run-ahead": "bl,ra", "numbers": "num",
                 "speakout-pitch": "so", "speakout-settings": "so", "import-hash": "import",
-                "mockingboard-pitch": "mb", "mockingboard-numbers": "mb"}.get(brk, "accent")
+                "mockingboard-pitch": "mb", "mockingboard-numbers": "mb", "import-dsk": "import"}.get(brk, "accent")
         CHECKS.append(check("Android engine CONTROL (%s, must fail)" % what, [PY, ANDROID_TEST],
                             env={"SSI263_ANDROID_TEST_BREAK": brk, "SSI263_ANDROID_TEST_ONLY": only}, expect_fail=True,
                             fail_marks=marks))

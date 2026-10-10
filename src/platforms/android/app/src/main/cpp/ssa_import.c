@@ -5,6 +5,7 @@
 
 #include "blazie/bl_firmware.h"        /* blv_sha256 */
 #include "mockingboard/mb_host.h"      /* MB_SHA256 */
+#include "mockingboard/mb_dsk.h"       /* mb_firmware_from_dsk, MB_DSK_SIZE */
 #include "ssa_engine.h"                /* ssa_voice_built */
 #include "ssa_import.h"
 
@@ -100,7 +101,7 @@ int ssa_import_speakout(const unsigned char *data, long n, const char *out, char
     for (i = 0; i < 32; i++) { got[2 * i] = HEXD[digest[i] >> 4]; got[2 * i + 1] = HEXD[digest[i] & 15]; }
     got[64] = 0;
     strcpy(want, SSA_SPEAKOUT_SHA256);
-    if (strcmp(got, want) && !ssa_import_break) {
+    if (strcmp(got, want) && ssa_import_break != 1) {
         free(canon);
         snprintf(msg, (size_t)msglen, "an Intel HEX file, but not GW Micro's SPEAKOUT.HEX: its contents are not the "
                  "Speak-Out firmware this app knows (sha256 %.12s..., not %.12s...)", got, want);
@@ -118,26 +119,15 @@ int ssa_import_speakout(const unsigned char *data, long n, const char *out, char
     return fail(msg, msglen, SSA_HEX_SPEAKOUT, SSA_SPEAKOUT_LABEL);
 }
 
-int ssa_import_mockingboard(const unsigned char *data, long n, const char *out, char *msg, int msglen)
+/* The known file, written to out as it is. */
+static int write_mockingboard(const unsigned char *data, size_t n, const char *out, char *msg, int msglen)
 {
-    static const char HEXD[] = "0123456789abcdef";
-    unsigned char digest[32];
-    char got[65];
-    int i;
     FILE *f;
-    if (out) remove(out);
-    if (!data || n != MB_SIZE)
-        return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
-    blv_sha256(data, n, digest);
-    for (i = 0; i < 32; i++) { got[2 * i] = HEXD[digest[i] >> 4]; got[2 * i + 1] = HEXD[digest[i] & 15]; }
-    got[64] = 0;
-    if (strcmp(got, MB_SHA256) && !ssa_import_break)
-        return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
     if (!ssa_voice_built(SSA_MOCKINGBOARD))
         return fail(msg, msglen, SSA_FW_MB_BUILD,
                     "the Mockingboard's firmware, but this copy of the app has no Mockingboard voice");
     if (!out || !(f = fopen(out, "wb"))) return fail(msg, msglen, BLV_FW_WRITE, "cannot write it");
-    if (fwrite(data, 1, (size_t)n, f) != (size_t)n) {
+    if (fwrite(data, 1, n, f) != n) {
         fclose(f);
         remove(out);
         return fail(msg, msglen, BLV_FW_WRITE, "cannot write it");
@@ -146,10 +136,59 @@ int ssa_import_mockingboard(const unsigned char *data, long n, const char *out, 
     return fail(msg, msglen, SSA_FW_MOCKINGBOARD, SSA_MOCKINGBOARD_LABEL);
 }
 
+/* A 140 KB disk image: the toolkit's six files out of it (mb_dsk.h), the known set only. */
+static int from_disk(const unsigned char *data, long n, const char *out, char *msg, int msglen)
+{
+#ifdef SSV_HAVE_MOCKINGBOARD
+    unsigned char *fw;
+    size_t fn;
+    char why[200];
+    int r;
+    if (!mb_firmware_from_dsk(data, (size_t)n, &fw, &fn, why, (int)sizeof why))
+        return fail(msg, msglen, SSA_FW_MB_DISK, why);
+    r = write_mockingboard(fw, fn, out, msg, msglen);
+    free(fw);
+    return r;
+#else
+    (void)data; (void)n; (void)out;
+    return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
+#endif
+}
+
+int ssa_import_mockingboard(const unsigned char *data, long n, const char *out, char *msg, int msglen)
+{
+    static const char HEXD[] = "0123456789abcdef";
+    unsigned char digest[32];
+    char got[65];
+    int i;
+    if (out) remove(out);
+    if (data && n == MB_DSK_SIZE && ssa_import_break != 2)
+        return from_disk(data, n, out, msg, msglen);
+    if (!data || n != MB_SIZE)
+        return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
+    blv_sha256(data, n, digest);
+    for (i = 0; i < 32; i++) { got[2 * i] = HEXD[digest[i] >> 4]; got[2 * i + 1] = HEXD[digest[i] & 15]; }
+    got[64] = 0;
+    if (strcmp(got, MB_SHA256) && ssa_import_break != 1)
+        return fail(msg, msglen, BLV_FW_NONE, "not the Mockingboard's firmware");
+    return write_mockingboard(data, (size_t)n, out, msg, msglen);
+}
+
 int ssa_import_firmware(const unsigned char *data, long n, const char *out, char *msg, int msglen)
 {
-    int r = blv_import_firmware(data, n, out, msg, msglen);
+    char disk[256];
+    int r = blv_import_firmware(data, n, out, msg, msglen), s;
     if (r == BLV_FW_NONE)
         r = ssa_import_mockingboard(data, n, out, msg, msglen);
-    return r == BLV_FW_NONE ? ssa_import_speakout(data, n, out, msg, msglen) : r;
+    if (r == BLV_FW_NONE)
+        return ssa_import_speakout(data, n, out, msg, msglen);
+    if (r != SSA_FW_MB_DISK)
+        return r;
+    /* a 140 KB file that is not the toolkit: the Speak-Out's after all, or refused with the disk reader's reason */
+    snprintf(disk, sizeof disk, "%s", msg);
+    s = ssa_import_speakout(data, n, out, msg, msglen);
+    if (s != BLV_FW_NONE)
+        return s;
+    snprintf(msg, (size_t)msglen, "%s", disk);
+    return r;
 }

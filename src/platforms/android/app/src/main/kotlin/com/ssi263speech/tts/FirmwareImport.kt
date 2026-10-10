@@ -26,6 +26,7 @@ object FirmwareImport {
     const val UNKNOWN = -4                  // Braille Lite 2000 firmware, but not a release on the list
     const val OTHER_HEX = -5                // an Intel HEX file, but not the Speak-Out's SPEAKOUT.HEX (damaged, another)
     const val NOT_BUILT = -6                // the Mockingboard's file, but this copy of the app has no Mockingboard
+    const val OTHER_DISK = -7               // a 140 KB Apple II disk image, but not the Mockingboard toolkit's
 
     /** The files each imported voice needs, by its index: the Braille Lite's firmware and the state made from it; the
      * Speak-Out's HEX; the Mockingboard's file. */
@@ -57,15 +58,16 @@ object FirmwareImport {
         "the BL2ENG.BNS or BL2SPA.BNS inside it, a zip holding them at its top or one folder down, or the NVDA " +
         "add-on (.nvda-addon), which carries both. Or the Speak-Out's: GW Micro's SPEAKOUT.HEX, or the speakout.zip " +
         "holding it. Or the Mockingboard's: mockingboard-tts-1.1.bin, Sweet Micro Systems' text-to-speech, made " +
-        "from the Mockingboard Developers Toolkit disk."
+        "from the Mockingboard Developers Toolkit disk, or that disk's image itself (.dsk, .do or .po)."
     const val ONLY_THE_HEX = "Only GW Micro's SPEAKOUT.HEX, as it came, can be imported for the Speak-Out."
 
     /** What the native side says about some bytes: SsiImport's in the app, a fake in the tests. */
     interface Identify {
         /** Find the firmware in `data`: when it is a Braille Lite release on the list, write it to `out` as a .BNS --
-         * [ENGLISH] or [SPANISH] -- or when it is the Speak-Out's SPEAKOUT.HEX or the Mockingboard's file, write it
-         * to `out` -- [SPEAKOUT], [MOCKINGBOARD] -- with the label; or [NONE], [REFUSED], [UNKNOWN], [OTHER_HEX] or
-         * [NOT_BUILT] with the reason. */
+         * [ENGLISH] or [SPANISH] -- or when it is the Speak-Out's SPEAKOUT.HEX, the Mockingboard's file or the
+         * toolkit disk image holding it, write it (the Mockingboard's: the file) to `out` -- [SPEAKOUT],
+         * [MOCKINGBOARD] -- with the label; or [NONE], [REFUSED], [UNKNOWN], [OTHER_HEX], [NOT_BUILT] or
+         * [OTHER_DISK] with the reason. */
         fun firmware(data: ByteArray, out: File): Pair<Int, String>
 
         /** The releases on the list, by label. */
@@ -120,7 +122,8 @@ object FirmwareImport {
         val refused = ArrayList<String>()
         val unknown = ArrayList<String>()
         val otherHex = ArrayList<Pair<String, String>>()     // where, and the native side's reason
-        val notBuilt = ArrayList<Pair<String, String>>()     // ... the Mockingboard's, in a copy without the voice
+        val withReason = ArrayList<Pair<String, String>>()   // ... the Mockingboard's in a copy without the voice,
+                                                             // another disk image
         val states = ArrayList<String>()
         val deep = ArrayList<String>()
         private var n = 0
@@ -137,7 +140,7 @@ object FirmwareImport {
                 language == REFUSED -> refused.add(from)
                 language == UNKNOWN -> unknown.add(from)
                 language == OTHER_HEX -> otherHex.add(from to text)
-                language == NOT_BUILT -> notBuilt.add(from to text)
+                language == NOT_BUILT || language == OTHER_DISK -> withReason.add(from to text)
                 else -> return false
             }
             return true
@@ -158,7 +161,8 @@ object FirmwareImport {
                         val tooDeep = if (CONTROL == "1") parts.size > 1 else parts.size > 2 && !addon
                         if (tooDeep) {
                             if (parts.last().lowercase().let { it.endsWith(".bns") || it.endsWith(".exe") ||
-                                    it.endsWith(".hex") || it.endsWith(".bin") })
+                                    it.endsWith(".hex") || it.endsWith(".bin") || it.endsWith(".dsk") ||
+                                    it.endsWith(".do") || it.endsWith(".po") })
                                 deep.add(path)
                             continue
                         }
@@ -194,14 +198,14 @@ object FirmwareImport {
             }
             for (from in unknown) notes.add("$from is Braille Lite 2000 firmware of a release this app does not " +
                 "know; it is left out.")
-            for ((from, why) in otherHex + notBuilt) notes.add("$from is $why; it is left out.")
+            for ((from, why) in otherHex + withReason) notes.add("$from is $why; it is left out.")
             if (states.isNotEmpty()) notes.add("${states.joinToString(", ")} ${if (states.size == 1) "is a state " +
                 "file" else "are state files"}, not firmware, and ${if (states.size == 1) "is" else "are"} not " +
                 "used: this phone prepares the unit's state itself from the firmware.")
             if (found.isNotEmpty()) return Plan(found, null, notes)
 
             if (states.isNotEmpty() && unknown.isEmpty() && refused.isEmpty() && deep.isEmpty() && otherHex.isEmpty() &&
-                notBuilt.isEmpty())
+                withReason.isEmpty())
                 return Plan(emptyList(), "This ${if (zip) "zip" else "file"} holds ${if (states.size == 1)
                     "a state file (${states[0]})" else "state files (${states.joinToString(", ")})"}, not firmware. " +
                     "Please import only firmware files, or zips containing them, with this tool.")
@@ -212,7 +216,7 @@ object FirmwareImport {
                     "voice are taken. The releases this app knows: ${rank.joinToString("; ")}."
                 otherHex.isNotEmpty() -> otherHex.joinToString(" ") { (from, why) -> "$from is $why." } +
                     " " + ONLY_THE_HEX
-                notBuilt.isNotEmpty() -> notBuilt.joinToString(" ") { (from, why) -> "$from is $why." }
+                withReason.isNotEmpty() -> withReason.joinToString(" ") { (from, why) -> "$from is $why." }
                 zip -> NO_FIRMWARE_ZIP
                 else -> NO_FIRMWARE_FILE
             })

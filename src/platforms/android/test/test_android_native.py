@@ -26,7 +26,10 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
   (test_android_native --mb-direct: mbv_set, mbv_speak with the capital's offset, mbv_render, mbv_cancel on one kept
   unit), the settings computed here as the Speak-Out's are, its inflection's steps (mbv_pitch_step) for the capital's
   move, and the number words from the settings: on and off must sound different.  Its import: the file taken by its
-  sha256, as it is; the same file with one byte changed, and one cut short, refused.
+  sha256, as it is; the same file with one byte changed, and one cut short, refused.  And the Mockingboard Developers
+  Toolkit's disk image, when MOCKINGBOARD_DISKS (paths.local) has it (never in the repository; skipped, and said so,
+  without it): the file made from it by mb_dsk.h, in DOS and ProDOS order and out of a zip; another Mockingboard
+  disk and a blank 140 KB one refused with the disk reader's reason.
 - The import: GW Micro's SPEAKOUT.HEX recognised by content (Intel HEX, then the known sha256) as it is, with LF
   line endings, with a DOS end-of-file mark, and out of a speakout.zip like GW Micro's; a HEX with one digit
   changed, one whose checksums were fixed after the change (another HEX), one cut short, and other files refused;
@@ -58,6 +61,8 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
                              mockingboard-numbers ssa_voice_break 6: its number words dropped (always off)
                              import-hash          ssa_import_break: any well-formed Intel HEX taken as the Speak-Out,
                                                   any file of its size as the Mockingboard's
+                             import-dsk           ssa_import_break 2: a disk image never tried (the toolkit's .dsk
+                                                  cases fail)
 
 SSI263_ANDROID_TEST_ONLY=<blocks>, a comma list of bl (the Braille Lite in lockstep, its Spanish unit and the probe),
 ra (run ahead), num (the number words), accent (the Accent SA and its text), so (the Speak-Out), mini (the
@@ -123,6 +128,8 @@ SPEAKOUT_HEX = os.path.join(REPO, "firmware", "gw-micro-speakout", "SPEAKOUT.HEX
 MINI_DVC = os.path.join(REPO, "firmware", "aicom-accent-mini", "SPKEMS.DVC")
 MB_BIN = os.path.join(REPO, "firmware", "sweet-micro-mockingboard", "mockingboard-tts-1.1.bin")
 MB_SHA256 = "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"    # mb_host.h's MB_SHA256
+# the disk images in MOCKINGBOARD_DISKS (run_tests.py's names): the toolkit, and the Mockingboard C's own disk
+MB_DISK_NAMES = ("Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk", "mockingboard1.dsk")
 SPEAKOUT_SHA256 = "1c6930c8c6aed0550bc267c14032f9195b450ed95de606f2fa9727e2b7eb1eb1"   # its README's
 
 # The Accent-mini's cases: test_android_native.c's mini_cases, in the same order -- (name, text, the app's rate and
@@ -502,25 +509,63 @@ def mb_heard(label, got):
     return bad + (not ok)
 
 
+def mb_disks():
+    """The toolkit's disk image and another Mockingboard disk, from MOCKINGBOARD_DISKS (paths.local; never in the
+    repository): (toolkit, other), each None when it is not there."""
+    folder = repo_paths.lookup("MOCKINGBOARD_DISKS") or ""
+    found = [os.path.join(folder, n) for n in MB_DISK_NAMES]
+    return tuple(p if folder and os.path.isfile(p) else None for p in found)
+
+
+def to_prodos(dos):
+    """A DOS-order disk image in ProDOS order (mb_dsk.c's PRODOS_HALVES, test_mb_dsk.c's to_prodos)."""
+    halves = ((0, 14), (13, 12), (11, 10), (9, 8), (7, 6), (5, 4), (3, 2), (1, 15))
+    po = bytearray(len(dos))
+    for t in range(35):
+        for b in range(8):
+            for h in range(2):
+                at, frm = (t * 8 + b) * 512 + h * 256, (t * 16 + halves[b][h]) * 256
+                po[at:at + 256] = dos[frm:frm + 256]
+    return bytes(po)
+
+
 def mb_import_cases(exe, tmp):
-    """The Mockingboard's file as a user may bring it: taken by its sha256, written as it is; changed or cut, refused."""
+    """The Mockingboard's file as a user may bring it: taken by its sha256, written as it is; changed or cut, refused.
+    And the toolkit's disk image, when MOCKINGBOARD_DISKS has it: the file made from it (DOS or ProDOS order, alone or
+    in a zip), written as a .bin import writes it; another Mockingboard disk and a blank one refused with the disk
+    reader's reason."""
     import hashlib
     import io
     import zipfile
     bad = 0
-    data = open(MB_BIN, "rb").read()
-    flipped = bytearray(data)
-    flipped[0x800] ^= 0x01
-    zbuf = io.BytesIO()
-    with zipfile.ZipFile(zbuf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("mockingboard-tts-1.1.bin", data)
-    with zipfile.ZipFile(io.BytesIO(zbuf.getvalue())) as z:
-        member = z.read("mockingboard-tts-1.1.bin")
-    cases = [("mockingboard-tts-1.1.bin", data, 5, data),
-             ("a renamed copy (speech.dat)", data, 5, data),
-             ("a zip's mockingboard-tts-1.1.bin", member, 5, data),
-             ("the file with one byte changed", bytes(flipped), -1, None),
-             ("the file cut short", data[:-1], -1, None)]
+
+    def zipped(name, blob):
+        zbuf = io.BytesIO()
+        with zipfile.ZipFile(zbuf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr(name, blob)
+        with zipfile.ZipFile(io.BytesIO(zbuf.getvalue())) as z:
+            return z.read(name)
+    cases = []
+    if os.path.isfile(MB_BIN):
+        data = open(MB_BIN, "rb").read()
+        flipped = bytearray(data)
+        flipped[0x800] ^= 0x01
+        cases += [("mockingboard-tts-1.1.bin", data, 5, data),
+                  ("a renamed copy (speech.dat)", data, 5, data),
+                  ("a zip's mockingboard-tts-1.1.bin", zipped("mockingboard-tts-1.1.bin", data), 5, data),
+                  ("the file with one byte changed", bytes(flipped), -1, None),
+                  ("the file cut short", data[:-1], -1, None)]
+    toolkit, other = mb_disks()
+    if toolkit:
+        dsk = open(toolkit, "rb").read()
+        cases += [("the toolkit's .dsk", dsk, 5, True),
+                  ("the toolkit's .dsk in ProDOS order (.po)", to_prodos(dsk), 5, True),
+                  ("a zip's toolkit .dsk", zipped("toolkit.dsk", dsk), 5, True),
+                  ("a blank 140 KB disk", bytes(len(dsk)), -7, None)]
+    else:
+        print("skip  the Mockingboard's disk import: no toolkit .dsk in MOCKINGBOARD_DISKS (paths.local)")
+    if other:
+        cases.append(("another Mockingboard disk (%s)" % os.path.basename(other), open(other, "rb").read(), -7, None))
     for name, blob, code, want in cases:
         src, out = os.path.join(tmp, "import.in"), os.path.join(tmp, "import.out")
         with open(src, "wb") as f:
@@ -532,8 +577,9 @@ def mb_import_cases(exe, tmp):
         got = int(m.group(1)) if m else None
         written = open(out, "rb").read() if os.path.exists(out) else None
         ok = got == code
-        if ok and want is not None:
-            ok = written == want and hashlib.sha256(written).hexdigest() == MB_SHA256
+        if ok and want is not None:          # True: the known file, whatever its source (a disk: no .bin to hand)
+            ok = (want is True or written == want) and written is not None \
+                and hashlib.sha256(written).hexdigest() == MB_SHA256
         if ok and code < 0:
             ok = written is None
         print("%-5s import   %s: %s" % ("ok" if ok else "FAIL", name, m.group(2) if m else r.stdout + r.stderr))
@@ -694,12 +740,12 @@ def build_into(exe):
              (front, os.path.join(SRC, "accent_text.c")),
              (mame, os.path.join(SRC, "cpu", "v40_mame.cpp"))] + \
             [(speakout, os.path.join(spk, n + ".c")) for n in ("so_board", "so_icu", "so_scu", "so_hex", "so_host")] + [
-             (front, os.path.join(spk, "so_voice.c")), (front, os.path.join(CPP, "ssa_import.c")),
+             (front, os.path.join(spk, "so_voice.c")),
              (front + ["-I" + os.path.join(SRC, "blazie")], os.path.join(SRC, "blazie", "bl_numbers.c")),
              (front, os.path.join(SRC, "numwords_es.c")),
              (front, os.path.join(CPP, "ssa_map.c")), (front, os.path.join(HERE, "test_android_native.c"))]
     # the voices' table (src/csrc/voices.c) with the engines in the tree, as build_android.sh builds it (and the app's
-    # engine with them: its Mockingboard pitch steps)
+    # engine and import with them: its Mockingboard pitch steps, its disk reader)
     have = ["-DSSV_HAVE_SPEAKOUT"]
     if os.path.isfile(os.path.join(SRC, "accentmini", "am_voice.c")):
         have.append("-DSSV_HAVE_ACCENTMINI")
@@ -711,8 +757,10 @@ def build_into(exe):
         mb = ["-O2", "-std=gnu99", "-ffp-contract=off", "-w", "-I" + os.path.join(SRC, "cpu"),
               "-I" + os.path.join(SRC, "mockingboard"), "-I" + SRC]
         units += [(mb, os.path.join(SRC, "cpu", "m6502.c"))] + \
-                 [(mb, os.path.join(SRC, "mockingboard", n + ".c")) for n in ("mb_board", "mb_host", "mb_voice")]
-    units += [(front + have, os.path.join(SRC, "voices.c")), (front + have, os.path.join(CPP, "ssa_engine.c"))]
+                 [(mb, os.path.join(SRC, "mockingboard", n + ".c")) for n in ("mb_board", "mb_host", "mb_voice",
+                                                                                         "mb_dsk")]
+    units += [(front + have, os.path.join(SRC, "voices.c")), (front + have, os.path.join(CPP, "ssa_engine.c")),
+              (front + have, os.path.join(CPP, "ssa_import.c"))]
 
     def compile_one(unit):
         flags, src = unit
@@ -924,7 +972,7 @@ def main():
             bad += compare_texts(run_texts(exe), text_want)
         if speakout and block("import"):
             bad += import_cases(exe, data)
-        if mb and block("import"):
+        if (mb or any(mb_disks())) and block("import"):
             bad += mb_import_cases(exe, data)
         if a.adb:
             bad += checks("device", run_adb(a.abi, data, a.aicom))

@@ -130,7 +130,7 @@ objects() {
     cc --target="$TARGET" $FRONT $HAVE -c -o "$O/voices.o" "$SRC/voices.c"
     cc --target="$TARGET" $FRONT -c -o "$O/ssa_map.o" "$CPP/ssa_map.c"
     cc --target="$TARGET" $FRONT $HAVE -c -o "$O/ssa_engine.o" "$CPP/ssa_engine.c"
-    cc --target="$TARGET" $FRONT -c -o "$O/ssa_import.o" "$CPP/ssa_import.c"
+    cc --target="$TARGET" $FRONT $HAVE -c -o "$O/ssa_import.o" "$CPP/ssa_import.c"
     # The Speak-Out (MAME's V40, src/csrc/speakout: its board, host and voice; so_voice.h lists them)
     cxx --target="$TARGET" $MAME -c -o "$O/v40_mame.o" "$SRC/cpu/v40_mame.cpp"
     for f in so_board so_icu so_scu so_hex so_host; do
@@ -145,9 +145,10 @@ objects() {
             cc --target="$TARGET" $ACCENT -I$SRC/pc86 -c -o "$O/${f##*/}.o" "$SRC/$f.c"
         done
     fi
-    # The Mockingboard (the 6502, src/csrc/mockingboard's board, host and voice), when its sources are in the tree
+    # The Mockingboard (the 6502, src/csrc/mockingboard's board, host and voice, and the disk reader the import uses),
+    # when its sources are in the tree
     if [ "$MB" = 1 ]; then
-        for f in cpu/m6502 mockingboard/mb_board mockingboard/mb_host mockingboard/mb_voice; do
+        for f in cpu/m6502 mockingboard/mb_board mockingboard/mb_host mockingboard/mb_voice mockingboard/mb_dsk; do
             cc --target="$TARGET" $MOCKING -c -o "$O/${f##*/}.o" "$SRC/$f.c"
         done
     fi

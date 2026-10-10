@@ -72,15 +72,17 @@ object SsiNative {
     const val FW_UNKNOWN = -4
     const val FW_OTHER_HEX = -5
     const val FW_NOT_BUILT = -6
+    const val FW_OTHER_DISK = -7
 
     /** Find the firmware in these bytes by its content: the Braille Lite ROM image, when it is a release on the list
      * (bl_firmware.c's), written to `out` as a .BNS -- [ENGLISH] or [SPANISH] -- or GW Micro's SPEAKOUT.HEX (Intel
      * HEX, the known sha256: ssa_import.c), written to `out` as it is -- [SPEAKOUT] -- or the Mockingboard's
-     * mockingboard-tts-1.1.bin (its sha256), written to `out` as it is -- [MOCKINGBOARD]; the label in
-     * [nativeImportError].  Else [FW_NONE] when there is no firmware in them, [FW_REFUSED] when it is another Blazie
-     * unit's, [FW_UNKNOWN] when it is a Braille Lite 2000 release not on the list, [FW_OTHER_HEX] when it is an Intel
-     * HEX file but not the Speak-Out's (damaged, or another), [FW_NOT_BUILT] when it is the Mockingboard's in a build
-     * without that voice -- the reason in [nativeImportError]. */
+     * mockingboard-tts-1.1.bin (its sha256), written to `out` as it is, or made from the Developers Toolkit's disk
+     * image (mb_dsk.h) -- [MOCKINGBOARD]; the label in [nativeImportError].  Else [FW_NONE] when there is no firmware
+     * in them, [FW_REFUSED] when it is another Blazie unit's, [FW_UNKNOWN] when it is a Braille Lite 2000 release not
+     * on the list, [FW_OTHER_HEX] when it is an Intel HEX file but not the Speak-Out's (damaged, or another),
+     * [FW_NOT_BUILT] when it is the Mockingboard's in a build without that voice, [FW_OTHER_DISK] when it is a 140 KB
+     * disk image but not the toolkit's -- the reason in [nativeImportError]. */
     external fun nativeImportFirmware(data: ByteArray, out: String): Int
 
     /** The releases on the list, by label. */

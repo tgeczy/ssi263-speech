@@ -39,10 +39,18 @@ class FirmwareImportTest {
         "000000000000000000000000000000\r\n:00000001FF\r\n").toByteArray()
 
     /** A made-up Mockingboard file: the native side knows the real one by its sha256. */
-    private fun mockingboard() = "SWEETMICRO".toByteArray() + ByteArray(2000) { (it * 5).toByte() }
+    private fun mockingboard() = MOCKINGBOARD_FILE.copyOf()
+
+    /** A made-up disk image: the toolkit's when it says TOOLKIT (the fake then gives the file), another when not. */
+    private fun disk(toolkit: Boolean) = "DOS33DISK".toByteArray() + (if (toolkit) "TOOLKIT" else "OTHER").toByteArray() +
+        ByteArray(3000)
 
     /** A made-up state: the size every state has, whatever is in it. */
     private fun state() = ByteArray(FirmwareImport.STATE_SIZE) { (it * 13).toByte() }
+
+    private companion object {
+        val MOCKINGBOARD_FILE = "SWEETMICRO".toByteArray() + ByteArray(2000) { (it * 5).toByte() }
+    }
 
     private object Fake : FirmwareImport.Identify {
         val labels = listOf("English June 2003", "English September 2000", "Spanish September 2000")
@@ -53,6 +61,13 @@ class FirmwareImportTest {
                     return FirmwareImport.OTHER_HEX to "an Intel HEX file, but damaged: line 2's checksum or length is wrong"
                 out.writeBytes(data)
                 return FirmwareImport.SPEAKOUT to "GW Micro Speak-Out: SPEAKOUT.HEX"
+            }
+            if (String(data, 0, minOf(9, data.size), Charsets.ISO_8859_1) == "DOS33DISK") {
+                if (!String(data, Charsets.ISO_8859_1).contains("TOOLKIT"))
+                    return FirmwareImport.OTHER_DISK to "a Mockingboard disk, but not the text-to-speech version 1.1 " +
+                        "this voice runs"
+                out.writeBytes(MOCKINGBOARD_FILE)
+                return FirmwareImport.MOCKINGBOARD to "Mockingboard: Sweet Micro Systems' text-to-speech 1.1"
             }
             if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "SWEETMICRO") {
                 out.writeBytes(data)
@@ -344,6 +359,34 @@ class FirmwareImportTest {
         assertTrue(plan.found.isEmpty())
         assertTrue(plan.refusal!!, plan.refusal!!.contains("backup/mockingboard/mockingboard-tts-1.1.bin is deeper " +
             "than that"))
+    }
+
+    @Test fun theToolkitDiskGivesTheFile() {
+        val plan = inspect("Mockingboard Developers toolkit.dsk", disk(true))
+        assertNull(plan.refusal)
+        assertEquals(listOf(FirmwareImport.MOCKINGBOARD), languages(plan))
+        assertTrue(plan.found[0].firmware.readBytes().contentEquals(mockingboard()))
+    }
+
+    @Test fun theToolkitDiskInAZip() {
+        val plan = inspect("disks.zip", zip("apple/toolkit.dsk" to disk(true), "README.TXT" to "disks".toByteArray()))
+        assertEquals(listOf(FirmwareImport.MOCKINGBOARD), languages(plan))
+        assertEquals("apple/toolkit.dsk", plan.found[0].from)
+    }
+
+    @Test fun anotherDiskIsRefusedAndSaysWhy() {
+        val plan = inspect("mockingboard1.dsk", disk(false))
+        assertTrue(plan.found.isEmpty())
+        assertTrue(plan.refusal!!, plan.refusal!!.startsWith("mockingboard1.dsk is a Mockingboard disk, but not the " +
+            "text-to-speech version 1.1 this voice runs."))
+        assertTrue(plan.refusal!!, plan.refusal!!.endsWith(FirmwareImport.WHAT_TO_CHOOSE))
+    }
+
+    @Test fun anotherDiskBesideFirmwareIsLeftOut() {
+        val plan = inspect("mixed.zip", zip("BL2ENG.BNS" to bns('E'), "mockingboard1.dsk" to disk(false)))
+        assertEquals(listOf(FirmwareImport.ENGLISH), languages(plan))
+        assertEquals("mockingboard1.dsk is a Mockingboard disk, but not the text-to-speech version 1.1 this voice " +
+            "runs; it is left out.", plan.notes.single())
     }
 
     @Test fun theMockingboardHasNoStateToMake() {

@@ -210,8 +210,9 @@ class SettingsActivity : Activity() {
             "(.nvda-addon), which carries both. This phone then prepares the unit once, as the add-on's was " +
             "prepared: a few seconds for English, about a minute for Spanish. For the Speak-Out, choose GW Micro's " +
             "SPEAKOUT.HEX, or the speakout.zip holding it; it is checked and ready in a moment. For the " +
-            "Mockingboard, choose mockingboard-tts-1.1.bin, Sweet Micro's text-to-speech made from the Mockingboard " +
-            "Developers Toolkit disk; it is checked and ready in a moment too. The files stay in this app's " +
+            "Mockingboard, choose the Mockingboard Developers Toolkit's disk image (.dsk), or the " +
+            "mockingboard-tts-1.1.bin made from it: Sweet Micro's text-to-speech is taken out of it, checked and " +
+            "ready in a moment too. The files stay in this app's " +
             "protected storage."))
         firmwareStatus = ui.body("")
         root.addView(firmwareStatus)
