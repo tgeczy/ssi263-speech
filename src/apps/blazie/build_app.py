@@ -6,6 +6,7 @@
   test_clock.exe     the clock controller and the keys held while the unit starts (Jayson), headless
   test_flash.exe     the file flash: the ID check, the erase's time and chirps, files kept; _break, _old: its controls
   test_files.exe     files in and out (bl_files.c, the FAT image) against the units' own commands
+  test_basic_repair.exe  tokenized BNS BASIC files damaged by old IMG line conversion
   blazie_files.exe   the same on a saved state, from the command line
   test_games.exe     Blazie's games (Simon, Hangman) run from the unit's files, headless (RetroBunn: Simon)
   test_serial.exe    the serial port plugged in, headless: the storage handshake answered from the far end
@@ -138,6 +139,7 @@ def main():
     link("test_flash_old.exe", [flash] + chip + board("flash_old") + [emu, chords, setup])
     # files in and out against the units' own commands (test_files.c; its controls: --break=N)
     link("test_files.exe", [compile_c(os.path.join(HERE, "test_files.c"), APP)] + unit + files)
+    link("test_basic_repair.exe", [compile_c(os.path.join(HERE, "test_basic_repair.c"), APP)] + files, libs=())
     # Blazie's games run from the unit's files (test_games.c; RetroBunn, PR #9: Simon); its control: TEST_GAMES_BREAK
     link("test_games.exe", [compile_c(os.path.join(HERE, "test_games.c"), APP)] + unit + files)
     # the serial port plugged in, and its control: the same board with the receive path cut (bl_serial.c)

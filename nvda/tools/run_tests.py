@@ -511,6 +511,8 @@ if os.path.isfile(CLOCK):
 # ignored, 2 new flash blocks not marked used, 3 a RAM file's end of text one short, 4 dates dropped, 5 the open
 # file's number not followed when an earlier file goes.
 FILES = os.path.join(EMU, "test_files.exe")
+if os.path.isfile(os.path.join(EMU, "test_basic_repair.exe")):
+    CHECKS.append(check("Blazie emulator: BNS BASIC IMG repair", [os.path.join(EMU, "test_basic_repair.exe")]))
 FW_BLAZIE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "blazie")
 if os.path.isfile(FILES):
     FILES_BL = [FILES, "bl", os.path.join(FW_BLAZIE, "BL2ENG.BNS"), os.path.join(FW_BLAZIE, "bl2_2003_warm.state")]

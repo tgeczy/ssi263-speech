@@ -20,7 +20,8 @@
  *     folders are skipped.
  *   - a file the unit has that the image lacks: deleted -- except the clipboard, the datebook and the file the unit
  *     has open, which are kept;
- *   - in a text file (type A or B) a CR LF or a lone LF from a PC editor becomes the unit's CR;
+ *   - in a plain text file (type A or B without NUL bytes) a CR LF or a lone LF from a PC editor becomes the
+ *     unit's CR; tokenized BASIC files keep their executable bytes;
  *   - names are made into names the unit takes (lower case, one dot, an extension of up to 3, 20 characters);
  *     renamed ones are listed.
  * Everything done, kept or refused is listed in the report, one line each.
@@ -66,6 +67,11 @@ unsigned char *blx_export_cp(const blf_fs *fs, int model, int codepage, unsigned
                              int errlen);
 int blx_import_cp(blf_fs *fs, int codepage, const unsigned char *img, unsigned long size, blx_report *r, char *err,
                   int errlen);
+/* Repair tokenized BNS BASIC bytes damaged by older IMG imports that changed
+   every LF byte to CR. A byte is restored only when record structure, a
+   length-prefixed field, or a jump target identifies its original value.
+   Returns the number of bytes repaired. */
+int blx_repair_basic(unsigned char *data, unsigned long size);
 void blx_unit_to_utf8_cp(int codepage, const char *unit, char *out, size_t cap);
 void blx_utf8_to_unit_cp(int codepage, const char *utf8, char *out, size_t cap);
 

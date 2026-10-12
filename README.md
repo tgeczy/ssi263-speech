@@ -50,7 +50,12 @@ Windows on ARM too. You don't need numpy or a Visual C++ runtime. All three supp
 pitch change. The Braille Lite and Accent have an option to read numbers as words, because
 the Accent reads 100 as "one zero zero" and the Braille Lite stops short of trillions.
 
+## macOS emulator
+
+The [native macOS Blazie app](src/apps/blazie/README-macos.md) runs the same emulator core in an AppKit window. It accepts user supplied Blazie firmware and provides keyboard input, speech, braille display output, saved unit memory, disk image transfer, and a virtual serial port for another program on the Mac.
+
 ## BT Speak and BT Braille emulator
+
 
 The [Blazie Mode frontend](src/platforms/btspeak/README.md) runs the original Blazie firmware, with a menu for the
 installed Braille Lite 2000, Braille 'n Speak 2000, and Type 'n Speak models and languages,

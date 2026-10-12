@@ -250,6 +250,270 @@ static unsigned long to_unit_lines(unsigned char *d, unsigned long n)
     return o;
 }
 
+/* Type A/B also includes tokenized programs (notably BNS BASIC .bas files).
+   Their NUL-containing records can contain 0Ah as a length or an opcode, so
+   line-ending conversion would alter executable bytes. */
+static int plain_text(const unsigned char *d, unsigned long n)
+{
+    return memchr(d, 0, n) == NULL;
+}
+
+static int basic_printable(const unsigned char *data, unsigned long start, unsigned long length)
+{
+    unsigned long i;
+    for (i = 0; i < length; i++)
+        if (data[start + i] < 32 || data[start + i] >= 127) return 0;
+    return 1;
+}
+
+/* Several BASIC statements store a count followed by length-prefixed ASCII
+   items. Find the unique lowest-cost parse, allowing only a damaged 0Dh length
+   to mean 0Ah. The next byte must be another statement or the record end. */
+static int basic_repair_text_items(unsigned char *data, unsigned long record, unsigned long end,
+                                   unsigned long start, unsigned count)
+{
+    enum { MAX_ITEMS = 30, MAX_RECORD = 256, INF = 0x3fffffff };
+    int cost[MAX_ITEMS + 1][MAX_RECORD + 1], ways[MAX_ITEMS + 1][MAX_RECORD + 1];
+    unsigned short previous[MAX_ITEMS + 1][MAX_RECORD + 1];
+    unsigned char changed[MAX_ITEMS + 1][MAX_RECORD + 1];
+    unsigned step, pos, length = (unsigned)(end - record), best_pos = 0;
+    int best_cost = INF, best_ways = 0, fixed = 0;
+    if (start >= end || count == 0 || count > MAX_ITEMS || length > MAX_RECORD)
+        return 0;
+    for (step = 0; step <= count; step++)
+        for (pos = 0; pos <= length; pos++) { cost[step][pos] = INF; ways[step][pos] = 0; }
+    pos = (unsigned)(start - record);
+    cost[0][pos] = 0;
+    ways[0][pos] = 1;
+    for (step = 0; step < count; step++)
+        for (pos = 0; pos < length; pos++) {
+            unsigned option;
+            if (!ways[step][pos]) continue;
+            for (option = 0; option < (data[record + pos] == 13 ? 2U : 1U); option++) {
+                unsigned n = option ? 10 : data[record + pos], next = pos + n + 1;
+                int new_cost = cost[step][pos] + (int)option;
+                if (!n || next > length || !basic_printable(data, record + pos + 1, n)) continue;
+                if (new_cost < cost[step + 1][next]) {
+                    cost[step + 1][next] = new_cost;
+                    ways[step + 1][next] = ways[step][pos];
+                    previous[step + 1][next] = (unsigned short)pos;
+                    changed[step + 1][next] = (unsigned char)option;
+                } else if (new_cost == cost[step + 1][next]) {
+                    ways[step + 1][next] = 2;
+                }
+            }
+        }
+    for (pos = 0; pos <= length; pos++) {
+        if (!ways[count][pos] || (pos != length && data[record + pos] >= 32)) continue;
+        if (cost[count][pos] < best_cost) {
+            best_cost = cost[count][pos];
+            best_pos = pos;
+            best_ways = ways[count][pos];
+        } else if (cost[count][pos] == best_cost) best_ways = 2;
+    }
+    if (best_cost == INF || best_ways != 1 || !best_cost) return 0;
+    pos = best_pos;
+    for (step = count; step; step--) {
+        unsigned before = previous[step][pos];
+        if (changed[step][pos]) { data[record + before] = 10; fixed++; }
+        pos = before;
+    }
+    return fixed;
+}
+
+static int basic_record_target(const unsigned long *records, unsigned long count, unsigned value)
+{
+    unsigned long i;
+    for (i = 0; i < count; i++)
+        if (records[i] + 4 == value) return 1;
+    return 0;
+}
+
+/* BNS BASIC's compiled records have a two-byte line number, a section byte,
+   then a one-byte record length (the next record is length + 1 bytes away).
+   Earlier imports treated these type-A files as text and changed 0Ah to 0Dh.
+   Parse the whole file before changing anything: a CR in a length is changed
+   only when the ten-byte path is needed to reach a valid record at EOF. */
+int blx_repair_basic(unsigned char *data, unsigned long size)
+{
+    const int inf = 0x3fffffff;
+    int *cost;
+    unsigned char *choice;
+    unsigned long *records;
+    unsigned long i, count = 0, at;
+    int fixed = 0;
+    int had_lf;
+    if (!data || size < 12 || size > 1024 * 1024 || !memchr(data, 0, size))
+        return 0;
+    /* A prior repair may have restored some LF bytes while leaving other
+       damaged operands in place. Only line-number inference needs this flag. */
+    had_lf = memchr(data, '\n', size) != NULL;
+    cost = (int *)malloc(sizeof(int) * (size_t)(size + 1));
+    choice = (unsigned char *)calloc((size_t)size + 1, 1);
+    records = (unsigned long *)malloc(sizeof(unsigned long) * (size_t)(size / 4 + 1));
+    if (!cost || !choice || !records) { free(cost); free(choice); free(records); return 0; }
+    for (i = 0; i < size; i++) cost[i] = inf;
+    cost[size] = 0;
+    for (i = size; i-- > 0;) {
+        unsigned long next;
+        unsigned line;
+        int len;
+        if (i + 4 > size) continue;
+        line = ((unsigned)data[i] << 8) | data[i + 1];
+        if (line > 5000) continue;
+        len = data[i + 3];
+        next = i + (unsigned)len + 1;
+        if (len >= 3 && next <= size && cost[next] != inf) {
+            cost[i] = cost[next];
+            choice[i] = (unsigned char)len;
+        }
+        if (len == 13) {
+            next = i + 11;
+            if (next <= size && cost[next] != inf && cost[next] + 1 < cost[i]) {
+                cost[i] = cost[next] + 1;
+                choice[i] = 10;
+            }
+        }
+    }
+    if (cost[0] == inf) { free(cost); free(choice); free(records); return 0; }
+    for (at = 0; at < size && choice[at] && count < size / 4 + 1; at += (unsigned)choice[at] + 1)
+        records[count++] = at;
+    if (at != size || count < 3) { free(cost); free(choice); free(records); return 0; }
+    for (i = 0; i < count; i++) {
+        unsigned long p = records[i], end = p + (unsigned)choice[p] + 1, j;
+        if (data[p + 3] != choice[p]) { data[p + 3] = choice[p]; fixed++; }
+        /* The converted 0Ah keyboard-input token precedes a variable name
+           encoded as 01h, length, ASCII name (usually ending in '$'). */
+        for (j = p + 4; j + 4 <= end; j++) {
+            unsigned k, n;
+            if (data[j] != 13 || data[j + 1] != 1 || !(n = data[j + 2]) || n > 12 || j + 3 + n > end)
+                continue;
+            if (!((data[j + 3] >= 'a' && data[j + 3] <= 'z') ||
+                  (data[j + 3] >= 'A' && data[j + 3] <= 'Z')))
+                continue;
+            for (k = 1; k < n; k++)
+                if (!((data[j + 3 + k] >= 'a' && data[j + 3 + k] <= 'z') ||
+                      (data[j + 3 + k] >= 'A' && data[j + 3 + k] <= 'Z') ||
+                      (data[j + 3 + k] >= '0' && data[j + 3 + k] <= '9') ||
+                      data[j + 3 + k] == '$' || data[j + 3 + k] == '_')) break;
+            if (k == n) { data[j] = 10; fixed++; }
+        }
+        /* IF encodes its condition as 03h, length, ASCII expression, 04h.
+           The delimiter identifies a ten-character expression whose length
+           was converted from 0Ah to 0Dh by an older IMG import. */
+        for (j = p + 4; j + 12 < end; j++) {
+            unsigned k;
+            if (data[j] != 3 || data[j + 1] != 13 || data[j + 12] != 4)
+                continue;
+            for (k = 0; k < 10; k++)
+                if (data[j + 2 + k] < 32 || data[j + 2 + k] >= 127) break;
+            if (k == 10) { data[j + 1] = 10; fixed++; }
+        }
+        /* Assignment, FOR, NEXT and UNTIL also carry ten-character names or
+           expressions in a one-byte length field. Only restore the length
+           when the following byte proves that the field ends after ten. */
+        for (j = p + 4; j + 11 < end; j++) {
+            unsigned long field = j + 1;
+            if (data[j] == 14 && j + 2 < end && data[j + 1] == 1) field++;
+            else if (data[j] != 11 && data[j] != 15) continue;
+            if (field + 11 > end || data[field] != 13 ||
+                    !basic_printable(data, field + 1, 10)) continue;
+            if (data[j] == 11 && (field + 11 == end || data[field + 11] != 1)) continue;
+            if (data[j] == 15 && field + 11 != end) continue;
+            if (data[j] == 14 && field + 11 != end) continue;
+            data[field] = 10;
+            fixed++;
+        }
+        for (j = p + 4; j + 2 < end; j++) {
+            /* PRINT, INPUT, DATA, and array setup use the same item encoding. */
+            if ((data[j] == 1 || data[j] == 2 ||
+                    ((data[j] == 26 || data[j] == 30 || data[j] == 31) && j == p + 4)) &&
+                    data[j + 1] <= 30)
+                fixed += basic_repair_text_items(data, p, end, j + 2, data[j + 1]);
+            if (data[j] == 24)
+                fixed += basic_repair_text_items(data, p, end, j + 1, 2);
+            /* A computed output following IF uses a comma and one expression. */
+            if (data[j] == ',' && j > p + 4 && data[j - 1] == 4)
+                fixed += basic_repair_text_items(data, p, end, j + 1, 1);
+            /* FOR's upper bound follows its variable and initial value. */
+            if (data[j] == 11) {
+                unsigned long field = j + 1, next;
+                if (field >= end || (next = field + 1 + data[field]) >= end) continue;
+                field = next;
+                next = field + 1 + data[field];
+                if (next + 1 < end && data[next] == 12)
+                    fixed += basic_repair_text_items(data, p, end, next + 1, 1);
+            }
+        }
+    }
+    /* A GOTO/GOSUB stores a little-endian address of the target record body.
+       Repair either address byte only when the damaged address misses every
+       body and exactly one 0Dh-to-0Ah alternative names a real one. */
+    for (i = 0; i < count; i++) {
+        unsigned long p = records[i], end = p + (unsigned)choice[p] + 1, j;
+        for (j = p + 4; j + 3 < end; j++) {
+            unsigned value, low_ok, high_ok;
+            if ((data[j] != 6 && data[j] != 7) || data[j + 1] != 1) continue;
+            value = (unsigned)data[j + 2] | ((unsigned)data[j + 3] << 8);
+            if (basic_record_target(records, count, value)) continue;
+            low_ok = data[j + 2] == 13 && basic_record_target(records, count, value - 3);
+            high_ok = data[j + 3] == 13 && value >= 768 &&
+                      basic_record_target(records, count, value - 768);
+            if (low_ok == high_ok) continue;
+            data[j + (low_ok ? 2 : 3)] = 10;
+            fixed++;
+        }
+    }
+    /* The third header byte is the high byte of the BASIC line number. An
+       old import can turn a whole run of section 10 into section 13. */
+    for (i = 0; i < count;) {
+        unsigned long first = i, last;
+        if (data[records[i] + 2] != 13) { i++; continue; }
+        while (i < count && data[records[i] + 2] == 13) i++;
+        last = i;
+        if (first && last < count && data[records[first - 1] + 2] == 9 &&
+                (data[records[last] + 2] == 11 || data[records[last] + 2] == 12)) {
+            unsigned long k;
+            for (k = first; k < last; k++) { data[records[k] + 2] = 10; fixed++; }
+        }
+    }
+    /* A converted line number 10 can be inferred only when another damaged
+       executable byte confirms that this program went through the old import. */
+    if (fixed && !had_lf)
+        for (i = 0; i < count; i++) {
+            unsigned long p = records[i];
+            unsigned line = ((unsigned)data[p] << 8) | data[p + 1];
+            unsigned prev = i ? ((unsigned)data[records[i - 1]] << 8) | data[records[i - 1] + 1] : 0;
+            unsigned next = i + 1 < count ? ((unsigned)data[records[i + 1]] << 8) | data[records[i + 1] + 1] : 0;
+            if (line == 13 && (i == 0 || prev < 10 || prev > 13) && next > 10 &&
+                    (next <= 14 || next % 10 == 0)) {
+                data[p + 1] = 10;
+                fixed++;
+            }
+        }
+    /* Later sections can also contain a line 10. A line 0, 10, 15 sequence
+       is identifiable even in a program partly repaired on an earlier run. */
+    if (fixed)
+        for (i = 1; i + 1 < count; i++) {
+            unsigned long p = records[i], before = records[i - 1], after = records[i + 1];
+            if (data[p + 1] == 13 && data[before + 1] == 0 && data[after + 1] == 15 &&
+                    data[p + 2] == data[before + 2] && data[p + 2] == data[after + 2]) {
+                data[p + 1] = 10;
+                fixed++;
+            }
+        }
+    free(cost);
+    free(choice);
+    free(records);
+    return fixed;
+}
+
+static int basic_name(const char *name)
+{
+    const char *dot = strrchr(name, '.');
+    return dot && ci_eq(dot, ".bas");
+}
+
 int blx_import(blf_fs *fs, const unsigned char *img, unsigned long size, blx_report *r, char *err, int errlen)
 {
     return blx_import_cp(fs, BLX_CP850, img, size, r, err, errlen);
@@ -408,6 +672,10 @@ int blx_import_cp(blf_fs *fs, int codepage, const unsigned char *img, unsigned l
             r->skipped++;
             continue;
         }
+        if (basic_name(w->name)) {
+            int repaired = blx_repair_basic(data, n);
+            if (repaired) say(r, "repaired %s: %d BASIC record bytes from an older text import", w->path, repaired);
+        }
         u = blf_find(fs, w->name);
         type = u >= 0 ? blf_get(fs, u)->type : blf_type_for_name(fs, w->name);
         if (u >= 0) {
@@ -416,7 +684,7 @@ int blx_import_cp(blf_fs *fs, int codepage, const unsigned char *img, unsigned l
             const unsigned char *ud = blf_data(fs, u, &un);
             int same = un == n && !memcmp(ud, data, n);
             int fkind = blf_folder_get(fs, w->folder)->type, same_kind = fkind == (x->in_flash ? 'f' : 'r');
-            if (!same && (type == 'A' || type == 'B')) {
+            if (!same && (type == 'A' || type == 'B') && plain_text(data, n)) {
                 n = to_unit_lines(data, n);
                 same = un == n && !memcmp(ud, data, n);
             }
@@ -457,7 +725,7 @@ int blx_import_cp(blf_fs *fs, int codepage, const unsigned char *img, unsigned l
                 continue;
             }
         }
-        if (type == 'A' || type == 'B')
+        if ((type == 'A' || type == 'B') && plain_text(data, n))
             n = to_unit_lines(data, n);
         if (!n && blf_folder_get(fs, w->folder)->type == 'f') {
             say(r, "%s is empty: kept in %s (the unit keeps no empty file in flash)", w->path,

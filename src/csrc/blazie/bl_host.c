@@ -168,6 +168,12 @@ static void chip_write(bl_host *h, int reg, int val)
 {
     HTR("PLAY t=%.6f cyc=%llu r%d=%02X ra=%d/%d ri=%d nw=%d\n", ssi263_time(h->chip), (unsigned long long)bl_cycles(h->unit),
         reg, val, h->ra.active, h->ra.capturing, h->ra.ri, h->ra.nw);
+    /* The firmware's 4 ms click (R4=f0, R1=ef, R2=ff, R3=7x, R0=c7) needs its
+       pitch at once.  Gliding from the speech pitch can take longer than the
+       entire click, leaving no glottal pulse and therefore complete silence. */
+    if (reg == 1 && val == 0xef && ssi263_mode(h->chip) == 3
+            && ssi263_reg(h->chip, 0) == 0xc0 && ssi263_reg(h->chip, 4) == 0xf0)
+        ssi263_set_snap_pitch(h->chip, 1);
     ssi263_write(h->chip, reg, val);
     if (h->idle)
         idle_events(h, reg, val);
