@@ -5,6 +5,8 @@
 #
 #   tools/btspeak_deb_test.sh           (after ./build_linux.sh)
 #   BTSPEAK_DEB_BREAK=1 ...             the control: postrm never runs, so the menus-restored check must fail
+#   BTSPEAK_DEB_BREAK=pin ...           the control: build_deb.sh keeps fetch-firmware's own pin for a release's version,
+#                                       so the release-pin checks must fail
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"
@@ -12,8 +14,9 @@ trap 'rm -rf "$T"' EXIT
 fail=0
 check() { if [ "$2" = 0 ]; then echo "ok    $1"; else echo "FAIL  $1"; fail=1; fi; }
 
-"$ROOT/src/platforms/btspeak/deb/build_deb.sh" "0.0.0+test" >/dev/null
-DEB="$(ls "$ROOT"/build/blazie-emu-btspeak_0.0.0+test_*.deb)"
+# a development build (no version): fetch-firmware's own pin, which the tests below override
+"$ROOT/src/platforms/btspeak/deb/build_deb.sh" >/dev/null
+DEB="$(ls "$ROOT"/build/blazie-emu-btspeak_0.0.0+dev_*.deb)"
 dpkg-deb -c "$DEB" | grep -E -i '\.(bns|tns|state)$' >/dev/null && fw_in=0 || fw_in=1
 check "no firmware inside the .deb" $((1 - fw_in))
 dpkg-deb -x "$DEB" "$T/root"
@@ -125,7 +128,7 @@ if [ $skip = 0 ]; then
     check "the launcher with no firmware anywhere: lists the Braille Lite (whose item fetches it), fetches nothing" $?
 fi
 
-"$T/ctl/prerm" remove; [ -n "$BTSPEAK_DEB_BREAK" ] || "$T/ctl/postrm" remove
+"$T/ctl/prerm" remove; [ "$BTSPEAK_DEB_BREAK" = 1 ] || "$T/ctl/postrm" remove
 cmp -s "$T/h/a/BTSpeak/user.menu" "$T/orig/a" && cmp -s "$T/h/e/BTSpeak/user.menu" "$T/orig/e"
 check "removal: the menus exactly as they were (blank lines too)" $?
 [ ! -e "$T/root/usr/lib/blazie-emu-btspeak/share" ]
@@ -215,4 +218,29 @@ BTE_PIN_URL="http://plain.invalid/x.tar.gz" BTE_PIN_SHA="$SHA" "$ROOT/src/platfo
     "0.0.0+bad" >/dev/null 2>&1 && bad_made=0 || bad_made=1
 check "a pin that is not https:// is refused" $((1 - bad_made))
 rm -f "$PDEB" "$ROOT"/build/blazie-emu-btspeak_0.0.0+bad_*.deb
+
+# a release's .deb (its version, and that release's emulator archive in build/, as package_emu_linux.sh leaves it):
+# pinned to the release's own archive by its SHA-256, so no one sets the pin by hand (0.9.0's was; the source's still
+# named 0.7.0's); the release is the version up to a + or ~.  Installed, it fetches from that archive
+mkdir -p "$T/rel-release/blazie-emu-x/share/ssi263-speech/tns" "$T/web/download/v9.9.1"
+for f in BL2ENG.BNS bl2_2003_warm.state tns/TNSENG.TNS; do echo release > "$T/rel-release/blazie-emu-x/share/ssi263-speech/$f"; done
+RA="$ROOT/build/blazie-emu-9.9.1-linux-aarch64.tar.gz"
+tar -czf "$RA" -C "$T/rel-release" blazie-emu-x
+cp "$RA" "$T/web/download/v9.9.1/"
+RSHA="$(sha256sum "$RA" | cut -d' ' -f1)"
+BTE_RELEASES="https://test.invalid/download" "$ROOT/src/platforms/btspeak/deb/build_deb.sh" "9.9.1+btspeak1" >/dev/null
+RDEB="$(ls "$ROOT"/build/blazie-emu-btspeak_9.9.1+btspeak1_*.deb)"
+rm -rf "$T/rroot" "$T/rctl"; dpkg-deb -x "$RDEB" "$T/rroot"; dpkg-deb -e "$RDEB" "$T/rctl"
+grep -q -x "URL=https://test.invalid/download/v9.9.1/blazie-emu-9.9.1-linux-aarch64.tar.gz" \
+    "$T/rroot/usr/lib/blazie-emu-btspeak/fetch-firmware" && grep -q -x "SHA=$RSHA" "$T/rroot/usr/lib/blazie-emu-btspeak/fetch-firmware"
+check "a release's .deb: its fetch-firmware pins that release's own emulator archive, by its SHA-256" $?
+(unset BTE_FIRMWARE_URL BTE_FIRMWARE_SHA; BTE_ROOT="$T/rroot" "$T/rctl/postinst" configure >/dev/null)
+[ "$(cat "$T/rroot/usr/lib/blazie-emu-btspeak/share/ssi263-speech/BL2ENG.BNS" 2>/dev/null)" = release ] \
+    && from_release=0 || from_release=1
+check "a release's .deb: installed, the firmware from its own release" $from_release
+rm -f "$RA" "$RDEB"
+BTE_RELEASES="https://test.invalid/download" "$ROOT/src/platforms/btspeak/deb/build_deb.sh" "9.9.2" >/dev/null 2>&1 \
+    && unpinned_made=0 || unpinned_made=1
+check "a release's version without its emulator archive in build/ is refused" $((1 - unpinned_made))
+rm -f "$ROOT"/build/blazie-emu-btspeak_9.9.2_*.deb
 [ $fail = 0 ] && echo "btspeak deb: all passed" || { echo "btspeak deb: FAILED"; exit 1; }

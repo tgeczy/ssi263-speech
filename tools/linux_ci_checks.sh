@@ -81,6 +81,11 @@ if [ -f src/apps/blazie/test_btkb.c ]; then
     control "BT Speak .deb CONTROL (postrm never runs, must fail)" "^FAIL +removal: the menus exactly as they were" \
         "^ok +install: the Blazie menu's line in each BT Speak home" "^btspeak deb: FAILED$" \
         -- env BTSPEAK_DEB_BREAK=1 sh tools/btspeak_deb_test.sh
+    control "BT Speak .deb CONTROL (a release's version keeps the source's pin, must fail)" \
+        "^FAIL +a release's .deb: its fetch-firmware pins that release's own emulator archive" \
+        "^FAIL +a release's version without its emulator archive in build/ is refused" \
+        "^ok +removal: the menus exactly as they were" "^btspeak deb: FAILED$" \
+        -- env BTSPEAK_DEB_BREAK=pin sh tools/btspeak_deb_test.sh
 fi
 check "emulator: the sound buffer (simulated card)" ./$B/test_audio
 control "emulator: sound buffer CONTROL (the 0.7.0 draft's four blocks, must fail)" \

@@ -7,6 +7,12 @@
 #   ./build_linux.sh && src/platforms/btspeak/deb/build_deb.sh [version]
 #   Output: build/blazie-emu-btspeak_<version>_arm64.deb
 #
+# A version is a release's: the package pins that release's own emulator archive, build/blazie-emu-<release>-linux-
+# aarch64.tar.gz (tools/package_emu_linux.sh's, where tools/release_from_ci.sh leaves it), by its SHA-256 there, so a
+# release's .deb never needs its pin set by hand (0.9.0's was, and the source's still named 0.7.0's).  <release> is the
+# version up to a + or ~ (0.9.0+btspeak2: 0.9.0).  Without that archive the build is refused.  No version: a
+# development build (0.0.0+dev), with fetch-firmware's own pin.
+#
 # A preview hosted elsewhere (Tomi's eurpod.com/synths for 0.8's): BTE_PIN_URL and BTE_PIN_SHA, both or neither, are
 # the pinned download and its SHA-256 written into this package's fetch-firmware in place of the release's; the
 # latest-release fallback stays the project's.
@@ -15,7 +21,7 @@
 set -e
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 HERE="$ROOT/src/platforms/btspeak/deb"
-VERSION="${1:-0.7.0+btspeak1}"
+VERSION="${1:-0.0.0+dev}"
 ARCH="$(dpkg --print-architecture)"
 STAGE="$ROOT/build/deb/blazie-emu-btspeak"
 [ -x "$ROOT/build/linux/blazie_emu" ] || { echo "build it first: ./build_linux.sh"; exit 1; }
@@ -34,6 +40,16 @@ sed 's|^PROGRAM = .*$|PROGRAM = "/usr/bin/blazie-emu-btspeak"|' "$ROOT/src/platf
 chmod 755 "$LIB/blazie.menu"
 grep -q -x 'PROGRAM = "/usr/bin/blazie-emu-btspeak"' "$LIB/blazie.menu" || { echo "blazie.menu: PROGRAM not written"; exit 1; }
 ln -s blazie.menu "$LIB/blazie-languages.menu"
+# a release's version: its own emulator archive pinned (BTE_RELEASES: the tests' fake releases; BTSPEAK_DEB_BREAK=pin,
+# tools/btspeak_deb_test.sh's control, keeps fetch-firmware's own pin as before)
+if [ -n "${1:-}" ] && [ -z "${BTE_PIN_URL:-}${BTE_PIN_SHA:-}" ] && [ "${BTSPEAK_DEB_BREAK:-}" != pin ]; then
+    REL="${VERSION%%[+~]*}"
+    ARCHIVE="$ROOT/build/blazie-emu-$REL-linux-aarch64.tar.gz"
+    [ -f "$ARCHIVE" ] || { echo "no $ARCHIVE: a release's .deb pins its own emulator archive" \
+        "(tools/package_emu_linux.sh makes it; no version for a development build)"; exit 1; }
+    BTE_PIN_URL="${BTE_RELEASES:-https://github.com/tgeczy/ssi263-speech/releases/download}/v$REL/blazie-emu-$REL-linux-aarch64.tar.gz"
+    BTE_PIN_SHA="$(sha256sum "$ARCHIVE" | cut -d' ' -f1)"
+fi
 if [ -n "${BTE_PIN_URL:-}${BTE_PIN_SHA:-}" ]; then
     case "${BTE_PIN_URL:-}" in https://*) ;; *) echo "BTE_PIN_URL must be an https:// URL"; exit 1 ;; esac
     echo "${BTE_PIN_SHA:-}" | grep -q -x -E '[0-9a-f]{64}' || { echo "BTE_PIN_SHA must be a SHA-256 (64 hex digits)"; exit 1; }

@@ -45,11 +45,13 @@ lists the rest from then on. `sudo apt remove blazie-emu-btspeak` takes the prog
 menu lines away (the Blazie Emulator line, and any unit copied from it with Ctrl+C); the rest of the User Menu is
 left exactly as it was, and the units' saved memory stays.
 
-Built with `src/platforms/btspeak/deb/build_deb.sh` after `./build_linux.sh`, on Debian 12 or older. The firmware
-comes from the release pinned in `deb/fetch-firmware` (v0.7.0's `blazie-emu-0.7.0-linux-aarch64.tar.gz`, by its
-SHA-256); should that download be gone or changed, from the latest release's `blazie-emu-<version>-linux-aarch64.tar.gz`,
-checked against that release's own `SHA256SUMS.txt`. So a new release needs no new package for the firmware; moving
-the pin to it is optional.
+Built with `src/platforms/btspeak/deb/build_deb.sh <version>` after `./build_linux.sh`, on Debian 12 or older;
+`tools/release_from_ci.sh` builds it with each release, in the aarch64 step. The firmware comes from the pinned
+download: for a version, that release's own `blazie-emu-<version>-linux-aarch64.tar.gz`, by the SHA-256 of the one in
+`build/` (`tools/package_emu_linux.sh` makes it, and `build_deb.sh` refuses to build without it), so the pin is never
+set by hand. Should that download be gone or changed, it comes from the latest release's
+`blazie-emu-<version>-linux-aarch64.tar.gz`, checked against that release's own `SHA256SUMS.txt`. A development build
+(no version) keeps the pin written in `deb/fetch-firmware`.
 `tools/btspeak_deb_test.sh` checks the package's scripts against a scratch root (`tools/linux_tests.sh` runs it).
 
 ## Testing a build before it is released

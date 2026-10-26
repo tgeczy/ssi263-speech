@@ -346,6 +346,11 @@ control "emulator: BT keyboard CONTROL (dots 7 and 8 never wait, must fail)" "^F
 check "BT Speak .deb: install and removal (scratch root, User Menus, firmware fetch)" sh tools/btspeak_deb_test.sh
 control "BT Speak .deb CONTROL (postrm never runs, must fail)" "^FAIL +removal: the menus exactly as they were" \
     "^ok +install: the Blazie menu's line in each BT Speak home" "^btspeak deb: FAILED$" -- env BTSPEAK_DEB_BREAK=1 sh tools/btspeak_deb_test.sh
+# a release's .deb pins its own release's emulator archive (build_deb.sh); its control keeps the source's pin
+control "BT Speak .deb CONTROL (a release's version keeps the source's pin, must fail)" \
+    "^FAIL +a release's .deb: its fetch-firmware pins that release's own emulator archive" \
+    "^FAIL +a release's version without its emulator archive in build/ is refused" \
+    "^ok +removal: the menus exactly as they were" "^btspeak deb: FAILED$" -- env BTSPEAK_DEB_BREAK=pin sh tools/btspeak_deb_test.sh
 # the Type 'n Speak's real cold reset (Timothy, Jayson): a unit the previews saved without its file system or folders,
 # told apart and set up anew with its files (test_rescue); its control leaves the old cold start on through the rescue
 # the sound buffer (audio_pace.c; Tomi: the emulator's speech stutters): the queue against a simulated card, for the

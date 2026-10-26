@@ -19,7 +19,8 @@
 #            glibc 2.29, and its Python 3.11+ runs the BT frontend's tests): the whole gate with the firmware
 #            (tools/linux_tests.sh, which never builds: it runs build/linux and src/ssi263/_bin/<plat> as they are),
 #            then the package, the wheel, the shipped wheel and its control, the emulator archive
-#            (tools/package_emu_linux.sh).
+#            (tools/package_emu_linux.sh), and the BT Speak .deb, pinned to that archive by build_deb.sh (no pin set
+#            by hand: 0.9.0's was).
 #   x86_64   the Pi cannot run it natively: the same packaging steps in the kept amd64 bullseye chroot under
 #            qemu-user (/srv/amd64-bullseye; package_linux.sh asks the module for its voices), plus the goldens and
 #            the shipped wheel there.  The whole gate is NOT run (35 minutes under qemu, and its faster-than-real-time
@@ -113,6 +114,10 @@ pi_package() {
     step wheel_shipped python3 python/test_wheel.py dist/ssi263speech-*.whl "$DATA"
     step wheel_shipped_control env WHEEL_TEST_BREAK=1 python3 python/test_wheel.py dist/ssi263speech-*.whl "$DATA"
     step emu_archive sh tools/package_emu_linux.sh "$BNS_DIR" "$V" "$A"
+    # the BT Speak .deb (arm64 only): build_deb.sh pins the emulator archive just made, by its SHA-256
+    if [ "$A" = aarch64 ]; then
+        step deb sh src/platforms/btspeak/deb/build_deb.sh "$V"
+    fi
 }
 
 contents() {                        # archive, then kind (full|emu): what must and must not be in it
@@ -170,6 +175,20 @@ unnoticed() {                       # archive, kind: contents on a copy with its
     rm -rf "$u"; [ $r -ne 0 ]
 }
 
+deb_pin() {                         # the .deb, the emulator archive beside it: no firmware inside, and its
+    x="$(mktemp -d)"                # fetch-firmware pinned to that archive's release download, by its SHA-256
+    dpkg-deb -x "$1" "$x" || { rm -rf "$x"; return 1; }
+    f="$x/usr/lib/blazie-emu-btspeak/fetch-firmware"; r=0
+    if find "$x" \( -iname '*.BNS' -o -iname '*.TNS' -o -name '*.state' \) | grep .; then
+        echo "FAIL  $1: firmware inside"; r=1
+    fi
+    if grep -q -x "URL=https://.*/$2" "$f" && grep -q -x "SHA=$(sha256sum "$2" | cut -d' ' -f1)" "$f"; then :; else
+        echo "FAIL  $1: not pinned to $2:"; grep -E '^(URL|SHA)=' "$f"; r=1
+    fi
+    [ $r = 0 ] && echo "ok    $1: no firmware inside, pinned to $2 by its SHA-256"
+    rm -rf "$x"; return $r
+}
+
 glibc_of() {                        # archive...: the GLIBC floor of every binary in them, extracted
     g="$(mktemp -d)"
     for a in "$@"; do
@@ -191,6 +210,13 @@ pi_verify() {                       # in $O, its assets: audit, GLIBC floor, con
         case "$a" in ssi263-speech-*) step contents_package contents "$a" full;;
                      blazie-emu-*) step contents_emu contents "$a" emu
                          step contents_emu_control unnoticed "$a" emu;; esac
+    done
+    # the .deb's binaries are the emulator archive's (build/linux), checked above; its pin against that archive
+    for d in blazie-emu-btspeak_*.deb; do
+        [ -f "$d" ] || continue
+        v="${d#blazie-emu-btspeak_}"; v="${v%_*}"
+        step contents_deb deb_pin "$d" "blazie-emu-${v%%[+~]*}-linux-$ARCH.tar.gz"
+        set -- "$@" "$d"
     done
     sha256sum -b "$@" > "SHA256SUMS-$ARCH.txt"
 }
@@ -263,7 +289,7 @@ on_pi() {
         grep -E "^(FAIL|skip)|Linux checks" "$L/tests.log"
         (pi_package aarch64 "$V" "$S" "$W/work-$ARCH/fw-ship" "$W/work-$ARCH/bns2000" "$FIRMWARE" "$L")
         cp "$S/build/ssi263-speech-$V-linux-aarch64.tar.gz" "$S"/dist/ssi263speech-$V-*linux_aarch64.whl \
-            "$S/build/blazie-emu-$V-linux-aarch64.tar.gz" "$O/" 2>/dev/null
+            "$S/build/blazie-emu-$V-linux-aarch64.tar.gz" "$S/build/blazie-emu-btspeak_${V}_arm64.deb" "$O/" 2>/dev/null
         ;;
     x86_64)
         D=/srv/amd64-bullseye; CH="/home/$BUILDER"; R="ci-$c"; H="$D$CH/$R"
@@ -410,8 +436,9 @@ fetch() {
         old="$(find "$DEST"/logs-$a* -name COMMIT 2>/dev/null | head -n 1)"
         oldc="unknown"; [ -n "$old" ] && oldc="$(cut -c1-7 "$old")"
         moved=0
+        deb=""; [ "$a" = aarch64 ] && deb="$DEST/blazie-emu-btspeak_${V}_arm64.deb"     # the .deb is aarch64's alone
         for f in "$DEST/ssi263-speech-$V-linux-$a.tar.gz" "$DEST"/ssi263speech-$V-*linux_$a.whl \
-                 "$DEST/blazie-emu-$V-linux-$a.tar.gz" "$DEST/SHA256SUMS-$a.txt" "$DEST"/logs-$a*; do
+                 "$DEST/blazie-emu-$V-linux-$a.tar.gz" "$deb" "$DEST/SHA256SUMS-$a.txt" "$DEST"/logs-$a*; do
             [ -e "$f" ] || continue
             mkdir -p "$DEST/build-$oldc"
             [ -e "$DEST/build-$oldc/$(basename "$f")" ] && { echo "$DEST/build-$oldc/$(basename "$f") exists: stopped"; exit 1; }
