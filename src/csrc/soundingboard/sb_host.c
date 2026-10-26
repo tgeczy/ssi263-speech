@@ -325,7 +325,7 @@ static int on_in(void *user, int port)
     return 0xFF;
 }
 
-/* the chip still sounding the last phoneme it was given (not PA, powered up): so_host.c's held(), the same front end */
+/* a potentially unfinished phoneme (not PA, powered up): so_host.c's held(), the same front end */
 static int held(const sb_host *h)
 {
     return !h->tail_break && (ssi263_reg(h->chip, 0) & 0x3F) && !(ssi263_reg(h->chip, 3) & 0x80);

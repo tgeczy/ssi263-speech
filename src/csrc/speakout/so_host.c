@@ -157,9 +157,10 @@ static void log_write(so_host *h, int reg, int v)
     h->n_wl++;
 }
 
-/* the chip still sounding the last phoneme it was given (not PA, powered up): a text goes on until that phoneme has
-   played and the firmware has answered with PA.  At rate 0 one phoneme outlasts busy()'s `quiet`, and its rest played
-   at the head of the next text, before any write of its own (a listener, typing letters; tools/check_so_tail.py) */
+/* a potentially unfinished phoneme: the chip holds one other than PA, powered up.  A text goes on until the firmware
+   has answered it with PA (or patience runs out).  At rate 0 one phoneme outlasts busy()'s `quiet`, and its rest
+   played at the head of the next text, before any write of its own (a listener, typing letters; check_so_tail.py).
+   A conservative register test, not a measure of the output's silence (Astra, Reply 252) */
 static int held(const so_host *h)
 {
     return !h->tail_break && (ssi263_reg(h->chip, 0) & 0x3F) && !(ssi263_reg(h->chip, 3) & 0x80);

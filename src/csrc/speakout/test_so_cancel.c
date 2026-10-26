@@ -17,6 +17,7 @@
 
 #define PHONES 12
 #define CUTS 8
+#define WARM 400                    /* the warm-up's own room: it said 15 phonemes into got[12] (Astra, Reply 252) */
 
 static const char *PH[64] = {"PA", "E", "E1", "Y", "YI", "AY", "IE", "I", "A", "AI", "EH", "EH1", "AE", "AE1", "AH",
     "AH1", "AW", "O", "OU", "OO", "IU", "IU1", "U", "U1", "UH", "UH1", "UH2", "UH3", "ER", "R", "R1", "R2", "L", "L1",
@@ -71,7 +72,7 @@ static void show(const int *p, int n)
 
 int main(int argc, char **argv)
 {
-    int ref[PHONES], got[PHONES], cut[CUTS], r3, n, k, i, bad = 0;
+    int ref[PHONES], got[PHONES], cut[CUTS], warm[WARM], r3, n, k, i, bad = 0;
     so_host *h;
     if (argc < 2) {
         printf("usage: test_so_cancel SPEAKOUT.HEX\n");
@@ -80,7 +81,7 @@ int main(int argc, char **argv)
     /* the reference: "Hello ..." after an utterance that ran to its end */
     h = booted(argv[1], &r3);
     soh_say(h, (const unsigned char *)"Yes, it works.\r", 15);
-    loads(h, &r3, 1000, 4.0, got);
+    loads(h, &r3, WARM, 4.0, warm);         /* to its end; its phonemes not kept */
     soh_say(h, (const unsigned char *)HELLO, (int)strlen(HELLO));
     n = loads(h, &r3, PHONES, 5.0, ref);
     soh_destroy(h);

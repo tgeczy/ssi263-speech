@@ -62,6 +62,9 @@ control "SmarTalk voice CONTROL (the rate's old mapping, 50 = ESC >5, must fail)
 control "SmarTalk voice CONTROL (the bank's last slot kept on a boot change, must fail)" \
     "^FAIL  a bank's unit made again on a boot change " "^ok    speaks through the table " "^st voice: 1 FAILED$" -- \
     env SSV_BANK_BREAK=1 python3 tools/check_st_voice.py $B/libssi263_voices.so
+control "SmarTalk voice CONTROL (the contractions as they are, must fail)" "^FAIL  said as: don't +\"don't\"$" \
+    "^FAIL  said as: I'm " "^FAIL  don't: said as one word, no letter T " "^ok    said as: rock 'n roll " \
+    "^st voice: 6 FAILED$" -- env ST_TEXT_BREAK=1 python3 tools/check_st_voice.py $B/libssi263_voices.so
 control "accented letters: bytes CONTROL (the pass off, must fail)" '^FAIL blazie +bytes ' '^FAIL speakout +bytes ' \
     "^ +'t\\\\xfck\\\\xf6r' -> b't k r" '^translit bytes: 5 of 10 FAILED' \
     -- env TRANSLIT_BREAK=1 python3 nvda/tools/translit_test.py bytes

@@ -524,7 +524,7 @@ class SoundingBoard:
         return t
 
     def held(self):
-        """the chip still sounding the last phoneme it was given: speakout.py's held(), the same front end"""
+        """a potentially unfinished phoneme (not PA, powered up): speakout.py's held(), the same front end"""
         return not TAIL_BREAK and bool(self.chip.regs[0] & 0x3F) and not self.chip.regs[3] & 0x80
 
     def busy(self, quiet=0.05, patience=1.5):

@@ -273,9 +273,10 @@ class SpeakOut:
         return self._word(0x243C) != self._word(0x243A)
 
     def held(self):
-        """The chip still sounding the last phoneme it was given (not PA, powered up): a text goes on until that
-        phoneme has played and the firmware has answered with PA.  At rate 0 one phoneme outlasts `quiet`, and its
-        rest played at the head of the next text (a listener, typing letters; tools/check_so_tail.py)."""
+        """A potentially unfinished phoneme: the chip holds one other than PA, powered up.  A text goes on until the
+        firmware has answered it with PA (or patience runs out).  At rate 0 one phoneme outlasts `quiet`, and its
+        rest played at the head of the next text (a listener, typing letters; tools/check_so_tail.py).  A
+        conservative register test, not a measure of the output's silence (Astra, Reply 252)."""
         return not TAIL_BREAK and bool(self.chip.regs[0] & 0x3F) and not self.chip.regs[3] & 0x80
 
     def busy(self, quiet=0.06, patience=1.5):
