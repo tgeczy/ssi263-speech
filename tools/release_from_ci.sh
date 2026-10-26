@@ -179,7 +179,10 @@ deb_pin() {                         # the .deb, the emulator archive beside it: 
     x="$(mktemp -d)"                # fetch-firmware pinned to that archive's release download, by its SHA-256
     dpkg-deb -x "$1" "$x" || { rm -rf "$x"; return 1; }
     f="$x/usr/lib/blazie-emu-btspeak/fetch-firmware"; r=0
-    if find "$x" \( -iname '*.BNS' -o -iname '*.TNS' -o -name '*.state' \) | grep .; then
+    # the Blazie units' files, and the other boxes' (the Mockingboard's .bin, SPEAKOUT.HEX, SB.COM and SBLOAD.COM, the
+    # Accents' u2-u4.BIN and SPKEMS.DVC, S_TALK.EXE): none of them is the .deb's
+    if find "$x" \( -iname '*.BNS' -o -iname '*.TNS' -o -name '*.state' -o -iname '*.BIN' -o -iname '*.HEX' \
+            -o -iname '*.COM' -o -iname '*.DVC' -o -iname '*.EXE' \) | grep .; then
         echo "FAIL  $1: firmware inside"; r=1
     fi
     if grep -q -x "URL=https://.*/$2" "$f" && grep -q -x "SHA=$(sha256sum "$2" | cut -d' ' -f1)" "$f"; then :; else
