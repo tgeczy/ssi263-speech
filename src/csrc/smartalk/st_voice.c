@@ -217,11 +217,85 @@ static char *dollars_percent(const char *s)
     return out;
 }
 
-/* the text the TSR is given for utf8: the shared path (no number words), dollars and percent, then the number words */
+/* ---- contractions: the TSR ends a word at an apostrophe and spells what is left if it has no vowel ("don't" is "don"
+   and the letter T, "it's" "it" and S, "I'm" "I" and M; ESC C 1 still spells a single letter, TECHMAN.TXT), a
+   listener's report.  An apostrophe between two letters goes, so the word is one ("dont", "its"); the pronouns that
+   end in a vowel would then be said short ("Im", "well"), so they are spelt as the TSR says them right (Tomi
+   listened, 2026-10-25) ----------------------------------------------------------------------------------------- */
+
+static const char *const CONTRACTIONS[][2] = {
+    {"i'm", "ime"}, {"i'll", "ile"}, {"i'd", "ide"}, {"i've", "ive"},
+    {"you'll", "yool"}, {"you'd", "yood"}, {"you've", "yoov"}, {"you're", "yoor"},
+    {"we'll", "weel"}, {"we'd", "weed"}, {"we've", "weev"}, {"we're", "weer"},
+    {"they'll", "thale"}, {"they'd", "thayd"}, {"they've", "thayv"}, {"they're", "there"},
+    {"he'll", "heel"}, {"he'd", "heed"}, {"she'll", "sheel"}, {"she'd", "sheed"},
+    {"who'll", "hool"}, {"who'd", "hooed"}, {"who's", "hooz"}, {"who've", "hoov"}};
+
+static int letter(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+static char lower(char c) { return c >= 'A' && c <= 'Z' ? (char)(c + 32) : c; }
+
+/* s[a..b), a word with an apostrophe inside, appended to out at m: its spelling from CONTRACTIONS in the word's case
+   (all capitals, a capital first, or none), else the word without its apostrophes */
+static int contraction(char *out, int m, const char *s, int a, int b)
+{
+    size_t k;
+    int i, caps = 1;
+    for (i = a; i < b; i++)
+        if (letter(s[i]) && lower(s[i]) == s[i])
+            caps = 0;
+    for (k = 0; k < sizeof CONTRACTIONS / sizeof CONTRACTIONS[0]; k++) {
+        const char *w = CONTRACTIONS[k][0], *r = CONTRACTIONS[k][1];
+        if ((int)strlen(w) != b - a)
+            continue;
+        for (i = 0; i < b - a && lower(s[a + i]) == w[i]; i++)
+            ;
+        if (i < b - a)
+            continue;
+        for (i = 0; r[i]; i++)
+            out[m++] = caps || (i == 0 && lower(s[a]) != s[a]) ? (char)(r[i] - 32) : r[i];
+        return m;
+    }
+    for (i = a; i < b; i++)
+        if (s[i] != '\'')
+            out[m++] = s[i];
+    return m;
+}
+
+/* the words with an apostrophe between two letters, as above; any other apostrophe ("rock 'n roll", "the dogs'")
+   stays.  A malloc'd string, NULL when out of memory.  ST_TEXT_BREAK=1, the tests' control: the text as it is. */
+static char *contractions(const char *s)
+{
+    int n = (int)strlen(s), i = 0, m = 0;
+    char *out = (char *)malloc((size_t)n + 1);
+    if (!out)
+        return NULL;
+    while (i < n) {
+        int j = i, inner = 0;
+        if (!letter(s[i]) || getenv("ST_TEXT_BREAK")) {
+            out[m++] = s[i++];
+            continue;
+        }
+        while (j < n && (letter(s[j]) || (s[j] == '\'' && j + 1 < n && letter(s[j + 1])))) {
+            inner |= s[j] == '\'';
+            j++;
+        }
+        m = inner ? contraction(out, m, s, i, j) : put(out, m, s, i, j);
+        i = j;
+    }
+    out[m] = 0;
+    return out;
+}
+
+/* the text the TSR is given for utf8: the shared path (no number words), the contractions, dollars and percent, then
+   the number words */
 static char *voice_text(const char *utf8, int numbers)
 {
     char *a = at_say_text(utf8 ? utf8 : "", 0), *b, *c;
     if (!a)
+        return NULL;
+    c = contractions(a);
+    free(a);
+    if (!(a = c))
         return NULL;
     b = dollars_percent(a);
     free(a);

@@ -16,6 +16,7 @@ tone pinned): the tone check must then fail, and only it.  ST_VOICE_BREAK=snap -
 speak: the phrase-start and capital checks must fail, and only they.
 ST_RATE_BREAK=1 -- the rate's old mapping (50 = the TSR's ESC >5, not its power-up speed): the rate-back-at-50
 check must fail, and only it.
+ST_TEXT_BREAK=1 -- the contractions left as they are (st_voice.c contractions()): the contraction checks must fail.
 SSV_BANK_BREAK=1 -- a bank keeps its last slot on a boot change (the SmarTalk's, as when its slot was past the
 bank's end): the bank check must fail, and only it.
 """
@@ -351,6 +352,19 @@ def main():
                        ("50 %", "50 percent"), ("5%.", "5 percent.")):
         lib.stv_parts(text.encode(), 0, out, 400)
         ok(out.value.decode() == want, "said as: %s" % text, repr(out.value.decode()))
+
+    # the contractions (a listener: "Don't is dontee"): the TSR ends a word at an apostrophe and spells a rest with no
+    # vowel, so the voice joins the word, and spells the pronouns ending in a vowel as the TSR says them right
+    for text, want in (("don't", "dont"), ("I'm", "Ime"), ("WE'LL", "WEEL"), ("They're here", "There here"),
+                       (u"it\u2019s", "its"), ("rock 'n roll", "rock 'n roll"), ("the dogs' bowls", "the dogs' bowls")):
+        lib.stv_parts(text.encode("utf-8"), 0, out, 400)
+        name = text if text.isascii() else "it's, curly"
+        ok(out.value.decode() == want, "said as: %s" % name, repr(out.value.decode()))
+    _p, wc, _n = v.say("don't")
+    _p, wj, _n = v.say("dont")
+    said = lambda w: [x & 0x3F for _t, x in phonemes(w)]                          # noqa: E731
+    ok(said(wc) == said(wj), "don't: said as one word, no letter T",
+       "%d phonemes against %d" % (len(said(wc)), len(said(wj))))
     v.v.close()
     print("st voice: %s" % ("all passed" if not failures else "%d FAILED" % failures))
     return 1 if failures else 0

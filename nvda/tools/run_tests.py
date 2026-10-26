@@ -2031,6 +2031,13 @@ if os.path.isfile(ST_EXE):
                         env={"ST_RATE_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^FAIL  rate back at 50: a fresh unit's speed ",
                                     r"^ok    rate: 0 slower, 100 faster ", r"^st voice: 1 FAILED$"]))
+    # the contractions left as they are (a listener: "Don't is dontee"; st_voice.c contractions()): the TSR spells
+    # the rest after the apostrophe, and only the contraction checks fail
+    CHECKS.append(check("SmarTalk voice CONTROL (the contractions as they are, must fail)", [PY, ST_VOICE],
+                        env={"ST_TEXT_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r'^FAIL  said as: don\'t +"don\'t"$', r"^FAIL  said as: I'm ",
+                                    r"^FAIL  don't: said as one word, no letter T ", r"^ok    said as: rock 'n roll ",
+                                    r"^st voice: 6 FAILED$"]))
     # the pitch snap at an utterance's start disarmed: the phrase start, the capital and a new pitch setting must
     # fail, the glides inside the phrase still pass
     CHECKS.append(check("SmarTalk voice CONTROL (no pitch snap, must fail)", [PY, ST_VOICE],
