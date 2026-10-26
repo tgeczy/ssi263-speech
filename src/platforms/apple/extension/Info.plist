@@ -34,7 +34,7 @@
                     <key>description</key>
                     <string>SSI-263 Speech Synthesizer</string>
                     <key>version</key>
-                    <integer>8</integer>
+                    <integer>9</integer>
                     <key>sandboxSafe</key>
                     <true/>
                     <key>tags</key>

@@ -22,7 +22,7 @@ settings:
     # ("Requestor's signature does not allow it to access a TCC-protected group container")
     REGISTER_APP_GROUPS: YES
     MARKETING_VERSION: "0.9.0"
-    CURRENT_PROJECT_VERSION: "8"
+    CURRENT_PROJECT_VERSION: "9"
     SWIFT_OBJC_BRIDGING_HEADER: shared/BridgingHeader.h
     HEADER_SEARCH_PATHS:
       - $(PROJECT_DIR)/core
