@@ -64,6 +64,7 @@ RING_SIZE = 0xFF5            # the ring's bytes: 817 frames, about 40 s of speec
 FEED_BELOW = 0x800           # text is printed to the driver while the ring holds less than this (about 20 s)
 PIECE = 32                   # bytes printed at a time: a few words' frames, far from filling the ring
 PACE_BREAK = os.environ.get("SSI263_SB_PACE_BREAK") == "1"   # the tests' control: all text in one call
+TAIL_BREAK = os.environ.get("SSI263_SO_TAIL_BREAK") == "1"   # the tests' control: busy() without held()
 REGS = {"ax": UC_X86_REG_AX, "bx": UC_X86_REG_BX, "cx": UC_X86_REG_CX, "dx": UC_X86_REG_DX,
         "si": UC_X86_REG_SI, "di": UC_X86_REG_DI, "bp": UC_X86_REG_BP, "cs": UC_X86_REG_CS,
         "ip": UC_X86_REG_IP, "ds": UC_X86_REG_DS, "es": UC_X86_REG_ES, "ss": UC_X86_REG_SS,
@@ -350,9 +351,12 @@ class SoundingBoard:
             pass                                 # speaker and timer 2 (the bell), Toshiba config
         elif CARD_BASE <= port < CARD_BASE + 5:
             reg = port - CARD_BASE
+            sounding = reg == 0 and self.held()      # a phoneme playing that this write ends
             self.chip.write(reg, value)
             if self.keep_writes:
                 self.writes.append((round(self.chip.time, 6), reg, value))
+            if sounding:                             # speech until now: busy()'s `quiet` lets its fall die away
+                self.last_speech = self.chip.time
             if reg == 0 and (value & 0x3F) and not (self.chip.regs[3] & 0x80):
                 self.last_speech = self.chip.time
                 self.preparing = False
@@ -519,8 +523,13 @@ class SoundingBoard:
             t += self.skip(0.01)
         return t
 
+    def held(self):
+        """the chip still sounding the last phoneme it was given: speakout.py's held(), the same front end"""
+        return not TAIL_BREAK and bool(self.chip.regs[0] & 0x3F) and not self.chip.regs[3] & 0x80
+
     def busy(self, quiet=0.05, patience=1.5):
-        if self.input_pending() or (self.chip.time - self.last_speech) < quiet:
+        since = self.chip.time - self.last_speech
+        if self.input_pending() or since < quiet or (self.held() and since < patience):
             return True
         return self.preparing and (self.chip.time - self.say_time) < patience
 

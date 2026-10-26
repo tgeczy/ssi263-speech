@@ -69,6 +69,7 @@ struct sb_host {
     unsigned char *queue;
     int q_len, q_pos, q_cap;
     int pace_break;                                       /* SSI263_SB_PACE_BREAK=1, the tests' control: all in one call */
+    int tail_break;                                       /* SSI263_SO_TAIL_BREAK=1, the tests' control: no held() */
 };
 
 /* ---- faults: what soundingboard.py raises ------------------------------------------------------------------------- */
@@ -324,6 +325,12 @@ static int on_in(void *user, int port)
     return 0xFF;
 }
 
+/* the chip still sounding the last phoneme it was given (not PA, powered up): so_host.c's held(), the same front end */
+static int held(const sb_host *h)
+{
+    return !h->tail_break && (ssi263_reg(h->chip, 0) & 0x3F) && !(ssi263_reg(h->chip, 3) & 0x80);
+}
+
 static void on_out(void *user, int port, int value)
 {
     sb_host *h = (sb_host *)user;
@@ -339,6 +346,7 @@ static void on_out(void *user, int port, int value)
         /* speaker and timer 2 (the bell), Toshiba config */
     } else if (port >= CARD_BASE && port < CARD_BASE + 5) {
         int reg = port - CARD_BASE;
+        int sounding = reg == 0 && held(h);         /* a phoneme playing that this write ends */
         ssi263_write(h->chip, reg, value);
         if (h->log_on && grow((void **)&h->wl, &h->cap_wl, h->n_wl + 1, sizeof *h->wl)) {
             h->wl[h->n_wl].t = ssi263_time(h->chip);
@@ -346,6 +354,8 @@ static void on_out(void *user, int port, int value)
             h->wl[h->n_wl].val = value;
             h->n_wl++;
         }
+        if (sounding)                               /* speech until now: busy()'s `quiet` lets its fall die away */
+            h->last_speech = ssi263_time(h->chip);
         if (reg == 0 && (value & 0x3F) && !(ssi263_reg(h->chip, 3) & 0x80)) {
             h->last_speech = ssi263_time(h->chip);
             h->preparing = 0;
@@ -680,7 +690,7 @@ SB_API int sbh_input_pending(const sb_host *h)
 SB_API int sbh_busy(const sb_host *h, double quiet, double patience)
 {
     double now = ssi263_time(h->chip);
-    if (sbh_input_pending(h) || (now - h->last_speech) < quiet)
+    if (sbh_input_pending(h) || (now - h->last_speech) < quiet || (held(h) && (now - h->last_speech) < patience))
         return 1;
     return h->preparing && (now - h->say_time) < patience;
 }
@@ -753,6 +763,7 @@ SB_API sb_host *sbh_create(const unsigned char *sbload, size_t sbload_len, const
         return NULL;
     }
     h->pace_break = getenv("SSI263_SB_PACE_BREAK") && !strcmp(getenv("SSI263_SB_PACE_BREAK"), "1");
+    h->tail_break = getenv("SSI263_SO_TAIL_BREAK") && !strcmp(getenv("SSI263_SO_TAIL_BREAK"), "1");
     h->p = pc86_create();
     if (!h->p) {
         free(h);

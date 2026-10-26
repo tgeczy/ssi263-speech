@@ -79,9 +79,39 @@ SO_CANCEL_NEW = """        while t < limit and self.busy():
 
     def skip(self, seconds, step=0.002):
 """
+# 0.9.1: a text goes on while the chip still sounds its last phoneme (at rate 0 one outlasts `quiet`, and its rest
+# played at the head of the next text: tools/check_so_tail.py), and the write that ends it counts as speech
+SO_HELD_OLD = """    def busy(self, quiet=0.06, patience=1.5):
+        \"\"\"Still speaking: input pending, a line not yet started (up to `patience` s),
+        or a speech phoneme loaded within `quiet` s.\"\"\"
+        if self.input_pending() or (self.chip.time - self.last_speech) < quiet:
+            return True
+"""
+SO_HELD_NEW = """    def held(self):
+        return bool(self.chip.regs[0] & 0x3F) and not self.chip.regs[3] & 0x80
+
+    def busy(self, quiet=0.06, patience=1.5):
+        since = self.chip.time - self.last_speech
+        if self.input_pending() or since < quiet or (self.held() and since < patience):
+            return True
+"""
+SO_ENDS_OLD = """    def _chip_write(self, reg, v):
+        self.chip.write(reg, v)
+        if self.keep_writes:
+            self.chip_writes.append((round(self.chip.time, 6), reg, v))
+"""
+SO_ENDS_NEW = """    def _chip_write(self, reg, v):
+        sounding = reg == 0 and self.held()
+        self.chip.write(reg, v)
+        if self.keep_writes:
+            self.chip_writes.append((round(self.chip.time, 6), reg, v))
+        if sounding:
+            self.last_speech = self.chip.time
+"""
 # {REV's file: [(old, new)]}: each old text must be found exactly once in REV's file
 FIXES = {"nvda/blazie/synthDrivers/blazie.py": [(TAIL_START_OLD, TAIL_START_NEW), (TAIL_OLD, TAIL_NEW)],
-         "src/hosts/speakout.py": [(SO_CANCEL_OLD, SO_CANCEL_NEW)]}
+         "src/hosts/speakout.py": [(SO_CANCEL_OLD, SO_CANCEL_NEW), (SO_HELD_OLD, SO_HELD_NEW),
+                                   (SO_ENDS_OLD, SO_ENDS_NEW)]}
 ENGINE_INIT = ('"""The %s\'s engine package: this tree\'s chip under 0.7.0\'s drivers '
                '(nvda/tools/legacy_drivers.py)."""\n' % NAME)
 INIT_CODE = ("import hashlib, pickle, sys; sys.path.insert(0, %r)\n"

@@ -1499,6 +1499,16 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
             CHECKS.append(check("Sounding Board voice CONTROL (SB.COM missing, must fail)", [PY, SB_VOICE],
                                 env={"SB_VOICE_BREAK": "1"}, expect_fail=True,
                                 fail_marks=[r"^FAIL  available with SBLOAD\.COM and SB\.COM ", r"^sb voice: 4 FAILED$"]))
+            # letters typed at rate 0 (a listener: part of the previous letter heard at the head of the next): a text
+            # goes on while the chip still sounds its last phoneme (so_host.c / sb_host.c held()), the Speak-Out's
+            # front end on both boxes; the control leaves the held phoneme out of busy(), as it was
+            SO_TAIL = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_so_tail.py")]
+            CHECKS.append(check("Speak-Out and Sounding Board at rate 0: no letter starts with the last", SO_TAIL))
+            CHECKS.append(check("Rate 0 letters CONTROL (the held phoneme left out, must fail)", SO_TAIL,
+                                env={"SSI263_SO_TAIL_BREAK": "1"}, expect_fail=True,
+                                fail_marks=[r"^FAIL  soundingboard rate 0 to its end +a: held S, ",
+                                            r"^FAIL  speakout rate 0 cut at 0\.12 s +e: held E, ",
+                                            r"^so tail: 4 FAILED$"]))
             # a long text (a listener's report: speech lost, then none at all): SB.COM's frame ring fills, so the
             # host prints the text as it empties (sb_host.c feed) and a fault reboots the box (so_voice.c).  Controls:
             # the whole text in one printer call, as it was (the long text lost: both hosts fault; the voice speaks

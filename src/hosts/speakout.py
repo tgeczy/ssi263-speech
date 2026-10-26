@@ -47,6 +47,7 @@ TEXT_WRITE, TEXT_READ, TEXT_RING = 0x1A30, 0x1A32, 0x400
 FEED_BELOW = 0x300           # the ring and the serial queue together under this: text that fits goes at once, as always
 PIECE = 32                   # otherwise this much at a time, once the serial queue is empty
 PACE_BREAK = os.environ.get("SSI263_SO_PACE_BREAK") == "1"   # the tests' control: all text at once, as it was
+TAIL_BREAK = os.environ.get("SSI263_SO_TAIL_BREAK") == "1"   # the tests' control: busy() without held()
 V40_HZ = 8_000_000          # "mame" (experimental): the uPD70208-8's speed grade, NOT a measured clock (the unit's
                             # oscillator is not read, and the V40 may divide it)
 
@@ -149,9 +150,12 @@ class SpeakOut:
             self._chip_write(reg, value & 0xFF)
 
     def _chip_write(self, reg, v):
+        sounding = reg == 0 and self.held()    # a phoneme playing that this write ends
         self.chip.write(reg, v)
         if self.keep_writes:
             self.chip_writes.append((round(self.chip.time, 6), reg, v))
+        if sounding:                           # speech until now: busy()'s `quiet` lets its fall die away here
+            self.last_speech = self.chip.time
         # Idle = the start-of-utterance routine (0x4318): PA/3 with R2 forced to rate F.
         # Speech never uses rate F, and every frame first primes R0 with 00.
         if reg == 0 and v != 0x00 and not (v == 0xC0 and (self.chip.regs[2] >> 4) == 0xF):
@@ -268,10 +272,17 @@ class SpeakOut:
         # the phoneme-frame ring the chip ISR consumes (0x1119: [0x243C] chases [0x243A])
         return self._word(0x243C) != self._word(0x243A)
 
+    def held(self):
+        """The chip still sounding the last phoneme it was given (not PA, powered up): a text goes on until that
+        phoneme has played and the firmware has answered with PA.  At rate 0 one phoneme outlasts `quiet`, and its
+        rest played at the head of the next text (a listener, typing letters; tools/check_so_tail.py)."""
+        return not TAIL_BREAK and bool(self.chip.regs[0] & 0x3F) and not self.chip.regs[3] & 0x80
+
     def busy(self, quiet=0.06, patience=1.5):
         """Still speaking: input pending, a line not yet started (up to `patience` s),
-        or a speech phoneme loaded within `quiet` s."""
-        if self.input_pending() or (self.chip.time - self.last_speech) < quiet:
+        a speech phoneme loaded within `quiet` s, or one still held (up to `patience` s)."""
+        since = self.chip.time - self.last_speech
+        if self.input_pending() or since < quiet or (self.held() and since < patience):
             return True
         return self.preparing and (self.chip.time - self.say_time) < patience
 

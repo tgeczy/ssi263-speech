@@ -41,6 +41,7 @@ struct so_host {
     unsigned char *waiting;                /* text said and not yet sent (feed) */
     int n_wait, cap_wait;
     int pace_break;                        /* SSI263_SO_PACE_BREAK=1, the tests' control: all text at once, as it was */
+    int tail_break;                        /* SSI263_SO_TAIL_BREAK=1, the tests' control: busy() without held() */
 };
 
 static void set_err(char *err, int errlen, const char *msg)
@@ -59,6 +60,7 @@ SO_API so_host *soh_create(const char *hex, size_t len, ssi263 *chip, double out
         return NULL;
     }
     h->pace_break = getenv("SSI263_SO_PACE_BREAK") && !strcmp(getenv("SSI263_SO_PACE_BREAK"), "1");
+    h->tail_break = getenv("SSI263_SO_TAIL_BREAK") && !strcmp(getenv("SSI263_SO_TAIL_BREAK"), "1");
     h->b = so_create();
     if (!h->b) {
         free(h);
@@ -155,11 +157,22 @@ static void log_write(so_host *h, int reg, int v)
     h->n_wl++;
 }
 
+/* the chip still sounding the last phoneme it was given (not PA, powered up): a text goes on until that phoneme has
+   played and the firmware has answered with PA.  At rate 0 one phoneme outlasts busy()'s `quiet`, and its rest played
+   at the head of the next text, before any write of its own (a listener, typing letters; tools/check_so_tail.py) */
+static int held(const so_host *h)
+{
+    return !h->tail_break && (ssi263_reg(h->chip, 0) & 0x3F) && !(ssi263_reg(h->chip, 3) & 0x80);
+}
+
 static void chip_write(so_host *h, int reg, int v)
 {
+    int sounding = reg == 0 && held(h);        /* a phoneme playing that this write ends */
     ssi263_write(h->chip, reg, v);
     if (h->log_on)
         log_write(h, reg, v);
+    if (sounding)                              /* speech until now: busy()'s `quiet` lets its fall die away here */
+        h->last_speech = ssi263_time(h->chip);
     /* Idle = the start-of-utterance routine (0x4318): PA/3 with R2 forced to rate F.  Speech never uses rate F, and
        every frame first primes R0 with 00. */
     if (reg == 0 && v != 0x00 && !(v == 0xC0 && (ssi263_reg(h->chip, 2) >> 4) == 0xF)) {
@@ -255,7 +268,7 @@ SO_API int soh_input_pending(const so_host *h)
 SO_API int soh_busy(const so_host *h, double quiet, double patience)
 {
     double now = ssi263_time(h->chip);
-    if (soh_input_pending(h) || (now - h->last_speech) < quiet)
+    if (soh_input_pending(h) || (now - h->last_speech) < quiet || (held(h) && (now - h->last_speech) < patience))
         return 1;
     return h->preparing && (now - h->say_time) < patience;
 }
