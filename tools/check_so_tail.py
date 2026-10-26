@@ -6,7 +6,9 @@ F's F, X's S), and the rest of it played at the head of the next letter, before 
 here, said to its end and cut after 120 ms: the chip must hold PA (or be powered down) when the next one begins, and
 no sound may come before that one's first chip write.
 
-    python tools/check_so_tail.py [library]      (default build/win/x64/ssi263speech.dll)
+    python tools/check_so_tail.py [library [firmware folder]]
+                                    (default build/win/x64/ssi263speech.dll and firmware/: the folder holds
+                                     gw-micro-speakout/SPEAKOUT.HEX and gw-micro-sounding-board/SBLOAD.COM, SB.COM)
 
 Control (SSI263_SO_TAIL_BREAK=1): busy() leaves out the phoneme the chip still holds, as it was -- the letters after
 A, F and X then start with it, and every case must fail.
@@ -17,7 +19,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-FW = os.path.join(ROOT, "firmware")
+FW = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "firmware")
 sys.path.insert(0, os.path.join(ROOT, "nvda", "shared"))
 import ssi263speech  # noqa: E402
 

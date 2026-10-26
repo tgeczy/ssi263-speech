@@ -610,15 +610,24 @@ control "SmarTalk voice CONTROL (the contractions as they are, must fail)" "^FAI
     "^FAIL  said as: I'm " "^FAIL  don't: said as one word, no letter T " "^ok    said as: rock 'n roll " \
     "^st voice: 6 FAILED$" -- env ST_TEXT_BREAK=1 python3 tools/check_st_voice.py build/linux/libssi263_voices.so
 # letters typed at rate 0 on the Speak-Out's front end, both boxes (tools/check_so_tail.py, as run_tests.py's): no
-# letter starts with the last one's phoneme; the control leaves the held phoneme out of busy()
-if [ -f "$ROOT/firmware/gw-micro-speakout/SPEAKOUT.HEX" ] && [ -f "$ROOT/firmware/gw-micro-sounding-board/SB.COM" ]; then
+# letter starts with the last one's phoneme; the control leaves the held phoneme out of busy().  The two boxes' files
+# from where the translit check above looks for SPEAKOUT.HEX, gathered in one folder
+SOFW=build/so-tail-firmware
+rm -rf $SOFW && mkdir -p $SOFW/gw-micro-speakout $SOFW/gw-micro-sounding-board
+for so in "$DATA/gw-micro-speakout" "$ROOT/firmware/gw-micro-speakout" "$DATA/../speakout-firmware"; do
+    [ -f "$so/SPEAKOUT.HEX" ] && { ln -sf "$so/SPEAKOUT.HEX" $SOFW/gw-micro-speakout/; break; }
+done
+for sb in "$DATA/gw-micro-sounding-board" "$ROOT/firmware/gw-micro-sounding-board" "$DATA/../speakout-firmware"; do
+    [ -f "$sb/SB.COM" ] && [ -f "$sb/SBLOAD.COM" ] && { ln -sf "$sb/SB.COM" "$sb/SBLOAD.COM" $SOFW/gw-micro-sounding-board/; break; }
+done
+if [ -f $SOFW/gw-micro-speakout/SPEAKOUT.HEX ] && [ -f $SOFW/gw-micro-sounding-board/SB.COM ]; then
     check "Speak-Out and Sounding Board at rate 0: no letter starts with the last" python3 tools/check_so_tail.py \
-        build/linux/libssi263_voices.so
+        build/linux/libssi263_voices.so $SOFW
     control "Rate 0 letters CONTROL (the held phoneme left out, must fail)" \
         "^FAIL  soundingboard rate 0 to its end +a: held S, " "^FAIL  speakout rate 0 cut at 0\.12 s +e: held E, " \
-        "^so tail: 4 FAILED$" -- env SSI263_SO_TAIL_BREAK=1 python3 tools/check_so_tail.py build/linux/libssi263_voices.so
+        "^so tail: 4 FAILED$" -- env SSI263_SO_TAIL_BREAK=1 python3 tools/check_so_tail.py build/linux/libssi263_voices.so $SOFW
 else
-    echo "skip  rate 0 letters: no SPEAKOUT.HEX and SB.COM in firmware/ (tools/check_so_tail.py)"
+    echo "skip  rate 0 letters: no SPEAKOUT.HEX with SBLOAD.COM and SB.COM (tools/check_so_tail.py)"
 fi
 # Automated Functions' SmarTalk: S_TALK.EXE is in the repository, so the package always carries it with its notice
 if ./build/linux/sd_ssi263 --voices | grep -q '^smartalk'; then
