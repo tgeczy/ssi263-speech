@@ -27,7 +27,7 @@
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FW="$(cd "$1" && pwd)"
-VERSION="${2:-0.9.0}"
+VERSION="${2:-0.9.1}"
 ARCH="$(uname -m)"
 NAME="ssi263-speech-$VERSION-linux-$ARCH"
 STAGE="$ROOT/build/package/$NAME"
