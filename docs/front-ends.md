@@ -1,6 +1,6 @@
-# The four front ends
+# The front ends
 
-A front end is the program that turns text into SSI-263 register writes. None of the four
+A front end is the program that turns text into SSI-263 register writes. None of the ones
 here was rewritten: each is the device's own code, run on an emulated copy of the machine it
 was written for, with the emulated chip in place of the real one. The chip's A/R request
 drives each program back, so each one paces itself exactly as it did on the hardware.
@@ -16,12 +16,15 @@ Since 0.7, every shipping front end runs instead on MAME's extracted CPU cores
 | Braille Lite 2000 and the other Blazie units | MAME's Z180 | `blazie/` |
 | Accent-mini | MAME's 8086, under a small PC (`pc86/`) | `accentmini/` |
 | Accent SA | MAME's 8085 | `accentsa/` |
+| Sounding Board | MAME's 8086, under the same small PC | `soundingboard/` |
+| SmarTalk | MAME's 8086, under the same small PC | `smartalk/` |
+| Mockingboard | Fake6502 (public domain, from Jayson Smith's EchoTalk) | `mockingboard/` (see [mockingboard-firmware.md](mockingboard-firmware.md)) |
 
 The earlier hosts remain only as development references and legacy checks. What each
 firmware does, and what the machine around it must provide, is unchanged, so the sections
 below still hold.
 
-All four write the same five registers:
+All of them write the same five registers:
 
 | Register | Bits | Meaning |
 |---|---|---|
@@ -178,8 +181,12 @@ document labels.
 The host is `src/hosts/smartalk.py`, in Python on MAME's 8086 (`pc86`), and `src/csrc/smartalk/st_host.c`,
 the same host in C, line for line (`tools/check_st_host.py`: every chip write the same). The voice,
 `st_voice.h`, gives it NVDA's settings and the shared text path; the 0.8 add-on carries it as the "SmarTalk"
-firmware type when `S_TALK.EXE` is in the local firmware folder (`tools/check_st_voice.py`). SAPI, Linux and
-Android do not offer it yet.
+firmware type when `S_TALK.EXE` is in the local firmware folder (`tools/check_st_voice.py`). Since 0.9.0 it is a
+voice on every platform: NVDA, SAPI, Linux, Android (the GitHub APK carries it) and the Apple app (where it is
+imported). RetroBunn worked out the box from the TSR's own code and brought it in (PR #24); the disk's own
+`SMARTEST.EXE` 1.12 runs its hardware checks against the emulated box and reports "FINAL SMARTALK STATUS IS
+GOOD". `S_TALK.EXE` is kept in the repository, unchanged, because its makers' disk invites sharing it; its notice
+is in [`firmware/automated-functions-smartalk/README.txt`](../firmware/automated-functions-smartalk/README.txt).
 
 - **The box:** a five-ounce SSI-263 on the PC's parallel port (Automated Functions, Arlington,
   Virginia, 1995), with nothing to think with: the text-to-speech is their DOS TSR, version
@@ -218,8 +225,10 @@ Android do not offer it yet.
   numbers as words, longer ones digit by digit, and with its punctuation off (the default) it says
   no "$", "%" or decimal point, so the voice turns dollar amounts and percents into words before
   the shared number words.
-- **The voice's settings:** NVDA's rate and pitch on its 0–9 (`ESC >`, `ESC P`; 50 is its 5),
-  the variant as its tone A–Z (`ESC {`, I by default), "Voice inflection" as `ESC m`, and the
+- **The voice's settings:** NVDA's rate and pitch on its 0–9 (`ESC >`, `ESC P`). Pitch 50 is its 5. Rate 50 is
+  its power-up speed: the manual says rate 5, but after its boot `S_TALK.EXE` 1.21 speaks at the speed `ESC >3`
+  gives, and a real SmarTalk recording is much closer to that speed, so 0–50 maps onto 0–3 and 50–100 onto
+  3–9 (0.9.0). The variant is its tone A–Z (`ESC {`, I by default), "Voice inflection" as `ESC m`, and the
   volume as the audio's gain. The box's own volume is set to 9, its top step (`ESC <9`): at its
   default, 4, it was 4.2 dB under the Speak-Out, the Accents and the Sounding Board, and at 9 it is
   within 0.2 dB of them. Each command is sent only when it changes.
@@ -233,3 +242,12 @@ Android do not offer it yet.
   Speak-Out and Accent voices use for capitals), and nothing after the first phoneme.
   Text goes in parts of up to 160 characters, the next while about 12 phonemes are still queued,
   so no call waits on the TSR's 1,200-byte buffer.
+- **Contractions (0.9.1):** the TSR ends a word at an apostrophe and spells what is left if it
+  has no vowel, so "don't" came out as "don" and the letter T, and "it's" as "it" and S. A
+  listener heard it. The voice now drops an apostrophe between two letters before the TSR sees
+  the text, and respells the forms that would still come out wrong (I'm, I'll, we'll, they're,
+  who'd and others) the way the TSR says them right; other apostrophes, as in "rock 'n roll",
+  are left alone. The TSR's own setting for speaking all-consonant words (`ESC C 1`) was tried:
+  it still spelled single letters and made acronyms worse, so it stays off.
+  `tools/check_st_voice.py` checks all of this, with a control (`ST_TEXT_BREAK=1`) that puts the
+  old text back.

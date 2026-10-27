@@ -43,7 +43,8 @@ way, and those withdrawals are part of the record too.
   It descends from Votrax's SC-01, and Votrax sells it as the SC-02. The chip photographed
   later is marked "SSI 263P / P 8404".
 - **1989.** The chip is sold as TDK's 78A263A: a Heath PC Voice Card carries a 78A263A-P with a 1989 date code.
-  Artic Technologies' SynPhonix cards carry Artic's own ARTIC263.
+  Artic Technologies' own Artic-263, the SynPhonix cards' chip, turns up with 1991 and 1992 date codes (see the
+  family below).
 - **1991.** The Braille 'n Speak 640 ships, around October, and work begins on the
   pronunciation fixes in its firmware, reaching users in the first updates (1991 or summer
   1992). **Cathy Hall** wrote them. Few people outside the company knew her work, and a
@@ -63,6 +64,181 @@ way, and those withdrawals are part of the record too.
   that picture for its Mockingboard speech, and on 2026-08-26 decodes them as
   significance-interleaved 4-bit fields (the layout the SC-01's decap had shown). Its
   code-to-hertz table is borrowed from the SC-01.
+
+## The SSI-263's family, year by year
+
+Every device we know of that spoke through the SSI-263, or through the same chip under another name: Votrax's
+SC-02, TDK's 78A263A, Artic's Artic-263, Aicom's AI901, and the Semtech-made SSI 263-2-2. Each entry says what puts
+it in the family:
+
+- **marking:** the chip read from a photograph of the board;
+- **firmware:** the device's own program writes the chip's registers (and, where it says so, runs in this project);
+- **document:** a manual, article, paper or patent names the chip;
+- **ear:** someone who knows the voice recognised it in a recording.
+
+A board's copyright year is when it was laid out, not when it shipped. A chip's date code is the year and week it
+was made: 8406 is 1984, week 6. A device sits under the earliest year we can show. If you have a board photo, a
+manual, a recording or firmware for anything here, or for something missing, please get in touch: the gaps are
+listed under "The family of devices" in [open-questions.md](open-questions.md).
+
+### 1982
+
+- **Votrax's SC-02 prototype** (document). A large board marked "VOTRAX (c) 1982" is the SC-02 built from discrete
+  parts before it became one chip: CMOS analog switches, op-amps and mica capacitors for the switched-capacitor
+  filters, and a board of CMOS logic for the controller. ReActiveMicro published its photographs. A prototype can
+  differ from the final chip, so it is a lead for the die, not a description of it.
+
+### 1983 and 1984
+
+- **Sweet Micro Systems' Mockingboards** (marking, firmware). Sweet Micro's first speech boards used the Votrax
+  SC-01 (see "Not the SSI-263" below). From 1983 its boards carry the SSI-263: the Mockingboard A and C
+  (SSP-2000C, "(c) 1983") hold an SSI 263P dated 8406, with room for a second speech chip; the Mockingboard B was the
+  speech chip alone, as an upgrade. Sweet Micro's Developer's Toolkit text-to-speech ("version 1.1", March 1985),
+  and the earlier text-to-speech on its disks 1 and 2, are the two Mockingboard voices in this project. The board
+  lineage follows the Nerdly Pleasures blog (2022) and the boards' own silkscreens.
+- **The Mockingboard D** (marking, firmware). An external box for the Apple IIc, on its serial port. Its board
+  (SSP 3000 Rev B) has its own 6803 processor, 1 KB of RAM, AY-3-8913 sound chips and an SSI 263P dated 8431. Its
+  2 KB program begins "(C)1984 SMSP": it takes commands from the IIc into a 16-byte buffer and writes the speech
+  chip itself, on its own timer. The Developer's Toolkit disk carries the IIc's side, an "IIC TTS DRIVER" that
+  sends the speech over the IIc's serial port at 9600 baud. Not built here yet.
+- **The Sweet Talker II** (document). Steve Ciarcia's SSI-263 article in Byte (March 1984) builds this Apple card
+  for Micromint, with a simple low-pass filter before its amplifier, and shows a Mockingboard with two SSI-263s that
+  can "sing along in stereo".
+- **Thayer's Quest** (document). RDI's 1984 laserdisc game has an SSI-263 on its CPU board. Its service manual shows
+  the voice filtered on the way out (a 3.1 kHz low-pass and a high-pass into the mixer), which is the board's sound,
+  not the chip's.
+- **Artic's first SynPhonix** (document). Artic Technologies' 1995 hardware manual dates the SynPhonix 200, the
+  original card for the PC and XT, to 1984, and says every SynPhonix model uses the Artic-263. We have seen no chip
+  from that first model.
+
+### 1985
+
+- **The SSI-263A.** Chips marked SSI 263AP appear from 1985 (N8513 on a Phasor, S8545 on a Mockingboard M), and the
+  1985 Silicon Systems data book documents the A. A Usenet post of March 1985 reports a reset defect in a 263P
+  design. Whether the A changed anything a listener could hear is open.
+- **The Mockingboard M** (marking). SSP2000 Rev D, "(c) 1985": one speech socket, an input for the Apple's own
+  speaker, and the only Mockingboard with a 3.5 mm jack; it came with Bank Street Music Writer. The photographed
+  boards hold an SSI 263P dated 8431 and an SSI 263AP dated S8545.
+- **Votrax's SC-02 data sheet** (document, December 1985): the same chip under Votrax's name.
+
+### 1986
+
+- **Applied Engineering's Phasor** (marking). An Apple card, "(c) 1986", with four AY sound chips and two speech
+  sockets; the photographed board holds an SSI 263AP dated N8513, with its second socket empty.
+- **The SmallTalk voice module for the Epson HX-20** (marking). "HX-20 VOICE MODULE REV C", with an SSI 263AP dated
+  S8601, an LM386 amplifier and a 3.579545 MHz crystal; it came with an expanded-memory board marked "(c) 1986
+  Computer Aids Corp". The photographs and notes are Scott M. Baker's.
+- **Aicom's Accents** (marking, firmware). Aicom's copyright runs from 1986. Its chip is the AI901, an SSI-263: an
+  Accent PC card's chip reads "AI901 / AICOM CORP / SA9048". The Accent User's Manual (version 4.0, February 1991)
+  covers the Accent-PC, the Accent-PS/2 for Micro Channel, the Accent-mini and the stand-alone Accent-SA; the family
+  also had the 1600 and XE for Toshiba laptops. The Accent-SA's own 8085 program (copyright 1986–1989) and the
+  Accent-mini's DOS driver (version 4.5, 1986–1993) both run in this project.
+- **Mannell's measurements** (document). In 1986 Mannell measured every SC-02 vowel's formants from
+  spectrograms and mapped them onto Australian English.
+
+### 1987
+
+- **The Braille 'n Speak** (firmware). Blazie Engineering's talking braille notetaker; Blazie marked its tenth
+  anniversary with the summer 1997 updates. Every Blazie firmware this project runs writes an SSI-263: the Braille
+  'n Speak 640 and 2000, the Type 'n Speak, and the Braille Lite 2000 and its language updates, from 1997 to June
+  2003. We haven't seen the speech chip of the first units.
+- **Heath's PC Voice Card** (marking). A PC card whose board is marked 051587, likely 15 May 1987; the
+  photographed card holds TDK's 78A263A-P, dated 8908 under a Silicon Systems logo, with a 4 MHz oscillator and a flip-flop that likely
+  make the chip's 1 MHz clock.
+- **Chip Talk** (document). Dave Prochnow's book of speech projects (TAB, 1987) builds a minimal SSI 263A card for
+  the Apple IIe, and covers the Mockingboard B and RC Systems' Slot-Buster, a multilingual SSI 263A text-to-speech
+  card.
+
+### 1988
+
+- **Sprechi for the Amstrad CPC** (document). A German text-to-speech for an SSI 263 wired to the CPC through a Z80
+  PIO, published as a type-in in CPC Amstrad International (special issue 7) by Jan-Mirko Maczewski and Jens
+  Heimsoeth. Its numbers, symbols and question rise are German, and its article says the chip "even does German
+  umlauts".
+- **GW Micro's Sounding Board** (firmware). A PC card sold from 1988 to 1996, with LT and XE versions for Toshiba
+  laptops; the text-to-speech ran on the PC, in two DOS programs by Douglas Geoffray. Version 2.7 runs in this
+  project.
+
+### 1989
+
+- **TDK's 78A263A** (marking): see the Heath card above.
+- **A Votrax-marked SC-02** (marking) with the date code SA8912.
+- **Kraftwerk's Robovox** (document). Patent EP0396141A2, filed in May 1989 by Florian Schneider, Gert Joachim Ott and
+  Gert Jalass: an SC-02 / SSI 263A singing in real time over MIDI, with outside sound fed into the chip's test pins.
+  It can be heard on The Mix (1991).
+- **King's talking videotex** (document). An experimental reader of videotex pages for blind users in Australia,
+  with "a SSI-263 chip housed in a purpose-built unit" on the PC's printer port, given an Australian accent.
+
+### 1990
+
+- **A university teaching card** (document). A German university's microprocessor lab drove an SSI 263 from a 6802
+  for its students; the card's schematic is dated April 1990 (Harald Brandau), the lab sheet 2003. It has no
+  low-pass filter at all.
+- **The Accent PC's AI901** (marking) is dated SA9048 (1990, week 48).
+
+### 1991
+
+- **The Braille 'n Speak 640**: see "Before this project".
+- **Artic's SynPhonix SP-21X** (marking). Revision 3, "COPYRIGHT 1987,91 BY ARTIC TECHNOLOGIES": an ISA card with
+  the speaker on the card, treble and volume knobs, and a 15-pin socket for Artic's switches. Two photographed cards
+  carry ARTIC 263 dated SA9117 and ARTIC263 dated CD9226 (1992). Its 8 KB EPROM holds only an 8-byte key, repeated,
+  which Artic's software, serialised to each card, appears to check.
+- **The BrailleMate** (ear, document). Telesensory's hand-held braille notetaker, described in 1991 as a
+  computerised Perkins brailler that also kept notes, a calendar and a phone directory. A September 1993 product
+  list gives it a braille keyboard and a single 8-dot braille cell, an "optional built-in speech synthesizer", model
+  DM1A-01 at $1,595, and a plug for a Navigator braille display of 20 to 80 cells. Telesensory's DOS screen reader,
+  Screen Power Speech 2.0A (1994), drives it as a synthesizer and speaks of its "External Speech Synthesizer mode".
+  **Tomi recognised the SSI-263 in Telesensory's BrailleMate tutorial recordings**, preserved in Datajake's archive.
+  No board photograph or firmware has surfaced yet.
+
+### 1992
+
+- **Artic keeps the chip alive** (document). The National Federation of the Blind's Computer Science Update (June
+  1992) reports that Artic's principals had designed the 263 at Votrax's research lab, that Silicon Systems made it
+  under licence, and that when Votrax folded and Silicon Systems announced the chip's end, Artic took over its
+  distribution and support. It names Aicom's Accent as a 263-based competitor. Artic's own 1995 manual says the
+  Artic-263 "was developed by the founders of Artic Technologies".
+- **One chip, three names?** The SC-02 (SA8912), the AI901 (SA9048, lot 18611) and the Artic 263 (SA9117, lot 18573)
+  carry the same marking format, with lot numbers only 38 apart. That suggests one factory and one die under three
+  brands. It is an inference from the markings, not a die comparison.
+
+### 1993 to 1996
+
+- **A screen reader's list is not a chip list.** Blazie's ASAP screen reader drove the BrailleMate, the Braille 'n
+  Speak, the Echo, the Sounding Board and the VoTalker as speech devices (September 1993). The Echo is a TMS5220, so
+  the list says what ASAP supported, not what was inside.
+- **GW Micro's Speak-Out** (firmware). A serial speech box (hardware by Daniel Weirich, software by Douglas
+  Geoffray); its program, version 1.2, is dated May 1995. It carries the Sounding Board's rules and allophone tables
+  byte for byte, and the two send the chip the same frames. It runs in this project.
+- **Automated Functions' SmarTalk** (firmware). A five-ounce SSI-263 box on the PC's parallel port, from Arlington,
+  Virginia (1995), with nothing to think with: its text-to-speech is a DOS program, `S_TALK.EXE` 1.21 (November
+  1995), which screen readers fed in the Accent's commands or the SmarTalk's own. No document describes the box's
+  wiring; RetroBunn worked it out from the program's own code, and the disk's own test program reports "FINAL
+  SMARTALK STATUS IS GOOD" against the emulated box. Its makers' disk says "Please feel free to share the new
+  version of the SmarTalk software with anyone who needs it", so it is the one program in this project shared by
+  its makers' own words.
+- **Artic's 1995 range** (document). The SynPhonix manual (fourth edition, September 1995) lists the 200, 210, 212
+  and 215 ISA cards and the P27 PCMCIA card, all with the Artic-263. The Mini TransPort (manual of March 1995),
+  "Artic's smallest external speech synthesizer", takes Artic's PortTalk commands and the Accent's; its manual never
+  names its chip.
+
+### 1997 to 2003
+
+- **Semtech's 263** (marking). A photograph of an opened Braille 'n Speak 2000 shows its speech chip marked
+  "SSI 263-2-2 / SEMTECH": in that unit, Semtech, not Silicon Systems, made the chip.
+- **Blazie's last updates.** The firmware this project runs comes from Blazie's updates of 1997 to June 2003, the
+  last English Braille Lite 2000 build.
+- **The end of the Accents.** By September 2000, a mailing-list post reports, Aicom had stopped making the Accent SA,
+  PC, Messenger and mini.
+
+### Not the SSI-263, though often mixed up
+
+- **Sweet Micro's Speech I and Sound/Speech I** (1982): the Votrax SC-01-A (dated 8311 on the photographed
+  board), the chip MAME emulates.
+- **The Braille Lite M20 and M40:** a DoubleTalk.
+- **Aicom's Accent Messenger** (1993): an NEC µPD77P25 signal processor running a software synthesizer, not an AI901.
+- **The Echo:** a TMS5220, a linear-prediction chip.
+- **HP's 27201A Speech Output Module:** it plays downloaded encoded sound, with no phonemes.
 
 ## 2026-09-16: "that's not the SSI-263"
 
@@ -292,6 +468,11 @@ with each release.
 | 0.7.0 | Tomi: every shipping CPU on MAME, no GPL runtime | Every unit on MAME's extracted CPU cores (BSD-3-Clause) and our own MIT code; **the Blazie emulator** (the Braille Lite 2000 and the Type 'n Speak, English and Spanish, with a Braille 'n Speak 2000 preview) for Windows and Linux; Linux, Android and Python packages |
 | 0.7.5 | Tomi: "all voices, no exceptions" | Every voice on NVDA, SAPI, Linux and Android from one native C library, checked byte for byte against 0.7.0's drivers; SAPI without Python (and on 32-bit Windows); the Speak-Out imported from `SPEAKOUT.HEX` and the Accent-mini built in on Android; the BT Speak and BT Braille front end |
 | 0.7.6 | Tomi's ear and Astra's review; Jayson (issue #3); issue #8 | The hard G (`hold_release`): "guess" no longer says "ess"; the emulator's clock keeps this year's calendar across the unit's New Year; the Accent SA's text is done only when the unit has nothing left to say, so dialog labels ending in a colon are no longer cut off |
+| 0.7.7 | Garrett: Linux left the SSI-263 as the only synthesizer (issue #10, his fix in PR #11) | speech-dispatcher keeps your other synthesizers; Blazie's Simon game plays again |
+| 0.8.0 | Tomi, and the anonymous donors of Blazie's language updates | One NVDA add-on for every unit; **the Mockingboard**, in two versions; the Braille Lite 2000 in 19 languages; engine v0.18 (fuller vowels, grittier fricatives, clean BASIC tones) |
+| 0.8.5 | Tomi, and a Braille 'n Speak 640 owner (issue #15) | **GW Micro's Sounding Board** as a voice; the Braille 'n Speak 640 in the emulator, with the first Polish Braille 'n Speak firmware we know of; the double-speed upgrade; a unit screen on Android; pitch glides on the law measured on a real chip (engine v0.20) |
+| 0.9.0 | RetroBunn (PR #24); Steve (PR #23) | **Automated Functions' SmarTalk** on every platform; the Mockingboard starts each text clean; long texts on the Sounding Board and Speak-Out speak to the end; double speed no longer holds a vowel; the BT Speak's Blazie menus follow the device's own |
+| 0.9.1 | Tom and Tyler, listeners; Steve (PR #26) | The SmarTalk says contractions as words; at slow rates the Speak-Out and Sounding Board no longer start a letter with the end of the last; the release builds the BT Speak package itself |
 
 ## 0.7 migration credits (2026-09-30, release preparation)
 

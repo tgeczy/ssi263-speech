@@ -1,9 +1,14 @@
 # Open questions
 
-What isn't known yet. Written at 0.5.0 (engine v0.12) and brought up to date for 0.8 (engine
-v0.18). Where later work answered or narrowed a question, the item says so and points to
-[history.md](history.md). Each one says where it would be settled: the die, the recordings,
-or the ear.
+What isn't known yet. Written at 0.5.0 (engine v0.12), brought up to date for 0.8 (engine
+v0.18), and given the family of devices at 0.9.1. Where later work answered or narrowed a
+question, the item says so and points to [history.md](history.md). Each one says where it
+would be settled: the die, the recordings, a board, a document, or the ear.
+
+If you can help with any of these (a photograph of a board, a manual, a firmware or update
+disk, a recording of a real unit), please open an issue or get in touch. Describe firmware by
+its name, size and SHA-256 rather than attaching it: the project doesn't take firmware from
+contributors, but it very much wants to know what exists.
 
 ## Settled since 0.5.0
 
@@ -36,7 +41,13 @@ or the ear.
 - **The TP pins' insertion point:** before or after voice amplitude and the closure gate,
   and what they reveal about the glottal pulse's shape.
 - **Revisions.** Is the photographed P die equivalent to the later AP? Which one is in the
-  Braille Lite?
+  Braille Lite? The same question runs through every name the chip was sold under: the SSI
+  263P (dated 8404 to 8431 on the boards we've seen), the 263AP (8513 to 8601), Votrax's SC-02,
+  TDK's 78A263A, Artic's Artic-263, Aicom's AI901, and the Semtech-made SSI 263-2-2 in a late
+  Braille 'n Speak 2000. Their marking format and lot numbers suggest one die (see
+  [history.md](history.md)), but none has been compared on the die. Mask revision marks at the
+  die's edge would tell revisions apart; so would the same register writes played on each chip
+  and recorded.
 - **A better picture.** The full 17,265 × 14,313 master, or other layers, would help every
   item above.
 
@@ -97,7 +108,47 @@ or the ear.
   duration bits, unit against engine; then the die (what clocks the amplitude counters).
 - **The engine's floor** is digital silence, where the unit has a capture floor.
 
+## The family of devices
+
+The timeline is in [history.md](history.md), "The SSI-263's family, year by year". What it
+can't say yet:
+
+- **The BrailleMate's insides.** Tomi recognised the SSI-263 by ear in Telesensory's tutorial
+  recordings, and a 1993 product list calls its speech an "optional built-in speech
+  synthesizer". No board photograph, ROM or update disk has turned up. Telesensory's Screen
+  Power Speech 2.0A has six builds, one per synthesizer; the BrailleMate's is most likely
+  `SPS.002`, the only one besides the Accent SA's that opens a serial port (an inference, not a
+  trace). What it sends the BrailleMate, and whether that is Artic's PortTalk command set, would
+  show how the BrailleMate took commands, though not what is inside it. Settled by: a board
+  photo, a ROM dump or an update disk; tracing `SPS.002`'s serial writes.
+- **The VoTalker.** Votrax's VoTalker appears in Blazie's ASAP list (1993) and as a build of
+  ETS's Enable Reader (1986). Which chip it used isn't known to us. Settled by: a board photo or
+  its manual.
+- **The first Braille 'n Speak** (1987) and the first Braille Lite: we have seen chips and
+  firmware only from 1997 on. Settled by: board photos of early units.
+- **The Artic Mini TransPort** (1995): its manual never names its chip, only that "Artic-263"
+  is an Artic trade name. Its firmware is "user upgradeable via a diskette", so an update disk
+  may survive. Settled by: a board photo or that disk.
+- **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
+  clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real
+  recordings. Not known: the SynPhonix (a 74HCT161 divider, probably from the
+  PC's bus clock), the Heath card (a 4 MHz oscillator and a flip-flop), the HX-20 module (a
+  3.579545 MHz crystal, maybe divided), the CPC's Sprechi board, and the Accent SA's own CPU
+  clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
+  against the register values that made it.
+- **Sweet Micro's foreign-language rule tables.** Chip Talk (1987) says Sweet Micro sold
+  "Foreign Language Rule Tables", German among them, for the Mockingboard's SSI-263. We haven't
+  found the disk. Nor have we found the software for RC Systems' multilingual Slot-Buster.
+- **The Mockingboard D's timing.** The D runs the same text-to-speech as the other Mockingboards
+  on the IIc, but its own 6803 writes the chip, on its own timer. Whether that changes the timing
+  enough to hear is open until the D is built: a 65C02 for the IIc's driver, the IIc's serial
+  chip, a 6803 and the AY chips around our SSI-263.
+
 ## On the front ends
 
 - **Volume above 7** compresses on the unit; where is unknown.
 - **The Accent SA's clock** (3.072 MHz is a guess) and its first-word delay.
+- **The SmarTalk's BUSY and PAPER-OUT lines** read as a powered box's levels, but what drives
+  them is not known. Two short real SmarTalk recordings exist (11 kHz, line in); they confirm
+  its power-up speed but are too narrow for its fricatives. A wider recording of a real box
+  would settle its tone and noise levels.

@@ -86,17 +86,18 @@ device's software, you import it there yourself.
 ## Documentation
 
 - [How the SSI-263 learned to speak again](docs/history.md): the whole story, day by day,
-  from the first ROM read to this release, and who found what along the way.
+  from the first ROM read to this release, and who found what along the way; and every
+  device known to have used the SSI-263, from 1982 on.
 - [Reading the chip off its die](docs/die.md): how the phoneme ROM was read three separate
   ways from Visual6502's photographs, and what those bits do and don't tell us.
 - [Measuring a real SSI-263](docs/measurements.md): how my own Braille Lite 2000 was
   recorded and measured, and the lessons that cost the most to learn.
 - [The chip engine](docs/engine.md): what the model does, part by part, and what it
   doesn't do yet.
-- [The four front ends](docs/front-ends.md): each device's own firmware, and the emulated
+- [The front ends](docs/front-ends.md): each device's own firmware, and the emulated
   machine it runs on.
-- [Open questions](docs/open-questions.md): what we still don't know, and where the
-  answer would come from.
+- [Open questions](docs/open-questions.md): what we still don't know, where the
+  answer would come from, and how you can help.
 - [Sources and credits](docs/sources.md): every data sheet, paper, patent, program and
   person this work stands on.
 
@@ -106,7 +107,7 @@ device's software, you import it there yourself.
 |---|---|
 | `src/ssi263/` | The chip. `chip.py` is the reference, `params.py` holds every uncertain constant tagged by its source, `native.py` is the same chip in C behind the same interface |
 | `src/csrc/` | The chip in C99, the device boards, and the extracted MAME CPU cores with their BSD notices |
-| `src/hosts/` | The firmware hosts and native-board bindings. MAME is the default for all four devices; old cores are development references only |
+| `src/hosts/` | The firmware hosts and native-board bindings. MAME's cores run every device except the Mockingboard (Fake6502); old cores are development references only |
 | `src/data/rom_bits.csv` | The phoneme ROM |
 | `src/HOLDOUT.md` | The hold-out rules, and a log of every change to the chip and every look at the hold-out |
 | `docs/` | The documentation (see above) |
