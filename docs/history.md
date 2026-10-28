@@ -208,9 +208,8 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 ### 1993 to 1996
 
 - **A screen reader's list is not a chip list.** MicroTalk's ASAP screen reader was built for MicroTalk's own
-  DoubleTalk-based LiteTalk and LapTalk, and was also sold in editions locked to a single synthesizer, such as the
-  edition for Blazie's units. The manual of September 1991 describes support for the Accents, the Audapter, the
-  Braille 'n Speak (from its June 1991 ROM, in speech-box mode), the DECtalk, the Echo PC, the Sounding Board, the SynPhonix,
+  DoubleTalk-based LiteTalk and LapTalk. Its manual of September 1991 describes support for the Accents, the
+  Audapter, the Braille 'n Speak (from its June 1991 ROM, in speech-box mode), the DECtalk, the Echo PC, the Sounding Board, the SynPhonix,
   the VoTalker, and PortTalk synthesizers such as the BrailleMate. The Echo is a TMS5220 and the DECtalk is DEC's
   own, so the list says what ASAP supported, not what was inside. One line in it is a lead, though: the VoTalker
   needed `SONIX.COM` and `TTS.COM` to talk, and Sonix is an Artic trademark, the same family as the SynPhonix's
