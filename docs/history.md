@@ -187,7 +187,7 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   computerised Perkins brailler that also kept notes, a calendar and a phone directory. A September 1993 product
   list gives it a braille keyboard and a single 8-dot braille cell, an "optional built-in speech synthesizer", model
   DM1A-01 at $1,595, and a plug for a Navigator braille display of 20 to 80 cells. Telesensory's DOS screen reader,
-  Screen Power Speech 2.0A (1994), drives it as a synthesizer and speaks of its "External Speech Synthesizer mode".
+  Screen Power Speech 2.0A (1994, preserved in Nick Stockton's vintage-access archive), drives it as a synthesizer and speaks of its "External Speech Synthesizer mode".
   **Tomi recognised the SSI-263 in Telesensory's BrailleMate tutorial recordings**, preserved in Jake Gross's Datajake archive.
   No board photograph or firmware has surfaced yet.
 
@@ -214,8 +214,8 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   Virginia (1995), with nothing to think with: its text-to-speech is a DOS program, `S_TALK.EXE` 1.21 (November
   1995), which screen readers fed in the Accent's commands or the SmarTalk's own. No document describes the box's
   wiring; RetroBunn worked it out from the program's own code, and the disk's own test program reports "FINAL
-  SMARTALK STATUS IS GOOD" against the emulated box. Its makers' disk says "Please feel free to share the new
-  version of the SmarTalk software with anyone who needs it", so it is the one program in this project shared by
+  SMARTALK STATUS IS GOOD" against the emulated box. Its makers' disk, preserved in Nick Stockton's vintage-access archive with recordings of a real
+  SmarTalk, says "Please feel free to share the new version of the SmarTalk software with anyone who needs it", so it is the one program in this project shared by
   its makers' own words.
 - **Artic's 1995 range** (document). The SynPhonix manual (fourth edition, September 1995) lists the 200, 210, 212
   and 215 ISA cards and the P27 PCMCIA card, all with the Artic-263. The Mini TransPort (manual of March 1995),
