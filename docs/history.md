@@ -188,7 +188,7 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   list gives it a braille keyboard and a single 8-dot braille cell, an "optional built-in speech synthesizer", model
   DM1A-01 at $1,595, and a plug for a Navigator braille display of 20 to 80 cells. Telesensory's DOS screen reader,
   Screen Power Speech 2.0A (1994), drives it as a synthesizer and speaks of its "External Speech Synthesizer mode".
-  **Tomi recognised the SSI-263 in Telesensory's BrailleMate tutorial recordings**, preserved in Datajake's archive.
+  **Tomi recognised the SSI-263 in Telesensory's BrailleMate tutorial recordings**, preserved in Jake Gross's Datajake archive.
   No board photograph or firmware has surfaced yet.
 
 ### 1992
