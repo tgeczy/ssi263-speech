@@ -186,10 +186,13 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **The BrailleMate** (ear, document). Telesensory's hand-held braille notetaker, described in 1991 as a
   computerised Perkins brailler that also kept notes, a calendar and a phone directory. A September 1993 product
   list gives it a braille keyboard and a single 8-dot braille cell, an "optional built-in speech synthesizer", model
-  DM1A-01 at $1,595, and a plug for a Navigator braille display of 20 to 80 cells. Telesensory's DOS screen reader,
-  Screen Power Speech 2.0A (1994, preserved in Nick Stockton's vintage-access archive), drives it as a synthesizer and speaks of its "External Speech Synthesizer mode".
-  **Tomi recognised the SSI-263 in Telesensory's BrailleMate tutorial recordings**, preserved in Jake Gross's Datajake archive.
-  No board photograph or firmware has surfaced yet.
+  DM1A-01 at $1,595, and a plug for a Navigator braille display of 20 to 80 cells. It took Artic's commands:
+  MicroTalk's ASAP manual (September 1991) lists "TSI's BrailleMate" among the synthesizers that use the PortTalk
+  command set, which Artic wrote for its own synthesizers. Telesensory's DOS screen reader, Screen Power Speech 2.0A
+  (1994), drives it as a synthesizer and speaks of its "External Speech Synthesizer mode"; both manuals are preserved
+  in Nick Stockton's vintage-access archive. **Tomi recognised the SSI-263 in Telesensory's BrailleMate tutorial
+  recordings**, preserved in Jake Gross's Datajake archive. Artic's command set fits an Artic-263 inside, but that is
+  an inference: no board photograph or firmware has surfaced yet.
 
 ### 1992
 
@@ -204,9 +207,13 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 
 ### 1993 to 1996
 
-- **A screen reader's list is not a chip list.** Blazie's ASAP screen reader drove the BrailleMate, the Braille 'n
-  Speak, the Echo, the Sounding Board and the VoTalker as speech devices (September 1993). The Echo is a TMS5220, so
-  the list says what ASAP supported, not what was inside.
+- **A screen reader's list is not a chip list.** MicroTalk's ASAP screen reader (manual of September 1991), built
+  for MicroTalk's own DoubleTalk-based LiteTalk and LapTalk, also drove the Accents, the Audapter, the Braille 'n
+  Speak (from its June 1991 ROM, in speech-box mode), the DECtalk, the Echo PC, the Sounding Board, the SynPhonix,
+  the VoTalker, and PortTalk synthesizers such as the BrailleMate. The Echo is a TMS5220 and the DECtalk is DEC's
+  own, so the list says what ASAP supported, not what was inside. One line in it is a lead, though: the VoTalker
+  needed `SONIX.COM` and `TTS.COM` to talk, and Sonix is an Artic trademark, the same family as the SynPhonix's
+  `SONIXTTS.COM`.
 - **GW Micro's Speak-Out** (firmware). A serial speech box (hardware by Daniel Weirich, software by Douglas
   Geoffray); its program, version 1.2, is dated May 1995. It carries the Sounding Board's rules and allophone tables
   byte for byte, and the two send the chip the same frames. It runs in this project.
@@ -226,6 +233,10 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 
 - **Semtech's 263** (marking). A photograph of an opened Braille 'n Speak 2000 shows its speech chip marked
   "SSI 263-2-2 / SEMTECH": in that unit, Semtech, not Silicon Systems, made the chip.
+- **Artic's Spirit** (document). The Spirit 600 and 600B, a portable serial synthesizer from Artic (its manual's 248
+  telephone area code dates it to 1997 or later), with "a TRUE phoneme speech synthesis chip" that blends phonemes
+  rather than playing samples; it takes the TransPort's commands and the Accent SA's. The manual doesn't name the
+  chip. It also mentions Artic's "family of combination synthesizer notetakers for BRAILLE and QWERTY".
 - **Blazie's last updates.** The firmware this project runs comes from Blazie's updates of 1997 to June 2003, the
   last English Braille Lite 2000 build.
 - **The end of the Accents.** By September 2000, a mailing-list post reports, Aicom had stopped making the Accent SA,
