@@ -1,18 +1,17 @@
-"""Build Blazie on MAME's Z180. Runtime code is MIT + BSD; firmware has its own terms."""
+"""Build Blazie on MAME's Z180: the unit build_ssi263.py takes from dist/blazie-build (no add-on of its own since 0.8).
+Runtime code is MIT + BSD; firmware has its own terms."""
 import os
 import shutil
 import sys
-from build_common import (BLAZIE_UNITS, read_manifest, check_native, copy_engine, copy_native_voices, build_board, rm,
-                          zip_build)
+from build_common import BLAZIE_UNITS, read_manifest, check_native, copy_engine, copy_native_voices, build_board, rm
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MANIFEST, VERSION = read_manifest(os.path.join(HERE, "blazie"))
+MANIFEST, _ = read_manifest(os.path.join(HERE, "blazie"))
 REPO = os.path.dirname(HERE)
 ENGINE = os.path.join(REPO, "src")
 FIRMWARE = os.path.join(REPO, "firmware", "blazie", "BL2ENG.BNS")
 STATE = os.path.join(REPO, "firmware", "blazie", "bl2_2003_warm.state")
 BUILD = os.path.join(HERE, "dist", "blazie-build")
-OUT = os.path.join(HERE, "dist", "blazie-ssi263-%s.nvda-addon" % VERSION)
 
 
 def main():
@@ -47,7 +46,6 @@ def main():
     shutil.copytree(os.path.join(HERE, "blazie", "locale"), os.path.join(BUILD, "locale"))
     with open(os.path.join(BUILD, "manifest.ini"), "w", encoding="utf-8") as f:
         f.write(MANIFEST)
-    zip_build(BUILD, OUT)
 
 
 if __name__ == "__main__":

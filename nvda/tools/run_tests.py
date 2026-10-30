@@ -1,10 +1,15 @@
 """Every add-on check at once, across all cores, in under 3 minutes (Tomi: a test run takes 3 minutes at most, 5 is
 pushing it).  Each check is its own process with a hard time limit; one line per check, then the total.
 
-    python run_tests.py ["C:\\Program Files\\NVDA"]
+    python run_tests.py ["C:\\Program Files\\NVDA"]           # full: every check and every control
+    python run_tests.py --quick ["C:\\Program Files\\NVDA"]   # every check, no control
 
 A control check must FAIL: complete_fuzz with 0.5.0's cancel put back proves the fuzz can still see a cut-off
 utterance (a fix claimed without a test that fails on the bug is how 0.6.0 shipped one).
+
+--quick is the everyday run: the controls are more than half the suite's work (2663 of 5214 s, 2026-10-29), and a
+control proves its test can see its bug, which changes only when the test or what it guards does.  Run the full suite
+then, and before every release.
 """
 import hashlib
 import os
@@ -19,20 +24,23 @@ from concurrent.futures import ThreadPoolExecutor
 sys.stdout.reconfigure(errors="replace")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-NVDA = sys.argv[1] if len(sys.argv) > 1 else r"C:\Program Files\NVDA"
+QUICK = "--quick" in sys.argv[1:]
+NVDA = ([a for a in sys.argv[1:] if not a.startswith("--")] or [r"C:\Program Files\NVDA"])[0]
 PY = sys.executable
 WIN7 = os.path.join(HERE, "win7")
 PY37 = os.path.join(WIN7, "py37", "python.exe")
 LIMIT = 240          # seconds, per check
 
 
-def check(name, argv, env=None, cwd=HERE, ok=None, expect_fail=False, fail_marks=(), fail_codes=(1,)):
+def check(name, argv, env=None, cwd=HERE, ok=None, expect_fail=False, fail_marks=(), fail_codes=(1,), alone=False):
     """A must-fail control (expect_fail) names the failure it must show (after Astra, Reply 97): an exit code from
     fail_codes AND every regex in fail_marks found in its output (the intended diagnostic, and the completed
-    inventory where it runs several cases).  A crash, a silent exit, an empty output or a timeout is not that."""
+    inventory where it runs several cases).  A crash, a silent exit, an empty output or a timeout is not that.
+    alone: it measures wall-clock time (a response in ms), which the suite's own load would move; it runs after the
+    others, one at a time."""
     assert not expect_fail or fail_marks, "a must-fail control needs fail_marks: %s" % name
     return dict(name=name, argv=argv, env=env or {}, cwd=cwd, ok=ok, expect_fail=expect_fail,
-                fail_marks=tuple(fail_marks), fail_codes=tuple(fail_codes))
+                fail_marks=tuple(fail_marks), fail_codes=tuple(fail_codes), alone=alone)
 
 
 CHECKS = []
@@ -261,6 +269,15 @@ CHECKS.append(check("premature completion replay CONTROL (clean never done, must
                                 r"^FAIL +pipe +the two-line reference NEVER DONE", r"^premature replay: 4 FAILED$"]))
 # and this runner's own must-fail judgement: silent exits, native crashes, tracebacks, missing marks never count
 CHECKS.append(check("run_tests control judgement", [PY, "run_tests_guard.py"]))
+# ... and --quick's choice: keeping the controls, or losing a check, must each fail it
+CHECKS.append(check("run_tests --quick CONTROL (the controls kept, must fail)", [PY, "run_tests_guard.py"],
+                    env={"RUN_TESTS_QUICK_BREAK": "keep"}, expect_fail=True,
+                    fail_marks=[r"^ok +quick mode runs every check", r"^FAIL quick mode runs no control: not so for",
+                                r"^control judgement: 1 FAILED$"]))
+CHECKS.append(check("run_tests --quick CONTROL (a check lost, must fail)", [PY, "run_tests_guard.py"],
+                    env={"RUN_TESTS_QUICK_BREAK": "drop"}, expect_fail=True,
+                    fail_marks=[r"^FAIL quick mode runs every check: not so for 1,", r"^ok +quick mode runs no control",
+                                r"^control judgement: 1 FAILED$"]))
 CHECKS.append(check("slider_fuzz", [PY, "slider_fuzz.py", "150", "7"], env={"SIM_SPEED": "10"}))
 CHECKS.append(check("cut_test", [PY, "cut_test.py"], env={"CUTS": "0.1", "CUT_REPS": "2"},
                     ok=lambda out: re.search(r"tail bug in 0 of", out) is not None))
@@ -1682,22 +1699,29 @@ if os.path.isfile(os.path.join(LIB, "x64", "bl.dll")):
 # for no subsystem above 6.1.  The controls are built by w64devkit's gcc and must fail naming what 7 lacks.
 WIN7_CHECK = os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_win7_imports.py")
 DIST = os.path.join(os.path.dirname(HERE), "dist")
-WIN7_PATHS, WIN7_EXCLUDE = [], ["python", "obj"]
-for addon in ("speakout", "blazie", "accent"):
-    built = [os.path.join(DIST, f) for f in os.listdir(DIST) if re.match(r"%s-ssi263-[\d.]+\.nvda-addon$" % addon, f)] \
-        if os.path.isdir(DIST) else []
-    if built:
-        WIN7_PATHS.append(max(built, key=os.path.getmtime))
-for stage in ("sapi-0.7.0-final", "sapi-0.7.0"):
-    if os.path.isdir(os.path.join(DIST, stage)):
-        WIN7_PATHS.append(os.path.join(DIST, stage))
-        break
-if os.path.isdir(os.path.join(DIST, "blazie-emu")):
-    WIN7_PATHS.append(os.path.join(DIST, "blazie-emu"))
-if WIN7_PATHS:
+# What ships, by name: this version's add-on (nvda/ssi263/manifest.ini), the SAPI stage sapi/build.ps1 makes, the
+# emulator.  Each is --require'd, so a missing build fails here instead of the check passing on an old one (until
+# 0.9.1 it read the 0.7 add-ons and the 0.7.0 SAPI stage).  S_TALK.EXE is a DOS program, not a PE file.
+with open(os.path.join(os.path.dirname(HERE), "ssi263", "manifest.ini"), encoding="utf-8") as _f:
+    ADDON_VERSION = re.search(r"^version\s*=\s*(\S+)", _f.read(), re.M).group(1)
+WIN7_PATHS = [os.path.join(DIST, "ssi263-speech-%s.nvda-addon" % ADDON_VERSION), os.path.join(DIST, "sapi"),
+              os.path.join(DIST, "blazie-emu")]
+WIN7_FLAGS = sum((["--exclude", x] for x in ("python", "obj", "out", "firmware", "*S_TALK.EXE")), []) \
+    + sum((["--require", x] for x in ("*ssi263-speech-%s.nvda-addon!*/ssi263speech.dll" % ADDON_VERSION,
+                                       "*sapi/x64/ssi263_sapi.dll", "*sapi/x86/ssi263_sapi.dll",
+                                       "*blazie-emu/blazie_*.exe")), [])
+if all(os.path.exists(p) for p in WIN7_PATHS):
     CHECKS.append(check("Windows 7: shipped binaries import nothing 7 lacks",
-                        [PY, WIN7_CHECK] + WIN7_PATHS + sum((["--exclude", x] for x in WIN7_EXCLUDE), []),
+                        [PY, WIN7_CHECK] + WIN7_PATHS + WIN7_FLAGS,
                         ok=lambda out: bool(re.search(r"^win7 imports: \d+ binaries, all load on Windows 7$", out, re.M))))
+    # the check fed only the emulator (as it was fed only old builds): the add-on and the SAPI stage not read
+    CHECKS.append(check("Windows 7: what ships CONTROL (only the emulator read, must fail)",
+                        [PY, WIN7_CHECK, WIN7_PATHS[2]] + WIN7_FLAGS, expect_fail=True,
+                        fail_marks=[r"^FAIL required: no binary matching \*ssi263-speech-",
+                                    r"^FAIL required: no binary matching \*sapi/x64/"]))
+else:
+    print("note: the Windows 7 check needs %s built" % ", ".join(os.path.relpath(p, DIST) for p in WIN7_PATHS
+                                                                 if not os.path.exists(p)))
 for what, marks in (
         ("win8", [r"(?i)^ +import kernel32\.dll!SetProcessInformation: not in Windows 7"]),
         ("ucrt", [r"(?i)^ +import of ucrtbase\.dll: not in Windows 7: the Universal CRT"]),
@@ -1708,14 +1732,15 @@ for what, marks in (
 CHECKS.append(check("stacked_q_symbols", [PY, "-S", "stacked_q_symbols.py", NVDA]))
 # the Braille Lite driver keeps the unit's channel open after speech (hiss/whine until the firmware clicks off),
 # at no cost to response time; the control runs it with keep open off and must fail
-CHECKS.append(check("keep the channel open", [PY, "keep_open_test.py"]))
+# (alone: its F times speech's first sound to 15 ms; under 16 other checks it read 205 ms against 115, 2026-10-29)
+CHECKS.append(check("keep the channel open", [PY, "keep_open_test.py"], alone=True))
 CHECKS.append(check("keep the channel open CONTROL (off, must fail)", [PY, "keep_open_test.py"],
-                    env={"KEEP_OPEN_BREAK": "1"}, expect_fail=True,
+                    env={"KEEP_OPEN_BREAK": "1"}, expect_fail=True, alone=True,
                     fail_marks=[r"^FAIL A hiss, keep open:", r"^FAIL A2 the click", r"^ok +F speech interrupting",
                                 r"^keep open: 2 FAILED$"]))
 # ... the click at the click-off (Tomi, 0.7: with keep open only): left out, only A2 must fail
 CHECKS.append(check("keep the channel open CONTROL (no click, must fail)", [PY, "keep_open_test.py"],
-                    env={"KEEP_OPEN_BREAK": "noclick"}, expect_fail=True,
+                    env={"KEEP_OPEN_BREAK": "noclick"}, expect_fail=True, alone=True,
                     fail_marks=[r"^ok +A hiss, keep open:", r"^FAIL A2 the click", r"^keep open: 1 FAILED$"]))
 # ... and with every fed sample silent, each audio check must reject it (Astra, Reply 95: missing sound passed)
 CHECKS.append(check("keep the channel open CONTROL (mute, every audio check fails)", [PY, "keep_open_test.py"],
@@ -2091,6 +2116,27 @@ def judge_control(c, code, out, timed_out):
     return True, ""
 
 
+# checks at once: about one per physical core.  Several checks start pools of their own as wide as the machine, so
+# one per logical core (32 on a 16-core Ryzen, 2026-10-29) ran out of memory and threads: 8 failures, each passing alone
+JOBS = int(os.environ.get("SSI263_TEST_JOBS") or max(4, (os.cpu_count() or 8) // 2))
+
+
+def is_control(c):
+    """a must-fail control, or a control judged by its own marks (the mute one: every audio check fails)"""
+    return c["expect_fail"] or "CONTROL" in c["name"]
+
+
+def selected(checks, quick):
+    """what a run runs: everything, or (--quick) every check but no control (run_tests_guard.py holds it to that)"""
+    brk = os.environ.get("RUN_TESTS_QUICK_BREAK")
+    if not quick:
+        return list(checks)
+    if brk == "keep":                   # the guard's control: quick keeps the controls
+        return list(checks)
+    out = [c for c in checks if not is_control(c)]
+    return out[1:] if brk == "drop" else out    # the guard's control: quick loses a check too
+
+
 def run(c):
     env = dict(os.environ, PYTHON_COLORS="0", **c["env"])
     t0 = time.perf_counter()
@@ -2121,16 +2167,39 @@ def run(c):
     return c["name"], passed, time.perf_counter() - t0, why, last[0][:90]
 
 
+TIMES = os.path.join(HERE, "out", "check_times.json")     # each check's last time: the longest start first
+
+
 def main():
+    import json
     t0 = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
-        results = list(pool.map(run, CHECKS))
+    todo = selected(CHECKS, QUICK)
+    try:
+        with open(TIMES, encoding="utf-8") as f:
+            last = json.load(f)
+    except (OSError, ValueError):
+        last = {}
+    # the pool takes the longest first, so a 2-minute check never starts last and holds the run open alone
+    pooled = sorted((c for c in todo if not c["alone"]), key=lambda c: -last.get(c["name"], 0))
+    with ThreadPoolExecutor(max_workers=JOBS) as pool:
+        done = dict((r[0], r) for r in pool.map(run, pooled))
+    done.update((r[0], r) for r in [run(c) for c in todo if c["alone"]])
+    results = [done[c["name"]] for c in todo]
     bad = 0
-    for name, passed, secs, why, last in results:
+    for name, passed, secs, why, last_line in results:
         bad += not passed
-        print("%-4s %-52s %5.0f s  %s" % ("ok" if passed else "FAIL", name, secs, (why or last)[:200]))
-    print("%d of %d checks passed in %.0f s on %d cores" % (len(results) - bad, len(results), time.perf_counter() - t0,
-                                                            os.cpu_count() or 0))
+        print("%-4s %-52s %5.0f s  %s" % ("ok" if passed else "FAIL", name, secs, (why or last_line)[:200]))
+    try:
+        last.update((r[0], round(r[2], 1)) for r in results)
+        os.makedirs(os.path.dirname(TIMES), exist_ok=True)
+        with open(TIMES, "w", encoding="utf-8") as f:
+            json.dump(last, f, indent=0, sort_keys=True)
+    except OSError:
+        pass
+    skipped = len(CHECKS) - len(todo)
+    print("%d of %d checks passed in %.0f s, %d at a time on %d cores%s" % (
+        len(results) - bad, len(results), time.perf_counter() - t0, JOBS, os.cpu_count() or 0,
+        "; quick: %d controls not run (the full run: no --quick)" % skipped if QUICK else ""))
     return 1 if bad else 0
 
 

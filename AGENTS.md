@@ -47,8 +47,11 @@ must do. Each test that guards a behaviour comes with a **must-fail control**: a
 `*_BREAK` variables) that puts the bug back or breaks the behaviour, registered in the suite so the control is
 proven to fail. A test whose control passes is not testing anything; fix the test.
 
-Prefer one solid test over ten look-alikes, and keep the suites fast: `nvda/tools/run_tests.py` runs on all cores
-and should finish in a few minutes. Long runs go in the background, never in the foreground of a session.
+Prefer one solid test over ten look-alikes, and keep the suites fast: `nvda/tools/run_tests.py` runs a check per
+physical core (`SSI263_TEST_JOBS` to change it) and should finish in a few minutes. `--quick` runs every check and
+no control: the everyday run. Run the full suite when you add or change a test or the code a control breaks, and
+before every release. A check that times something in wall-clock milliseconds is registered `alone=True` and runs
+after the others, one at a time. Long runs go in the background, never in the foreground of a session.
 
 **The human ear is the final gate.** Numbers can be right and the voice still wrong. No change to how anything
 sounds is done until a person has listened to it on the real add-on or app and agreed. When a measurement and the ear
@@ -95,8 +98,9 @@ licence and a reason.
 
 ## Building and testing
 
-- Windows: `python src/csrc/build_ssi263speech.py`, the add-ons with `nvda/build_*.py`, then
-  `python nvda/tools/run_tests.py`. Toolchain paths go in `paths.local` (see `paths.local.example`).
+- Windows: `python src/csrc/build_ssi263speech.py`, the add-on with `python nvda/build_ssi263.py` (it runs the
+  units' `build_blazie.py`, `build_speakout.py` and `build_accent.py` itself), then `python nvda/tools/run_tests.py`
+  (`--quick` for every check without the controls). Toolchain paths go in `paths.local` (see `paths.local.example`).
 - Linux: `./build_linux.sh`, then `sh tools/linux_tests.sh <firmware folder>`.
 - Android: `build_android.sh` for the native library, then Gradle; Apple: Xcode on a Mac.
 - Without the firmware in its drop-in folder, the checks that need it skip and say so; that is not a pass for the

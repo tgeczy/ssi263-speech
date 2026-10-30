@@ -1,7 +1,7 @@
 """Every shipped Windows binary must load on Windows 7 SP1 (Tomi: Windows 7 support; the README promises Windows 7
 and later).  No external tools: the PE headers and import tables are read here.
 
-    python tools/check_win7_imports.py PATH [PATH ...] [--exclude GLOB] [--allow DLL!FUNC] [--list]
+    python tools/check_win7_imports.py PATH [PATH ...] [--exclude GLOB] [--allow DLL!FUNC] [--require GLOB] [--list]
     python tools/check_win7_imports.py --regenerate [SDK_UM_INCLUDE_FOLDER]
     python tools/check_win7_imports.py --control win8|ucrt|subsystem
 
@@ -15,6 +15,10 @@ within archives too).  Every PE file in them (.dll, .exe, .pyd) is read, and fai
   3. a PE header asking for more than Windows 7 (NT 6.1): MajorSubsystemVersion.MinorSubsystemVersion or
      MajorOperatingSystemVersion.MinorOperatingSystemVersion above 6.1 -- Windows 7 refuses to start an EXE whose
      subsystem version is higher ("not a valid Win32 application").
+
+--require GLOB names a binary that must be among those read (matched against the report's labels, e.g.
+*ssi263-speech-*.nvda-addon!*ssi263speech.dll): a check fed last year's build instead of what ships fails rather than
+passing on the wrong files.
 
 Delay-load imports count as imports.  A function looked up at run time (GetProcAddress) is not in the import table
 and passes -- that is the remedy for a function Windows 7 lacks (or YY-Thunks, which does the same for MSVC builds).
@@ -347,15 +351,17 @@ def check_binary(info, missing, allowed):
     return bad
 
 
-def check(paths, excludes=(), extra_allow=(), listing=False, out=sys.stdout):
+def check(paths, excludes=(), extra_allow=(), listing=False, out=sys.stdout, required=()):
     missing = read_pairs(MISSING_FILE)
     if not missing:
         print("check_win7_imports: %s is missing or empty (run --regenerate)" % _label(MISSING_FILE), file=out)
         return 2
     allowed = read_pairs(ALLOW_FILE) | set(_pair(a) for a in extra_allow)
     n = nbad = 0
+    labels = []
     for label, data in binaries(paths, excludes):
         n += 1
+        labels.append(label.replace("\\", "/"))
         try:
             info = pe_info(data)
         except (PEError, struct.error) as e:
@@ -379,6 +385,10 @@ def check(paths, excludes=(), extra_allow=(), listing=False, out=sys.stdout):
     if not n:
         print("check_win7_imports: no PE files found in %s" % ", ".join(_label(p) for p in paths), file=out)
         return 2
+    for g in required:
+        if not any(fnmatch.fnmatch(lb, g) for lb in labels):
+            nbad += 1
+            print("FAIL required: no binary matching %s was read" % g, file=out)
     print("win7 imports: %d binaries, %s" % (n, "%d FAILED" % nbad if nbad else "all load on Windows 7"), file=out)
     return 1 if nbad else 0
 
@@ -759,6 +769,8 @@ def main(argv=None):
     ap.add_argument("paths", nargs="*", help="files, folders, .zip/.nvda-addon/.whl archives")
     ap.add_argument("--exclude", action="append", default=[], help="a glob of relative paths or folder names to skip")
     ap.add_argument("--allow", action="append", default=[], help="DLL!function resolved lazily (after an OS check)")
+    ap.add_argument("--require", action="append", default=[],
+                    help="a glob of a binary's label that must be among those read (what ships, not an old build)")
     ap.add_argument("--list", action="store_true", help="also list every import")
     ap.add_argument("--regenerate", nargs="?", const="", metavar="SDK_INCLUDE",
                     help="rebuild %s from the SDK headers (default: the newest Windows Kits 10 Include)"
@@ -775,7 +787,7 @@ def main(argv=None):
     if not a.paths:
         ap.print_usage()
         return 2
-    return check(a.paths, a.exclude, a.allow, a.list)
+    return check(a.paths, a.exclude, a.allow, a.list, required=a.require)
 
 
 if __name__ == "__main__":

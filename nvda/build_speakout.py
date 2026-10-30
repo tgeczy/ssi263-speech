@@ -1,19 +1,19 @@
-﻿"""Build Speak-Out with MAME's V40 and instruction-count compatibility timing.
+﻿"""Build Speak-Out with MAME's V40 and instruction-count compatibility timing: the unit build_ssi263.py takes from
+dist/speakout-build (no add-on of its own since 0.8).
 Runtime code is MIT + BSD; firmware remains private and separately licensed.
 """
 import os
 import shutil
 import sys
-from build_common import read_manifest, copy_native_binding, rm, zip_build
+from build_common import read_manifest, copy_native_binding, rm
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MANIFEST, VERSION = read_manifest(os.path.join(HERE, "speakout"))
+MANIFEST, _ = read_manifest(os.path.join(HERE, "speakout"))
 REPO = os.path.dirname(HERE)
 FIRMWARE = os.path.join(REPO, "firmware", "gw-micro-speakout", "SPEAKOUT.HEX")
 SB_DIR = os.path.join(REPO, "firmware", "gw-micro-sounding-board")
 SOUNDINGBOARD = ("SBLOAD.COM", "SB.COM")
 BUILD = os.path.join(HERE, "dist", "speakout-build")
-OUT = os.path.join(HERE, "dist", "speakout-ssi263-%s.nvda-addon" % VERSION)
 
 
 def main():
@@ -34,7 +34,6 @@ def main():
             shutil.copy2(os.path.join(SB_DIR, name), eng)
     with open(os.path.join(BUILD, "manifest.ini"), "w", encoding="utf-8") as f:
         f.write(MANIFEST)
-    zip_build(BUILD, OUT)
 
 
 if __name__ == "__main__":

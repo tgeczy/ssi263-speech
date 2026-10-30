@@ -52,5 +52,15 @@ for name, code, want in (
     ok = passed == want
     bad += not ok
     print("%-4s %-34s -> %s" % ("ok" if ok else "FAIL", name, "accepted" if passed else "rejected: " + why))
+# --quick runs every check and no control: a quick run that dropped a check would pass on less than it says; one that
+# kept the controls would not be quick.  Held against the suite's own registered checks.
+quick, full = R.selected(R.CHECKS, True), R.selected(R.CHECKS, False)
+lost = [c["name"] for c in R.CHECKS if not R.is_control(c) and c not in quick]
+kept = [c["name"] for c in quick if R.is_control(c)]
+for what, names in (("quick mode runs every check", lost), ("quick mode runs no control", kept),
+                    ("the full run runs everything", [c["name"] for c in R.CHECKS if c not in full])):
+    bad += bool(names)
+    print("%-4s %s%s" % ("FAIL" if names else "ok", what, ": not so for %d, e.g. %s" % (len(names), names[0])
+                         if names else " (%d of %d run)" % (len(quick if "quick" in what else full), len(R.CHECKS))))
 print("control judgement: %s" % ("PASS" if not bad else "%d FAILED" % bad))
 sys.exit(1 if bad else 0)

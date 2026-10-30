@@ -127,14 +127,13 @@ Nothing in the repository assumes where those live. Copy `paths.local.example` t
 `python tools/check_no_machine_paths.py` makes sure no one's own paths get committed.
 
 ```
-python src/csrc/build_native.py      # ssi263.dll, 64- and 32-bit, static
-python nvda/build_speakout.py        # every build checks the C chip against chip.py first
-python nvda/build_blazie.py          # native board and pipe host both use MAME's Z180
-python nvda/build_accent.py
+python src/csrc/build_ssi263speech.py   # the native libraries, 64- and 32-bit, static
+python nvda/build_ssi263.py             # the add-on; --dev builds without the Mockingboard's file
 ```
 
-The add-ons land in `nvda/dist/`. `python nvda/build_release.py` builds all three together,
-sharing native builds and chip checks. Every shipping CPU uses the extracted MAME core:
+The add-on lands in `nvda/dist/`. `build_ssi263.py` runs `build_blazie.py`, `build_speakout.py`
+and `build_accent.py` for its units, then reads the finished archive back against its sources.
+Every shipping CPU uses the extracted MAME core:
 Z180, V40, 8086 and 8085. Packages include both Windows architectures and their MIT/BSD
 notices. Unicorn, z180emu and the Python 8085 remain development comparison references;
 they are not runtime payloads and no environment switch is needed for MAME.

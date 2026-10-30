@@ -37,8 +37,7 @@ def machine_paths(filename):
 def main():
     bad = 0
     files = [f for pat in ("blazie-lib/**/*.dll", "blazie-lib/*.exe", "*-build/**/*.dll", "*-build/**/*.exe",
-                           "linux/**/*.so", "blazie-emu/blazie_*.exe", "sapi-0.7.0/x*/*.dll",
-                           "sapi-0.7.0/synthDrivers/**/*.dll")
+                           "linux/**/*.so", "blazie-emu/blazie_*.exe", "sapi/x*/*.dll", "sapi/*.exe")
              for f in glob.glob(os.path.join(DIST, pat), recursive=True)]
     for f in sorted(set(files)):
         hits = machine_paths(f)

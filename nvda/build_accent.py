@@ -1,16 +1,16 @@
-﻿"""Build Accent Mini/SA with MAME's 8086/8085 (MIT + BSD; Aicom's firmware notice retained)."""
+﻿"""Build Accent Mini/SA with MAME's 8086/8085 (MIT + BSD; Aicom's firmware notice retained): the unit build_ssi263.py
+takes from dist/accent-build (no add-on of its own since 0.8)."""
 import os
 import shutil
 import sys
-from build_common import read_manifest, copy_native_binding, rm, zip_build
+from build_common import read_manifest, copy_native_binding, rm
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MANIFEST, VERSION = read_manifest(os.path.join(HERE, "accent"))
+MANIFEST, _ = read_manifest(os.path.join(HERE, "accent"))
 REPO = os.path.dirname(HERE)
 DRIVER = os.path.join(REPO, "firmware", "aicom-accent-mini", "SPKEMS.DVC")
 SA_ROMS = os.path.join(REPO, "firmware", "aicom-accent-sa")
 BUILD = os.path.join(HERE, "dist", "accent-build")
-OUT = os.path.join(HERE, "dist", "accent-ssi263-%s.nvda-addon" % VERSION)
 
 
 def main():
@@ -30,7 +30,6 @@ def main():
     shutil.copy2(DRIVER, eng)
     with open(os.path.join(BUILD, "manifest.ini"), "w", encoding="utf-8") as f:
         f.write(MANIFEST)
-    zip_build(BUILD, OUT)
 
 
 if __name__ == "__main__":
