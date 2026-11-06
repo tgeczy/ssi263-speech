@@ -209,8 +209,9 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   carry the same marking format, with lot numbers only 38 apart. That suggests one factory and one die under three
   brands. It is an inference from the markings, not a die comparison.
 - **Artic's TransPort** (document). A serial speech box whose hardware manual (copyright 1992) lists the Model 615's
-  "Artic 263 Speech Chip", Artic's VEST text-to-speech and PortTalk commands, with 256 KB of system ROM. The SynPhonix
-  cards ran their text-to-speech on the PC; here `VEST.COM` is "permanently resident" in the box, and the 615 can load
+  "Artic 263 Speech Chip", Artic's VEST text-to-speech and PortTalk commands, with 256 KB of system ROM. Artic's own
+  newsletter of August 1992 agrees: "All Transport synthesizers use the Artic 263 speech chip." The SynPhonix cards
+  ran their text-to-speech on the PC; here `VEST.COM` is "permanently resident" in the box, and the 615 can load
   Artic's Business Vision screen reader onto a PC from its own ROM. The 611 is the same without Business Vision. An
   owner writing on misc.handicap in October 1992 found its speech indistinguishable from the SynPhonix card's unless
   turned all the way up. It cost $1,295.
@@ -237,8 +238,9 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **Artic's 1995 range** (document). The SynPhonix manual (fourth edition, September 1995) lists the 200, 210, 212
   and 215 ISA cards and the P27 PCMCIA card, all with the Artic-263. The Mini TransPort (manual of March 1995),
   "Artic's smallest external speech synthesizer", takes Artic's PortTalk commands and the Accent's; its manual never
-  names its chip. One unit, recorded from its line output, announces itself as "Mini TransPort Deluxe, Model 622,
-  TransOS for MiniPort, version 1.22", the version Artic's site still listed as current in May 1998. Its system ROM
+  names its chip. A June 1996 newsletter gives two models: one mainly a synthesizer, and the Deluxe, which also keeps
+  to-do lists and phone books. One unit, recorded from its line output, announces itself as "Mini TransPort Deluxe,
+  Model 622, TransOS for MiniPort, version 1.22", the version Artic's site still listed as current in May 1998. Its system ROM
   isn't reachable by the user: updates came on disk and were written through Artic's `MINICOM` program.
 
 ### 1997 to 2003

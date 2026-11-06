@@ -140,8 +140,9 @@ can't say yet:
 - **Artic's text-to-speech on disk.** On the SynPhonix cards the text-to-speech was a DOS program
   (`SONIX.COM` and `TTS.COM`, `SONIXTTS.COM`, later `VEST.COM`), so it may survive on an ordinary
   floppy, and it would show how Artic itself drove the chip. We have Artic's Business Vision demo
-  of 1993, a screen reader, but none of these. The card's EPROM holds a key the software appears
-  to check. Settled by: a SynPhonix or Business Vision disk.
+  of 1993, a screen reader, but none of these, and they aren't in NFBnet's archive of the time,
+  searched inside its archives. The card's EPROM holds a key the software appears to check.
+  Settled by: a SynPhonix or Business Vision disk.
 - **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real
   recordings. Not known: the SynPhonix (a 74HCT161 divider, probably from the
