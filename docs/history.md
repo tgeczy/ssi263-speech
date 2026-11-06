@@ -175,6 +175,10 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   for its students; the card's schematic is dated April 1990 (Harald Brandau), the lab sheet 2003. It has no
   low-pass filter at all.
 - **The Accent PC's AI901** (marking) is dated SA9048 (1990, week 48).
+- **The SynPhonix range, and a cousin** (document). A December 1990 note for the JAWS screen reader lists the
+  SynPhonix 200, 210 and 215 for desktop PCs and the 220 and 225 for Toshiba laptops. The text-to-speech was a DOS
+  program on the PC: `SONIX.COM` and `TTS.COM` on the older cards, `SONIXTTS.COM` on the 210. It calls Votrax's
+  VoTalker a "cousin", "very similar to the 200", run the same way.
 
 ### 1991
 
@@ -204,6 +208,12 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **One chip, three names?** The SC-02 (SA8912), the AI901 (SA9048, lot 18611) and the Artic 263 (SA9117, lot 18573)
   carry the same marking format, with lot numbers only 38 apart. That suggests one factory and one die under three
   brands. It is an inference from the markings, not a die comparison.
+- **Artic's TransPort** (document). A serial speech box whose hardware manual (copyright 1992) lists the Model 615's
+  "Artic 263 Speech Chip", Artic's VEST text-to-speech and PortTalk commands, with 256 KB of system ROM. The SynPhonix
+  cards ran their text-to-speech on the PC; here `VEST.COM` is "permanently resident" in the box, and the 615 can load
+  Artic's Business Vision screen reader onto a PC from its own ROM. The 611 is the same without Business Vision. An
+  owner writing on misc.handicap in October 1992 found its speech indistinguishable from the SynPhonix card's unless
+  turned all the way up. It cost $1,295.
 
 ### 1993 to 1996
 
@@ -227,7 +237,9 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **Artic's 1995 range** (document). The SynPhonix manual (fourth edition, September 1995) lists the 200, 210, 212
   and 215 ISA cards and the P27 PCMCIA card, all with the Artic-263. The Mini TransPort (manual of March 1995),
   "Artic's smallest external speech synthesizer", takes Artic's PortTalk commands and the Accent's; its manual never
-  names its chip.
+  names its chip. One unit, recorded from its line output, announces itself as "Mini TransPort Deluxe, Model 622,
+  TransOS for MiniPort, version 1.22", the version Artic's site still listed as current in May 1998. Its system ROM
+  isn't reachable by the user: updates came on disk and were written through Artic's `MINICOM` program.
 
 ### 1997 to 2003
 
@@ -237,6 +249,10 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   telephone area code dates it to 1997 or later), with "a TRUE phoneme speech synthesis chip" that blends phonemes
   rather than playing samples; it takes the TransPort's commands and the Accent SA's. The manual doesn't name the
   chip. It also mentions Artic's "family of combination synthesizer notetakers for BRAILLE and QWERTY".
+- **Artic's notetakers** (document). Artic's 1997 catalogue sells the TransType 2000 and BrailleDesk 2000 and a "new
+  family of low cost talking note takers": the SQWERT (QWERTY), BraillePad and ErgoBraille. All five double as external
+  synthesizers with "TransPort and Accent emulation". Artic's site listed their firmware in May 1998: 2.17 for the
+  TransType and BrailleDesk, 2.33 for the other three. Nothing we have read names their chip.
 - **Blazie's last updates.** The firmware this project runs comes from Blazie's updates of 1997 to June 2003, the
   last English Braille Lite 2000 build.
 - **The end of the Accents.** By September 2000, a mailing-list post reports, Aicom had stopped making the Accent SA,

@@ -124,18 +124,24 @@ can't say yet:
   board photo, a ROM dump or an update disk; tracing `SPS.002`'s serial writes.
 - **The VoTalker.** Votrax's VoTalker appears in MicroTalk's ASAP manual (1991) and as a build
   of ETS's Enable Reader (1986). ASAP says it needed `SONIX.COM` and `TTS.COM` to talk, and Sonix
-  is an Artic trademark, as in the SynPhonix's `SONIXTTS.COM`: a strong hint that the VoTalker
-  ran Artic's software, and perhaps carried Artic's chip. Which chip it used isn't known to us.
-  Settled by: a board photo, its manual, or its software disk.
+  is an Artic trademark, as in the SynPhonix's `SONIXTTS.COM`. A December 1990 note for JAWS
+  agrees, calling the VoTalker "very similar to" the SynPhonix 200, so it ran Artic's software,
+  and perhaps carried Artic's chip. Which chip it used isn't known to us. Settled by: a board
+  photo, its manual, or its software disk.
 - **The first Braille 'n Speak** (1987) and the first Braille Lite: we have seen chips and
   firmware only from 1997 on. Settled by: board photos of early units.
-- **Artic's later synthesizers and notetakers.** The Mini TransPort (1995) and the Spirit 600
-  and 600B (1997 or later) never name their chip; the Mini TransPort's manual says only that
-  "Artic-263" is an Artic trade name, and the Spirit's speaks of "a TRUE phoneme speech synthesis
-  chip". The Spirit's manual also mentions Artic's braille and QWERTY notetakers with built-in
-  synthesizers; which ones, and with what chip, we don't know. The Mini TransPort's firmware is
-  "user upgradeable via a diskette", so an update disk may survive. Settled by: board photos,
-  or that disk.
+- **Artic's later synthesizers and notetakers.** The TransPort 615 of 1992 names the Artic 263,
+  but the Mini TransPort (1995) and the Spirit 600 and 600B (1997 or later) never name their
+  chip; the Mini TransPort's manual says only that "Artic-263" is an Artic trade name, and the
+  Spirit's speaks of "a TRUE phoneme speech synthesis chip". Artic's notetakers (the TransType,
+  BrailleDesk, SQWERT, BraillePad and ErgoBraille) take the TransPort's commands; nothing we have
+  read names their chip either. The Mini TransPort's firmware is "user upgradeable via a
+  diskette", so an update disk may survive. Settled by: board photos, or that disk.
+- **Artic's text-to-speech on disk.** On the SynPhonix cards the text-to-speech was a DOS program
+  (`SONIX.COM` and `TTS.COM`, `SONIXTTS.COM`, later `VEST.COM`), so it may survive on an ordinary
+  floppy, and it would show how Artic itself drove the chip. We have Artic's Business Vision demo
+  of 1993, a screen reader, but none of these. The card's EPROM holds a key the software appears
+  to check. Settled by: a SynPhonix or Business Vision disk.
 - **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real
   recordings. Not known: the SynPhonix (a 74HCT161 divider, probably from the

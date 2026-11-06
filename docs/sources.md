@@ -62,7 +62,10 @@
 - **The archives that keep this hardware's history:** Jake Gross's Datajake archive (the GW Micro FTP archive, and
   Telesensory's BrailleMate tutorial recordings) and Nick Stockton's vintage-access archive (assistive-technology
   software, manuals and audio from the 1990s and before: the SmarTalk disk and recordings, Telesensory's Screen
-  Power, MicroTalk's ASAP manual of 1991, and Artic's Mini TransPort and Spirit manuals). Without people keeping these, much of [history.md](history.md)'s family of devices couldn't be written.
+  Power, MicroTalk's ASAP manual of 1991, and Artic's Mini TransPort and Spirit manuals). The National Federation of
+  the Blind's NFBnet file areas keep Artic's 1997 catalogue and Business Vision demo with its TransPort manual, and
+  the Internet Archive's Wayback Machine keeps Artic's website. Without people keeping these, much of
+  [history.md](history.md)'s family of devices couldn't be written.
 
 ## Software
 
