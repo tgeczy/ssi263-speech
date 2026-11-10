@@ -32,6 +32,12 @@ games/ (the June 2003 disk's files, unchanged; without them it is skipped):
   games/simon.bns       sha256 ff9230c0c1250eb44ea34f3aca9269ec7d83f6c8341a6a3b4fa6c5292a908d50
   games/hangman.bns     sha256 f42ff66964e6d64440961646ff81d6b8cd212aa75bb2e7762a943e95ec19eda9
 
+The emulator's name brander test (src/apps/blazie/test_brand.c) runs Blazie's name brander when it
+is here (the June 2003 disk's file, unchanged, documented by its BSNAME.TXT; without it the test
+is skipped):
+
+  BSNAME.BNS            sha256 a58a4aa72477fb12c813a4242a37d9ed2e7e7c6e2c52a2a2e4821baeb82667fa
+
 The voices in German, Italian and Slovak (0.8) run these, when they are here; the add-ons, the SAPI engine and the
 Linux package carry them (release assets only):
 

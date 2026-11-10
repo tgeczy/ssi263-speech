@@ -38,6 +38,23 @@ static void program_path(char *out, size_t n, const char *state)
     snprintf(out, n, "%.*s.program", (int)k, state);
 }
 
+/* Bank a's serial number (00080h, 16 bytes) and owner's name (00090h, 40), the one part of it a unit writes for itself:
+   Blazie's name brander (BSNAME.BNS) programs the name there once, the firmware's p-chord th says both, and Blazie's
+   updater keeps 00080h-000B7h through an update (test_brand.c).  Blank (FFh) in the image, so a bank a differing from
+   this firmware's only there is still this firmware's, branded. */
+#define OWNER_FROM 0x80L
+#define OWNER_TO 0xB8L
+
+/* bank a (n bytes) the same as want but for the serial number and name */
+static int same_but_owner(const unsigned char *a, const unsigned char *want, long n)
+{
+#ifdef EMU_NO_OWNER_KEEP                    /* test_brand's must-fail control: every byte, as before */
+    return memcmp(a, want, (size_t)n) == 0;
+#else
+    return memcmp(a, want, OWNER_FROM) == 0 && memcmp(a + OWNER_TO, want + OWNER_TO, (size_t)(n - OWNER_TO)) == 0;
+#endif
+}
+
 /* the file's 512 KB if it is a whole program flash (else NULL; the caller frees it) */
 static unsigned char *program_read(const char *path, long n)
 {
@@ -52,7 +69,8 @@ static unsigned char *program_read(const char *path, long n)
     return p;
 }
 
-/* a bank the firmware update wrote, put back: the file's bank a must be the one this firmware loaded */
+/* a bank the firmware update wrote, and bank a's serial number and name, put back: the file's bank a must be the one
+   this firmware loaded, but for those */
 static void program_restore(bl_host *h, const char *state)
 {
     char path[1024];
@@ -65,13 +83,16 @@ static void program_restore(bl_host *h, const char *state)
         return;
     program_path(path, sizeof path, state);
     saved = program_read(path, n);
-    if (saved && memcmp(saved, pf, (size_t)n / 2) == 0)
+    if (saved && same_but_owner(saved, pf, n / 2)) {
+        memcpy(pf + OWNER_FROM, saved + OWNER_FROM, OWNER_TO - OWNER_FROM);
         memcpy(pf + n / 2, saved + n / 2, (size_t)n / 2);
+    }
     free(saved);
 }
 
-/* after a save: an updated bank b written beside the state (as NAME.new, then put in place); a file of ours (its bank
-   a this firmware's) whose update was undone removed; a file for another firmware left alone.  1 on success. */
+/* after a save: an updated bank b or a branded bank a written beside the state (as NAME.new, then put in place); a
+   file of ours (its bank a this firmware's, but for the name) whose update and name are undone removed; a file for
+   another firmware left alone.  1 on success. */
 static int program_keep(bl_host *h, const char *state)
 {
     char path[1024], tmp[1040];
@@ -101,7 +122,7 @@ static int program_keep(bl_host *h, const char *state)
         return ok;
     }
     old = program_read(path, n);
-    if (old && memcmp(old, pf, (size_t)n / 2) == 0)
+    if (old && same_but_owner(old, pf, n / 2))
         remove(path);
     free(old);
     return 1;

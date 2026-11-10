@@ -16,9 +16,10 @@
  * (an update program run with o-chord x) writes one: it reads the chip's ID, asks which bank, erases that bank's four
  * sectors in one multi-sector erase and programs it byte by byte (flash29.h), with E0h's bit 4 set for bank b; then a
  * steady tone, phoneme 17h left sounding.  Ordinary use never writes it (no command in a boot, the menus or a
- * p-chord l: measured); before 0.8 those writes were dropped and the update failed with rapid beeps.  The board's
- * code sites (below) are bank a's: they serve a chord held at power-on, which always starts there.  SSI-263 at
- * ports C0h..C4h, its A/R
+ * p-chord l: measured); before 0.8 those writes were dropped and the update failed with rapid beeps.  The one other
+ * writer is Blazie's name brander (BSNAME.BNS), which byte-programs the owner's name at 00090h once (the apps'
+ * test_brand.c).  The board's code sites (below) are bank a's: they serve a chord held at power-on, which always
+ * starts there.  SSI-263 at ports C0h..C4h, its A/R
  * request on /INT1.  Braille keyboard on port 40h, /INT2.  Serial on ASCI0 (9600 bit/s at 6.144 MHz), with the
  * host honouring the unit's XON/XOFF.  Port A0h bit 0 switches the serial port's line drivers on (bl_serial.h).
  * An 8255 at 80h-83h: its control word at 83h sets and clears port C's bits (bits 0-2 clock the braille display;

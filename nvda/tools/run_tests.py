@@ -707,6 +707,25 @@ if os.path.isfile(UPDATE) and all(os.path.isfile(p) for p in UPD_DE):
                         fail_marks=[r"^ +first difference at 10000h: ",
                                     r"^FAIL bank b: the update's image ",
                                     r"^ok +bank a: the English unit, untouched", r"^update: FAILED$"]))
+# Blazie's name brander (src/apps/blazie/test_brand.c), when firmware/blazie/ has BSNAME.BNS (never in the repo):
+# run on the English unit as Blazie's guide says, it programs the owner's name at the program flash's 00090h and
+# nothing else; p-chord th then says "owner is" and the name; and the emulator keeps the name beside its state
+# (STATE.program) and puts it back, as a real unit keeps it through cold resets.  Controls: the name not kept (as
+# before), and the program flash's writes dropped, each failing where it must.
+BRAND = os.path.join(EMU, "test_brand.exe")
+BRAND_FW = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "blazie")
+BRAND_ARGS = [os.path.join(BRAND_FW, n) for n in ("BL2ENG.BNS", "bl2_2003_warm.state", "BSNAME.BNS")]
+if os.path.isfile(BRAND) and all(os.path.isfile(p) for p in BRAND_ARGS):
+    CHECKS.append(check("Blazie emulator: the name brander, its name said and kept", [BRAND] + BRAND_ARGS))
+    CHECKS.append(check("Blazie emulator: name brander CONTROL (the name not kept, must fail)",
+                        [os.path.join(EMU, "test_brand_nokeep.exe")] + BRAND_ARGS, expect_fail=True,
+                        fail_marks=[r"^ok +the brander writes the name ", r"^ok +p-chord th says the owner ",
+                                    r"^FAIL the name put back on the next start +00090h FF FF",
+                                    r"^FAIL removed when the name is blanked ", r"^brand: FAILED$"]))
+    CHECKS.append(check("Blazie emulator: name brander CONTROL (program flash writes dropped, must fail)",
+                        [os.path.join(EMU, "test_brand_break.exe")] + BRAND_ARGS, expect_fail=True,
+                        fail_marks=[r"^FAIL the brander writes the name +00090h FF FF .*, 0 writes;",
+                                    r"^FAIL p-chord th says the owner ", r"^brand: FAILED$"]))
 # files in and out of the units without the serial cable (src/apps/blazie/test_files.c, src/csrc/blazie/bl_files.c;
 # Tomi, for Jage and Jayson): files the firmware made with its own commands exported exactly (the open file with the
 # text typed since it was opened); an image imported (RAM, flash, a new folder, PC line ends, a file before the open
