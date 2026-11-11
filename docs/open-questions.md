@@ -126,8 +126,21 @@ can't say yet:
   of ETS's Enable Reader (1986). ASAP says it needed `SONIX.COM` and `TTS.COM` to talk, and Sonix
   is an Artic trademark, as in the SynPhonix's `SONIXTTS.COM`. A December 1990 note for JAWS
   agrees, calling the VoTalker "very similar to" the SynPhonix 200, so it ran Artic's software,
-  and perhaps carried Artic's chip. Which chip it used isn't known to us. Settled by: a board
-  photo, its manual, or its software disk.
+  and perhaps carried Artic's chip. The Trace Center's 1987 resource book lists three: the
+  Votalker AP (Apple II), C-64 and IB (PC), with no chip named. The SpeechChips.com museum
+  gives the AP and IB an SSI-263 without saying what it rests on. Which chip they used isn't
+  known to us. Settled by: a board photo, a manual, or the software disk.
+- **Reported, not yet shown.** Machines said to carry the chip, where we have not read a
+  document or seen a marking that says so:
+  - Heathkit's HERO 2000 robot (1986): a 1996 newsgroup post recalls that it "used it for
+    speech". Settled by: its technical manual or a photograph of its speech board.
+  - RDI's Halcyon, the home system Thayer's Quest was made for: the SpeechChips.com museum's
+    owner says it has a Votrax SC-02. We have the chip only on the arcade game's board.
+  - Micromint's LIS'NER 1000 (1984), a speech-recognition card for the Apple II, said to have
+    an SSI-263 option. Settled by: its manual (Rev. 2.0) or Steve Ciarcia's Byte article of
+    November 1984, neither read by us yet.
+  - Speech Systems' Super Voice for the Color Computer: Burke & Burke's SC-02 software also
+    drove it (see 1990 in the history).
 - **The first Braille 'n Speak** (1987) and the first Braille Lite: we have seen chips and
   firmware only from 1997 on. Settled by: board photos of early units.
 - **Artic's later synthesizers and notetakers.** The TransPort 615 of 1992 names the Artic 263,

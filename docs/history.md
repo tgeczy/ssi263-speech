@@ -43,8 +43,8 @@ way, and those withdrawals are part of the record too.
   It descends from Votrax's SC-01, and Votrax sells it as the SC-02. The chip photographed
   later is marked "SSI 263P / P 8404".
 - **1989.** The chip is sold as TDK's 78A263A: a Heath PC Voice Card carries a 78A263A-P with a 1989 date code.
-  Artic Technologies' own Artic-263, the SynPhonix cards' chip, turns up with 1991 and 1992 date codes (see the
-  family below).
+  Artic Technologies' own Artic-263, the SynPhonix cards' chip, turns up with 1988, 1991 and 1992 date codes (see
+  the family below).
 - **1991.** The Braille 'n Speak 640 ships, around October, and work begins on the
   pronunciation fixes in its firmware, reaching users in the first updates (1991 or summer
   1992). **Cathy Hall** wrote them. Few people outside the company knew her work, and a
@@ -108,8 +108,14 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   the voice filtered on the way out (a 3.1 kHz low-pass and a high-pass into the mixer), which is the board's sound,
   not the chip's.
 - **Artic's first SynPhonix** (document). Artic Technologies' 1995 hardware manual dates the SynPhonix 200, the
-  original card for the PC and XT, to 1984, and says every SynPhonix model uses the Artic-263. We have seen no chip
-  from that first model.
+  original card for the PC and XT, to 1984, and says every SynPhonix model uses the Artic-263. Artic's own
+  advertisement in PC Magazine (16 October 1984) agrees on the year and names the chip: a "Speech Articulator for
+  the IBM & Apple" with an "SSI263 Phoneme Synthesizer" and its SONIX software, at $125, from Auburn Heights,
+  Michigan. We have seen no chip from that first model.
+- **Atari's 1450XLD** (document). A computer with speech built in, never released. Atari's voice handler
+  specification of 24 May 1984 says its "speech synthesis hardware ... consists of an SSI-263 speech synthesis chip
+  supplied by Silicon Systems Incorporated", "also known as the SC-02", with its five registers in the 6502's
+  memory from $D100 and its A/R pin on an interrupt line.
 
 ### 1985
 
@@ -148,6 +154,14 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **Chip Talk** (document). Dave Prochnow's book of speech projects (TAB, 1987) builds a minimal SSI 263A card for
   the Apple IIe, and covers the Mockingboard B and RC Systems' Slot-Buster, a multilingual SSI 263A text-to-speech
   card.
+- **The SynPhonix range in the Trace Center's resource books** (document). The 1987 book lists the SynPhonix 100
+  for the Apple II, the 200 for the PC ($225) and the jr for the PCjr. The 1988 update adds the 210 ($295), "an
+  updated version of the SynPhonix 200" with a treble control and a built-in "Artic Switch Interface", and the 220
+  for Toshiba's 1100, 1200 and 3100 laptops ($325). The treble knob and the switch socket are the ones on the
+  SP-21X board (see 1991). The books don't name a chip. They also list Votrax's Votalker AP for the Apple II
+  ($179), Votalker C-64 and Votalker IB for the PC ($249), cards that speak text "according to the synthesizer's
+  pre-programmed phonetic rules", again with no chip named.
+- **An SSI 263 AP dated N8751** (marking), in a seller's photograph of six chips (see 1989).
 
 ### 1988
 
@@ -163,6 +177,11 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 
 - **TDK's 78A263A** (marking): see the Heath card above.
 - **A Votrax-marked SC-02** (marking) with the date code SA8912.
+- **Three names, one run of lot numbers** (marking). A ReActiveMicro sale photograph shows six chips side by side:
+  three marked ARTIC 263 and dated SN8848, lot 48814; a 78A263A-P dated SN8908 under Silicon Systems' logo, lot
+  51920; a VOTRAX SC-02 dated SA8912, lot 52797; and an SSI 263 AP dated N8751. So Artic's name was on the chip by
+  late 1988, and within about five months three brands' chips carry lot numbers that rise with their dates. The
+  markings are read from a small photograph.
 - **Kraftwerk's Robovox** (document). Patent EP0396141A2, filed in May 1989 by Florian Schneider, Gert Joachim Ott and
   Gert Jalass: an SC-02 / SSI 263A singing in real time over MIDI, with outside sound fed into the chip's test pins.
   It can be heard on The Mix (1991).
@@ -175,6 +194,11 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   for its students; the card's schematic is dated April 1990 (Harald Brandau), the lab sheet 2003. It has no
   low-pass filter at all.
 - **The Accent PC's AI901** (marking) is dated SA9048 (1990, week 48).
+- **Burke & Burke's CyberVoice** (document). A speech cartridge for the Tandy Color Computer under OS-9 Level 2,
+  for shipment "in late October of 1990" at $74.95. Its maker's advertisement says "We've mated a high-tech SC-02
+  speech synthesizer with an entirely new kind of OS9 device driver" that lets the user write the pronunciation
+  rules. The software alone ($24.95) drove Speech Systems' Super Voice, which suggests the same chip in that
+  cartridge; we have not seen it named there.
 - **The SynPhonix range, and a cousin** (document). A December 1990 note for the JAWS screen reader lists the
   SynPhonix 200, 210 and 215 for desktop PCs and the 220 and 225 for Toshiba laptops. The text-to-speech was a DOS
   program on the PC: `SONIX.COM` and `TTS.COM` on the older cards, `SONIXTTS.COM` on the 210. It calls Votrax's
@@ -207,7 +231,8 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   Artic-263 "was developed by the founders of Artic Technologies".
 - **One chip, three names?** The SC-02 (SA8912), the AI901 (SA9048, lot 18611) and the Artic 263 (SA9117, lot 18573)
   carry the same marking format, with lot numbers only 38 apart. That suggests one factory and one die under three
-  brands. It is an inference from the markings, not a die comparison.
+  brands, as the six chips of 1987 to 1989 do (see 1989). It is an inference from the markings, not a die
+  comparison.
 - **Artic's TransPort** (document). A serial speech box whose hardware manual (copyright 1992) lists the Model 615's
   "Artic 263 Speech Chip", Artic's VEST text-to-speech and PortTalk commands, with 256 KB of system ROM. Artic's own
   newsletter of August 1992 agrees: "All Transport synthesizers use the Artic 263 speech chip." The SynPhonix cards
@@ -218,6 +243,11 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 
 ### 1993 to 1996
 
+- **Still in the catalogue in 1993** (document, marking). Silicon Systems, "A TDK Group Company", issued a data
+  sheet for the "SSI 78A263A Phoneme Speech Synthesizer" dated February 1993, and a chip offered for sale in 2026
+  is marked 78A263A with the date code CD9319, which reads as week 19 of 1993 in the format of the SynPhonix's
+  CD9226. So the chip was documented, and apparently made, a year after the report that Silicon Systems had
+  announced its end (see 1992). Who ordered that run isn't shown.
 - **A screen reader's list is not a chip list.** MicroTalk's ASAP screen reader was built for MicroTalk's own
   DoubleTalk-based LiteTalk and LapTalk. Its manual of September 1991 describes support for the Accents, the
   Audapter, the Braille 'n Speak (from its June 1991 ROM, in speech-box mode), the DECtalk, the Echo PC, the Sounding Board, the SynPhonix,
