@@ -270,11 +270,16 @@ int main(int argc, char **argv)
             fclose(f);
         }
         again = run(fw, path, 0, 0, 0.0, 2.0, NULL);
-        /* the memory, then the clock controller (bl_clock.h) */
-        snprintf(d, sizeof d, "%ld bytes (want %ld); booted from it: rms %.4f over the first 2 s", size,
-                 (g_kind == EMU_TYPE_N_SPEAK ? 5242880L : 786432L) + BLC_SAVE_SIZE, again);
-        check("switched off and on", size == (g_kind == EMU_TYPE_N_SPEAK ? 5242880L : 786432L) + BLC_SAVE_SIZE
-                                     && again > 0.01, d);
+        /* the memory, then the clock controller (bl_clock.h).  The Braille Lite's board keeps its RAM's first 256 KB
+           while the rest is 00h, else all 768 KB (bl_board.h bl_save_state): the Braille 'n Speak 640's firmware
+           leaves a byte at E5501h, so its state is the larger */
+        {
+            long want = (g_kind == EMU_TYPE_N_SPEAK ? 5242880L : 786432L) + BLC_SAVE_SIZE;
+            long grown = g_kind == EMU_TYPE_N_SPEAK ? want : want + 0x80000L;
+            snprintf(d, sizeof d, "%ld bytes (want %ld%s); booted from it: rms %.4f over the first 2 s", size, want,
+                     grown != want ? ", or 1310784 with RAM past 7FFFFh in use" : "", again);
+            check("switched off and on", (size == want || size == grown) && again > 0.01, d);
+        }
         remove(path);
         free(buf);
     }
