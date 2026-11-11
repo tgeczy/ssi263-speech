@@ -67,7 +67,12 @@ enum FirmwareImport {
     static let blazie: Set<Int> = [english, spanish, german, italian, slovak]
     static let accentRoms = [accentU2, accentU3, accentU4]
 
-    static let stateSize = 786432           // battery-backed RAM + file flash: every state bl_save_state writes
+    static let stateSize = 786432           // battery-backed RAM + file flash: the state bl_save_state writes at first
+    /// Every size a state has (bl_board.h bl_save_state): the RAM's first 256 KB or all 768 KB (once the unit's files
+    /// reach past 7FFFFh; the Spanish setup fills it), then the file flash's first 512 KB or all 2 MB.
+    static let stateSizes: Set<Int> = [stateSize, 1310720, 2359296, 2883584]
+    static let stateTail = 64               // ... and the emulator's clock after them (bl_clock.h, bl_rtc6242.h)
+    static let stateTails: [[UInt8]] = [Array("BLCLOCK1".utf8), Array("BLR6242".utf8) + [1]]
     static let maxSource = 64 << 20         // an add-on is a few megabytes; firmware a few hundred kilobytes
     static let maxEntry = 4 << 20           // an update program is half a megabyte
     static let maxInner = 32 << 20          // a zip in the source: the add-on (5.5 MB in 0.8.0), anyone's own archive
@@ -112,7 +117,8 @@ enum FirmwareImport {
 
     /// The host-side tests' controls (SSI263_IMPORT_BREAK; never set in the app): `1` looks at a zip's top only -- no
     /// folder below it -- so the folder tests must fail; `unopened` drops a zip inside a zip in the source in silence;
-    /// `state` stops knowing a state file;
+    /// `state` stops knowing a state file; `state-sizes` knows a state by its first size alone, as before the larger
+    /// states;
     /// `speakout` drops what the native side says is the Speak-Out's; `mockingboard` both Mockingboards'; `accent`
     /// drops Aicom's files; `release` the releases with no shipped voice; `soundingboard` the Sounding Board's two
     /// drivers; `smartalk` the SmarTalk's S_TALK.EXE; `smartalkname` the words for another file called S_TALK.EXE.
@@ -185,8 +191,16 @@ enum FirmwareImport {
         }
     }
 
-    /// A unit's state, by its content: the size every state has.  Never imported, whatever its name.
-    static func isState(_ data: Data) -> Bool { control != "state" && data.count == stateSize }
+    /// A unit's state, by its content: a size a state has (stateSizes), or one with a clock's 64 bytes after it.
+    /// Never imported, whatever its name.
+    static func isState(_ data: Data) -> Bool {
+        if control == "state" { return false }
+        if control == "state-sizes" { return data.count == stateSize }
+        if stateSizes.contains(data.count) { return true }
+        guard stateSizes.contains(data.count - stateTail) else { return false }
+        let mark = [UInt8](data.suffix(stateTail).prefix(8))
+        return stateTails.contains(mark)
+    }
 
     /// One firmware the import will bring in.
     struct Found {

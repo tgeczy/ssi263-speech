@@ -332,6 +332,43 @@ class FirmwareImportTest {
         assertFalse(plan.found.any { it.firmware.length() == FirmwareImport.STATE_SIZE.toLong() })
     }
 
+    // A state is larger once the unit's files reach past the RAM's first 256 KB or the flash's first 512 KB
+    // (bl_board.h bl_save_state), and the emulator's ends with its clock's 64 bytes: each is still a state.  The
+    // Spanish Braille Lite's own factory state is one of them (its setup fills all the RAM).
+
+    private fun tail(magic: ByteArray) = magic + ByteArray(64 - magic.size) { 7 }
+    private val clockTail get() = tail("BLCLOCK1".toByteArray(Charsets.US_ASCII))
+    private val chipTail get() = tail("BLR6242".toByteArray(Charsets.US_ASCII) + 1)          // the 640's clock chip
+
+    @Test fun everySizeAStateCanHaveIsAState() {
+        assertEquals(setOf(786432, 1310720, 2359296, 2883584), FirmwareImport.STATE_SIZES)
+        for (size in FirmwareImport.STATE_SIZES) {
+            val s = ByteArray(size) { (it * 13).toByte() }
+            assertEquals("$size bytes", FirmwareImport.STATE_FILE, inspect("backup.bin", s).refusal)
+            assertEquals("$size bytes and the clock", FirmwareImport.STATE_FILE, inspect("backup.bin", s + clockTail).refusal)
+            assertEquals("$size bytes and the 640's clock chip", FirmwareImport.STATE_FILE,
+                         inspect("backup.bin", s + chipTail).refusal)
+        }
+    }
+
+    @Test fun aLargerStateBesideFirmwareIsNotUsed() {
+        val spanish = ByteArray(1310720) { (it * 13).toByte() }
+        val plan = inspect("unit.zip", zip("BL2ENG.BNS" to bns('E'), "bl2spa_fresh.state" to spanish,
+                                           "saved.dat" to spanish + clockTail))
+        assertNull(plan.refusal)
+        assertEquals(listOf(FirmwareImport.ENGLISH), languages(plan))
+        assertEquals(1, plan.notes.size)
+        assertTrue(plan.notes.single(), plan.notes.single().contains("bl2spa_fresh.state") &&
+                   plan.notes.single().contains("saved.dat") && plan.notes.single().contains("state file"))
+    }
+
+    @Test fun aStatesSizeWithOtherBytesAfterItIsNotAState() {
+        val s = ByteArray(FirmwareImport.STATE_SIZE) { (it * 13).toByte() }
+        assertFalse(FirmwareImport.isState(s + ByteArray(64) { 7 }))        // 64 more bytes that are no clock's
+        assertFalse(FirmwareImport.isState(s + ByteArray(1)))
+        assertFalse(FirmwareImport.isState(ByteArray(262144 + 2097152 + 1)))
+    }
+
     // ---- the Speak-Out: GW Micro's SPEAKOUT.HEX, by content (Tomi, 0.7.5) -----------------------------------------
 
     @Test fun theSpeakOutHexAlone() {

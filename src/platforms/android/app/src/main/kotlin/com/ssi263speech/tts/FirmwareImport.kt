@@ -123,7 +123,8 @@ object FirmwareImport {
     /** The JVM tests' controls (`gradlew testDebugUnitTest -Pssi263ImportBreak=<value>`; never set on a phone):
      * `1` looks at a zip's top only -- no folder below it -- so the layout tests must fail; `unopened` drops a zip
      * inside a zip in the source in silence, so its test must fail; `state` stops
-     * knowing a state file, so the state tests must fail; `speakout` drops what the native side says is the
+     * knowing a state file, so the state tests must fail; `state-sizes` knows a state by its first size alone, as
+     * before the larger states, so their tests must fail; `speakout` drops what the native side says is the
      * Speak-Out's, so the Speak-Out tests must fail; `mockingboard` the same for the Mockingboard's; `release` leaves
      * the release voices out of the import, so their tests must fail; `units` drops a release no voice speaks (the
      * 640, Japanese) as before 0.8.5, so the unit screen's import tests must fail; `soundingboard` drops what the native
@@ -132,7 +133,13 @@ object FirmwareImport {
      * (SsiEngine's voices, [imported]). */
     internal val CONTROL = System.getProperty("ssi263.import.break") ?: ""
 
-    const val STATE_SIZE = 786432           // battery-backed RAM + file flash: every state bl_save_state writes
+    const val STATE_SIZE = 786432           // battery-backed RAM + file flash: the state bl_save_state writes at first
+    /** Every size a state has (bl_board.h bl_save_state): the RAM's first 256 KB or all 768 KB (once the unit's files
+     *  reach past 7FFFFh; the Spanish setup fills it), then the file flash's first 512 KB or all 2 MB. */
+    val STATE_SIZES = setOf(STATE_SIZE, 1310720, 2359296, 2883584)
+    const val STATE_TAIL = 64               // ... and the emulator's clock after them (bl_clock.h, bl_rtc6242.h)
+    private val STATE_TAILS = listOf("BLCLOCK1".toByteArray(Charsets.US_ASCII),
+                                     "BLR6242".toByteArray(Charsets.US_ASCII) + 1)
     const val MAX_SOURCE = 64L shl 20       // an add-on is a few megabytes; firmware a few hundred kilobytes
     const val MAX_ENTRY = 4 shl 20          // an update program is half a megabyte
     const val MAX_INNER = 32 shl 20         // a zip in a zip: the add-on (5.5 MB in 0.8.0), the emulator's download
@@ -188,8 +195,15 @@ object FirmwareImport {
         SLOVAK -> "Slovak Braille 'n Speak 2000"
         else -> "${languageName(language)} Braille Lite" }
 
-    /** A unit's state, by its content: the size every state has.  Never imported, whatever its name. */
-    fun isState(data: ByteArray) = CONTROL != "state" && data.size == STATE_SIZE
+    /** A unit's state, by its content: a size a state has ([STATE_SIZES]), or one with a clock's 64 bytes after it.
+     *  Never imported, whatever its name. */
+    fun isState(data: ByteArray): Boolean {
+        if (CONTROL == "state") return false
+        if (CONTROL == "state-sizes") return data.size == STATE_SIZE
+        if (data.size in STATE_SIZES) return true
+        val body = data.size - STATE_TAIL
+        return body in STATE_SIZES && STATE_TAILS.any { magic -> magic.indices.all { data[body + it] == magic[it] } }
+    }
 
     /** One firmware the import will bring in: a Braille Lite release on the list, the Speak-Out's HEX or the
      * Mockingboard's file. */

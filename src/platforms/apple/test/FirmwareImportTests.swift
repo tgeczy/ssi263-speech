@@ -432,6 +432,42 @@ test("aZipWithFirmwareAndAStateTakesTheFirmwareOnly") {
         "itself from the firmware."])
 }
 
+// A state is larger once the unit's files reach past the RAM's first 256 KB or the flash's first 512 KB (bl_board.h
+// bl_save_state), and the emulator's ends with its clock's 64 bytes: each is still a state.  The Spanish Braille
+// Lite's own factory state is one of them (its setup fills all the RAM).
+
+func stateTail(_ mark: [UInt8]) -> Data { Data(mark) + Data(repeating: 7, count: 64 - mark.count) }
+let clockTail = stateTail(Array("BLCLOCK1".utf8))
+let chipTail = stateTail(Array("BLR6242".utf8) + [1])           // the 640's clock chip
+
+test("everySizeAStateCanHaveIsAState") {
+    eq(FirmwareImport.stateSizes, Set([786432, 1310720, 2359296, 2883584]))
+    for size in FirmwareImport.stateSizes.sorted() {
+        let s = Data(repeating: 13, count: size)
+        eq(inspect("backup.bin", s).refusal, FirmwareImport.stateFile)
+        eq(inspect("backup.bin", s + clockTail).refusal, FirmwareImport.stateFile)
+        eq(inspect("backup.bin", s + chipTail).refusal, FirmwareImport.stateFile)
+    }
+}
+
+test("aLargerStateBesideFirmwareIsNotUsed") {
+    let spanish = Data(repeating: 13, count: 1310720)
+    let plan = inspect("unit.zip", zip([("BL2ENG.BNS", bns("E")), ("bl2spa_fresh.state", spanish),
+                                        ("saved.dat", spanish + clockTail)]))
+    eq(plan.refusal, nil)
+    eq(kinds(plan), [E])
+    eq(plan.notes.count, 1)
+    let note = plan.notes.first ?? ""
+    check(note.contains("bl2spa_fresh.state") && note.contains("saved.dat") && note.contains("state file"), note)
+}
+
+test("aStatesSizeWithOtherBytesAfterItIsNotAState") {
+    let s = Data(repeating: 13, count: FirmwareImport.stateSize)
+    check(!FirmwareImport.isState(s + Data(repeating: 7, count: 64)), "64 more bytes that are no clock's")
+    check(!FirmwareImport.isState(s + Data(count: 1)), "one more byte")
+    check(!FirmwareImport.isState(Data(count: 262144 + 2097152 + 1)), "a byte past the 2 MB flash")
+}
+
 // ---- the Speak-Out: GW Micro's SPEAKOUT.HEX, by content (Tomi, 0.7.5) ---------------------------------------------
 
 test("theSpeakOutHexAlone") {

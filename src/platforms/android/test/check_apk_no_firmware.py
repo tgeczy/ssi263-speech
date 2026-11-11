@@ -17,7 +17,8 @@ assets/sweet-micro/, with Sweet Micro's notice among the licences:
     mockingboard-tts-early.bin  c7c049b1b61792719e21e461a2a8c25fc32c12882c81305814a3dc67af6e5835   (disk 1's, earlier)
 
 Refused, in any file, an archive's members included: a Braille Lite ROM image by content (F3 C3 xx xx FF
-"COPYRIGHT"); a unit's state by content (the 786432 bytes every state has: it holds what the firmware wrote); the
+"COPYRIGHT"); a unit's state by content (one of the four sizes a state has, 786432 bytes at first, alone or with a
+clock's 64 bytes after it: it holds what the firmware wrote); the
 Speak-Out's SPEAKOUT.HEX by its sha256, and any Intel HEX image by content; any Apple II disk image, by name (.dsk
 .do .po .nib .woz .2mg) and by content (a 140 KB DOS or ProDOS order image's 143360 bytes, a .nib's 232960, a WOZ or
 2IMG header); firmware, state or ROM files by name (.bns .tns .state .hex .bin .dvc .rom) unless the file is one of
@@ -38,6 +39,10 @@ the six above; and anything in assets/aicom/ or assets/sweet-micro/ that is not 
     --control-mockingboard-flipped <apk>            assets/sweet-micro/mockingboard-tts-1.1.bin with one byte changed
     --control-no-sweet-notice <apk>                 the Mockingboards' files without Sweet Micro's notice
     --control-gpl <apk>                             z180emu's GPL text added among the licences (0.6's APK had it)
+    python check_apk_no_firmware.py --states        a made-up state of every size, alone and with each clock's tail,
+                                                    in the synthetic APK: each must be refused.  Its control,
+                                                    SSI263_APK_STATE_BREAK=1 (the first size alone, as before the
+                                                    larger states), must FAIL
 
 And the licences (Tomi, 2026-09-30: all-MAME 0.7): the APK carries the project's and Casso's MIT licences, MAME's
 BSD-3-Clause notices for the Z180, 8085, V40 and 8086 cores, Aicom's notice and the distribution notice, and -- with
@@ -60,8 +65,32 @@ from tools import check_no_gpl  # noqa: E402
 IMAGE = re.compile(rb"\xF3\xC3..\xFFCOPYRIGHT", re.S)
 NAMES = re.compile(r"(?i)\.(bns|tns|state|hex|bin|dvc|rom)$")
 INTEL_HEX = re.compile(rb"\A(?::[0-9A-Fa-f]{10,}\r?\n){4}")       # four Intel HEX records at the start
-STATE_SIZE = 786432                         # bl_save_state's: battery-backed RAM + file flash
-CLOCK_TAIL = 64                             # ... and the clock controller after them, when the emulator saved it
+STATE_SIZE = 786432                         # bl_save_state's: battery-backed RAM + file flash, as a state is at first
+# every size a state has (bl_board.h bl_save_state): the RAM's first 256 KB or all 768 KB (once the unit's files reach
+# past 7FFFFh; the Spanish setup fills it), then the file flash's first 512 KB or all 2 MB
+STATE_SIZES = (STATE_SIZE, 1310720, 2359296, 2883584)
+CLOCK_TAIL = 64                             # ... and a clock after them, when the emulator saved it: the clock
+TAILS = (b"BLCLOCK1", b"BLR6242\x01")       # controller's (bl_clock.c) or the 640's clock chip's (bl_rtc6242.c)
+# the --states control (SSI263_APK_STATE_BREAK=1): a state known by its first size and the controller's tail alone, as
+# before the larger states
+STATE_BREAK = os.environ.get("SSI263_APK_STATE_BREAK") == "1"
+
+
+def is_state(data):
+    """These bytes are a unit's state, by their size (and the clock's mark, when its 64 bytes follow)."""
+    sizes, tails = (STATE_SIZES[:1], TAILS[:1]) if STATE_BREAK else (STATE_SIZES, TAILS)
+    body = len(data) - CLOCK_TAIL
+    return len(data) in sizes or (body in sizes and data[body:body + 8] in tails)
+
+
+def state_samples():
+    """(what, bytes) for a made-up state of every size, alone and with each clock's tail."""
+    out = []
+    for n in STATE_SIZES:
+        out.append(("a state of %d bytes" % n, bytes(n)))
+        for mark, what in zip(TAILS, ("the clock controller", "the 640's clock chip")):
+            out.append(("a state of %d bytes and %s" % (n, what), bytes(n) + mark + bytes(CLOCK_TAIL - len(mark))))
+    return out
 AICOM_DIR = "assets/aicom/"
 ALLOWED = {
     "8d6aa48880d1efd02f8dc759741c16b8902db33dcc2856d1f0db4776149992ad": "u2.BIN",
@@ -157,8 +186,7 @@ def scan(label, data, hits, allowed, depth=0, name="", sweet=None):
         hits.append("%s: a Braille Lite ROM image" % label)
     if INTEL_HEX.match(data):
         hits.append("%s: an Intel HEX image" % label)
-    if depth > 0 and (len(data) == STATE_SIZE or (len(data) == STATE_SIZE + CLOCK_TAIL
-                                                  and data[STATE_SIZE:STATE_SIZE + 8] == b"BLCLOCK1")):
+    if depth > 0 and is_state(data):
         hits.append("%s: a unit's state, by its size" % label)
     if depth < 2 and data[:4] == b"PK\x03\x04":
         with zipfile.ZipFile(io.BytesIO(data)) as z:
@@ -224,8 +252,29 @@ def flip(data, name, at):
     return with_file(data, name, bytes(b), replace=True)
 
 
+def states():
+    """--states: a made-up state of every size (state_samples), each under a bland name in the synthetic APK, must be
+    refused; a state's size with 64 other bytes after it is not one."""
+    base = synthetic()
+    bad = 0
+    for what, content in state_samples():
+        hits = []
+        scan("synthetic.apk", with_file(base, "assets/data/unit.dat", content), hits, [])
+        found = any("unit.dat: a unit's state, by its size" in h for h in hits)
+        bad += not found
+        print("%s %s: %s" % ("ok  " if found else "FAIL", what, "refused" if found else "passed as no firmware"))
+    other = not is_state(bytes(STATE_SIZE) + b"\x07" * CLOCK_TAIL)
+    bad += not other
+    print("%s a state's size with 64 other bytes after it: %s" % ("ok  " if other else "FAIL",
+                                                                 "not a state" if other else "called a state"))
+    print("states: %s" % ("all refused" if not bad else "%d FAILED" % bad))
+    return 1 if bad else 0
+
+
 def main():
     args = sys.argv[1:]
+    if args == ["--states"]:
+        return states()
     control = flipped = gpl = mb_flipped = no_notice = st_flipped = no_st_notice = None
     if args[:1] == ["--control-gpl"]:        # z180emu's GPL text among the licences: this run must FAIL
         gpl, args = True, args[1:]

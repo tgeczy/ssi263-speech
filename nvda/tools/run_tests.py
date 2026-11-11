@@ -1462,6 +1462,18 @@ if os.path.isfile(ANDROID_TEST):
             CHECKS.append(check("Android APK check CONTROL (%s, must fail)" % what,
                                 [PY, APK_CHECK, "--control", fw, "--synthetic"], expect_fail=True,
                                 fail_marks=[r"^synthetic\.apk: \d+ entries, FIRMWARE: ", mark]))
+    # a unit's state, refused by its size: every size a state has since the units' whole RAM is kept (786432 bytes at
+    # first; 1310720, 2359296 and 2883584 once files reach past the RAM's first 256 KB or the flash's first 512 KB),
+    # alone and with a clock's 64 bytes after it (the controller's, the 640's chip's).  The Apple audit scans with
+    # the same code.  Control: the first size and the controller's tail alone, as before
+    CHECKS.append(check("Android APK check: a unit's state refused at every size it has", [PY, APK_CHECK, "--states"]))
+    CHECKS.append(check("Android APK check CONTROL (a state known by its first size alone, must fail)",
+                        [PY, APK_CHECK, "--states"], env={"SSI263_APK_STATE_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^ok +a state of 786432 bytes: refused$",
+                                    r"^FAIL a state of 786432 bytes and the 640's clock chip: passed as no firmware$",
+                                    r"^FAIL a state of 1310720 bytes: passed as no firmware$",
+                                    r"^FAIL a state of 2883584 bytes and the clock controller: passed as no firmware$",
+                                    r"^states: 10 FAILED$"]))
     # the Mockingboards' files (Sweet Micro's: the GitHub APK carries both, Tomi 2026-10-10) pass by sha256 in
     # assets/sweet-micro with Sweet Micro's notice; one byte changed, or the notice gone, must fail
     if ANDROID_MB:

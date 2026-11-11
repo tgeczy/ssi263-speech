@@ -178,8 +178,10 @@ and Italian's the English runs with their own yes, the Slovak unit's the English
 
 Any other image is refused in words: a Braille Lite 2000 release not on the list (another country's may lay its
 memory out differently, and its recipe is not known), and another Blazie unit's firmware (Braille 'n Speak, Type 'n
-Speak, Braille Lite 18 and 40), which `bl_create`'s firmware sites also refuse. A unit's state (786432 bytes, whatever
-its name) is never imported, alone or in a zip: the app always makes its own. Picked alone, it is refused with "This
+Speak, Braille Lite 18 and 40), which `bl_create`'s firmware sites also refuse. A unit's state (786432 bytes at first;
+1310720, 2359296 or 2883584 once its files reach past the RAM's first 256 KB or the flash's first 512 KB; each alone or
+with the emulator's clock after it; whatever its name) is never imported, alone or in a zip: the app always makes its
+own. Picked alone, it is refused with "This
 is a state file, not firmware. Please import only firmware files, or zips containing them, with this tool." (Tomi's
 words); in a zip beside firmware (the add-on), it is left out and said so. Refusals are shown in a dialog, kept on
 the Setup page and announced to TalkBack.
@@ -297,6 +299,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     cd src/platforms/android && ./gradlew testDebugUnitTest               # the import's layouts and words, on the JVM
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=1                     # control: the layout cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=state                 # control: the state cases must FAIL
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=state-sizes           # control: the larger states' cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=speakout              # control: the Speak-Out cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=mockingboard          # control: the Mockingboard cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=release               # control: the release voices' cases must FAIL

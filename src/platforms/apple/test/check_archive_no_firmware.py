@@ -111,10 +111,9 @@ def synthetic(tmp):
     ok = report(app)
     controls = [
         ("a Braille Lite ROM image", b"\x18" * 0x3000 + b"\xF3\xC3\x32\x03\xFFCOPYRIGHT" + bytes(1000)),
-        ("a unit's state", bytes(apk.STATE_SIZE)),
         ("an Apple II disk image", bytes(143360)),
         ("an Intel HEX image", b":020000020000FC\r\n" * 4),
-    ]
+    ] + apk.state_samples()             # a unit's state, at every size it has, alone and with each clock's tail
     aicom = os.path.join(REPO, "firmware", "aicom-accent-sa", "u2.BIN")
     if os.path.isfile(aicom):
         controls.append(("Aicom's u2.BIN", open(aicom, "rb").read()))
