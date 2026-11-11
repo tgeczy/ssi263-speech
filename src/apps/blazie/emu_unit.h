@@ -86,9 +86,11 @@ extern int emu_hold_break;
    reads; 1 on success.  The Braille Lite's program flash too, once a firmware update has written its other bank
    (bl_board.h bl_program_flash): beside the state as PATH.program (both banks, 512 KB), which emu_create puts back
    when its bank a is the firmware it loads -- an update into bank b, Blazie's way, the unit still booting in bank a
-   and p-chord l reaching the update.  (A bank-a update is not kept: the board finds its code sites in bank a.)  A
-   PATH.program of this firmware whose bank b matches bank a again is removed; one of another firmware is left.  A
-   PATH ending in ".new" (a state written first and then put in place, as the Linux apps save) keeps its program
+   and p-chord l reaching the update.  (A bank-a update is not kept: the board finds its code sites in bank a.)  Nor
+   is bank a's serial number and owner's name lost (00080h-000B7h: Blazie's name brander, test_brand.c), the one part
+   of bank a a unit writes for itself: kept the same way, and put back over this firmware's blank ones.  A
+   PATH.program of this firmware whose bank b matches bank a again, with no name, is removed; one of another firmware
+   is left.  A PATH ending in ".new" (a state written first and then put in place, as the Linux apps save) keeps its program
    beside the name without ".new". */
 int emu_save(emu_unit *u, const char *path);
 /* the Braille Lite's program flash, bank a then bank b (0 for the Type 'n Speak): tests */

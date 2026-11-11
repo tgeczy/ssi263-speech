@@ -25,6 +25,7 @@ including the channel left open (hiss or whine) until the firmware clicks it off
 | `test_emu_unit.c` | The unit headless: the boot greeting is heard, a chord is answered (a no-chord run is the control), faster than real time, its key latency, a save under 50 ms; the English Braille Lite's double-speed switch with the upgrade installed and without (`TEST_EMU_DOUBLE_BREAK` the control). |
 | `test_clock.c` | The clock controller alone, then the English Braille Lite and Type 'n Speak setting and reading the time and date with their own commands, the clock going on and kept over a switch-off; and i-chord held through p-chord l's restart. `TEST_CLOCK_BREAK` / `TEST_CLOCK_HOLD_BREAK` put one bug back for run_tests' must-fail controls. |
 | `test_flash.c` | The file flash: the Type 'n Speak's ID check passes and its flash is initialised, the erase takes ~46 s (32 s and the 14.4 s preprogramming) with the firmware's clicks, the flash kept across a save and restart; the Braille Lite's reset erases the same way, and a file moved to flash lands in the 2 MB and survives a restart. `test_flash_break.exe` (the old flash put back), `test_flash_old.exe` (the erase without its preprogramming) and `--break=instant|persist` must fail. |
+| `test_brand.c` | Blazie's name brander (BSNAME.BNS in firmware/blazie/, never in the repo; absent: skipped) on the English Braille Lite: it programs the owner's name at the program flash's 00090h and nothing else, p-chord th then says "owner is" and the name (an unbranded unit only "ok"), and the emulator keeps the name beside the state, puts it back, removes the file when the name is blanked, and takes no name from another firmware's file. `test_brand_nokeep.exe` (`EMU_NO_OWNER_KEEP`: the name not kept, as before) and `test_brand_break.exe` (the program flash's writes dropped) must fail. |
 | `test_idle.c` | The idle channel against Tomi's unit (the noise's level at volumes 1, 6 and 15, keep open off/until/always, the pop, the click-off, the tick); `--break=...` puts one bug back for run_tests' must-fail controls. |
 | `test_serial.c` | The serial port plugged in, headless: the storage handshake answered from the far end, on every unit (below); built with the receive path cut, it must fail. |
 | `test_serial_win.c` | `serial_win.c` end to end, a named pipe standing in for the COM port and this program for WinDisk; built with the receive path cut, it must fail. |
@@ -376,6 +377,16 @@ a real one switched off and on, starts in bank a -- and p-chord l switches to th
 The emulator keeps the updated bank beside the unit's memory, as `english.state.program` (or `spanish`), and puts it
 back each time it starts that unit; Back to the factory state removes it. Only an update into bank b is kept: the
 unit's first bank must stay the firmware the emulator loads.
+
+## The owner's name
+
+Blazie's name brander (`bsname.bns`, with its `bsname.txt`) writes a name and address, 39 characters, into the
+program flash once: load it into the unit's files, run it with o-chord x, type the name letter by letter (no Grade 2)
+and press e-chord. p-chord th then says "owner is" and the name in any file. On a real unit the name sits beside the
+serial number at the start of the firmware's bank (00080h-000B7h, blank in Blazie's images), so a cold reset, which
+clears the files and settings, leaves it, and Blazie's updater copies it into the bank it writes. The emulator
+keeps it the same way: in `english.state.program` beside the unit's memory, put back each time it starts that unit
+(before this, it was gone on the next start). Back to the factory state removes it with the rest.
 
 ## Licence
 

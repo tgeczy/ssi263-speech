@@ -6,6 +6,7 @@
   test_clock.exe     the clock controller and the keys held while the unit starts (Jayson), headless
   test_flash.exe     the file flash: the ID check, the erase's time and chirps, files kept; _break, _old: its controls
   test_update.exe    the firmware update into the program flash's second bank, then p-chord l; _break, _single: controls
+  test_brand.exe     Blazie's name brander: the owner's name programmed, said, and kept; _nokeep, _break: controls
   test_files.exe     files in and out (bl_files.c, the FAT image) against the units' own commands
   blazie_files.exe   the same on a saved state, from the command line
   test_games.exe     Blazie's games (Simon, Hangman) run from the unit's files, headless (RetroBunn: Simon)
@@ -163,6 +164,14 @@ def main():
     emu_nokeep = compile_c(os.path.join(HERE, "emu_unit.c"), APP, name="emu_unit_nokeep",
                            defines=("EMU_NO_PROGRAM_KEEP",))
     link("test_update_nokeep.exe", [upd] + chip + board() + [emu_nokeep, chords, setup] + files)
+    # Blazie's name brander (test_brand.c: the owner's name at the program flash's 00090h), and its controls: the
+    # emulator not keeping bank a's name (emu_unit.c EMU_NO_OWNER_KEEP), the program flash's writes dropped
+    brand = compile_c(os.path.join(HERE, "test_brand.c"), APP)
+    link("test_brand.exe", [brand] + unit + files)
+    emu_noowner = compile_c(os.path.join(HERE, "emu_unit.c"), APP, name="emu_unit_noowner",
+                            defines=("EMU_NO_OWNER_KEEP",))
+    link("test_brand_nokeep.exe", [brand] + chip + board() + [emu_noowner, chords, setup] + files)
+    link("test_brand_break.exe", [brand] + chip + board("pf_break") + [emu, chords, setup] + files)
     # files in and out against the units' own commands (test_files.c; its controls: --break=N)
     link("test_files.exe", [compile_c(os.path.join(HERE, "test_files.c"), APP)] + unit + files)
     # Blazie's games run from the unit's files (test_games.c; RetroBunn, PR #9: Simon); its control: TEST_GAMES_BREAK
