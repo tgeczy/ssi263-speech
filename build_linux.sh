@@ -125,6 +125,9 @@ $CXX $SHARED_CXX -o "$OUT/test_rescue" "$OUT/obj_emu/test_rescue.o" $RESCUE_OBJS
 # Blazie's games run from the unit's files (test_games.c: Simon, Hangman; the games themselves never in the repo)
 $CC $APPF -c -o "$OUT/obj_emu/test_games.o" "$APP/test_games.c"
 $CXX $SHARED_CXX -o "$OUT/test_games" "$OUT/obj_emu/test_games.o" $FILES_OBJS $EMU_OBJS -lm
+# the units' 768 KB of RAM kept in their state (test_ram_full.c): files the unit put past 7FFFFh survive a save
+$CC $APPF -c -o "$OUT/obj_emu/test_ram_full.o" "$APP/test_ram_full.c"
+$CXX $SHARED_CXX -o "$OUT/test_ram_full" "$OUT/obj_emu/test_ram_full.o" $FILES_OBJS $EMU_OBJS -lm
 $CC $APPF -c -o "$OUT/obj_emu/test_catalog.o" "$APP/test_catalog.c"
 $CXX $SHARED_CXX -o "$OUT/test_catalog" "$OUT/obj_emu/test_catalog.o" $CATALOG_OBJS $EMU_OBJS -lm
 # the sound buffer (audio_pace.c, portable) against a simulated sound card, and the Linux shells' reading of the

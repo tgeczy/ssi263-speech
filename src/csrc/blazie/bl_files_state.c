@@ -5,7 +5,8 @@
 #include "bl_files.h"
 #include "bl_files_state.h"
 
-#define BL_RAM 0x40000L
+#define BL_RAM 0xC0000L               /* 768 KB, 40000h-FFFFFh (bl_board.h, bl_save_state) ... */
+#define BL_RAM_OLD 0x40000L           /* ... or its first 256 KB, while the rest is all 00h */
 #define BL_RAM_AT 0x40000L
 #define BL_FLASH 0x200000L
 #define BL_FLASH_OLD 0x80000L
@@ -18,6 +19,13 @@ static int fail(char *err, int errlen, const char *msg)
     if (err && errlen > 0)
         snprintf(err, (size_t)errlen, "%s", msg);
     return 0;
+}
+
+/* a Braille Lite state of `size` with ram_n bytes of RAM: its flash's first 512 KB or all 2 MB, the tail or not */
+static int bl_sizes(long size, long ram_n)
+{
+    return size == ram_n + BL_FLASH_OLD || size == ram_n + BL_FLASH_OLD + TAIL || size == ram_n + BL_FLASH
+           || size == ram_n + BL_FLASH + TAIL;
 }
 
 void bls_free(bls_unit *u)
@@ -43,11 +51,10 @@ int bls_load(const char *path, bls_unit *u, char *err, int errlen)
         ram_n = TNS_RAM;
         flash_n = TNS_FLASH;
         u->flash_size = TNS_FLASH;
-    } else if (size == BL_RAM + BL_FLASH_OLD || size == BL_RAM + BL_FLASH_OLD + TAIL || size == BL_RAM + BL_FLASH
-               || size == BL_RAM + BL_FLASH + TAIL) {
+    } else if (bl_sizes(size, BL_RAM_OLD) || bl_sizes(size, BL_RAM)) {
         u->model = BLF_BRAILLE_LITE;
-        ram_n = BL_RAM;
-        flash_n = size - BL_RAM >= BL_FLASH ? BL_FLASH : BL_FLASH_OLD;
+        ram_n = bl_sizes(size, BL_RAM) ? BL_RAM : BL_RAM_OLD;
+        flash_n = size - ram_n >= BL_FLASH ? BL_FLASH : BL_FLASH_OLD;
         u->flash_size = BL_FLASH;
     } else {
         fclose(f);
@@ -80,7 +87,7 @@ int bls_save(const char *path, const bls_unit *u, char *err, int errlen)
 {
     char tmp[1100];
     FILE *f;
-    long flash_n = u->flash_size, i;
+    long flash_n = u->flash_size, ram_n = BL_RAM, i;
     int ok;
     if (strlen(path) + 5 > sizeof tmp)
         return fail(err, errlen, "the state file's name is too long");
@@ -88,13 +95,16 @@ int bls_save(const char *path, const bls_unit *u, char *err, int errlen)
         for (i = BL_FLASH_OLD; i < BL_FLASH && u->flash[i] == 0xFF; i++) ;
         if (i == BL_FLASH)
             flash_n = BL_FLASH_OLD;   /* the rest erased: the 768 KB format every reader knows (bl_save_state) */
+        for (i = BL_RAM_AT + BL_RAM_OLD; i < BL_RAM_AT + BL_RAM && !u->ram[i]; i++) ;
+        if (i == BL_RAM_AT + BL_RAM)
+            ram_n = BL_RAM_OLD;       /* RAM above 7FFFFh all 00h: its first 256 KB, as bl_save_state keeps it */
     }
     snprintf(tmp, sizeof tmp, "%s.tmp", path);
     f = fopen(tmp, "wb");
     if (!f)
         return fail(err, errlen, "cannot write the state file");
     if (u->model == BLF_BRAILLE_LITE)
-        ok = fwrite(u->ram + BL_RAM_AT, 1, BL_RAM, f) == BL_RAM;
+        ok = fwrite(u->ram + BL_RAM_AT, 1, (size_t)ram_n, f) == (size_t)ram_n;
     else
         ok = fwrite(u->ram, 1, TNS_RAM, f) == TNS_RAM;
     ok = ok && fwrite(u->flash, 1, (size_t)flash_n, f) == (size_t)flash_n;

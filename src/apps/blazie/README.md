@@ -37,6 +37,7 @@ including the channel left open (hiss or whine) until the firmware clicks it off
 | `make_state.c` | A unit's factory state from its firmware alone (`../../csrc/blazie/bl_state.c`'s recipe): the Braille 'n Speak 2000's, kept in `firmware/blazie/bns2000/`. |
 | `test_bns.c` | The Braille 'n Speak 2000 on the Braille Lite's board: the units told apart (the voice's import still refuses it), and its words read from the chip's register writes -- Slovak at power-on and for the time -- against what the unit said; asking the English unit for the Slovak words is run_tests' must-fail control. |
 | `test_files.c` | Files in and out against the units' own commands, on all four units (and the Braille 'n Speak 2000's two): the firmware's files exported exactly (the open one too), an image imported and then listed, typed into and moved by the unit, export-import-export the same image; the Type 'n Speak from its factory start (its cold reset's questions answered), its first file moved to flash whole; `--break=1..5` put one bug back each, `--break=cold` the old cold start, for run_tests' must-fail controls. `nvda/tools/files_7zip.py` checks the images in 7-Zip; `nvda/tools/files_keep.py` checks `blazie_files import --keep-exact` (an LF and a CR LF file kept byte for byte; `TEST_FILES_BREAK=8` ignores the option, for its control). |
+| `test_ram_full.c` | The units' 768 KB of RAM kept in their state (a unit in use lost 37 files the firmware had put past 7FFFFh, when a state kept only 256 KB): the Braille Lite and the Braille 'n Speak 2000 from their shipped states, RAM filled with made-up files, a three-page file in flash moved to RAM with the unit's own commands. With one page free below 80000h it lands across it and must be whole after the save and after switching off and on; with all 768 KB full it must stay in flash and every file stay whole. `TEST_RAM_FULL_BREAK=1` saves the first 256 KB only (bl_board.h `bl_ram_break`) for the must-fail control. |
 | `test_games.c` | Blazie's games from their disks (simon.bns, hangman.bns in firmware/blazie/games/, never in the repo; absent: skipped) run from the unit's files with its own command: Simon's first tone and its time-out on the Braille Lite, the Braille 'n Speak 2000 and the Type 'n Speak (RetroBunn, PR #9: it locked the unit up), Hangman a guess answered, both the same samples with the bus answered FFh wherever the game does not read it; `TEST_GAMES_BREAK=1` answers FFh again (bl_board.h `bl_bus_break`) for run_tests' must-fail control. `--flash`: Simon put into the flash startup folder with a text file in one batch, as Load programs and files into flash puts them (bl_files_xfer.h `blx_add_cp`), and run from there; `TEST_GAMES_FILES_BREAK=7` writes its entry in folder 0 (the unit cannot find it) for that control. `../../../nvda/tools/files_add.py` checks `blazie_files add` itself. |
 
 The Linux shells (`README-linux.md`: build, keys, sound, the BTSpeak, the desktop app with Orca):
@@ -359,8 +360,11 @@ byte it erases to 00h, which those times exclude: 14.4 s for the whole chip) and
 status, clicking through the speech chip every ~1.7 s (Braille Lite) or ~2.1 s (Type 'n Speak) meanwhile, a fixed count
 of its status polls apart (each click: R4 F0, R1 F0, R2 FE, R3 58, phoneme 17h, then PA): initialising the flash -- the
 Type 'n Speak's first start, the Braille Lite's reset -- is ~46 s of clicks, then "flash initialized" or
-"ready". A Braille Lite state is 768 KB (256 KB RAM + the flash's first 512 KB) while the rest of the flash is erased,
-2.25 MB once files reach it; both load.
+"ready". The units' RAM is 768 KB (40000h-FFFFFh: the firmware sizes it at power-on and gives files RAM up to its
+top). A Braille Lite state is 768 KB (the RAM's first 256 KB + the flash's first 512 KB) while the rest of each is
+empty -- every factory state -- and keeps all of the RAM (768 KB) or all of the flash (2 MB) once files reach it; every
+size loads. Before this, a state kept only the RAM's first 256 KB, and files the unit had put past 7FFFFh were lost
+when it was saved.
 
 ## The firmware update
 

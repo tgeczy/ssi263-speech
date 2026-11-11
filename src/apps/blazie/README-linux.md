@@ -386,6 +386,9 @@ is given):
   held through a restart (its control drops the held keys and must fail).
 - `test_rescue` -- a Type 'n Speak made as the previews made it (no file system, no folders; a file moved to flash
   lost) is told apart and set up anew with its RAM files; its control leaves the old cold start on and must fail.
+- `test_ram_full` -- the units' 768 KB of RAM kept in their state: a flash file the unit moves to RAM across 80000h
+  is whole after a save and after switching off and on, and with all 768 KB full it stays in flash. Its control
+  (`TEST_RAM_FULL_BREAK=1`, the RAM's first 256 KB saved only) must fail.
 - `tools/blazie_files_roundtrip.sh` -- `blazie_files` on a copy of the shipped state: export, unpack, a new file,
   pack, import; the unit lists it and every old file is unchanged. Its control (`TEST_FILES_BREAK=2`, a new flash
   file's blocks left unmarked) must fail.

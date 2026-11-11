@@ -70,7 +70,7 @@ typedef struct {
 typedef struct blf_fs blf_fs;
 
 /* A view over a unit's images, which stay the caller's and are changed in place: ram is its 1 MB address space (the
-   Braille Lite's RAM at 40000h-7FFFFh; below it nothing is read), flash its file flash (flash_size bytes: 2 MB on the
+   Braille Lite's 768 KB of RAM at 40000h-FFFFFh; below it nothing is read), flash its file flash (flash_size bytes: 2 MB on the
    Braille Lite, 4 MB on the Type 'n Speak).  NULL on failure, the reason in err. */
 blf_fs *blf_open(int model, unsigned char *ram, unsigned char *flash, long flash_size, char *err, int errlen);
 void blf_close(blf_fs *fs);
