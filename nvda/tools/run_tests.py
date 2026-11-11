@@ -940,6 +940,24 @@ if os.path.isfile(TEST_GAMES):
                                                 r"directory has no such file",
                                                 r"^FAIL the first tone after the start key +none in 2 s",
                                                 r"^FAILED$"]))
+# the units' 768 KB of RAM kept in their state (src/apps/blazie/test_ram_full.c; a unit in use lost 37 files the
+# firmware had put past 7FFFFh): a flash file the unit moves to RAM across 80000h is whole after a save and after
+# switching off and on, and with all 768 KB full it stays in flash with every file whole, on the Braille Lite and the
+# Braille 'n Speak 2000.  Control: the RAM's first 256 KB saved only (bl_board.h bl_ram_break), as before the fix
+TEST_RAM_FULL = os.path.join(EMU, "test_ram_full.exe")
+if os.path.isfile(TEST_RAM_FULL):
+    RAM_FULL_UNITS = [("Braille Lite ENG", [os.path.join(FW_BLAZIE, "BL2ENG.BNS"),
+                                            os.path.join(FW_BLAZIE, "bl2_2003_warm.state")])]
+    if all(os.path.isfile(os.path.join(BNS_DIR, f)) for f in ("BS03ENG.BNS", "bs03eng_fresh.state")):
+        RAM_FULL_UNITS.append(("Braille 'n Speak 2000 English", [os.path.join(BNS_DIR, "BS03ENG.BNS"),
+                                                                 os.path.join(BNS_DIR, "bs03eng_fresh.state")]))
+    for label, unit in RAM_FULL_UNITS:
+        CHECKS.append(check("emulator: files past the RAM's first 256 KB kept, %s" % label, [TEST_RAM_FULL] + unit))
+    CHECKS.append(check("emulator: RAM kept CONTROL (Braille Lite ENG, the first 256 KB saved only, must fail)",
+                        [TEST_RAM_FULL] + RAM_FULL_UNITS[0][1], env={"TEST_RAM_FULL_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL across: the file whole, in RAM +in RAM, 10000 of 10000 bytes, not its text",
+                                    r"^ok +full: the file whole, left in flash",
+                                    r"^FAIL full: the filler files whole", r"^FAILED$"]))
 # the emulator's serial port plugged in (src/apps/blazie/test_serial.c; Tomi: WinDisk to the emulated unit): the
 # storage handshake WinDisk and PCDISK answer -- XON ENQ out at 19200 8N1, ACK answered with 'C' and NAK not, input
 # paced at the baud rate, the directory command out -- on every unit; the Windows COM side (serial_win.c) end to end

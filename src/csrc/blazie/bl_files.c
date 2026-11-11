@@ -282,9 +282,9 @@ blf_fs *blf_open(int model, unsigned char *ram, unsigned char *flash, long flash
     fs->ram = ram;
     fs->flash = flash;
     fs->flash_size = flash_size;
-    fs->ram_top = model == BLF_BRAILLE_LITE ? 0x80000UL : 0x100000UL;  /* the top of RAM, as the firmware counts
-                                                  its free pages (the Braille Lite's wipe filled to 7FFFFh; the Type
-                                                  'n Speak said 192 pages free above 3FE40h) */
+    fs->ram_top = 0x100000UL;       /* the top of RAM, as the firmware counts its free pages: the Braille Lite's 768 KB
+                                       end at FFFFFh (its power-on sizing finds them; it gives files RAM up there:
+                                       test_ram_full.c), the Type 'n Speak said 192 pages free above 3FE40h */
     fs->open_no_back = model == BLF_BRAILLE_LITE ? 48 : 51;
     if (!scan(fs)) { blf_close(fs); fail(err, errlen, "out of memory"); return NULL; }
     return fs;

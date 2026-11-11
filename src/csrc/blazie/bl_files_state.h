@@ -1,8 +1,9 @@
 /* bl_files_state.h -- a unit's saved state file (what the emulator keeps while the unit is switched off) as the
  * memory images bl_files.h works on, and back, in the same format.
  *
- *   Braille Lite: 256 KB of RAM (40000h-7FFFFh), then the file flash -- its first 512 KB while the rest is erased,
- *     else all 2 MB (bl_board.h, bl_save_state) -- then, when the clock controller was on, its 64 bytes.
+ *   Braille Lite: its 768 KB of RAM (40000h-FFFFFh) -- its first 256 KB while the rest is all 00h -- then the file
+ *     flash -- its first 512 KB while the rest is erased, else all 2 MB (bl_board.h, bl_save_state) -- then, when
+ *     the clock controller was on, its 64 bytes.
  *   Type 'n Speak: 1 MB of RAM (the program at its start), the 4 MB flash, the clock's 64 bytes (tns_board.h).
  * The unit is told by the file's size.  The clock's bytes are kept as they are.  Portable C99 (stdio only).
  */

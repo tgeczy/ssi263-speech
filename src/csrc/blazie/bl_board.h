@@ -119,9 +119,11 @@ extern int bl_keys_break;   /* the tests' control (an app never sets it): nonzer
 /* how many times the firmware has run from its reset vector (power-on, and each restart: p-chord l) */
 int  bl_starts(const bl_unit *u);
 /* the battery-backed RAM + file flash, in bl_create's state format (what a real unit keeps while switched off);
-   1 on success.  The file flash is 2 MB; while all but its first 512 KB is erased the state keeps the 786432-byte
-   format (256 KB + 512 KB) every earlier state has, otherwise it is 256 KB + 2 MB; with the clock controller on
-   (bl_clock_on) its 64-byte tail follows (bl_clock.h).  bl_create reads all four sizes. */
+   1 on success.  The RAM is 768 KB (40000h-FFFFFh); while all but its first 256 KB is 00h the state keeps only those
+   256 KB, else all 768 KB.  The file flash is 2 MB; while all but its first 512 KB is erased the state keeps those
+   512 KB, else all 2 MB.  So a state that never used either is the 786432-byte format (256 KB + 512 KB) every
+   earlier state has; with the clock controller on (bl_clock_on) its 64-byte tail follows (bl_clock.h).  bl_create
+   reads all eight sizes. */
 int  bl_save_state(const bl_unit *u, const char *path);
 /* The file flash's busy time (flash29.h): off (the default) every erase and program is done at once, as the
    screen-reader drivers and their state recipes need; on (the emulator), an erase takes the chip's typical time and the
@@ -184,6 +186,9 @@ void bl_fail_event(bl_unit *u, int n);
 /* Tests' must-fail control (an app never sets it): nonzero, a read of 00h-3Fh with the high byte not 0 answers FFh
    as before the bus fix (both boards' io_read): SIMON.BNS's IN A,(34h) wait never ends (test_games.c) */
 extern int bl_bus_break;
+/* Tests' must-fail control (an app never sets it): nonzero, bl_save_state keeps only the RAM's first 256 KB, as
+   before the fix: files the firmware put at 80000h and above are lost (test_ram_full.c) */
+extern int bl_ram_break;
 
 #ifdef __cplusplus
 }

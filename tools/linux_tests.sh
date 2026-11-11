@@ -392,6 +392,18 @@ if [ -f "$DATA/games/simon.bns" ]; then
         -- env TEST_GAMES_FILES_BREAK=7 ./build/linux/test_games simon bl "$DATA/BL2ENG.BNS" \
         "$DATA/bl2_2003_warm.state" "$DATA/games/simon.bns" --flash
 fi
+# the units' 768 KB of RAM kept in their state (test_ram_full.c; a unit in use lost 37 files the firmware had put past
+# 7FFFFh): a flash file the unit moves to RAM across 80000h is whole after a save and after switching off and on, and
+# with all 768 KB full it stays in flash with every file whole.  Its control saves the RAM's first 256 KB only
+# (bl_board.h bl_ram_break), as before the fix
+check "emulator: files past the RAM's first 256 KB kept (Braille Lite)" ./build/linux/test_ram_full "$DATA/BL2ENG.BNS" \
+    "$DATA/bl2_2003_warm.state"
+[ -f "$BNS" ] && check "emulator: files past the RAM's first 256 KB kept (Braille 'n Speak 2000)" \
+    ./build/linux/test_ram_full "$BNS" "$DATA/bns2000/bs03eng_fresh.state"
+control "emulator: RAM kept CONTROL (the first 256 KB saved only, must fail)" \
+    "^FAIL across: the file whole, in RAM +in RAM, 10000 of 10000 bytes, not its text" \
+    "^ok +full: the file whole, left in flash" "^FAIL full: the filler files whole" "^FAILED$" \
+    -- env TEST_RAM_FULL_BREAK=1 ./build/linux/test_ram_full "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state"
 # blazie_files, a saved unit's files from the command line: export, unpack, a new file, pack, import, on a copy of
 # the shipped state; its control leaves a new flash file's blocks unmarked (bl_files.h blf_break 2)
 check "emulator: blazie_files round trip (export, unpack, pack, import)" sh tools/blazie_files_roundtrip.sh \

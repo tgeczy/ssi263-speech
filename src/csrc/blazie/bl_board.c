@@ -54,6 +54,9 @@ int bh_trace_on;
 #define FILE_ROM_OFFSET 0x3000
 #define SLICE_DEFAULT 10000
 #define FLASH_BASE 0x80000
+#define RAM_BASE 0x40000UL                   /* the battery-backed RAM: 40000h-FFFFFh, 768 KB (the units had 768 KB) */
+#define RAM_SAVE 0xC0000UL                   /* a state keeps all of it (bl_save_state) ... */
+#define RAM_SAVE_OLD 0x40000UL               /* ... or its first 256 KB, while the rest is all 00h */
 #define FFLASH_SIZE 0x200000UL               /* the file flash: a 29F016 */
 #define FFLASH_OLD 0x80000UL                 /* a state saved before the 2 MB chip: its first 512 KB */
 #define MAX_KEYS 64
@@ -521,21 +524,25 @@ bl_unit *bl_create(const char *firmware, const char *state, double phon_ms,
     if (state) {                             /* battery-backed RAM + file flash, as a real unit keeps them: the whole
                                                 2 MB, or its first 512 KB (bl_save_state's format while the rest is
                                                 erased, and every state saved before the 2 MB chip) */
-        /* by its size: RAM, then the flash (512 KB or 2 MB), then the clock controller's tail when it was on
-           (bl_clock_on) -- four sizes in all; the tail is never read as flash */
+        /* by its size: RAM (its first 256 KB or all 768 KB: bl_save_state), then the flash (512 KB or 2 MB), then
+           the clock controller's tail when it was on (bl_clock_on) -- eight sizes in all, none two ways; the tail
+           is never read as flash */
         FILE *s = fopen(state, "rb");
         long size = -1, rest;
-        unsigned long fl = 0;
-        int tail = 0;
+        unsigned long fl = 0, rn = RAM_SAVE_OLD;
+        int tail = 0, k;
         if (s && fseek(s, 0, SEEK_END) == 0)
             size = ftell(s);
-        rest = size - 0x40000L;
-        if (rest == (long)(FFLASH_OLD + BLC_SAVE_SIZE) || rest == (long)(FFLASH_SIZE + BLC_SAVE_SIZE)) {
-            tail = 1;
-            fl = (unsigned long)rest - BLC_SAVE_SIZE;
-        } else if (rest == (long)FFLASH_OLD || rest == (long)FFLASH_SIZE)
-            fl = (unsigned long)rest;
-        if (!s || !fl || fseek(s, 0, SEEK_SET) != 0 || fread(u->ram + 0x40000, 1, 0x40000, s) != 0x40000
+        for (k = 0; k < 2 && !fl; k++) {
+            rn = k ? RAM_SAVE : RAM_SAVE_OLD;
+            rest = size - (long)rn;
+            if (rest == (long)(FFLASH_OLD + BLC_SAVE_SIZE) || rest == (long)(FFLASH_SIZE + BLC_SAVE_SIZE)) {
+                tail = 1;
+                fl = (unsigned long)rest - BLC_SAVE_SIZE;
+            } else if (rest == (long)FFLASH_OLD || rest == (long)FFLASH_SIZE)
+                fl = (unsigned long)rest;
+        }
+        if (!s || !fl || fseek(s, 0, SEEK_SET) != 0 || fread(u->ram + RAM_BASE, 1, rn, s) != rn
             || fread(u->fflash, 1, fl, s) != fl) {
             if (s) fclose(s);
             snprintf(err, errlen, "cannot read state %s", state);
@@ -736,14 +743,22 @@ int bl_save_state(const bl_unit *u, const char *path)
 {
     FILE *s = fopen(path, "wb");
     int ok;
-    unsigned long n = FFLASH_SIZE, i;
+    unsigned long n = FFLASH_SIZE, rn = RAM_SAVE, i;
     if (!s)
         return 0;
     for (i = FFLASH_OLD; i < FFLASH_SIZE && u->fflash[i] == 0xFF; i++)
         ;
     if (i == FFLASH_SIZE)
         n = FFLASH_OLD;                      /* the rest erased: the 786432-byte format every reader knows */
-    ok = fwrite(u->ram + 0x40000, 1, 0x40000, s) == 0x40000 && fwrite(u->fflash, 1, n, s) == n;
+    /* RAM above 7FFFFh all 00h (nothing the firmware keeps there: its power-on sizing puts back what it read, and a
+       state that never had it leaves it so): its first 256 KB alone, the format every earlier state has, so a
+       factory state is the same file it always was.  Else all 768 KB: the firmware gives files RAM up there
+       (test_ram_full.c: kept only 256 KB, they came back as nothing) */
+    for (i = RAM_BASE + RAM_SAVE_OLD; i < RAM_BASE + RAM_SAVE && !u->ram[i]; i++)
+        ;
+    if (i == RAM_BASE + RAM_SAVE || bl_ram_break)
+        rn = RAM_SAVE_OLD;
+    ok = fwrite(u->ram + RAM_BASE, 1, rn, s) == rn && fwrite(u->fflash, 1, n, s) == n;
     if (ok && u->clk)
         ok = blc_write_tail(s, u->clk, u->clk_wall);
     if (ok && u->rtc_on && blr_break != 3) { /* the 640's chip, brought up to now (on a copy: the unit runs on) */
@@ -806,6 +821,7 @@ void bl_hold(bl_unit *u, int chord)
 
 int bl_keys_break;
 int bl_bus_break;
+int bl_ram_break;
 
 int bl_starts(const bl_unit *u)
 {
