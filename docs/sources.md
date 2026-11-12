@@ -77,7 +77,9 @@
   were read in World Radio History's scans; Raised Dot Computing's BEX disks and programming notes, and the
   National Federation of the Blind's braille technology evaluation of December 1993, are kept in Duxbury Systems'
   library. Vila and DeKock's report on the Votalker IB (University of Missouri-Rolla, CSc-86-4, 1986) is in the
-  university's Scholars' Mine, read in the Internet Archive's copy, and the Sprechi article is kept by CPCrulez.
+  university's Scholars' Mine, read in the Internet Archive's copy, and the Sprechi article is kept by CPCrulez. The Internet Archive's scans
+  of PC Magazine (12 June 1984, 11 June 1985) and of the National Braille Press's Second Beginner's Guide to
+  Personal Computers for the Blind and Visually Impaired (1987, ERIC ED285376) were found by its full-text search.
   Without people keeping these, much of
   [history.md](history.md)'s family of devices couldn't be written.
 

@@ -130,7 +130,7 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   original card for the PC and XT, to 1984, and says every SynPhonix model uses the Artic-263. Artic's own
   advertisement in PC Magazine (16 October 1984) agrees on the year and names the chip: a "Speech Articulator for
   the IBM & Apple" with an "SSI263 Phoneme Synthesizer" and its SONIX software, at $125, from Auburn Heights,
-  Michigan. We have seen no chip from that first model.
+  Michigan. The card was advertised there by 12 June 1984, with the "SONIX-88 Speech Operating System". We have seen no chip from that first model.
 - **Atari's 1450XLD** (document). A computer with speech built in, never released. Atari's voice handler
   specification of 24 May 1984 says its "speech synthesis hardware ... consists of an SSI-263 speech synthesis chip
   supplied by Silicon Systems Incorporated", "also known as the SC-02", with its five registers in the 6502's
@@ -155,6 +155,22 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   test pins left unconnected. The voice passes one resistor and capacitor (2.7 kΩ, written by hand over a printed
   220 Ω, and 0.047 µF: a low-pass near 1.25 kHz) into an LM386 and an 8-ohm speaker. That filter is the board's
   sound, not the chip's.
+- **Votrax's Votalker IB and AP** (document). Votrax's own advertisements announce the two cards, the IB for the
+  IBM PC and XT and the AP for the Apple II, from June 1985 (PC Magazine, 11 June: "When Votrax developed the
+  SC02 speech synthesis chip ..."). Byte's of January 1986 gives the IB at $249 and the AP at $179, a "Newly
+  Designed Circuit Board with Advanced SC-02 Speech Chip", four voice patterns set by switches on the board, and
+  a "Sophisticated Text-to-Speech Translator Diskette"; it lists the Votalker C-64 among Votrax's other
+  products, with no chip named. The IB's software was Artic's. The National Braille Press's guide to speech
+  software (1987) speaks of "the SONIX and TTS programs which are sold with the internal speech cards", the
+  SynPhonix 200 and the Votalker IB, and of PortTalk sold by "Artic Technologies or Votrax, Inc."; it adds that
+  Artic's own screen reader works with the Votalker IB, "although the speech sounds slightly different". A 1986
+  thesis built on the card (see 1986) cites its 1985 manual as Votrax's and Artic Technologies', and loads its
+  "Speech Operating System KERNEL" by typing `SONIX`.
+- **Artic's Text-to-Speech:88** (document). PC Magazine's new-products pages (11 June 1985) list Artic's
+  text-to-speech as a program of its own, "designed to be used with speech synthesizer boards using the SSI-263
+  synthesizer chip", at $50 alone or $195 with the SynPhonix 200, with exception tables, and working with the
+  "Sonix:88 operating system". All three of Artic's programs "can, with modifications, be made to work with other
+  8088-based" SSI-263 products.
 
 ### 1986
 
@@ -173,17 +189,12 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   Company, 1985 and 1986) write ports 51h to 54h one after another, hold letter-to-sound rules that end in the
   chip's phoneme codes, and spell their own messages in its phoneme names. Read from the files, not run here. We
   have not seen the chip on a board.
-- **Votrax's Votalker IB and AP** (document). Votrax's own advertisement in Byte (January 1986) announces the two
-  cards, the IB for the IBM PC and XT at $249 and the AP for the Apple II at $179, with a "Newly Designed Circuit
-  Board with Advanced SC-02 Speech Chip", four voice patterns set by switches on the board, and a "Sophisticated
-  Text-to-Speech Translator Diskette". It lists the Votalker C-64 among Votrax's other products, with no chip
-  named. The IB ran Artic's software. A 1986 thesis at the University of Missouri-Rolla, by Joaquin Vila with
-  Arlan DeKock, was built on "a Votalker IB, which embodies the Votrax SC-02 phoneme synthesizer"; it cites the
-  card's 1985 manual as Votrax's and Artic Technologies', and says the card's "Speech Operating System KERNEL" is
-  loaded by typing `SONIX`. Its BASIC listings find that kernel through the PC's user interrupt vectors and call
-  its "SONIX-88 entry points", among them `SSI263.BUFFER` and `SSI263.DIRECT`, each with the chip's five register
-  values. The thesis itself is a rule editor and parser for any language in the Latin alphabet, and prints 68
-  letter-to-sound rules for Spanish, each with its phonemes and their settings.
+- **Spanish rules for the SC-02, in a thesis** (document). Joaquin Vila's 1986 thesis at the University of
+  Missouri-Rolla, with Arlan DeKock, is a rule editor and parser for any language in the Latin alphabet, built on
+  "a Votalker IB, which embodies the Votrax SC-02 phoneme synthesizer" (see 1985). It prints 68 letter-to-sound
+  rules for Spanish, each with its phonemes and their settings, and its BASIC listings show how a program
+  reached Artic's `SONIX`: they find the kernel through the PC's user interrupt vectors and call its "SONIX-88
+  entry points", among them `SSI263.BUFFER` and `SSI263.DIRECT`, each with the chip's five register values.
 - **SCAT, the Slot-Buster's screen reader** (document, firmware). Raised Dot Computing's notes on BEX 2.2, its
   braille and speech program for the Apple II (1986), say it "now has the SCAT program for the Slotbuster
   installed": RC Systems' SSI 263A card (see 1987). BEX's boot disks survive with SCAT and a `SCAT TABLE` of
@@ -224,8 +235,8 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   for Toshiba's 1100, 1200 and 3100 laptops ($325). The treble knob and the switch socket are the ones on the
   SP-21X board (see 1991). The books don't name a chip. They also list Votrax's Votalker AP for the Apple II
   ($179), Votalker C-64 and Votalker IB for the PC ($249), cards that speak text "according to the synthesizer's
-  pre-programmed phonetic rules", again with no chip named (Votrax's own advertisement names it for the AP and
-  the IB: see 1986).
+  pre-programmed phonetic rules", again with no chip named (Votrax's own advertisements name it for the AP and
+  the IB: see 1985).
 - **An SSI 263 AP dated N8751** (marking), in a seller's photograph of six chips (see 1989).
 
 ### 1988
@@ -270,7 +281,7 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   SynPhonix 200, 210 and 215 for desktop PCs and the 220 and 225 for Toshiba laptops. The text-to-speech was a DOS
   program on the PC: `SONIX.COM` and `TTS.COM` on the older cards, `SONIXTTS.COM` on the 210. It calls Votrax's
   VoTalker a "cousin", "very similar to the 200", run the same way (it was: the Votalker IB ran Artic's `SONIX`,
-  see 1986).
+  see 1985).
 
 ### 1991
 

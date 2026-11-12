@@ -126,16 +126,16 @@ can't say yet:
   BrailleMate's is most likely `SPS.002`, the only one besides the Accent SA's that opens a
   serial port (an inference, not a trace); its serial writes should be PortTalk. Settled by: a
   board photo, a ROM dump or an update disk; tracing `SPS.002`'s serial writes.
-- **The VoTalker.** The chip of two of them is settled: Votrax's advertisement in Byte (January
-  1986) gives the Votalker IB (PC) and AP (Apple II) an "Advanced SC-02 Speech Chip". The
-  Votalker C-64 is only listed there, with no chip named, and is still open. The IB's software
-  was Artic's: a 1986 thesis built on the card loads its kernel by typing `SONIX` and cites a
-  manual by Votrax and Artic Technologies (see 1986 in the history), which fits MicroTalk's ASAP
-  manual (the VoTalker needs `SONIX.COM` and `TTS.COM`) and the JAWS note calling it "very
-  similar to" the SynPhonix 200. We have none of that software, and nothing on the AP's.
-  Settled by: the software disks or the manual; a board photo of the C-64 card.
-- **A Spanish rule set in print.** The same thesis (Vila and DeKock, University of
-  Missouri-Rolla, CSc-86-4) prints 68 Spanish letter-to-sound rules for the SC-02, each with its
+- **The VoTalker.** The chip of two of them is settled: Votrax's advertisements of 1985 and 1986
+  give the Votalker IB (PC) and AP (Apple II) the SC-02. The Votalker C-64 is only listed
+  there, with no chip named, and is still open. The IB's software was Artic's `SONIX` and
+  `TTS`, sold with the card (see 1985 in the history), as MicroTalk's ASAP manual and the JAWS
+  note had suggested. A 1987 guide says Artic's screen reader on the Votalker IB "sounds
+  slightly different" from the SynPhonix 200: a different clock or output filter would do that,
+  and we know neither board's. We have none of that software, and nothing on the AP's. Settled
+  by: the software disks or the manual; board photos of the IB and the C-64 card.
+- **A Spanish rule set in print.** A 1986 thesis built on the Votalker IB (Vila and DeKock,
+  University of Missouri-Rolla, CSc-86-4) prints 68 Spanish letter-to-sound rules for the SC-02, each with its
   phonemes and their duration, inflection, slope, amplitude, rate and transition settings, and
   the BASIC parser that applies them. A Spanish front end could be rebuilt from it. That would
   be a reconstruction from a scanned listing, not original software running unchanged, and the
@@ -171,9 +171,9 @@ can't say yet:
   floppy, and it would show how Artic itself drove the chip. We have Artic's Business Vision demo
   of 1993, a screen reader, but none of these, and they aren't in NFBnet's archive of the time,
   searched inside its archives. The card's EPROM holds a key the software appears to check.
-  What `SONIX` looked like from outside is in print: the 1986 thesis's listings (see the
-  VoTalker above) give the signature they look for at the kernel's start and six of its entry
-  points.
+  What `SONIX` looked like from outside is in print: the 1986 thesis's listings (see 1986 in
+  the history) give the signature they look for at the kernel's start and six of its entry
+  points. No file with that signature is in NFBnet's archive or our library.
   Settled by: a SynPhonix or Business Vision disk.
 - **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real
