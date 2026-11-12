@@ -76,7 +76,9 @@
   Votalker advertisement (Byte, January 1986) and Heath's voice card schematic (Modern Electronics, April 1988)
   were read in World Radio History's scans; Raised Dot Computing's BEX disks and programming notes, and the
   National Federation of the Blind's braille technology evaluation of December 1993, are kept in Duxbury Systems'
-  library. Without people keeping these, much of
+  library. Vila and DeKock's report on the Votalker IB (University of Missouri-Rolla, CSc-86-4, 1986) is in the
+  university's Scholars' Mine, read in the Internet Archive's copy, and the Sprechi article is kept by CPCrulez.
+  Without people keeping these, much of
   [history.md](history.md)'s family of devices couldn't be written.
 
 ## Software

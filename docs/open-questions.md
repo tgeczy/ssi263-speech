@@ -47,7 +47,8 @@ contributors, but it very much wants to know what exists.
   Braille 'n Speak 2000. Their marking format and lot numbers suggest one die (see
   [history.md](history.md)), but none has been compared on the die. Mask revision marks at the
   die's edge would tell revisions apart; so would the same register writes played on each chip
-  and recorded.
+  and recorded. One claim by ear survives from the time: the Sprechi article (1988) says the
+  263A "sounds a little better" than the 263, though not by much.
 - **A better picture.** The full 17,265 × 14,313 master, or other layers, would help every
   item above.
 
@@ -127,15 +128,18 @@ can't say yet:
   board photo, a ROM dump or an update disk; tracing `SPS.002`'s serial writes.
 - **The VoTalker.** The chip of two of them is settled: Votrax's advertisement in Byte (January
   1986) gives the Votalker IB (PC) and AP (Apple II) an "Advanced SC-02 Speech Chip". The
-  Votalker C-64 is only listed there, with no chip named, and is still open. So is whose
-  text-to-speech they ran. The advertisement speaks of a "Text-to-Speech Translator Diskette";
-  MicroTalk's ASAP manual (1991) says the VoTalker needed `SONIX.COM` and `TTS.COM` to talk, and
-  Sonix is an Artic trademark, as in the SynPhonix's `SONIXTTS.COM`; a December 1990 note for
-  JAWS agrees, calling the VoTalker "very similar to" the SynPhonix 200. We have none of that
-  software. A lead we have not read: a 1986 University of Missouri-Rolla report (Vila and
-  DeKock, CSc-86-4, on a rule editor and parser for any language in the Latin alphabet) is said
-  to use a Votalker IB and to print its Spanish rules and its BASIC listing. Settled by: the
-  software disk or a manual; a board photo of the C-64 card; reading that report.
+  Votalker C-64 is only listed there, with no chip named, and is still open. The IB's software
+  was Artic's: a 1986 thesis built on the card loads its kernel by typing `SONIX` and cites a
+  manual by Votrax and Artic Technologies (see 1986 in the history), which fits MicroTalk's ASAP
+  manual (the VoTalker needs `SONIX.COM` and `TTS.COM`) and the JAWS note calling it "very
+  similar to" the SynPhonix 200. We have none of that software, and nothing on the AP's.
+  Settled by: the software disks or the manual; a board photo of the C-64 card.
+- **A Spanish rule set in print.** The same thesis (Vila and DeKock, University of
+  Missouri-Rolla, CSc-86-4) prints 68 Spanish letter-to-sound rules for the SC-02, each with its
+  phonemes and their duration, inflection, slope, amplitude, rate and transition settings, and
+  the BASIC parser that applies them. A Spanish front end could be rebuilt from it. That would
+  be a reconstruction from a scanned listing, not original software running unchanged, and the
+  scan's text needs proofreading against its pages: not tried.
 - **The Gemini robot's voice.** Arctec's Gemini has a whole text-to-speech of its own in four
   8 KB ROMs on its voice computer, with five voices and songs "with vocals", and a 65C02 at
   1 MHz writing the chip: everything a front end here needs is documented but the ROMs
@@ -167,6 +171,9 @@ can't say yet:
   floppy, and it would show how Artic itself drove the chip. We have Artic's Business Vision demo
   of 1993, a screen reader, but none of these, and they aren't in NFBnet's archive of the time,
   searched inside its archives. The card's EPROM holds a key the software appears to check.
+  What `SONIX` looked like from outside is in print: the 1986 thesis's listings (see the
+  VoTalker above) give the signature they look for at the kernel's start and six of its entry
+  points.
   Settled by: a SynPhonix or Business Vision disk.
 - **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real

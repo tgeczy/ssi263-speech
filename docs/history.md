@@ -177,7 +177,13 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   cards, the IB for the IBM PC and XT at $249 and the AP for the Apple II at $179, with a "Newly Designed Circuit
   Board with Advanced SC-02 Speech Chip", four voice patterns set by switches on the board, and a "Sophisticated
   Text-to-Speech Translator Diskette". It lists the Votalker C-64 among Votrax's other products, with no chip
-  named.
+  named. The IB ran Artic's software. A 1986 thesis at the University of Missouri-Rolla, by Joaquin Vila with
+  Arlan DeKock, was built on "a Votalker IB, which embodies the Votrax SC-02 phoneme synthesizer"; it cites the
+  card's 1985 manual as Votrax's and Artic Technologies', and says the card's "Speech Operating System KERNEL" is
+  loaded by typing `SONIX`. Its BASIC listings find that kernel through the PC's user interrupt vectors and call
+  its "SONIX-88 entry points", among them `SSI263.BUFFER` and `SSI263.DIRECT`, each with the chip's five register
+  values. The thesis itself is a rule editor and parser for any language in the Latin alphabet, and prints 68
+  letter-to-sound rules for Spanish, each with its phonemes and their settings.
 - **SCAT, the Slot-Buster's screen reader** (document, firmware). Raised Dot Computing's notes on BEX 2.2, its
   braille and speech program for the Apple II (1986), say it "now has the SCAT program for the Slotbuster
   installed": RC Systems' SSI 263A card (see 1987). BEX's boot disks survive with SCAT and a `SCAT TABLE` of
@@ -227,7 +233,9 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **Sprechi for the Amstrad CPC** (document). A German text-to-speech for an SSI 263 wired to the CPC through a Z80
   PIO, published as a type-in in CPC Amstrad International (special issue 7) by Jan-Mirko Maczewski and Jens
   Heimsoeth. Its numbers, symbols and question rise are German, and its article says the chip "even does German
-  umlauts".
+  umlauts". It also advises buying an SSI 263A if possible, "since it sounds a little better than the SSI 263,
+  though the difference really isn't very large" (our translation): the only claim we know of, by ear, that sets
+  the two apart.
 - **GW Micro's Sounding Board** (firmware). A PC card sold from 1988 to 1996, with LT and XE versions for Toshiba
   laptops; the text-to-speech ran on the PC, in two DOS programs by Douglas Geoffray. Version 2.7 runs in this
   project.
@@ -261,7 +269,8 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **The SynPhonix range, and a cousin** (document). A December 1990 note for the JAWS screen reader lists the
   SynPhonix 200, 210 and 215 for desktop PCs and the 220 and 225 for Toshiba laptops. The text-to-speech was a DOS
   program on the PC: `SONIX.COM` and `TTS.COM` on the older cards, `SONIXTTS.COM` on the 210. It calls Votrax's
-  VoTalker a "cousin", "very similar to the 200", run the same way.
+  VoTalker a "cousin", "very similar to the 200", run the same way (it was: the Votalker IB ran Artic's `SONIX`,
+  see 1986).
 
 ### 1991
 
