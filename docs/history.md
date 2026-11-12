@@ -126,11 +126,14 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   speaker, and the only Mockingboard with a 3.5 mm jack; it came with Bank Street Music Writer. The photographed
   boards hold an SSI 263P dated 8431 and an SSI 263AP dated S8545.
 - **Votrax's SC-02 data sheet** (document, December 1985): the same chip under Votrax's name.
-- **Arctec's Gemini robot** (document). Arctec Systems of Columbia, Maryland, drew this 65C02 robot's schematics from
-  September 1984; its wiring diagram is dated March 1985 and its block diagram March 1986. The "Voice I/O, Sound"
-  sheet, itself undated, has an "SSI-263" (IC9) selected at $6000, with A0 to A2 on its register pins, the
-  processor's φ2 as its clock with DIV2 grounded, A/R on the interrupt line and both test pins left unconnected,
-  beside an AY-3-8913 for sound. The voice passes one resistor and capacitor (2.7 kΩ, written by hand over a printed
+- **Arctec's Gemini robot** (document). Arctec Systems of Columbia, Maryland, drew this robot's schematics from
+  September 1984; its wiring diagram is dated March 1985 and its block diagram March 1986. Its voice has a computer
+  of its own: the Technical Reference (for "Gemini Robot System Version 1.0") describes a Rockwell R65C02 at 1 MHz
+  with 32 KB of ROM, "a third generation SSI263 speech synthesizer" with its registers at 6000 to 6004, and an
+  AY-3-8913 for sound. Its ROM speaks text sent to it, in five voices (two male, a villain's, a child's, an
+  alien's), and plays songs "with vocals". The "Voice I/O, Sound" schematic agrees: an "SSI-263" selected at
+  $6000, clocked by the 65C02's φ2 from a 1 MHz crystal with DIV2 grounded, its A/R on the interrupt line and both
+  test pins left unconnected. The voice passes one resistor and capacitor (2.7 kΩ, written by hand over a printed
   220 Ω, and 0.047 µF: a low-pass near 1.25 kHz) into an LM386 and an 8-ohm speaker. That filter is the board's
   sound, not the chip's.
 
