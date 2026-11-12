@@ -72,7 +72,11 @@
   Reference and schematics, and from Robot Workshop's page on the robot; Heath's HERO 2000 from Alexander W.
   Burawa's "Introducing Hero 2000" in Modern Electronics, February 1986, and from the Hero-ROMS archive of
   Heath's ROM files and decoder tables. Micromint's Sweet Talker II and LIS'NER 1000 disks are kept by the Asimov
-  Apple II archive, and Speech Systems' Super Voice disk by the Color Computer Archive. Without people keeping these, much of
+  Apple II archive, and Speech Systems' Super Voice disk and manual by the Color Computer Archive. Votrax's
+  Votalker advertisement (Byte, January 1986) and Heath's voice card schematic (Modern Electronics, April 1988)
+  were read in World Radio History's scans; Raised Dot Computing's BEX disks and programming notes, and the
+  National Federation of the Blind's braille technology evaluation of December 1993, are kept in Duxbury Systems'
+  library. Without people keeping these, much of
   [history.md](history.md)'s family of devices couldn't be written.
 
 ## Software

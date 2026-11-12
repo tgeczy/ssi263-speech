@@ -122,14 +122,17 @@ can't say yet:
   BrailleMate's is most likely `SPS.002`, the only one besides the Accent SA's that opens a
   serial port (an inference, not a trace); its serial writes should be PortTalk. Settled by: a
   board photo, a ROM dump or an update disk; tracing `SPS.002`'s serial writes.
-- **The VoTalker.** Votrax's VoTalker appears in MicroTalk's ASAP manual (1991) and as a build
-  of ETS's Enable Reader (1986). ASAP says it needed `SONIX.COM` and `TTS.COM` to talk, and Sonix
-  is an Artic trademark, as in the SynPhonix's `SONIXTTS.COM`. A December 1990 note for JAWS
-  agrees, calling the VoTalker "very similar to" the SynPhonix 200, so it ran Artic's software,
-  and perhaps carried Artic's chip. The Trace Center's 1987 resource book lists three: the
-  Votalker AP (Apple II), C-64 and IB (PC), with no chip named. The SpeechChips.com museum
-  gives the AP and IB an SSI-263 without saying what it rests on. Which chip they used isn't
-  known to us. Settled by: a board photo, a manual, or the software disk.
+- **The VoTalker.** The chip of two of them is settled: Votrax's advertisement in Byte (January
+  1986) gives the Votalker IB (PC) and AP (Apple II) an "Advanced SC-02 Speech Chip". The
+  Votalker C-64 is only listed there, with no chip named, and is still open. So is whose
+  text-to-speech they ran. The advertisement speaks of a "Text-to-Speech Translator Diskette";
+  MicroTalk's ASAP manual (1991) says the VoTalker needed `SONIX.COM` and `TTS.COM` to talk, and
+  Sonix is an Artic trademark, as in the SynPhonix's `SONIXTTS.COM`; a December 1990 note for
+  JAWS agrees, calling the VoTalker "very similar to" the SynPhonix 200. We have none of that
+  software. A lead we have not read: a 1986 University of Missouri-Rolla report (Vila and
+  DeKock, CSc-86-4, on a rule editor and parser for any language in the Latin alphabet) is said
+  to use a Votalker IB and to print its Spanish rules and its BASIC listing. Settled by: the
+  software disk or a manual; a board photo of the C-64 card; reading that report.
 - **The Gemini robot's voice.** Arctec's Gemini has a whole text-to-speech of its own in four
   8 KB ROMs on its voice computer, with five voices and songs "with vocals", and a 65C02 at
   1 MHz writing the chip: everything a front end here needs is documented but the ROMs
@@ -141,16 +144,12 @@ can't say yet:
   not tried. What that needs first is the path from the 8088's BASIC to the chip (which of
   the robot's processors do the talking, and its clock). Settled by: the robot's schematics or
   technical manual, and an owner's board photo for the chip's marking.
-- **The Sweet Talker II's voice.** Micromint's disk is at hand, and its text-to-speech is a
-  sibling of the early Mockingboard voice this project already runs: the same code, a rule
-  table that differs in about a fifth, and a driver that writes the chip at the card's slot
-  address. It could run on the Mockingboard's host: not tried. Whether its rules differ enough
-  to hear is open.
 - **The Super Voice's voice.** Speech Systems' text-to-speech for the Color Computer is at
   hand too, with its dictionary and songs. It is 6809 code, and this project has no 6809 yet.
 - **Reported, not yet shown.** RDI's Halcyon, the home system Thayer's Quest was made for: the
   SpeechChips.com museum's owner says it has a Votrax SC-02. We have the chip only on the
-  arcade game's board, and have read no document that names it in the Halcyon.
+  arcade game's board, and have read no document that names it in the Halcyon. Settled by: a
+  board photo, or the Halcyon's Z80 program, whose port writes would show the chip.
 - **The first Braille 'n Speak** (1987) and the first Braille Lite: we have seen chips and
   firmware only from 1997 on. Settled by: board photos of early units.
 - **Artic's later synthesizers and notetakers.** The TransPort 615 of 1992 names the Artic 263,
@@ -169,14 +168,22 @@ can't say yet:
 - **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real
   recordings, and 1 MHz on Arctec's Gemini, from its schematic (a 1 MHz crystal on the voice
-  computer's 65C02, undivided). Not known: the SynPhonix (a 74HCT161 divider, probably from the
-  PC's bus clock), the Heath card (a 4 MHz oscillator and a flip-flop), the HX-20 module (a
-  3.579545 MHz crystal, maybe divided), the CPC's Sprechi board, and the Accent SA's own CPU
-  clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
+  computer's 65C02, undivided). On Heath's voice card the kit's schematic, as a 1988 review
+  printed it, puts 2 MHz on the chip's clock pin (a 4 MHz oscillator and a flip-flop) with DIV2
+  tied high, which the data sheet gives for clocks of 1.5 to 2 MHz: the same as 1 MHz with DIV2
+  low, though no recording of that card has confirmed it. Not known: the SynPhonix (a 74HCT161
+  divider, probably from the PC's bus clock), the HX-20 module (a 3.579545 MHz crystal, maybe
+  divided), the CPC's Sprechi board, and the Accent SA's own CPU clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
   against the register values that made it.
 - **Sweet Micro's foreign-language rule tables.** Chip Talk (1987) says Sweet Micro sold
   "Foreign Language Rule Tables", German among them, for the Mockingboard's SSI-263. We haven't
-  found the disk. Nor have we found the software for RC Systems' multilingual Slot-Buster.
+  found the disk.
+- **The Slot-Buster's languages.** RC Systems' card is called multilingual, and Raised Dot
+  Computing's notes describe a Spanish rules file for it, built into "Spanish Modified" BEX
+  disks as `SCAT TABLE`. The BEX disks we have carry SCAT, the card's screen reader, but their
+  `SCAT TABLE` is English exceptions. We have not seen the card's own software or ROM, or read
+  where its text-to-speech runs. Settled by: a Spanish-modified BEX boot disk, RC Systems'
+  disks, or the card.
 - **The Mockingboard D's timing.** The D runs the same text-to-speech as the other Mockingboards
   on the IIc, but its own 6803 writes the chip, on its own timer. Whether that changes the timing
   enough to hear is open until the D is built: a 65C02 for the IIc's driver, the IIc's serial

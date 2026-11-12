@@ -105,9 +105,13 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   Apple card for Micromint, with a simple low-pass filter before its amplifier, and shows a Mockingboard with two
   SSI-263s that can "sing along in stereo". Micromint's own disk, "Sweettalker II, Revision 2.0", says whose voice
   it had: "(C) 1984 Micromint Inc. (by lic.)", "Algorithm (C) 1984 Sweet Micro Systems Inc." Its text-to-speech is
-  Sweet Micro's: the code and four fifths of the rule table are, byte for byte, the earlier Mockingboard
-  text-to-speech this project runs, with a driver of its own that writes the chip at the card's slot address, and
-  songs to sing. Read from the disk, not run here.
+  Sweet Micro's. Set beside the earlier Mockingboard text-to-speech this project runs, the translator and the
+  inflection routine are the same code but for a dozen bytes and one starting value (the filter register, E7 where
+  the Mockingboard's has E6), and the 9,036-byte rule table is the same but for three rules: the Mockingboard's
+  has one for 'S and one for Y before PING that this one lacks, and this one has one more for D. Only the driver
+  is new: the Mockingboard's, rewritten to reach the chip at the card's slot address with no 6522 beside it. As a
+  voice it is the early Mockingboard's, three rules apart. The disk also carries songs. Read from the disk, not
+  run here.
 - **Micromint's LIS'NER 1000** (document, firmware). A speech-recognition card for the Apple II around General
   Instrument's SP1000. Its disk (Revision 1.0, dated August and September 1984) says "complete software is
   currently available for the optional SSI263 speech synthesis chip which provides unlimited vocabulary and text
@@ -169,6 +173,18 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   Company, 1985 and 1986) write ports 51h to 54h one after another, hold letter-to-sound rules that end in the
   chip's phoneme codes, and spell their own messages in its phoneme names. Read from the files, not run here. We
   have not seen the chip on a board.
+- **Votrax's Votalker IB and AP** (document). Votrax's own advertisement in Byte (January 1986) announces the two
+  cards, the IB for the IBM PC and XT at $249 and the AP for the Apple II at $179, with a "Newly Designed Circuit
+  Board with Advanced SC-02 Speech Chip", four voice patterns set by switches on the board, and a "Sophisticated
+  Text-to-Speech Translator Diskette". It lists the Votalker C-64 among Votrax's other products, with no chip
+  named.
+- **SCAT, the Slot-Buster's screen reader** (document, firmware). Raised Dot Computing's notes on BEX 2.2, its
+  braille and speech program for the Apple II (1986), say it "now has the SCAT program for the Slotbuster
+  installed": RC Systems' SSI 263A card (see 1987). BEX's boot disks survive with SCAT and a `SCAT TABLE` of
+  pronunciation exceptions for BASIC and DOS words, each a word in brackets and its sounds in a letter code. The
+  same notes describe "Spanish Modified" BEX disks that "boot up with the Spanish Rules File for the SlotBuster",
+  kept in that table; the three copies of the table we have are identical, and English. Read from the disks, not
+  run here.
 - **Aicom's Accents** (marking, firmware). Aicom's copyright runs from 1986. Its chip is the AI901, an SSI-263: an
   Accent PC card's chip reads "AI901 / AICOM CORP / SA9048". The Accent User's Manual (version 4.0, February 1991)
   covers the Accent-PC, the Accent-PS/2 for Micro Channel, the Accent-mini and the stand-alone Accent-SA; the family
@@ -183,9 +199,16 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   anniversary with the summer 1997 updates. Every Blazie firmware this project runs writes an SSI-263: the Braille
   'n Speak 640 and 2000, the Type 'n Speak, and the Braille Lite 2000 and its language updates, from 1997 to June
   2003. We haven't seen the speech chip of the first units.
-- **Heath's PC Voice Card** (marking). A PC card whose board is marked 051587, likely 15 May 1987; the
-  photographed card holds TDK's 78A263A-P, dated 8908 under a Silicon Systems logo, with a 4 MHz oscillator and a flip-flop that likely
-  make the chip's 1 MHz clock.
+- **Heath's PC Voice Card** (marking, document). A PC card whose board is marked 051587, likely 15 May 1987; the
+  photographed card holds TDK's 78A263A-P, dated 8908 under a Silicon Systems logo, with a 4 MHz oscillator, a
+  74LS74 flip-flop and an LM386. Modern Electronics (April 1988) reviewed Heath's HV-2000 Computer Voice kit, a
+  half-size card at $89.95 with those same parts, and printed its speech circuit: "Heart of the Heathkit Voice is
+  an SSI-263 IC", drawn as an SSI263A. The flip-flop halves the 4 MHz to 2 MHz at the chip's clock pin, and the
+  chip's DIV2 pin is tied high, the setting its data sheet gives for clocks of 1.5 to 2 MHz, so the chip runs as
+  it would from 1 MHz with DIV2 low. TP1 and TP2 are left unconnected, and the output goes through 3.3 kΩ and
+  0.1 µF to a line jack and the LM386. The kit's software was a DOS driver (`VOICE.SYS`), a `SPEAK` command and a
+  list of up to a hundred exception words (`WORDS.EXE`). The clock is the review's drawing of the kit, not a
+  measurement of the photographed card.
 - **Chip Talk** (document). Dave Prochnow's book of speech projects (TAB, 1987) builds a minimal SSI 263A card for
   the Apple IIe, and covers the Mockingboard B and RC Systems' Slot-Buster, a multilingual SSI 263A text-to-speech
   card.
@@ -195,7 +218,8 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   for Toshiba's 1100, 1200 and 3100 laptops ($325). The treble knob and the switch socket are the ones on the
   SP-21X board (see 1991). The books don't name a chip. They also list Votrax's Votalker AP for the Apple II
   ($179), Votalker C-64 and Votalker IB for the PC ($249), cards that speak text "according to the synthesizer's
-  pre-programmed phonetic rules", again with no chip named.
+  pre-programmed phonetic rules", again with no chip named (Votrax's own advertisement names it for the AP and
+  the IB: see 1986).
 - **An SSI 263 AP dated N8751** (marking), in a seller's photograph of six chips (see 1989).
 
 ### 1988
@@ -251,7 +275,9 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   list gives it a braille keyboard and a single 8-dot braille cell, an "optional built-in speech synthesizer", model
   DM1A-01 at $1,595, and a plug for a Navigator braille display of 20 to 80 cells. It took Artic's commands:
   MicroTalk's ASAP manual (September 1991) lists "TSI's BrailleMate" among the synthesizers that use the PortTalk
-  command set, which Artic wrote for its own synthesizers. Telesensory's DOS screen reader, Screen Power Speech 2.0A
+  command set, which Artic wrote for its own synthesizers; the National Federation of the Blind's braille
+  technology evaluation of December 1993 says it "may be used as a speech synthesizer for a computer with any
+  screen-reading program that supports a PORTTALK device". Telesensory's DOS screen reader, Screen Power Speech 2.0A
   (1994), drives it as a synthesizer and speaks of its "External Speech Synthesizer mode"; both manuals are preserved
   in Nick Stockton's vintage-access archive. **Tomi recognised the SSI-263 in Telesensory's BrailleMate tutorial
   recordings**, preserved in Jake Gross's Datajake archive. Artic's command set fits an Artic-263 inside, but that is
