@@ -87,11 +87,14 @@ contributors, but it very much wants to know what exists.
   - *Rate scales with speech rate* (measured, R01: slope × (16 − R) ≈ 62 ms/s). The data sheet's
     "speech rate does not affect inflection" is read as the pitch *value*; "all internal
     attribute transitioning is performed relative to the Speech Rate Register" covers the speed.
-  - *Speed of each setting* (partly measured): settings 0, 1, 2, 4 and 5 were measured at rate 2,
-    with the direction of travel confounded. Setting 3 falling now measures about 7.5 ms/s at
-    rate 2 (F01's stacked "?", two independent fits), where the engine borrows setting 5's 11.
-    Settings 6 and 7 are still set to setting 5's speed, fitted on the Accent; setting 7 rising is
-    fast, but its speed isn't measured yet.
+  - *Speed of each setting* (measured; engine v0.20): the pitch moves one count per
+    16 (8 − G)(16 − R) clock cycles, G being the setting and R the speech rate, in every setting,
+    up and down. That is from 426 glides played on Tomi's chip through register programs, measured
+    by Claude and confirmed independently by Astra, the fastest settings within the measurement
+    limits Astra stated. It replaced a table partly fitted and partly guessed, in which settings
+    3, 6 and 7 had never been measured. Still open: whether the Accent card's chip, as the card
+    drives it, glides as Tomi's does. A different clock alone would not explain a difference,
+    since the clock cancels from the glide's slope.
   - *Target 0*: the User Guide gives the target range as "0 to 1F (lowest to highest,
     0 = silent)". The recordings disagree so far: an old pitch-command-1 take (target 0) is voiced
     at 61 Hz, and in F01 the fifth stacked "?" (which wraps to target 0) sends the pitch steeply

@@ -117,8 +117,11 @@ agreed read in Astra's reviews of v0.2 and v0.9.
 - **Is PAR F1's lowest bit?** For: E and AY, and AI and :A, differ only in PAR, which fits
   neighbouring F1 codes. Against, or not settled: Casso's own notes once called it
   non-acoustic; the capacitor fit on the recordings gives that bit a weight of 0.0 ± 0.3;
-  and the Braille Lite's rules never send AY, AI or :A, so the recordings can't decide.
-  The engine keeps both readings, switchable.
+  and the Braille Lite's rules never send AY, AI or :A, so the unit's speech recordings can't
+  decide. Since engine v0.16 there is a controlled test: Tomi played both pairs on his chip
+  through register programs, F1's rule and bandwidth were fitted to E/AY alone, and they
+  predicted AI/:A. That is acoustic evidence for the F1 rule, not a trace of what PAR drives
+  on the die. The engine keeps both readings, switchable.
 - **NAS → F2Q.** The design paper shows a separate F2Q control (the width of filter 2),
   and the nasal-only NAS field is the natural candidate. Untraced.
 - **Where is F4?** The paper describes five sections with four control bits each; one of
