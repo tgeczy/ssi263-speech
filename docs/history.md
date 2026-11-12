@@ -115,8 +115,10 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **Speech Systems' Super Voice** (document, firmware). A speech cartridge for the Tandy Color Computer. Its disk's
   programs, by Del Software of Westford, Massachusetts, carry dates from April 1984 to February 1985: a
   text-to-speech translator with an exception dictionary, songs "sung by 'Super Voice'", and a demonstration
-  "showing speech obtained by controlling all registers of SSI-263". The assembler listing on the disk puts the
-  chip's registers at $FF81 to $FF84, and the programs write $FF80 to $FF84. Read from the disk, not run here.
+  "showing speech obtained by controlling all registers of SSI-263". Its manual calls the SSI-263 "the heart of
+  the Super Voice", "memory mapped into &HFF80", and the programs write $FF80 to $FF84. One of its modes is a
+  screen echo, speaking each character or word as it is printed: "It is therefore possible for sight impaired
+  persons to hear the keyboard as they are writing their own BASIC programs." Read from the disk, not run here.
 - **Thayer's Quest** (document). RDI's 1984 laserdisc game has an SSI-263 on its CPU board. Its service manual shows
   the voice filtered on the way out (a 3.1 kHz low-pass and a high-pass into the mixer), which is the board's sound,
   not the chip's.
