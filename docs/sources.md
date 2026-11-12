@@ -71,7 +71,8 @@
   data sheet of February 1993; each was read at its source. Arctec's Gemini is known from its own Technical
   Reference and schematics, and from Robot Workshop's page on the robot; Heath's HERO 2000 from Alexander W.
   Burawa's "Introducing Hero 2000" in Modern Electronics, February 1986, and from the Hero-ROMS archive of
-  Heath's ROM files and decoder tables. Without people keeping these, much of
+  Heath's ROM files and decoder tables. Micromint's Sweet Talker II and LIS'NER 1000 disks are kept by the Asimov
+  Apple II archive, and Speech Systems' Super Voice disk by the Color Computer Archive. Without people keeping these, much of
   [history.md](history.md)'s family of devices couldn't be written.
 
 ## Software

@@ -141,15 +141,16 @@ can't say yet:
   not tried. What that needs first is the path from the 8088's BASIC to the chip (which of
   the robot's processors do the talking, and its clock). Settled by: the robot's schematics or
   technical manual, and an owner's board photo for the chip's marking.
-- **Reported, not yet shown.** Machines said to carry the chip, where we have not read a
-  document or seen a marking that says so:
-  - RDI's Halcyon, the home system Thayer's Quest was made for: the SpeechChips.com museum's
-    owner says it has a Votrax SC-02. We have the chip only on the arcade game's board.
-  - Micromint's LIS'NER 1000 (1984), a speech-recognition card for the Apple II, said to have
-    an SSI-263 option. Settled by: its manual (Rev. 2.0) or Steve Ciarcia's Byte article of
-    November 1984, neither read by us yet.
-  - Speech Systems' Super Voice for the Color Computer: Burke & Burke's SC-02 software also
-    drove it (see 1990 in the history).
+- **The Sweet Talker II's voice.** Micromint's disk is at hand, and its text-to-speech is a
+  sibling of the early Mockingboard voice this project already runs: the same code, a rule
+  table that differs in about a fifth, and a driver that writes the chip at the card's slot
+  address. It could run on the Mockingboard's host: not tried. Whether its rules differ enough
+  to hear is open.
+- **The Super Voice's voice.** Speech Systems' text-to-speech for the Color Computer is at
+  hand too, with its dictionary and songs. It is 6809 code, and this project has no 6809 yet.
+- **Reported, not yet shown.** RDI's Halcyon, the home system Thayer's Quest was made for: the
+  SpeechChips.com museum's owner says it has a Votrax SC-02. We have the chip only on the
+  arcade game's board, and have read no document that names it in the Halcyon.
 - **The first Braille 'n Speak** (1987) and the first Braille Lite: we have seen chips and
   firmware only from 1997 on. Settled by: board photos of early units.
 - **Artic's later synthesizers and notetakers.** The TransPort 615 of 1992 names the Artic 263,

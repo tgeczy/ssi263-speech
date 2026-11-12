@@ -101,9 +101,22 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   2 KB program begins "(C)1984 SMSP": it takes commands from the IIc into a 16-byte buffer and writes the speech
   chip itself, on its own timer. The Developer's Toolkit disk carries the IIc's side, an "IIC TTS DRIVER" that
   sends the speech over the IIc's serial port at 9600 baud. Not built here yet.
-- **The Sweet Talker II** (document). Steve Ciarcia's SSI-263 article in Byte (March 1984) builds this Apple card
-  for Micromint, with a simple low-pass filter before its amplifier, and shows a Mockingboard with two SSI-263s that
-  can "sing along in stereo".
+- **The Sweet Talker II** (document, firmware). Steve Ciarcia's SSI-263 article in Byte (March 1984) builds this
+  Apple card for Micromint, with a simple low-pass filter before its amplifier, and shows a Mockingboard with two
+  SSI-263s that can "sing along in stereo". Micromint's own disk, "Sweettalker II, Revision 2.0", says whose voice
+  it had: "(C) 1984 Micromint Inc. (by lic.)", "Algorithm (C) 1984 Sweet Micro Systems Inc." Its text-to-speech is
+  Sweet Micro's: the code and four fifths of the rule table are, byte for byte, the earlier Mockingboard
+  text-to-speech this project runs, with a driver of its own that writes the chip at the card's slot address, and
+  songs to sing. Read from the disk, not run here.
+- **Micromint's LIS'NER 1000** (document, firmware). A speech-recognition card for the Apple II around General
+  Instrument's SP1000. Its disk (Revision 1.0, dated August and September 1984) says "complete software is
+  currently available for the optional SSI263 speech synthesis chip which provides unlimited vocabulary and text
+  to speech", and the Sweet Talker II disk sets itself up for either card.
+- **Speech Systems' Super Voice** (document, firmware). A speech cartridge for the Tandy Color Computer. Its disk's
+  programs, by Del Software of Westford, Massachusetts, carry dates from April 1984 to February 1985: a
+  text-to-speech translator with an exception dictionary, songs "sung by 'Super Voice'", and a demonstration
+  "showing speech obtained by controlling all registers of SSI-263". The assembler listing on the disk puts the
+  chip's registers at $FF81 to $FF84, and the programs write $FF80 to $FF84. Read from the disk, not run here.
 - **Thayer's Quest** (document). RDI's 1984 laserdisc game has an SSI-263 on its CPU board. Its service manual shows
   the voice filtered on the way out (a 3.1 kHz low-pass and a high-pass into the mixer), which is the board's sound,
   not the chip's.
@@ -217,8 +230,8 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **Burke & Burke's CyberVoice** (document). A speech cartridge for the Tandy Color Computer under OS-9 Level 2,
   for shipment "in late October of 1990" at $74.95. Its maker's advertisement says "We've mated a high-tech SC-02
   speech synthesizer with an entirely new kind of OS9 device driver" that lets the user write the pronunciation
-  rules. The software alone ($24.95) drove Speech Systems' Super Voice, which suggests the same chip in that
-  cartridge; we have not seen it named there.
+  rules. The software alone ($24.95) drove Speech Systems' Super Voice, itself an SSI-263 cartridge (see 1983 and
+  1984).
 - **The SynPhonix range, and a cousin** (document). A December 1990 note for the JAWS screen reader lists the
   SynPhonix 200, 210 and 215 for desktop PCs and the 220 and 225 for Toshiba laptops. The text-to-speech was a DOS
   program on the PC: `SONIX.COM` and `TTS.COM` on the older cards, `SONIXTTS.COM` on the 210. It calls Votrax's
