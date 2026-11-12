@@ -160,8 +160,9 @@ can't say yet:
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real
   recordings. Not known: the SynPhonix (a 74HCT161 divider, probably from the
   PC's bus clock), the Heath card (a 4 MHz oscillator and a flip-flop), the HX-20 module (a
-  3.579545 MHz crystal, maybe divided), the CPC's Sprechi board, and the Accent SA's own CPU
-  clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
+  3.579545 MHz crystal, maybe divided), the CPC's Sprechi board, the Accent SA's own CPU
+  clock (3.072 MHz is a guess), and Arctec's Gemini (the 65C02's φ2, undivided; its main board
+  takes that from a crystal through a divider with a speed select). Settled by: tracing the boards, or the pitch of a real recording
   against the register values that made it.
 - **Sweet Micro's foreign-language rule tables.** Chip Talk (1987) says Sweet Micro sold
   "Foreign Language Rule Tables", German among them, for the Mockingboard's SSI-263. We haven't
