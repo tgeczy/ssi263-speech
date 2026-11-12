@@ -134,10 +134,12 @@ can't say yet:
   8 KB ROMs on its voice computer, with five voices and songs "with vocals", and a 65C02 at
   1 MHz writing the chip: everything a front end here needs is documented but the ROMs
   themselves. Settled by: dumps of those four ROMs from an owner.
+- **The HERO 2000's voice.** Heath's robot has a "263A synthesizer system" and its own
+  text-to-speech in ROM (Modern Electronics, February 1986), on an 8088. We have no photograph of
+  its speech board and none of its ROMs. Settled by: an owner's board photo; ROM dumps would make
+  it another front end.
 - **Reported, not yet shown.** Machines said to carry the chip, where we have not read a
   document or seen a marking that says so:
-  - Heathkit's HERO 2000 robot (1986): a 1996 newsgroup post recalls that it "used it for
-    speech". Settled by: its technical manual or a photograph of its speech board.
   - RDI's Halcyon, the home system Thayer's Quest was made for: the SpeechChips.com museum's
     owner says it has a Votrax SC-02. We have the chip only on the arcade game's board.
   - Micromint's LIS'NER 1000 (1984), a speech-recognition card for the Apple II, said to have
