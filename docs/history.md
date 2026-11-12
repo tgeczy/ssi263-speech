@@ -106,12 +106,12 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   SSI-263s that can "sing along in stereo". Micromint's own disk, "Sweettalker II, Revision 2.0", says whose voice
   it had: "(C) 1984 Micromint Inc. (by lic.)", "Algorithm (C) 1984 Sweet Micro Systems Inc." Its text-to-speech is
   Sweet Micro's. Set beside the earlier Mockingboard text-to-speech this project runs, the translator and the
-  inflection routine are the same code but for a dozen bytes and one starting value (the filter register, E7 where
-  the Mockingboard's has E6), and the 9,036-byte rule table is the same but for three rules: the Mockingboard's
-  has one for 'S and one for Y before PING that this one lacks, and this one has one more for D. Only the driver
-  is new: the Mockingboard's, rewritten to reach the chip at the card's slot address with no 6522 beside it. As a
-  voice it is the early Mockingboard's, three rules apart. The disk also carries songs. Read from the disk, not
-  run here.
+  inflection routine are the same code but for a dozen bytes and one starting value (the filter frequency, 231
+  where the Mockingboard's disk has 230, which makes the chip's filter clock 4% faster), and the 9,036-byte rule
+  table is the same but for three rules: the Mockingboard's has one for 'S and one for Y before PING that this
+  one lacks, and this one has one more for D. Only the driver is new: the Mockingboard's, rewritten to reach the
+  chip at the card's slot address with no 6522 beside it. As a voice it is the early Mockingboard's, three rules
+  and one filter step apart. The disk also carries songs. Read from the disk, not run here.
 - **Micromint's LIS'NER 1000** (document, firmware). A speech-recognition card for the Apple II around General
   Instrument's SP1000. Its disk (Revision 1.0, dated August and September 1984) says "complete software is
   currently available for the optional SSI263 speech synthesis chip which provides unlimited vocabulary and text
