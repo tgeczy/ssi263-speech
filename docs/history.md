@@ -144,12 +144,16 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **The SmallTalk voice module for the Epson HX-20** (marking). "HX-20 VOICE MODULE REV C", with an SSI 263AP dated
   S8601, an LM386 amplifier and a 3.579545 MHz crystal; it came with an expanded-memory board marked "(c) 1986
   Computer Aids Corp". The photographs and notes are Scott M. Baker's.
-- **Heath's HERO 2000** (document). Heath and Zenith's robot trainer, built around an 8088 with eleven slave
-  processors, at $3,000 as a kit. Modern Electronics (February 1986) says its "'voice' is based on a 263A
+- **Heath's HERO 2000** (document, firmware). Heath and Zenith's robot trainer, built around an 8088 with eleven
+  slave processors, at $3,000 as a kit. Modern Electronics (February 1986) says its "'voice' is based on a 263A
   synthesizer system that produces human-like speech, music and special effects", with text-to-speech in the
   robot's ROM, and lists the chip's controls as the SSI 263A's data sheet does: 64 phonemes, four durations, 16
   rates, 4096 inflection levels, 16 amplitudes, eight articulation rates and a vocal tract filter of more than
-  250 settings. We have not seen the chip on a board.
+  250 settings. A public archive of Heath's HERO ROM files agrees. Its input/output decoder table gives ports 50h
+  to 57h to the "SSI-263", on a select line named "SC-02"; and the robot's two 32 KB ROMs (copyright Heath
+  Company, 1985 and 1986) write ports 51h to 54h one after another, hold letter-to-sound rules that end in the
+  chip's phoneme codes, and spell their own messages in its phoneme names. Read from the files, not run here. We
+  have not seen the chip on a board.
 - **Aicom's Accents** (marking, firmware). Aicom's copyright runs from 1986. Its chip is the AI901, an SSI-263: an
   Accent PC card's chip reads "AI901 / AICOM CORP / SA9048". The Accent User's Manual (version 4.0, February 1991)
   covers the Accent-PC, the Accent-PS/2 for Micro Channel, the Accent-mini and the stand-alone Accent-SA; the family

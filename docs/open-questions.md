@@ -135,9 +135,12 @@ can't say yet:
   1 MHz writing the chip: everything a front end here needs is documented but the ROMs
   themselves. Settled by: dumps of those four ROMs from an owner.
 - **The HERO 2000's voice.** Heath's robot has a "263A synthesizer system" and its own
-  text-to-speech in ROM (Modern Electronics, February 1986), on an 8088. We have no photograph of
-  its speech board and none of its ROMs. Settled by: an owner's board photo; ROM dumps would make
-  it another front end.
+  text-to-speech in ROM (Modern Electronics, February 1986), on an 8088, with the chip at ports
+  50h to 57h. Its two main ROMs survive in a public archive of Heath's ROM files, under terms
+  for personal and educational use, so its text-to-speech could be run as another front end:
+  not tried. What that needs first is the path from the 8088's BASIC to the chip (which of
+  the robot's processors do the talking, and its clock). Settled by: the robot's schematics or
+  technical manual, and an owner's board photo for the chip's marking.
 - **Reported, not yet shown.** Machines said to carry the chip, where we have not read a
   document or seen a marking that says so:
   - RDI's Halcyon, the home system Thayer's Quest was made for: the SpeechChips.com museum's

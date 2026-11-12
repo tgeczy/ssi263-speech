@@ -70,7 +70,8 @@
   the Trace Center's resource books of 1987 and 1988 (ERIC ED283307 and ED297505) and Silicon Systems' 78A263A
   data sheet of February 1993; each was read at its source. Arctec's Gemini is known from its own Technical
   Reference and schematics, and from Robot Workshop's page on the robot; Heath's HERO 2000 from Alexander W.
-  Burawa's "Introducing Hero 2000" in Modern Electronics, February 1986. Without people keeping these, much of
+  Burawa's "Introducing Hero 2000" in Modern Electronics, February 1986, and from the Hero-ROMS archive of
+  Heath's ROM files and decoder tables. Without people keeping these, much of
   [history.md](history.md)'s family of devices couldn't be written.
 
 ## Software
