@@ -131,8 +131,8 @@ can't say yet:
   there, with no chip named, and is still open. The IB's software was Artic's `SONIX` and
   `TTS`, sold with the card (see 1985 in the history), as MicroTalk's ASAP manual and the JAWS
   note had suggested. A 1987 guide says Artic's screen reader on the Votalker IB "sounds
-  slightly different" from the SynPhonix 200: a different clock or output filter would do that,
-  and we know neither board's. We have none of that software, and nothing on the AP's. Settled
+  slightly different" from the SynPhonix 200: the Votalker's voice and filter switches could
+  do that, and so could a different clock or output filter; we know neither board's. We have none of that software, and nothing on the AP's. Settled
   by: the software disks or the manual; board photos of the IB and the C-64 card.
 - **A Spanish rule set in print.** A 1986 thesis built on the Votalker IB (Vila and DeKock,
   University of Missouri-Rolla, CSc-86-4) prints 68 Spanish letter-to-sound rules for the SC-02, each with its
@@ -173,7 +173,7 @@ can't say yet:
   searched inside its archives. The card's EPROM holds a key the software appears to check.
   What `SONIX` looked like from outside is in print: the 1986 thesis's listings (see 1986 in
   the history) give the signature they look for at the kernel's start and six of its entry
-  points. No file with that signature is in NFBnet's archive or our library.
+  points.
   Settled by: a SynPhonix or Business Vision disk.
 - **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real

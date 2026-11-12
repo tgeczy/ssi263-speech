@@ -130,7 +130,7 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   original card for the PC and XT, to 1984, and says every SynPhonix model uses the Artic-263. Artic's own
   advertisement in PC Magazine (16 October 1984) agrees on the year and names the chip: a "Speech Articulator for
   the IBM & Apple" with an "SSI263 Phoneme Synthesizer" and its SONIX software, at $125, from Auburn Heights,
-  Michigan. The card was advertised there by 12 June 1984, with the "SONIX-88 Speech Operating System". We have seen no chip from that first model.
+  Michigan. The card was advertised there by 12 June 1984, with its SONIX-88 speech operating system. We have seen no chip from that first model.
 - **Atari's 1450XLD** (document). A computer with speech built in, never released. Atari's voice handler
   specification of 24 May 1984 says its "speech synthesis hardware ... consists of an SSI-263 speech synthesis chip
   supplied by Silicon Systems Incorporated", "also known as the SC-02", with its five registers in the 6502's
