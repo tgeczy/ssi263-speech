@@ -68,7 +68,8 @@
   pointed us to Atari's 1984 voice handler specification (the Atari Museum's archive), Burke & Burke's
   advertisements (the Color Computer Archive), Artic's 1984 advertisement in PC Magazine (the Internet Archive),
   the Trace Center's resource books of 1987 and 1988 (ERIC ED283307 and ED297505) and Silicon Systems' 78A263A
-  data sheet of February 1993; each was read at its source. Without people keeping these, much of
+  data sheet of February 1993; each was read at its source. Arctec's Gemini is known from its own Technical
+  Reference and schematics, and from Robot Workshop's page on the robot. Without people keeping these, much of
   [history.md](history.md)'s family of devices couldn't be written.
 
 ## Software
