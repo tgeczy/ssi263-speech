@@ -439,6 +439,33 @@ if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "sapi-dev", "x86",
     CHECKS.append(check("SAPI engine DLL CONTROL (the reference on nvda/dist's native drivers, must fail)",
                         [PY, SAPI_ENGINE, "--arch", "x64"], env={"SSI263_SAPI_REF_BREAK": "dist"},
                         expect_fail=True, fail_marks=[REF_MARK, r"^sapi engine: 1 FAILED$"]))
+    # ... and what SAPI asks beyond plain text (sapi/test_sapi_requests.py): a site that takes part of a Write or
+    # none (Windows 7), the program's volume, a fragment's rate, volume and pitch, <spell>, a skip request, and when
+    # each bookmark's event arrives; the engine held to itself.  One control per fix: the bug put back in every
+    # request (the development DLL's SSI263_SAPI_TEST_BREAK)
+    SAPI_REQUESTS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_sapi_requests.py")
+    CHECKS.append(check("SAPI engine DLL: partial writes, markup, spell, skip, bookmarks", [PY, SAPI_REQUESTS]))
+    for brk, what, marks in (
+            ("partial-write", "each block written once, what SAPI took not looked at",
+             [r"^FAIL x64 writes: at most 1000 bytes of each Write taken", r"^FAIL x64 writes: each block refused twice",
+              r"^sapi requests: 2 FAILED$"]),
+            ("deadline-wall", "the deadline counts the time SAPI takes",
+             [r"^FAIL x64 the deadline does not count time SAPI takes", r"^sapi requests: 1 FAILED$"]),
+            ("markup", "no fragment's rate, volume or pitch looked at, nor the program's volume",
+             [r"^FAIL x64 rate: a fragment's \+4 is the program's \+4", r"^FAIL x64 volume: the program's 50 halves",
+              r"^FAIL x64 pitch: a change inside a request", r"^sapi requests: 5 FAILED$"]),
+            ("spell", "a <spell> spoken as the word",
+             [r"^FAIL x64 spell \(English\)", r"^FAIL x64 spell \(Spanish\)", r"^FAIL x64 spell: not the word",
+              r"^sapi requests: 3 FAILED$"]),
+            ("skip", "a skip request never looked at",
+             [r"^FAIL x64 skip \+1: answered 1", r"^FAIL x64 skip -1: answered -1", r"^FAIL x64 skip \(5 asked",
+              r"^sapi requests: 7 FAILED$"]),
+            ("marks-end", "every bookmark sent after all the audio",
+             [r"^FAIL x64 bookmark before the text: before any audio", r"^FAIL x64 bookmark between two unit utterances",
+              r"^sapi requests: 2 FAILED$"])):
+        CHECKS.append(check("SAPI engine DLL requests CONTROL (%s, must fail)" % what,
+                            [PY, SAPI_REQUESTS, "--arch", "x64"], env={"SSI263_SAPI_REQUESTS_BREAK": brk},
+                            expect_fail=True, fail_marks=marks))
 # the SAPI settings' Check for updates (sapi/updates.ps1, the NVDA add-on's rules in PowerShell 2.0's dialect) on
 # GitHub's shapes, no network; its controls offer a draft and take any download
 SAPI_UPDATES = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_updates.ps1")

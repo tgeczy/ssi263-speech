@@ -19,6 +19,19 @@
  * The settings go to the key SSI263_SAPI_SETTINGS_KEY names (the development DLL reads that one).  For each case the
  * audio goes to <folder>\case_<k>.pcm and a line to stdout:
  *     case <k> hr=<hex> rate=<declared Hz> bytes=<written> writes=<n> marks=<names, comma-separated or -> ms=<n>
+ *
+ * A line whose first field is "v2" is a request with everything SAPI can put in one (sapi/test_sapi_requests.py):
+ *     v2, voice id, SAPI rate, SAPI volume (0..100), settings, break, how the site takes writes, its actions, then one
+ *     field per fragment.
+ *   writes:    all | max=N (at most N bytes of each Write are taken) | zero=K (each block is refused K times first: a
+ *              Write that takes nothing, Windows 7's full buffer) | slow=MS (each Write takes MS milliseconds)
+ *   actions:   - or a comma list of abort@W (SPVES_ABORT once W writes were taken) and skip@W:N[:x] (SPVES_SKIP once W
+ *              writes were taken, N sentences; :x asks for a kind that is not sentences)
+ *   fragments: S:rate:volume:middle:text (spoken), L:rate:volume:middle:text (SPVA_SpellOut, a <spell>), B:name (a
+ *              bookmark); rate is the fragment's RateAdj, volume its Volume (100 when SAPI saw no <volume>), middle
+ *              its PitchAdj.MiddleAdj
+ * Its line adds calls=<every Write, taken or not>, events=<each bookmark as name@bytes written when it came/its
+ * offset, or -> and skips=<each CompleteSkip's count, or ->.
  */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -89,7 +102,12 @@ class Site : public ISpTTSEngineSite {
     LONG refs;
 public:
     long rate; int abort_after, writes; std::vector<BYTE> audio; std::vector<std::wstring> marks;
-    Site() : refs(1), rate(0), abort_after(0), writes(0) {}
+    /* v2: the volume, how writes are taken, a skip request, and what came back */
+    USHORT volume; int calls, max_take, refuse, refused, slow_ms;
+    int skip_after; long skip_count; bool skip_other, skip_done;
+    std::vector<std::string> events; std::vector<long> skips;
+    Site() : refs(1), rate(0), abort_after(0), writes(0), volume(100), calls(0), max_take(0), refuse(0), refused(0),
+             slow_ms(0), skip_after(0), skip_count(0), skip_other(false), skip_done(false) {}
     STDMETHODIMP QueryInterface(REFIID i, void **p) {
         if (!p) return E_POINTER;
         *p = 0;
@@ -102,22 +120,43 @@ public:
     STDMETHODIMP_(ULONG) Release() { return InterlockedDecrement(&refs); }       /* on the stack */
     STDMETHODIMP AddEvents(const SPEVENT *ev, ULONG n) {
         for (ULONG k = 0; k < n; k++)
-            if (ev[k].eEventId == SPEI_TTS_BOOKMARK && ev[k].elParamType == SPET_LPARAM_IS_STRING && ev[k].lParam)
+            if (ev[k].eEventId == SPEI_TTS_BOOKMARK && ev[k].elParamType == SPET_LPARAM_IS_STRING && ev[k].lParam) {
                 marks.push_back((const wchar_t *)ev[k].lParam);
+                char name[64], line[160];
+                WideCharToMultiByte(CP_UTF8, 0, (const wchar_t *)ev[k].lParam, -1, name, 64, 0, 0);
+                _snprintf(line, sizeof line, "%s@%lu/%llu", name, (unsigned long)audio.size(), ev[k].ullAudioStreamOffset);
+                events.push_back(line);
+            }
         return S_OK;
     }
     STDMETHODIMP GetEventInterest(ULONGLONG *p) { if (p) *p = ~0ull; return S_OK; }
-    STDMETHODIMP_(DWORD) GetActions() { return abort_after && writes >= abort_after ? SPVES_ABORT : 0; }
+    STDMETHODIMP_(DWORD) GetActions() {
+        DWORD a = abort_after && writes >= abort_after ? SPVES_ABORT : 0;
+        if (skip_after && !skip_done && writes >= skip_after) a |= SPVES_SKIP;
+        return a;
+    }
     STDMETHODIMP Write(const void *p, ULONG n, ULONG *done) {
-        audio.insert(audio.end(), (const BYTE *)p, (const BYTE *)p + n);
-        writes++;
-        if (done) *done = n;
+        ULONG take = n;
+        calls++;
+        if (slow_ms) Sleep(slow_ms);
+        if (refuse && refused < refuse) { refused++; take = 0; }     /* the buffer is full: nothing is taken */
+        else {
+            refused = 0;
+            if (max_take && take > (ULONG)max_take) take = (ULONG)max_take;
+        }
+        audio.insert(audio.end(), (const BYTE *)p, (const BYTE *)p + take);
+        if (take) writes++;
+        if (done) *done = take;
         return S_OK;
     }
     STDMETHODIMP GetRate(long *r) { if (r) *r = rate; return S_OK; }
-    STDMETHODIMP GetVolume(USHORT *v) { if (v) *v = 100; return S_OK; }
-    STDMETHODIMP GetSkipInfo(SPVSKIPTYPE *t, long *n) { if (t) *t = SPVST_SENTENCE; if (n) *n = 0; return S_OK; }
-    STDMETHODIMP CompleteSkip(long) { return S_OK; }
+    STDMETHODIMP GetVolume(USHORT *v) { if (v) *v = volume; return S_OK; }
+    STDMETHODIMP GetSkipInfo(SPVSKIPTYPE *t, long *n) {
+        if (t) *t = skip_other ? (SPVSKIPTYPE)(SPVST_SENTENCE + 7) : SPVST_SENTENCE;
+        if (n) *n = skip_count;
+        return S_OK;
+    }
+    STDMETHODIMP CompleteSkip(long n) { skips.push_back(n); skip_done = true; return S_OK; }
 };
 
 static std::vector<std::string> split(const std::string &s, char c) {
@@ -152,7 +191,16 @@ int wmain(int argc, wchar_t **argv) {
         std::string line = line0;
         if (!line.empty() && line.back() == '\r') line.pop_back();
         std::vector<std::string> f = split(line, '\t');
-        if (f.size() < 7) continue;
+        const bool v2 = !f.empty() && f[0] == "v2";
+        if (v2 ? f.size() < 9 : f.size() < 7) continue;
+        if (v2) {       /* put the fields the first format has where it has them: voice, rate, -, settings, break */
+            std::vector<std::string> g;
+            g.push_back(f[1]); g.push_back(f[2]); g.push_back("0"); g.push_back(f[4]); g.push_back(f[5]);
+            g.push_back("0"); g.push_back("");
+            g.insert(g.end(), f.begin() + 3, f.end());      /* [7] volume, [8] settings, [9] break, [10] writes,
+                                                               [11] actions, [12..] fragments */
+            f.swap(g);
+        }
         /* the settings, then the break for this case */
         std::vector<std::string> s = split(f[3], ',');
         const wchar_t *names[] = {L"Inflection", L"Whine", L"AccentInflection", L"RunAhead", L"SampleRate",
@@ -180,18 +228,66 @@ int wmain(int argc, wchar_t **argv) {
         site.rate = atol(f[1].c_str());
         site.abort_after = atoi(f[5].c_str());
         long middle = atol(f[2].c_str());
-        std::wstring t1 = wide(f[6]), t2 = f.size() > 7 ? wide(f[7]) : L"", seven = L"7";
+        std::wstring t1 = wide(f[6]), t2 = !v2 && f.size() > 7 ? wide(f[7]) : L"", seven = L"7";
         SPVTEXTFRAG fr[3];
         memset(fr, 0, sizeof fr);
-        for (int i = 0; i < 3; i++) { fr[i].State.eAction = SPVA_Speak; fr[i].State.PitchAdj.MiddleAdj = middle; }
+        /* Volume 100: what SAPI puts in a fragment no <volume> reached */
+        for (int i = 0; i < 3; i++) {
+            fr[i].State.eAction = SPVA_Speak; fr[i].State.PitchAdj.MiddleAdj = middle; fr[i].State.Volume = 100;
+        }
         fr[0].pTextStart = t1.c_str(); fr[0].ulTextLen = (ULONG)t1.size();
-        if (f.size() > 7) {
+        if (!v2 && f.size() > 7) {
             fr[0].pNext = &fr[1];
             fr[1].State.eAction = SPVA_Bookmark; fr[1].pTextStart = seven.c_str(); fr[1].ulTextLen = 1; fr[1].pNext = &fr[2];
             fr[2].pTextStart = t2.c_str(); fr[2].ulTextLen = (ULONG)t2.size(); fr[2].ulTextSrcOffset = (ULONG)t1.size();
         }
+        /* v2: the site as asked, and the fragments as given */
+        std::vector<SPVTEXTFRAG> many;
+        std::vector<std::wstring> texts;
+        if (v2) {
+            site.volume = (USHORT)atoi(f[7].c_str());
+            if (!f[10].compare(0, 4, "max=")) site.max_take = atoi(f[10].c_str() + 4);
+            if (!f[10].compare(0, 5, "zero=")) site.refuse = atoi(f[10].c_str() + 5);
+            if (!f[10].compare(0, 5, "slow=")) site.slow_ms = atoi(f[10].c_str() + 5);
+            for (const std::string &a : split(f[11], ',')) {
+                if (!a.compare(0, 6, "abort@")) site.abort_after = atoi(a.c_str() + 6);
+                if (!a.compare(0, 5, "skip@")) {
+                    std::vector<std::string> p = split(a.substr(5), ':');
+                    site.skip_after = atoi(p[0].c_str());
+                    site.skip_count = p.size() > 1 ? atol(p[1].c_str()) : 0;
+                    site.skip_other = p.size() > 2 && p[2] == "x";
+                }
+            }
+            many.resize(f.size() - 12);
+            texts.resize(many.size());
+            if (!many.empty()) memset(&many[0], 0, many.size() * sizeof many[0]);
+            ULONG src = 0;
+            for (size_t i = 0; i < many.size(); i++) {
+                const std::string &g = f[12 + i];
+                SPVTEXTFRAG &x = many[i];
+                x.State.Volume = 100;
+                if (g[0] == 'B') {
+                    x.State.eAction = SPVA_Bookmark;
+                    texts[i] = wide(g.substr(2));
+                } else {                     /* S or L, then rate:volume:middle:text (the text may hold colons) */
+                    size_t a = 2, b = g.find(':', a), c = g.find(':', b + 1), d = g.find(':', c + 1);
+                    x.State.eAction = g[0] == 'L' ? SPVA_SpellOut : SPVA_Speak;
+                    x.State.RateAdj = atol(g.substr(a, b - a).c_str());
+                    x.State.Volume = (USHORT)atoi(g.substr(b + 1, c - b - 1).c_str());
+                    x.State.PitchAdj.MiddleAdj = atol(g.substr(c + 1, d - c - 1).c_str());
+                    texts[i] = wide(g.substr(d + 1));
+                }
+            }
+            for (size_t i = 0; i < many.size(); i++) {       /* the strings no longer move */
+                many[i].pTextStart = texts[i].c_str();
+                many[i].ulTextLen = (ULONG)texts[i].size();
+                many[i].ulTextSrcOffset = src;
+                src += many[i].ulTextLen + 1;
+                many[i].pNext = i + 1 < many.size() ? &many[i + 1] : 0;
+            }
+        }
         DWORD t0 = GetTickCount();
-        if (SUCCEEDED(hr)) hr = engine->Speak(SPF_DEFAULT, fmt, wfx, fr, &site);
+        if (SUCCEEDED(hr)) hr = engine->Speak(SPF_DEFAULT, fmt, wfx, v2 ? (many.empty() ? 0 : &many[0]) : fr, &site);
         DWORD ms = GetTickCount() - t0;
         wchar_t out[MAX_PATH];
         _snwprintf(out, MAX_PATH, L"%ls\\case_%d.pcm", argv[3], k);
@@ -202,9 +298,13 @@ int wmain(int argc, wchar_t **argv) {
             if (i) marks += ",";
             char m[64]; WideCharToMultiByte(CP_UTF8, 0, site.marks[i].c_str(), -1, m, 64, 0, 0); marks += m;
         }
-        printf("case %d hr=%08lx rate=%lu bytes=%lu writes=%d marks=%s ms=%lu\n", k, (unsigned long)hr,
-               wfx ? (unsigned long)wfx->nSamplesPerSec : 0ul, (unsigned long)site.audio.size(), site.writes,
-               marks.empty() ? "-" : marks.c_str(), (unsigned long)ms);
+        std::string events, skips;
+        for (size_t i = 0; i < site.events.size(); i++) events += (i ? "," : "") + site.events[i];
+        for (size_t i = 0; i < site.skips.size(); i++) { char n[24]; _snprintf(n, 24, "%ld", site.skips[i]); skips += (i ? "," : "") + std::string(n); }
+        printf("case %d hr=%08lx rate=%lu bytes=%lu writes=%d marks=%s ms=%lu calls=%d events=%s skips=%s\n", k,
+               (unsigned long)hr, wfx ? (unsigned long)wfx->nSamplesPerSec : 0ul, (unsigned long)site.audio.size(),
+               site.writes, marks.empty() ? "-" : marks.c_str(), (unsigned long)ms, site.calls,
+               events.empty() ? "-" : events.c_str(), skips.empty() ? "-" : skips.c_str());
         fflush(stdout);
         if (wfx) CoTaskMemFree(wfx);
         if (with) with->Release();

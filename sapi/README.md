@@ -22,7 +22,7 @@ own.
 | `ssi_serve.c` | `ssi263_serve.exe`: the old pipe protocol over the native voices, a test and build tool (`--list` and `--files` make the stage's `voices.txt` and firmware). Never installed. |
 | `ssi_serve.py` | 0.7.0's Python server over the NVDA drivers. It is no longer shipped and stays as the reference the native voices are held to. |
 | `reference_drivers.py` | The tests' reference: `ssi_serve.py` on 0.7.0's Python drivers (`nvda/tools/legacy_drivers.py`, by `SSI263_SAPI_DRIVERS`), never `nvda/dist`'s native ones, checked by `ssi_serve.py --drivers` before each test (control: `SSI263_SAPI_REF_BREAK=dist`). |
-| `sapi_harness.cpp` | Drives the development DLL through `ISpTTSEngine` with nothing registered (`build.ps1 -Dev`). |
+| `sapi_harness.cpp` | Drives the development DLL through `ISpTTSEngine` with nothing registered (`build.ps1 -Dev`): its own engine site, which can take part of a Write or none, ask for a skip or an abort, and notes when each bookmark's event arrives. |
 | `build.ps1` | The stage, `nvda\dist\sapi` (`-Dev`: `nvda\dist\sapi-dev`). Build `python src\csrc\build_ssi263speech.py` first. |
 | `installer.iss` | The Inno Setup installer: DLLs, firmware, licences, `voices.txt`, settings. |
 | `register.ps1` | The COM class and one token per voice in `voices.txt`, in both registry views (run elevated). |
@@ -31,5 +31,6 @@ own.
 | `test_updates.ps1` | Its tests on GitHub's shapes, no network; `SSI263_UPDATES_BREAK=drafts` and `=hash` are its must-fail controls (run_tests). |
 | `test_native.py` | The native voices against `ssi_serve.py`, byte for byte over the wire, 64- and 32-bit; every voice listed on both widths; the Mockingboard (1.1 and early), which `ssi_serve.py` never had, held to itself (run_tests). |
 | `test_sapi_engine.py` | The development DLL through SAPI's interface against `ssi_serve.py` (both Mockingboards: against `ssi263_serve.exe`), byte for byte (run_tests). |
+| `test_sapi_requests.py` | What SAPI asks beyond plain text, the development DLL held to itself: partial and refused writes (Windows 7), the program's volume, a fragment's rate, volume and pitch, `<spell>`, a skip request, the deadline, and when bookmarks arrive. `SSI263_SAPI_REQUESTS_BREAK=partial-write`, `deadline-wall`, `markup`, `spell`, `skip` and `marks-end` are its must-fail controls (run_tests). |
 | `test_serve.py` | The reference server's own checks (run_tests). |
 | `test_sapi.ps1`, `test_sapi_settings.ps1` | Through SAPI and System.Speech, for an installed build (machine-wide tokens: SAPI refuses voice tokens under HKCU). |
