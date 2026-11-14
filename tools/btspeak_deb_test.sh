@@ -7,6 +7,8 @@
 #   BTSPEAK_DEB_BREAK=1 ...             the control: postrm never runs, so the menus-restored check must fail
 #   BTSPEAK_DEB_BREAK=pin ...           the control: build_deb.sh keeps fetch-firmware's own pin for a release's version,
 #                                       so the release-pin checks must fail
+#   BTSPEAK_INSTALL_BREAK=copy ...      the control: install.sh's plain cp onto a running blazie_emu, so that check
+#                                       must fail
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"
@@ -189,6 +191,20 @@ check "install.sh --menu: the Blazie menu's line, the line a unit its older self
 grep -q -x "!Braille Lite 2000 (English): $IR bl-en" "$T/im" && grep -q -x "!Type 'n Speak (English): $IR tns-en" "$T/im" \
     && [ "$(grep -c "$IR " "$T/im")" = 2 ] && [ -L "$T/prefix/lib/blazie-emu/blazie-languages.menu" ]
 check "install.sh: its Blazie menu, an item per unit its firmware can start" $?
+# install.sh again over a blazie_emu that is running (a copy of sleep under its name stands in): put in place by a
+# rename, where a plain cp fails ("Text file busy") and stops the install.  The real program is put back after, for
+# the checks below, whatever the outcome
+cp "$(command -v sleep)" "$T/prefix/bin/blazie_emu"
+"$T/prefix/bin/blazie_emu" 30 &
+BUSY=$!
+sleep 0.3
+if HOME="$T/hi" PREFIX="$T/prefix" "$ROOT/src/platforms/btspeak/install.sh" "$FWDIR" >/dev/null 2>&1 \
+        && cmp -s "$ROOT/build/linux/blazie_emu" "$T/prefix/bin/blazie_emu" && kill -0 "$BUSY" 2>/dev/null; then busy=0
+else busy=1; fi
+check "install.sh over a running blazie_emu: installed, the running one left alone" $busy
+kill "$BUSY" 2>/dev/null || true
+wait "$BUSY" 2>/dev/null || true
+cp -f "$ROOT/build/linux/blazie_emu" "$T/prefix/bin/blazie_emu"
 rm -r "$T/prefix/share/ssi263-speech/tns" "$FWDIR/tns"
 "$IM" > "$T/im"
 [ "$(grep -c "$IR " "$T/im")" = 1 ] && ! grep -q tns-en "$T/im"

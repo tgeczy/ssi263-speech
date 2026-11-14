@@ -30,6 +30,9 @@ check "speech-dispatcher installer (speechd.conf)" sh tools/speechd_install_test
 control "speech-dispatcher installer CONTROL (0.7.6's AddModule line, must fail)" \
     "^FAIL stock config unchanged " "^FAIL earlier install's line removed " "^ok +listed config: this module listed too " \
     -- env SSI263_INSTALL_BREAK=1 sh tools/speechd_install_test.sh
+control "speech-dispatcher installer CONTROL (a plain copy onto a running module, must fail)" \
+    "^ok +stock config unchanged " "^FAIL install over a running module " "^FAIL library replaced, not rewritten " \
+    -- env SSI263_INSTALL_BREAK=copy sh tools/speechd_install_test.sh
 B=build/linux
 EMU=$B/blazie_emu
 GTK_EMU=""; [ -x $B/blazie_emu_gtk ] && GTK_EMU=$B/blazie_emu_gtk
@@ -89,6 +92,10 @@ if [ -f src/apps/blazie/test_btkb.c ]; then
         "^FAIL +a release's version without its emulator archive in build/ is refused" \
         "^ok +removal: the menus exactly as they were" "^btspeak deb: FAILED$" \
         -- env BTSPEAK_DEB_BREAK=pin sh tools/btspeak_deb_test.sh
+    control "BT Speak installer CONTROL (a plain copy onto a running blazie_emu, must fail)" \
+        "^FAIL +install.sh over a running blazie_emu" "^ok +install.sh: its Blazie menu, an item per unit" \
+        "^ok +removal: the menus exactly as they were" "^btspeak deb: FAILED$" \
+        -- env BTSPEAK_INSTALL_BREAK=copy sh tools/btspeak_deb_test.sh
 fi
 check "emulator: the sound buffer (simulated card)" ./$B/test_audio
 control "emulator: sound buffer CONTROL (the 0.7.0 draft's four blocks, must fail)" \

@@ -169,6 +169,11 @@ check "speech-dispatcher installer (speechd.conf)" sh tools/speechd_install_test
 control "speech-dispatcher installer CONTROL (0.7.6's AddModule line, must fail)" \
     "^FAIL stock config unchanged " "^FAIL earlier install's line removed " "^ok +listed config: this module listed too " \
     -- env SSI263_INSTALL_BREAK=1 sh tools/speechd_install_test.sh
+# an install over a running module (speech-dispatcher has it open whenever a screen reader talks): its control is the
+# plain cp it was, which fails on the running program ("Text file busy") and rewrites the library in place
+control "speech-dispatcher installer CONTROL (a plain copy onto a running module, must fail)" \
+    "^ok +stock config unchanged " "^FAIL install over a running module " "^FAIL library replaced, not rewritten " \
+    -- env SSI263_INSTALL_BREAK=copy sh tools/speechd_install_test.sh
 control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^stop +module .*identical" \
     "^after +module .*DIFFER" "^set +module .*DIFFER" "^key +module .*DIFFER" "^spanish +module .*identical" \
     "^ra_stop +module .*identical" "^ra_after +module .*DIFFER" \
@@ -361,6 +366,11 @@ control "BT Speak .deb CONTROL (a release's version keeps the source's pin, must
     "^FAIL +a release's .deb: its fetch-firmware pins that release's own emulator archive" \
     "^FAIL +a release's version without its emulator archive in build/ is refused" \
     "^ok +removal: the menus exactly as they were" "^btspeak deb: FAILED$" -- env BTSPEAK_DEB_BREAK=pin sh tools/btspeak_deb_test.sh
+# install.sh over an emulator that is running; its control is the plain cp it was ("Text file busy")
+control "BT Speak installer CONTROL (a plain copy onto a running blazie_emu, must fail)" \
+    "^FAIL +install.sh over a running blazie_emu" "^ok +install.sh: its Blazie menu, an item per unit" \
+    "^ok +removal: the menus exactly as they were" "^btspeak deb: FAILED$" \
+    -- env BTSPEAK_INSTALL_BREAK=copy sh tools/btspeak_deb_test.sh
 # the Type 'n Speak's real cold reset (Timothy, Jayson): a unit the previews saved without its file system or folders,
 # told apart and set up anew with its files (test_rescue); its control leaves the old cold start on through the rescue
 # the sound buffer (audio_pace.c; Tomi: the emulator's speech stutters): the queue against a simulated card, for the

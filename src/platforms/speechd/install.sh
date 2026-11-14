@@ -57,13 +57,25 @@ if [ -d "$HERE/licenses" ]; then
     mkdir -p "$DATA/licenses"
     cp "$HERE"/licenses/* "$DATA/licenses/"
 fi
-cp "$HERE/lib/libssi263speech.so" "$PREFIX/lib/"
-cp "$HERE/bin/sd_ssi263" "$MODBIN/sd_ssi263"
-chmod 755 "$MODBIN/sd_ssi263"
+# A program or the library, put in place: copied beside the old one and renamed over it.  A plain cp onto a program
+# that is running fails ("Text file busy": speech-dispatcher has the module open whenever a screen reader is talking)
+# and, under set -e, stopped the install half done; onto a loaded library it rewrites the file under the programs
+# using it.  Renamed, what is running keeps the file it has, and the next start gets the new one.
+# (SSI263_INSTALL_BREAK=copy, the test's control: the plain copy it was.)
+put() {      # put FILE DESTINATION-FILE [MODE]
+    if [ "${SSI263_INSTALL_BREAK:-}" = copy ]; then
+        cp "$1" "$2"
+    else
+        cp "$1" "$2.new.$$"
+        mv -f "$2.new.$$" "$2"
+    fi
+    if [ -n "${3:-}" ]; then chmod "$3" "$2"; fi
+}
+put "$HERE/lib/libssi263speech.so" "$PREFIX/lib/libssi263speech.so"
+put "$HERE/bin/sd_ssi263" "$MODBIN/sd_ssi263" 755
 if [ -f "$HERE/bin/blazie_emu" ]; then   # the Blazie emulator (README-blazie-emu.md), its firmware in $DATA
     mkdir -p "$PREFIX/bin"
-    cp "$HERE/bin/blazie_emu" "$PREFIX/bin/blazie_emu"
-    chmod 755 "$PREFIX/bin/blazie_emu"
+    put "$HERE/bin/blazie_emu" "$PREFIX/bin/blazie_emu" 755
     if [ -d "$HERE/share/ssi263-speech/tns" ]; then
         mkdir -p "$DATA/tns"
         cp "$HERE"/share/ssi263-speech/tns/* "$DATA/tns/"
@@ -72,22 +84,20 @@ if [ -f "$HERE/bin/blazie_emu" ]; then   # the Blazie emulator (README-blazie-em
 fi
 if [ -f "$HERE/bin/blazie_emu_bt" ] && [ -f "$HERE/bin/blazie_bt" ]; then
     mkdir -p "$PREFIX/bin"
-    cp "$HERE/bin/blazie_emu_bt" "$HERE/bin/blazie_bt" "$PREFIX/bin/"
-    chmod 755 "$PREFIX/bin/blazie_emu_bt" "$PREFIX/bin/blazie_bt"
+    put "$HERE/bin/blazie_emu_bt" "$PREFIX/bin/blazie_emu_bt" 755
+    put "$HERE/bin/blazie_bt" "$PREFIX/bin/blazie_bt" 755
     echo "  emulator (BT Speak / BT Braille): $PREFIX/bin/blazie_emu_bt"
 fi
 if [ -f "$HERE/bin/blazie_emu_gtk" ]; then   # the emulator in a GTK window, for Orca, and its desktop menu entry
     mkdir -p "$PREFIX/bin" "$PREFIX/share/applications"
-    cp "$HERE/bin/blazie_emu_gtk" "$PREFIX/bin/blazie_emu_gtk"
-    chmod 755 "$PREFIX/bin/blazie_emu_gtk"
+    put "$HERE/bin/blazie_emu_gtk" "$PREFIX/bin/blazie_emu_gtk" 755
     sed "s|^Exec=.*|Exec=$PREFIX/bin/blazie_emu_gtk|" "$HERE/share/applications/ssi263-blazie-emu.desktop" \
         > "$PREFIX/share/applications/ssi263-blazie-emu.desktop"
     echo "  emulator (window): $PREFIX/bin/blazie_emu_gtk, in the desktop's menu as Blazie emulator"
 fi
 if [ -f "$HERE/bin/blazie_files" ]; then   # a saved unit's files from the command line (README-blazie-emu.md)
     mkdir -p "$PREFIX/bin"
-    cp "$HERE/bin/blazie_files" "$PREFIX/bin/blazie_files"
-    chmod 755 "$PREFIX/bin/blazie_files"
+    put "$HERE/bin/blazie_files" "$PREFIX/bin/blazie_files" 755
     echo "  files tool: $PREFIX/bin/blazie_files"
 fi
 {

@@ -4,9 +4,11 @@
 #   - a stock config (no active AddModule: autodiscovery on) is left byte for byte as it was;
 #   - an earlier install's line (0.7.0-0.7.6's active one; #11's commented one) is removed;
 #   - a config that lists its modules itself (Raspberry Pi OS: AddModule "espeak-ng") gets this one listed too;
-#   - --default sets DefaultModule, and uninstall.sh gives back each config exactly as it was.
-# SSI263_INSTALL_BREAK=1 (the control) puts 0.7.6's always-added line back: the stock and earlier-install checks
-# must fail.
+#   - --default sets DefaultModule, and uninstall.sh gives back each config exactly as it was;
+#   - an install over a running module finishes (a plain cp onto it fails, "Text file busy", and stopped the install
+#     half done), and the library is a new file renamed over the old one, not the old one rewritten.
+# SSI263_INSTALL_BREAK=1 (a control) puts 0.7.6's always-added line back: the stock and earlier-install checks
+# must fail.  SSI263_INSTALL_BREAK=copy (a control) puts the plain cp back: the last two checks must fail.
 #   sh tools/speechd_install_test.sh
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -97,5 +99,33 @@ else fail "--default" "$(cat "$D/etc/speechd.conf" | tr '\n' '|')"; fi
 uninstall
 if cmp -s "$D/before.conf" "$D/etc/speechd.conf"; then ok "uninstall (--default)" "the old default back"
 else fail "uninstall (--default)" "$(diff "$D/before.conf" "$D/etc/speechd.conf" | tr '\n' ' ')"; fi
+
+# 5. an install over a module that is running and a library that is there: each put in place by a rename.  A real
+# program stands in for the module (a copy of sleep, running under its name), as speech-dispatcher has the module
+# open whenever a screen reader is talking; ssi263.conf, which install.sh writes after the copies, is taken away
+# first, so a finished install shows
+run busy "$STOCK"
+cp "$(command -v sleep)" "$D/modules/sd_ssi263"
+"$D/modules/sd_ssi263" 30 &
+BUSY=$!
+sleep 0.3
+lib_before="$(ls -i "$D/prefix/lib/libssi263speech.so" | awk '{print $1}')"
+rm -f "$D/etc/modules/ssi263.conf"
+if kill -0 "$BUSY" 2>/dev/null; then
+    ( cd "$PKG" && PREFIX="$D/prefix" SSI263_SPD_MODULES="$D/modules" SSI263_SPD_CONF="$D/etc/speechd.conf" \
+        sh ./install.sh ) > "$D/install2.log" 2>&1
+    rc=$?
+    if [ $rc = 0 ] && cmp -s "$PKG/bin/sd_ssi263" "$D/modules/sd_ssi263" && [ -x "$D/modules/sd_ssi263" ] \
+            && [ -f "$D/etc/modules/ssi263.conf" ] && kill -0 "$BUSY" 2>/dev/null; then
+        ok "install over a running module" "the new module in place, the install finished, the running one left alone"
+    else fail "install over a running module" "exit $rc: $(grep -i -E 'busy|cannot|error' "$D/install2.log" | head -n 1)"; fi
+    lib_after="$(ls -i "$D/prefix/lib/libssi263speech.so" | awk '{print $1}')"
+    if [ "$lib_before" != "$lib_after" ]; then ok "library replaced, not rewritten" "a new file renamed over the old one"
+    else fail "library replaced, not rewritten" "the same file (inode $lib_after) written in place"; fi
+else
+    fail "install over a running module" "could not run a program from the scratch folder $T"
+fi
+kill "$BUSY" 2>/dev/null
+wait "$BUSY" 2>/dev/null
 
 if [ $FAIL = 0 ]; then echo "speechd install: all passed"; else echo "speechd install: FAILED"; exit 1; fi

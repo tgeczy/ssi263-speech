@@ -51,11 +51,25 @@ if [ ! -e /run/BTSpeak/keyboard-socket ] && [ ! -d /BTSpeak ]; then
 fi
 
 mkdir -p "$PREFIX/bin" "$PREFIX/share/ssi263-speech"
-cp "$BIN/blazie_emu" "$PREFIX/bin/"
-[ -x "$BIN/blazie_files" ] && cp "$BIN/blazie_files" "$PREFIX/bin/"
+# A program put in place: copied beside the old one and renamed over it.  A plain cp onto a program that is running
+# (the emulator left open while a newer one is installed) fails ("Text file busy") and, under set -e, stopped the
+# install there; renamed, the running one keeps the file it has and the next start gets the new one.
+# (BTSPEAK_INSTALL_BREAK=copy, tools/btspeak_deb_test.sh's control: the plain copy it was.)
+put() {      # put PROGRAM: into PREFIX/bin under its own name
+    if [ "${BTSPEAK_INSTALL_BREAK:-}" = copy ]; then
+        cp "$BIN/$1" "$PREFIX/bin/$1"
+    else
+        cp "$BIN/$1" "$PREFIX/bin/$1.new.$$"
+        mv -f "$PREFIX/bin/$1.new.$$" "$PREFIX/bin/$1"
+    fi
+    chmod 755 "$PREFIX/bin/$1"
+}
+put blazie_emu
+if [ -x "$BIN/blazie_files" ]; then put blazie_files; fi
 # the BT front end (#4: the device's own dialogs), which blazie_emu hands over to when it is beside it
 if [ -x "$BIN/blazie_emu_bt" ] && [ -x "$BIN/blazie_bt" ]; then
-    cp "$BIN/blazie_emu_bt" "$BIN/blazie_bt" "$PREFIX/bin/"
+    put blazie_emu_bt
+    put blazie_bt
 fi
 # the firmware, as it is laid out (blazie_emu reads either layout); README.txt is the repository's own notes
 (cd "$FW" && find . -type f \( -iname '*.BNS' -o -iname '*.TNS' -o -name '*.state' \)) | while read -r f; do
