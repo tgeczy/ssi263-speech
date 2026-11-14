@@ -6,8 +6,9 @@
  *
  * The module protocol and its audio (705 blocks, HDLC-escaped, played and flushed by the server) follow
  * speech-dispatcher's module_process.c; the reply lines are TGSpeechBox's sd_tgsb's, proven on speech-dispatcher 0.11.
- * Synthesis is synchronous: stdin is polled for STOP between blocks, and a STOP cancels the voice's unit (its unspoken
- * text dropped) so the next message starts clean.  SET synthesis_voice picks a voice by name (LIST VOICES); SET
+ * Synthesis is synchronous: stdin is polled for STOP and PAUSE between blocks, and either cancels the voice's unit (its
+ * unspoken text dropped) so the next message starts clean; a STOP is answered 703, a PAUSE 704, which is what lets the
+ * server speak the message again on RESUME.  SET synthesis_voice picks a voice by name (LIST VOICES); SET
  * language picks one of that language unless the current voice already speaks it.
  *
  * Config (argv[1], speech-dispatcher's module config; then this user's own file, whose keys win:
@@ -38,8 +39,9 @@
  * Rate, pitch and volume come from SSIP for every voice.  SSI263_DATADIR overrides the data folder.  The firmware is
  * not part of this program: it is loaded from there.  `sd_ssi263 --voices` lists the voices built in.
  *
- * Test hooks: SD_SSI263_TEST_NO_CANCEL=1 leaves the unit uncancelled on STOP; sd_voices.c's drop a key on its way to
- * the voice -- the harness's controls must fail.
+ * Test hooks: SD_SSI263_TEST_NO_CANCEL=1 leaves the unit uncancelled on STOP and PAUSE; SD_SSI263_TEST_OLD_REPLIES=1
+ * answers PAUSE, DEBUG and QUIT as up to 0.9.1 (old_replies below); sd_voices.c's drop a key on its way to the voice --
+ * the harness's controls must fail.
  */
 #include <errno.h>
 #include <signal.h>
@@ -97,20 +99,38 @@ static char *readline_sd(void)
     }
 }
 
-/* STOP (or CANCEL / PAUSE) waiting on stdin?  Reads what is there into the buffer, leaves it for readline_sd. */
+/* A control (test_sd_ssi263.py, tools/linux_tests.sh): the replies as they were up to 0.9.1 -- a PAUSE answered as a
+   stop, STOP and PAUSE looked for anywhere in what waits, "DEBUG ON <file>" an unknown command, QUIT unanswered. */
+static int old_replies(void) { return getenv("SD_SSI263_TEST_OLD_REPLIES") != NULL; }
+
+/* What waits on stdin for the message being spoken: nothing, a STOP (or CANCEL, or the end of stdin), or a PAUSE alone.
+   Reads what is there into the buffer and leaves it for readline_sd.  Whole lines only: the words were looked for
+   anywhere in the buffer, so a "DEBUG ON" whose file name held one of them stopped the speech. */
+enum { GO = 0, STOPPED, PAUSED };
 static int poll_stop(void)
 {
     fd_set f;
     struct timeval tv = {0, 0};
+    const char *p, *nl;
+    int paused = 0;
     FD_ZERO(&f);
     FD_SET(STDIN_FILENO, &f);
     if (select(STDIN_FILENO + 1, &f, NULL, NULL, &tv) > 0) {
         char buf[4096];
         ssize_t k = read(STDIN_FILENO, buf, sizeof buf);
-        if (k <= 0) { r_eof = 1; return 1; }
+        if (k <= 0) { r_eof = 1; return STOPPED; }
         rappend(buf, (size_t)k);
     }
-    return rbuf && (strstr(rbuf, "STOP") || strstr(rbuf, "CANCEL") || strstr(rbuf, "PAUSE"));
+    if (!rbuf) return GO;
+    if (old_replies())
+        return strstr(rbuf, "STOP") || strstr(rbuf, "CANCEL") || strstr(rbuf, "PAUSE") ? STOPPED : GO;
+    for (p = rbuf; (nl = (const char *)memchr(p, '\n', (size_t)(rbuf + rlen - p))) != NULL; p = nl + 1) {
+        size_t n = (size_t)(nl - p);
+        if (n && p[n - 1] == '\r') n--;
+        if ((n == 4 && !memcmp(p, "STOP", 4)) || (n == 6 && !memcmp(p, "CANCEL", 6))) return STOPPED;
+        if (n == 5 && !memcmp(p, "PAUSE", 5)) paused = 1;
+    }
+    return paused ? PAUSED : GO;
 }
 
 static void send_line(const char *s)
@@ -266,10 +286,14 @@ static void speak(char *text)
         send_line("301 ERROR CANT SPEAK");
         return;
     }
-    if (poll_stop()) {                               /* already stopped (key repeat): nothing to say */
+    /* A PAUSE ends the message as a STOP does (the unit cancelled, its unspoken text dropped), but the server is told
+       704, not 703: on 703 it gives the message up, on 704 it keeps it to speak again on RESUME (speech-dispatcher's
+       output.c, output_module_is_speaking). */
+    stopped = poll_stop();
+    if (stopped) {                                   /* already stopped (key repeat): nothing to say */
         send_line("200 OK SPEAKING");
         send_line("701 BEGIN");
-        send_line("703 STOP");
+        send_line(stopped == PAUSED ? "704 PAUSE" : "703 STOP");
         return;
     }
     send_line("200 OK SPEAKING");
@@ -280,12 +304,12 @@ static void speak(char *text)
         int n = sdv_render(v, &pcm, &done);
         if (n > 0)
             send_audio(pcm, n, conf.sample_rate);
-        if (!done && poll_stop()) { stopped = 1; break; }
+        if (!done && (stopped = poll_stop()) != GO) break;
     }
     if (stopped) {
         if (!getenv("SD_SSI263_TEST_NO_CANCEL"))
             sdv_cancel(v);
-        send_line("703 STOP");
+        send_line(stopped == PAUSED ? "704 PAUSE" : "703 STOP");
     } else {
         send_line("702 END");
     }
@@ -389,7 +413,16 @@ int main(int argc, char **argv)
                 free(line);
             }
             send_line("203 OK SETTINGS RECEIVED");
-        } else if (!strcmp(cmd, "AUDIO") || !strcmp(cmd, "LOGLEVEL") || !strcmp(cmd, "DEBUG")) {
+        } else if (!strncmp(cmd, "DEBUG", 5) && !old_replies()) {
+            /* "DEBUG ON <file>" or "DEBUG OFF", on one line (speech-dispatcher's output_send_debug), answered as
+               its own modules answer (module_process.c).  This module keeps no log of its own -- what it has to say
+               goes to stderr, which the server logs -- so there is nothing to switch. */
+            char word[16] = "", on[8] = "";
+            sscanf(cmd, "%15s %7s", word, on);
+            if (!strcmp(word, "DEBUG") && !strcmp(on, "ON")) send_line("200 OK DEBUGGING ON");
+            else if (!strcmp(word, "DEBUG") && !strcmp(on, "OFF")) send_line("200 OK DEBUGGING OFF");
+            else send_line("302 ERROR BAD SYNTAX");
+        } else if (!strcmp(cmd, "AUDIO") || !strcmp(cmd, "LOGLEVEL")) {
             char *line;
             send_line("202 OK RECEIVING MESSAGE");
             while ((line = readline_sd()) != NULL) {
@@ -405,6 +438,8 @@ int main(int argc, char **argv)
                     printf("200-%s\t%s\tMALE1\n", sdv_name(i), sdv_language(i));
             send_line("249 OK VOICES LISTED");
         } else if (!strcmp(cmd, "QUIT")) {
+            if (!old_replies())                      /* the server waits for it (output_close's SEND_CMD) */
+                send_line("210 OK QUIT");
             free(cmd);
             break;
         } else {

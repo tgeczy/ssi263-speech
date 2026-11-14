@@ -11,6 +11,18 @@ same PCM:
   spanish  language=es switches to the Spanish unit (when its files are there)
   key      KEY space speaks "space"
 
+the protocol's corners, as speech-dispatcher 0.11.1's server sends them (output.c) and its own modules answer them
+(module_process.c):
+
+  pause    PAUSE after 5 audio blocks: the unit cancelled as for a STOP; pause_ev: the message ended with 704 PAUSE (on
+           703 the server gives the message up, on 704 it keeps it for RESUME); p_after: the next message whole
+  char     CHAR a speaks "a"; icon: a SOUND_ICON (there are none) is answered and ends with no audio
+  unknown  an unknown command is answered 300, and the module goes on
+  debug    "DEBUG ON <file>" and "DEBUG OFF" are answered 200 OK DEBUGGING ON / OFF, a bad one 302
+  dbg_mid  a "DEBUG ON" that arrives mid-message, its file's name holding PAUSE and STOP: the message is spoken whole
+           (the words are commands only as whole lines), and the DEBUG answered after it
+  quit     QUIT is answered 210 OK QUIT, and the module exits with 0
+
 and the config: the module file and this user's own (which wins), the sample rate and the hiss -- and the
 EXPERIMENTAL run ahead (SSI263RunAhead 1, blv_set_run_ahead), against a reference voice running ahead too:
 
@@ -49,6 +61,8 @@ one: the Braille Lite's files from <data folder>, and aicom-accent-sa/, aicom-ac
 
     python3 test_sd_ssi263.py <sd_ssi263> <libssi263speech.so> <data folder>
     SD_SSI263_TEST_NO_CANCEL=1 in the environment: the module leaves the unit uncancelled -- "stop" must FAIL
+    SD_SSI263_TEST_OLD_REPLIES=1: PAUSE, DEBUG and QUIT answered as up to 0.9.1 -- pause_ev, debug, dbg_mid and quit
+                                  must FAIL
     SD_SSI263_TEST_IGNORE_RUN_AHEAD=1: the module drops SSI263RunAhead -- the ra_ checks must FAIL
     SD_SSI263_TEST_IGNORE_LINE_LIFT=1: the module drops SSI263LineLift -- lift must FAIL
     SD_SSI263_TEST_IGNORE_BL_NUMBERS=1: the module drops SSI263BrailleLiteNumbers (the default reaches the unit) --
@@ -350,8 +364,8 @@ class Module:
         assert len(out) == 2 * n, (len(out), n)
         return bytes(out)
 
-    def speak(self, text, cmd="SPEAK", stop_after=None):
-        """Returns (pcm, the event that ended it, blocks)."""
+    def speak(self, text, cmd="SPEAK", stop_after=None, stop_cmd="STOP"):
+        """Returns (pcm, the event that ended it, blocks).  stop_after: that many audio blocks in, stop_cmd is sent."""
         self.send(cmd)
         assert self.line() == b"202 OK RECEIVING MESSAGE"
         self.send(text, ".")
@@ -365,9 +379,9 @@ class Module:
                 pcm.append(self.audio_block(s))
                 blocks += 1
                 if stop_after is not None and blocks == stop_after:
-                    self.send("STOP")
+                    self.send(stop_cmd)
                 continue
-            if s in (b"702 END", b"703 STOP"):
+            if s in (b"702 END", b"703 STOP", b"704 PAUSE"):
                 return b"".join(pcm), s.decode(), blocks
             raise RuntimeError("unexpected %r" % s)
 
@@ -466,6 +480,59 @@ for lang, text in (("de", "Guten Tag, schön."), ("it", "Buongiorno, città."), 
 
 m.send("QUIT")
 m.p.wait(timeout=10)
+
+
+# ---- the protocol's corners, as speech-dispatcher 0.11.1's server sends them and its own modules answer them
+# (src/server/output.c, src/modules/module_process.c) ----------------------------------------------------------------
+def said(label, ok, what):
+    print("%-8s %s: %s" % (label, what, "as expected" if ok else "NOT as expected"))
+    return ok
+
+
+# a session of its own for the PAUSE: its unit is cancelled mid-message, and nothing else is to depend on that
+p = Module()
+p.send("INIT")
+assert p.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
+pref = Ref()
+pcm1, ev1, pblocks = p.speak(LONG, stop_after=5, stop_cmd="PAUSE")
+results.append(same("pause", pcm1, pref.say(LONG, blocks=pblocks)))
+results.append(said("pause_ev", ev1 == "704 PAUSE", "a PAUSE after %d blocks ended the message with %s" % (pblocks, ev1)))
+pcm2, ev2, _ = p.speak("And the next message.")
+results.append(same("p_after", pcm2, pref.say("And the next message.")) and ev2 == "702 END")
+p.send("QUIT")
+p.p.wait(timeout=10)
+
+p = Module()
+p.send("INIT")
+assert p.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
+pref = Ref()
+pcm, ev, _ = p.speak("a", cmd="CHAR")
+results.append(same("char", pcm, pref.say("a")) and ev == "702 END")
+pcm, ev, n = p.speak("bell", cmd="SOUND_ICON")
+results.append(said("icon", (pcm, ev) == (b"", "702 END"), "a SOUND_ICON ended with %s and %d audio blocks" % (ev, n)))
+p.send("FROBNICATE")
+r = p.reply()
+results.append(said("unknown", r == [b"300 ERR UNKNOWN COMMAND"], "an unknown command answered %r" % r))
+got = []
+for line in ("DEBUG ON /tmp/sd_ssi263.log ", "DEBUG OFF ", "DEBUG MAYBE"):     # the server's own, a space at their end
+    p.send(line)
+    got.append(p.reply()[-1].decode())
+results.append(said("debug", got == ["200 OK DEBUGGING ON", "200 OK DEBUGGING OFF", "302 ERROR BAD SYNTAX"],
+                    "DEBUG ON, DEBUG OFF and a bad one answered %s" % got))
+# a DEBUG that arrives while a message is spoken, its file's name holding the words: the message is spoken whole, and
+# the DEBUG answered after it (the last audio check of this session: where it fails, the unit was cancelled)
+pcm, ev, _ = p.speak(LONG, stop_after=5, stop_cmd="DEBUG ON /tmp/PAUSE-or-STOP.log ")
+r = p.reply()[-1].decode()
+ok = same("dbg_mid", pcm, pref.say(LONG))
+results.append(said("dbg_mid", ok and (ev, r) == ("702 END", "200 OK DEBUGGING ON"),
+                    "a DEBUG ON mid-message: the message ended with %s, the DEBUG answered %s" % (ev, r)))
+p.send("QUIT")
+try:
+    q = p.line().decode()
+except RuntimeError:
+    q = "nothing"
+code = p.p.wait(timeout=10)
+results.append(said("quit", (q, code) == ("210 OK QUIT", 0), "QUIT answered %s, and the module exited with %d" % (q, code)))
 
 
 # ---- the config: the module file, this user's own file (which wins), and a rate we do not offer -------------------

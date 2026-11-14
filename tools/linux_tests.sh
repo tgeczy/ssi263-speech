@@ -16,8 +16,8 @@
 # after the 3.9 s cancel (R1=40, R0=C0), so it is not compared; the times legitimately differ.  The module
 # harness checks speech-dispatcher's protocol and every message's audio (run ahead too) on every voice it offers (the
 # Braille Lite, the Accent SA, and the Accent-mini and Speak-Out when built in) and the Braille Lite's number words,
-# and its four controls (the unit never cancelled, SSI263RunAhead ignored, SSI263BrailleLiteNumbers ignored,
-# SSI263AccentInflection ignored) must fail; the no-GPL audit
+# and its controls (the unit never cancelled; PAUSE, DEBUG and QUIT answered as up to 0.9.1; SSI263RunAhead,
+# SSI263BrailleLiteNumbers, SSI263LineLift and SSI263AccentInflection each ignored) must fail; the no-GPL audit
 # (tools/check_no_gpl.py) searches the library, the module, the package and the wheel, and its controls must fail.
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA="$(cd "${1:-$ROOT/nvda/dist/blazie-build/synthDrivers/_ssi263_blazie}" && pwd)"
@@ -173,7 +173,17 @@ control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^s
     "^after +module .*DIFFER" "^set +module .*DIFFER" "^key +module .*DIFFER" "^spanish +module .*identical" \
     "^ra_stop +module .*identical" "^ra_after +module .*DIFFER" \
     "^as_stop +module .*identical" "^as_after +module .*DIFFER" "^as_bl +module .*identical" \
-    "^num_off +module .*identical" "^$((N - 8)) of $N checks passed" -- env SD_SSI263_TEST_NO_CANCEL=1 \
+    "^pause +module .*identical" "^p_after +module .*DIFFER" \
+    "^num_off +module .*identical" "^$((N - 9)) of $N checks passed" -- env SD_SSI263_TEST_NO_CANCEL=1 \
+    python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
+# PAUSE, DEBUG and QUIT answered as up to 0.9.1: a PAUSE ended with 703 (the server gives the message up), "DEBUG ON
+# <file>" an unknown command -- and one whose file name holds the words stops the message -- and QUIT unanswered; the
+# audio around them, CHAR, a sound icon and an unknown command still pass
+control "module CONTROL (PAUSE, DEBUG and QUIT answered as before, must fail)" "^pause +module .*identical" \
+    "^pause_ev .*703 STOP: NOT as expected" "^p_after +module .*identical" "^char +module .*identical" \
+    "^icon .*: as expected" "^unknown .*: as expected" "^debug .*300 ERR UNKNOWN COMMAND.*: NOT as expected" \
+    "^dbg_mid +module .*DIFFER" "^dbg_mid .*703 STOP.*: NOT as expected" "^quit .*answered nothing.*: NOT as expected" \
+    "^$((N - 4)) of $N checks passed" -- env SD_SSI263_TEST_OLD_REPLIES=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # the run-ahead key (SSI263RunAhead, EXPERIMENTAL) dropped on its way to the voice: the module speaks the lockstep, so
 # every run-ahead check against the run-ahead reference fails, and this user's 0 over the module file's 1 still passes
