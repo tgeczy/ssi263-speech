@@ -435,7 +435,7 @@ int main(int argc, char **argv)
             int i;
             for (i = 0; i < sdv_count(); i++)
                 if (sdv_available(i, &conf))
-                    printf("200-%s\t%s\tMALE1\n", sdv_name(i), sdv_language(i));
+                    printf("200-%s\t%s\t\n", sdv_name(i), sdv_language(i));
             send_line("249 OK VOICES LISTED");
         } else if (!strcmp(cmd, "QUIT")) {
             if (!old_replies())                      /* the server waits for it (output_close's SEND_CMD) */
