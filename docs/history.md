@@ -71,7 +71,7 @@ way, and those withdrawals are part of the record too.
 ## The SSI-263's family, year by year
 
 Every device we know of that spoke through the SSI-263, or through the same chip under another name: Votrax's
-SC-02, TDK's 78A263A, Artic's Artic-263, Aicom's AI901, and the Semtech-made SSI 263-2-2. Each entry says what puts
+SC-02, TDK's 78A263A, Artic's Artic-263, Aicom's AI901, and the Semtech-marked SSI 263-2-2. Each entry says what puts
 it in the family:
 
 - **marking:** the chip read from a photograph of the board;
@@ -359,15 +359,16 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 
 ### 1997 to 2003
 
-- **Semtech's 263** (marking). A photograph of an opened Braille 'n Speak 2000 shows its speech chip marked
-  "SSI 263-2-2 / SEMTECH": in that unit, Semtech, not Silicon Systems, made the chip. Semtech had a wafer fab
-  that took outside work for just these years. Its agreement to merge with Gamma Inc., "dba ECI Semiconductor",
+- **A 263 with Semtech's name** (marking). A photograph of an opened Braille 'n Speak 2000 shows its speech chip
+  marked "SSI 263-2-2 / SEMTECH": the name on that unit's chip is Semtech's, not Silicon Systems'. A marking says
+  whose name is on the package, not who made the die. Semtech did have a wafer fab that took outside work, from
+  October 1995 to April 2001. Its agreement to merge with Gamma Inc., "dba ECI Semiconductor",
   is dated 4 October 1995; Semtech's annual report for that year describes ECI as an analog semiconductor maker
   whose main business was foundry wafers, and renames it Semtech Santa Clara. On 19 March 2001 Semtech announced
   it was "exiting the foundry services business", and by 25 April it had sold the Santa Clara fab to STI Foundry
-  Inc. So from October 1995 to April 2001 Semtech could make another company's chip to order, which is a window
-  this chip fits; it is not evidence of where the chip was made, or for whom. A date code on a Semtech-marked 263
-  would test it: this one's date line is not visible in the photograph.
+  Inc. So between those two dates Semtech could make another company's chip to order, and may have made this
+  one; it is not evidence of where the chip was made, or for whom. A date code on a Semtech-marked 263 would test
+  it: this one's date line is not visible in the photograph.
 - **Artic's Spirit** (document). The Spirit 600 and 600B, a portable serial synthesizer from Artic (its manual's 248
   telephone area code dates it to 1997 or later), with "a TRUE phoneme speech synthesis chip" that blends phonemes
   rather than playing samples; it takes the TransPort's commands and the Accent SA's. The manual doesn't name the

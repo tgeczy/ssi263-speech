@@ -43,7 +43,7 @@ contributors, but it very much wants to know what exists.
 - **Revisions.** Is the photographed P die equivalent to the later AP? Which one is in the
   Braille Lite? The same question runs through every name the chip was sold under: the SSI
   263P (dated 8404 to 8431 on the boards we've seen), the 263AP (8513 to 8601), Votrax's SC-02,
-  TDK's 78A263A, Artic's Artic-263, Aicom's AI901, and the Semtech-made SSI 263-2-2 in a late
+  TDK's 78A263A, Artic's Artic-263, Aicom's AI901, and the Semtech-marked SSI 263-2-2 in a late
   Braille 'n Speak 2000. Their marking format and lot numbers suggest one die (see
   [history.md](history.md)), but none has been compared on the die. Mask revision marks at the
   die's edge would tell revisions apart; so would the same register writes played on each chip
