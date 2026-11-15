@@ -7,9 +7,9 @@
  * The module protocol and its audio (705 blocks, HDLC-escaped, played and flushed by the server) follow
  * speech-dispatcher's module_process.c; the reply lines are TGSpeechBox's sd_tgsb's, proven on speech-dispatcher 0.11.
  * Synthesis is synchronous: stdin is polled for STOP and PAUSE between blocks, and either cancels the voice's unit (its
- * unspoken text dropped) so the next message starts clean; a STOP is answered 703, a PAUSE 704, which is what lets the
- * server speak the message again on RESUME.  SET synthesis_voice picks a voice by name (LIST VOICES); SET
- * language picks one of that language unless the current voice already speaks it.
+ * unspoken text dropped) so the next message starts clean; both are answered 703, on which the server speaks a paused
+ * message again from its start on RESUME (stop_event below says why not 704).  SET synthesis_voice picks a voice by
+ * name (LIST VOICES); SET language picks one of that language unless the current voice already speaks it.
  *
  * Config (argv[1], speech-dispatcher's module config; then this user's own file, whose keys win:
  * $XDG_CONFIG_HOME/ssi263-speech/sd_ssi263.conf, else ~/.config/ssi263-speech/sd_ssi263.conf; every key optional):
@@ -40,8 +40,8 @@
  * not part of this program: it is loaded from there.  `sd_ssi263 --voices` lists the voices built in.
  *
  * Test hooks: SD_SSI263_TEST_NO_CANCEL=1 leaves the unit uncancelled on STOP and PAUSE; SD_SSI263_TEST_OLD_REPLIES=1
- * answers PAUSE, DEBUG and QUIT as up to 0.9.1 (old_replies below); sd_voices.c's drop a key on its way to the voice --
- * the harness's controls must fail.
+ * answers DEBUG and QUIT as up to 0.9.1 (old_replies below); SD_SSI263_TEST_PAUSE_704=1 answers a PAUSE with 704
+ * (stop_event below); sd_voices.c's drop a key on its way to the voice -- the harness's controls must fail.
  */
 #include <errno.h>
 #include <signal.h>
@@ -99,8 +99,8 @@ static char *readline_sd(void)
     }
 }
 
-/* A control (test_sd_ssi263.py, tools/linux_tests.sh): the replies as they were up to 0.9.1 -- a PAUSE answered as a
-   stop, STOP and PAUSE looked for anywhere in what waits, "DEBUG ON <file>" an unknown command, QUIT unanswered. */
+/* A control (test_sd_ssi263.py, tools/linux_tests.sh): the replies as they were up to 0.9.1 -- STOP and PAUSE looked
+   for anywhere in what waits, "DEBUG ON <file>" an unknown command, QUIT unanswered. */
 static int old_replies(void) { return getenv("SD_SSI263_TEST_OLD_REPLIES") != NULL; }
 
 /* What waits on stdin for the message being spoken: nothing, a STOP (or CANCEL, or the end of stdin), or a PAUSE alone.
@@ -274,6 +274,17 @@ static void choose_language(const char *lang)
         if (!strncmp(sdv_language(i), lang, 2) && sdv_available(i, &conf)) { cur_voice = i; return; }
 }
 
+/* What ends a message that a STOP or a PAUSE cut short: 703 for both.  The protocol has 704 for a pause, and
+   speech-dispatcher's own modules send it, but they also report index marks (700), which this module does not; on
+   704 the server waits for the playback to reach a mark before it calls the message paused, so with none it never
+   does, and RESUME speaks nothing (measured on speech-dispatcher 0.11.1 with the server playing the audio:
+   test_real_server.sh).  On 703 it stops, keeps the message it had put on its paused list, and on RESUME speaks it
+   again from the start.  (SD_SSI263_TEST_PAUSE_704=1, a control: the 704 that 3b6ea48 answered for two days.) */
+static const char *stop_event(int how)
+{
+    return how == PAUSED && getenv("SD_SSI263_TEST_PAUSE_704") ? "704 PAUSE" : "703 STOP";
+}
+
 /* ---- SPEAK ------------------------------------------------------------------------------------------------------- */
 static void speak(char *text)
 {
@@ -286,14 +297,11 @@ static void speak(char *text)
         send_line("301 ERROR CANT SPEAK");
         return;
     }
-    /* A PAUSE ends the message as a STOP does (the unit cancelled, its unspoken text dropped), but the server is told
-       704, not 703: on 703 it gives the message up, on 704 it keeps it to speak again on RESUME (speech-dispatcher's
-       output.c, output_module_is_speaking). */
     stopped = poll_stop();
     if (stopped) {                                   /* already stopped (key repeat): nothing to say */
         send_line("200 OK SPEAKING");
         send_line("701 BEGIN");
-        send_line(stopped == PAUSED ? "704 PAUSE" : "703 STOP");
+        send_line(stop_event(stopped));
         return;
     }
     send_line("200 OK SPEAKING");
@@ -309,7 +317,7 @@ static void speak(char *text)
     if (stopped) {
         if (!getenv("SD_SSI263_TEST_NO_CANCEL"))
             sdv_cancel(v);
-        send_line(stopped == PAUSED ? "704 PAUSE" : "703 STOP");
+        send_line(stop_event(stopped));
     } else {
         send_line("702 END");
     }

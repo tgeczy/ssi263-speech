@@ -14,8 +14,9 @@ same PCM:
 the protocol's corners, as speech-dispatcher 0.11.1's server sends them (output.c) and its own modules answer them
 (module_process.c):
 
-  pause    PAUSE after 5 audio blocks: the unit cancelled as for a STOP; pause_ev: the message ended with 704 PAUSE (on
-           703 the server gives the message up, on 704 it keeps it for RESUME); p_after: the next message whole
+  pause    PAUSE after 5 audio blocks: the unit cancelled as for a STOP; pause_ev: the message ended with 703 STOP, on
+           which a real server speaks it again on RESUME -- on 704 it does not, for a module that reports no index
+           marks (test_real_server.sh, on speech-dispatcher itself); p_after: the next message whole
   char     CHAR a speaks "a"; icon: a SOUND_ICON (there are none) is answered and ends with no audio
   unknown  an unknown command is answered 300, and the module goes on
   debug    "DEBUG ON <file>" and "DEBUG OFF" are answered 200 OK DEBUGGING ON / OFF, a bad one 302
@@ -61,8 +62,8 @@ one: the Braille Lite's files from <data folder>, and aicom-accent-sa/, aicom-ac
 
     python3 test_sd_ssi263.py <sd_ssi263> <libssi263speech.so> <data folder>
     SD_SSI263_TEST_NO_CANCEL=1 in the environment: the module leaves the unit uncancelled -- "stop" must FAIL
-    SD_SSI263_TEST_OLD_REPLIES=1: PAUSE, DEBUG and QUIT answered as up to 0.9.1 -- pause_ev, debug, dbg_mid and quit
-                                  must FAIL
+    SD_SSI263_TEST_OLD_REPLIES=1: DEBUG and QUIT answered as up to 0.9.1 -- debug, dbg_mid and quit must FAIL
+    SD_SSI263_TEST_PAUSE_704=1: a PAUSE answered 704 -- pause_ev must FAIL
     SD_SSI263_TEST_IGNORE_RUN_AHEAD=1: the module drops SSI263RunAhead -- the ra_ checks must FAIL
     SD_SSI263_TEST_IGNORE_LINE_LIFT=1: the module drops SSI263LineLift -- lift must FAIL
     SD_SSI263_TEST_IGNORE_BL_NUMBERS=1: the module drops SSI263BrailleLiteNumbers (the default reaches the unit) --
@@ -496,7 +497,7 @@ assert p.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
 pref = Ref()
 pcm1, ev1, pblocks = p.speak(LONG, stop_after=5, stop_cmd="PAUSE")
 results.append(same("pause", pcm1, pref.say(LONG, blocks=pblocks)))
-results.append(said("pause_ev", ev1 == "704 PAUSE", "a PAUSE after %d blocks ended the message with %s" % (pblocks, ev1)))
+results.append(said("pause_ev", ev1 == "703 STOP", "a PAUSE after %d blocks ended the message with %s" % (pblocks, ev1)))
 pcm2, ev2, _ = p.speak("And the next message.")
 results.append(same("p_after", pcm2, pref.say("And the next message.")) and ev2 == "702 END")
 p.send("QUIT")

@@ -16,8 +16,9 @@
 # after the 3.9 s cancel (R1=40, R0=C0), so it is not compared; the times legitimately differ.  The module
 # harness checks speech-dispatcher's protocol and every message's audio (run ahead too) on every voice it offers (the
 # Braille Lite, the Accent SA, and the Accent-mini and Speak-Out when built in) and the Braille Lite's number words,
-# and its controls (the unit never cancelled; PAUSE, DEBUG and QUIT answered as up to 0.9.1; SSI263RunAhead,
-# SSI263BrailleLiteNumbers, SSI263LineLift and SSI263AccentInflection each ignored) must fail; the no-GPL audit
+# and its controls (the unit never cancelled; DEBUG and QUIT answered as up to 0.9.1; a PAUSE answered 704;
+# SSI263RunAhead, SSI263BrailleLiteNumbers, SSI263LineLift and SSI263AccentInflection each ignored) must fail, and
+# where speech-dispatcher and a sound server are there the module is run under a real server too; the no-GPL audit
 # (tools/check_no_gpl.py) searches the library, the module, the package and the wheel, and its controls must fail.
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA="$(cd "${1:-$ROOT/nvda/dist/blazie-build/synthDrivers/_ssi263_blazie}" && pwd)"
@@ -181,15 +182,37 @@ control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^s
     "^pause +module .*identical" "^p_after +module .*DIFFER" \
     "^num_off +module .*identical" "^$((N - 9)) of $N checks passed" -- env SD_SSI263_TEST_NO_CANCEL=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
-# PAUSE, DEBUG and QUIT answered as up to 0.9.1: a PAUSE ended with 703 (the server gives the message up), "DEBUG ON
-# <file>" an unknown command -- and one whose file name holds the words stops the message -- and QUIT unanswered; the
-# audio around them, CHAR, a sound icon and an unknown command still pass
-control "module CONTROL (PAUSE, DEBUG and QUIT answered as before, must fail)" "^pause +module .*identical" \
-    "^pause_ev .*703 STOP: NOT as expected" "^p_after +module .*identical" "^char +module .*identical" \
+# DEBUG and QUIT answered as up to 0.9.1: "DEBUG ON <file>" an unknown command -- and one whose file name holds the
+# words stops the message -- and QUIT unanswered; the pause, the audio around them, CHAR, a sound icon and an unknown
+# command still pass
+control "module CONTROL (DEBUG and QUIT answered as before, must fail)" "^pause +module .*identical" \
+    "^pause_ev .*703 STOP: as expected" "^p_after +module .*identical" "^char +module .*identical" \
     "^icon .*: as expected" "^unknown .*: as expected" "^debug .*300 ERR UNKNOWN COMMAND.*: NOT as expected" \
     "^dbg_mid +module .*DIFFER" "^dbg_mid .*703 STOP.*: NOT as expected" "^quit .*answered nothing.*: NOT as expected" \
-    "^$((N - 4)) of $N checks passed" -- env SD_SSI263_TEST_OLD_REPLIES=1 \
+    "^$((N - 3)) of $N checks passed" -- env SD_SSI263_TEST_OLD_REPLIES=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
+# a PAUSE answered 704, the protocol's word for it, which a real server cannot resume from without index marks
+# (below): only pause_ev fails
+control "module CONTROL (a PAUSE answered 704, must fail)" "^pause +module .*identical" \
+    "^pause_ev .*704 PAUSE: NOT as expected" "^p_after +module .*identical" "^quit .*: as expected" \
+    "^$((N - 1)) of $N checks passed" -- env SD_SSI263_TEST_PAUSE_704=1 \
+    python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
+# the module under speech-dispatcher itself (a private server, a null sink: silent), where a sound server answers:
+# a message paused and resumed is spoken again, and the server closes the module on its answer to QUIT.  Its controls
+# are the 704 (the server never resumes) and the unanswered QUIT (a broken pipe)
+if command -v speech-dispatcher > /dev/null && command -v pactl > /dev/null \
+        && XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" timeout 10 pactl info > /dev/null 2>&1; then
+    check "speech-dispatcher module under a real server (pause and resume, quit)" \
+        sh src/platforms/speechd/test_real_server.sh build/linux/sd_ssi263 "$DATA"
+    control "real server CONTROL (a PAUSE answered 704, must fail)" "^FAIL +pause and resume: 1 pause, 0 resume" \
+        "^ok +quit: " "^real server: FAILED$" \
+        -- env SD_SSI263_TEST_PAUSE_704=1 sh src/platforms/speechd/test_real_server.sh build/linux/sd_ssi263 "$DATA"
+    control "real server CONTROL (QUIT unanswered, must fail)" "^ok +pause and resume: " "^FAIL +quit: 0 clean close" \
+        "^real server: FAILED$" \
+        -- env SD_SSI263_TEST_OLD_REPLIES=1 sh src/platforms/speechd/test_real_server.sh build/linux/sd_ssi263 "$DATA"
+else
+    echo "skip  speech-dispatcher module under a real server: needs speech-dispatcher and a sound server (pactl)"
+fi
 # the run-ahead key (SSI263RunAhead, EXPERIMENTAL) dropped on its way to the voice: the module speaks the lockstep, so
 # every run-ahead check against the run-ahead reference fails, and this user's 0 over the module file's 1 still passes
 control "module CONTROL (SSI263RunAhead ignored, must fail)" "^speak +module .*identical" \
