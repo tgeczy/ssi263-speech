@@ -51,6 +51,13 @@
   ancestor in silicon: the ROM array, the filter capacitors and the "(c) 1980" mark.
 - **redcedar's Votrax pages** (about 2006-2007): the SC-01 / SC-01-A difference from Jonathan Gevaryahu's 2007 decap,
   and what became of Silicon Systems (TI's storage group, TDK's semiconductor arm).
+- **Texas Instruments' own notices of buying Silicon Systems:** "TI to acquire Silicon Systems Inc." in its
+  Integration magazine (July 1996, vol. 13, no. 5), and its press release of 3 March 1997 on Intersect
+  Technologies, which gives July 1996 for the purchase. Both are on a TI semiconductor CD-ROM (SLYC005B) kept at
+  archive.retro.co.za.
+- **Semtech's fab in Santa Clara:** the Agreement and Plan of Merger of 4 October 1995 between Semtech and Gamma
+  Inc. (dba ECI Semiconductor); Semtech's annual reports (Form 10-K) for the years ending January 1996 and
+  January 2001, at the SEC; and the notice of the fab's sale to STI Foundry Inc. (25 April 2001).
 - **Steve Ciarcia's SSI-263 article, Byte, March 1984:** a project with register listings.
 - **Elovitz et al., 1976, the NRL letter-to-sound rules:** the notation of the Braille Lite
   and Speak-Out rule tables.

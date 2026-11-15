@@ -52,9 +52,12 @@ way, and those withdrawals are part of the record too.
   mispronounced words she was given was "David", then said with a short a. The June 2003
   Braille Lite firmware this project runs still carries her fix: "David" comes out
   D A A E V I D, with a long a.
-- **1998.** TI takes over Silicon Systems' storage products group. The speech chips don't go with it: asked in 2006,
-  neither TI nor TDK's semiconductor arm (later Teridian) could say anything about the 263 (redcedar's Votrax
-  pages).
+- **1996.** Texas Instruments buys Silicon Systems from TDK. TI's Integration magazine of July 1996 reports the
+  signing of the agreement, for about $575 million, and a TI press release of 3 March 1997 says "In July, 1996, TI
+  acquired Silicon Systems Incorporated", by then a maker of chips "primarily aimed at the hard disk drive and
+  removable storage marketplaces". Not all of it went: "SSi's Communications Products Division and TDK Systems
+  Division are not part of the transaction." Neither notice mentions the speech chip. Asked in 2006, neither TI
+  nor TDK's semiconductor arm (later Teridian) could say anything about the 263 (redcedar's Votrax pages).
 - **2007.** Jonathan Gevaryahu decaps the SC-01 and SC-01-A and reads their ROMs, the ground for MAME's die-derived
   SC-01 model.
 - **Visual6502.org** photographs an SSI-263P die from chips an anonymous donor sent: Greg
@@ -357,7 +360,14 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 ### 1997 to 2003
 
 - **Semtech's 263** (marking). A photograph of an opened Braille 'n Speak 2000 shows its speech chip marked
-  "SSI 263-2-2 / SEMTECH": in that unit, Semtech, not Silicon Systems, made the chip.
+  "SSI 263-2-2 / SEMTECH": in that unit, Semtech, not Silicon Systems, made the chip. Semtech had a wafer fab
+  that took outside work for just these years. Its agreement to merge with Gamma Inc., "dba ECI Semiconductor",
+  is dated 4 October 1995; Semtech's annual report for that year describes ECI as an analog semiconductor maker
+  whose main business was foundry wafers, and renames it Semtech Santa Clara. On 19 March 2001 Semtech announced
+  it was "exiting the foundry services business", and by 25 April it had sold the Santa Clara fab to STI Foundry
+  Inc. So from October 1995 to April 2001 Semtech could make another company's chip to order, which is a window
+  this chip fits; it is not evidence of where the chip was made, or for whom. A date code on a Semtech-marked 263
+  would test it: this one's date line is not visible in the photograph.
 - **Artic's Spirit** (document). The Spirit 600 and 600B, a portable serial synthesizer from Artic (its manual's 248
   telephone area code dates it to 1997 or later), with "a TRUE phoneme speech synthesis chip" that blends phonemes
   rather than playing samples; it takes the TransPort's commands and the Accent SA's. The manual doesn't name the
