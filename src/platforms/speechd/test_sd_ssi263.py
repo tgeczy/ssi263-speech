@@ -47,8 +47,8 @@ check could not tell; the references have them on as the module's default does:
 The other voices (0.7.1, "every voice on Linux"), each against its own voice driven directly through the same calls
 (libsd_voices_ref.so, beside the module: the module's own engine objects, ctypes), in a session of their own:
 
-  voices   LIST VOICES: every voice built in whose files are there, by the add-ons' names, with its language --
-           the Accent SA always (Aicom's ROMs are in the repository)
+  voices   LIST VOICES: every voice built in whose files are there, by the add-ons' names, with its language and an
+           empty variant -- the Accent SA always (Aicom's ROMs are in the repository)
   <v>_speak, <v>_stop, <v>_after, <v>_set   as above, on that voice (SET synthesis_voice), its unit one for the session
   <v>_bl   the Braille Lite again in the same session (SET synthesis_voice), and <v>_back: that voice once more,
            its unit as it was left; <v>_lang: SET language=en keeps that voice (it speaks English)
@@ -62,7 +62,8 @@ one: the Braille Lite's files from <data folder>, and aicom-accent-sa/, aicom-ac
 
     python3 test_sd_ssi263.py <sd_ssi263> <libssi263speech.so> <data folder>
     SD_SSI263_TEST_NO_CANCEL=1 in the environment: the module leaves the unit uncancelled -- "stop" must FAIL
-    SD_SSI263_TEST_OLD_REPLIES=1: DEBUG and QUIT answered as up to 0.9.1 -- debug, dbg_mid and quit must FAIL
+    SD_SSI263_TEST_OLD_REPLIES=1: DEBUG and QUIT answered, and the voices listed, as up to 0.9.1 -- voices, debug,
+                                  dbg_mid and quit must FAIL
     SD_SSI263_TEST_PAUSE_704=1: a PAUSE answered 704 -- pause_ev must FAIL
     SD_SSI263_TEST_IGNORE_RUN_AHEAD=1: the module drops SSI263RunAhead -- the ra_ checks must FAIL
     SD_SSI263_TEST_IGNORE_LINE_LIFT=1: the module drops SSI263LineLift -- lift must FAIL
@@ -432,7 +433,7 @@ EXPECTED += [(r["vname"], r["tag"], ("bl2000/" + r["file"], "bl2000/%s.state" % 
              for r in gen_languages.rows()[0] if r["voice"].startswith("blazie_")]
 # then Automated Functions' SmarTalk (sd_voices.c, last), its S_TALK.EXE in the data folder
 EXPECTED += [("SmarTalk (Automated Functions)", "en-US", ("automated-functions-smartalk/S_TALK.EXE",))]
-want = ["200-%s\t%s\tMALE1" % (n, lang) for n, lang, files in EXPECTED
+want = ["200-%s\t%s\t" % (n, lang) for n, lang, files in EXPECTED       # the variant empty: no "MALE1" (PR 29)
         if n in BUILT_NAMES and all(os.path.isfile(os.path.join(VDATA, f)) for f in files)] + ["249 OK VOICES LISTED"]
 ok = voices == want and "Accent SA" in listed and set(BUILT_NAMES) <= {e[0] for e in EXPECTED}
 print("voices   %d listed, built in: %s: %s" % (len(listed), ", ".join(BUILT_NAMES),

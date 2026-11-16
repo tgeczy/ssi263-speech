@@ -100,7 +100,7 @@ static char *readline_sd(void)
 }
 
 /* A control (test_sd_ssi263.py, tools/linux_tests.sh): the replies as they were up to 0.9.1 -- STOP and PAUSE looked
-   for anywhere in what waits, "DEBUG ON <file>" an unknown command, QUIT unanswered. */
+   for anywhere in what waits, "DEBUG ON <file>" an unknown command, QUIT unanswered, every voice listed as "MALE1". */
 static int old_replies(void) { return getenv("SD_SSI263_TEST_OLD_REPLIES") != NULL; }
 
 /* What waits on stdin for the message being spoken: nothing, a STOP (or CANCEL, or the end of stdin), or a PAUSE alone.
@@ -441,9 +441,13 @@ int main(int argc, char **argv)
             send_line("203 OK SETTINGS RECEIVED");
         } else if (!strcmp(cmd, "LIST VOICES")) {
             int i;
+            /* name, language, variant, the variant empty.  Every voice carried "MALE1" there: one of SSIP's generic
+               voice types, and no variant of anything.  By PR 29's report a newer Orca then showed no voice names in
+               its person list; with the column empty speech-dispatcher's clients read "no variant" and list the voices
+               by name (test_real_server.sh).  (old_replies(), a control: the MALE1 it was.) */
             for (i = 0; i < sdv_count(); i++)
                 if (sdv_available(i, &conf))
-                    printf("200-%s\t%s\t\n", sdv_name(i), sdv_language(i));
+                    printf("200-%s\t%s\t%s\n", sdv_name(i), sdv_language(i), old_replies() ? "MALE1" : "");
             send_line("249 OK VOICES LISTED");
         } else if (!strcmp(cmd, "QUIT")) {
             if (!old_replies())                      /* the server waits for it (output_close's SEND_CMD) */

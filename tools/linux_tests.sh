@@ -185,11 +185,12 @@ control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^s
 # DEBUG and QUIT answered as up to 0.9.1: "DEBUG ON <file>" an unknown command -- and one whose file name holds the
 # words stops the message -- and QUIT unanswered; the pause, the audio around them, CHAR, a sound icon and an unknown
 # command still pass
-control "module CONTROL (DEBUG and QUIT answered as before, must fail)" "^pause +module .*identical" \
+control "module CONTROL (DEBUG and QUIT answered, the voices listed, as before, must fail)" \
+    "^voices +[0-9]+ listed.*: NOT as expected" "^pause +module .*identical" \
     "^pause_ev .*703 STOP: as expected" "^p_after +module .*identical" "^char +module .*identical" \
     "^icon .*: as expected" "^unknown .*: as expected" "^debug .*300 ERR UNKNOWN COMMAND.*: NOT as expected" \
     "^dbg_mid +module .*DIFFER" "^dbg_mid .*703 STOP.*: NOT as expected" "^quit .*answered nothing.*: NOT as expected" \
-    "^$((N - 3)) of $N checks passed" -- env SD_SSI263_TEST_OLD_REPLIES=1 \
+    "^$((N - 4)) of $N checks passed" -- env SD_SSI263_TEST_OLD_REPLIES=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # a PAUSE answered 704, the protocol's word for it, which a real server cannot resume from without index marks
 # (below): only pause_ev fails
@@ -202,13 +203,14 @@ control "module CONTROL (a PAUSE answered 704, must fail)" "^pause +module .*ide
 # are the 704 (the server never resumes) and the unanswered QUIT (a broken pipe)
 if command -v speech-dispatcher > /dev/null && command -v pactl > /dev/null \
         && XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" timeout 10 pactl info > /dev/null 2>&1; then
-    check "speech-dispatcher module under a real server (pause and resume, quit)" \
+    check "speech-dispatcher module under a real server (pause and resume, voices, quit)" \
         sh src/platforms/speechd/test_real_server.sh build/linux/sd_ssi263 "$DATA"
     control "real server CONTROL (a PAUSE answered 704, must fail)" "^FAIL +pause and resume: 1 pause, 0 resume" \
-        "^ok +quit: " "^real server: FAILED$" \
+        "^ok +voices: " "^ok +quit: " "^real server: FAILED$" \
         -- env SD_SSI263_TEST_PAUSE_704=1 sh src/platforms/speechd/test_real_server.sh build/linux/sd_ssi263 "$DATA"
-    control "real server CONTROL (QUIT unanswered, must fail)" "^ok +pause and resume: " "^FAIL +quit: 0 clean close" \
-        "^real server: FAILED$" \
+    control "real server CONTROL (QUIT unanswered, the voices as MALE1, must fail)" "^ok +pause and resume: " \
+        "^FAIL +voices: [0-9]+ listed to a client, [0-9]+ with a name and a language, [1-9][0-9]* with a variant" \
+        "^FAIL +quit: 0 clean close" "^real server: FAILED$" \
         -- env SD_SSI263_TEST_OLD_REPLIES=1 sh src/platforms/speechd/test_real_server.sh build/linux/sd_ssi263 "$DATA"
 else
     echo "skip  speech-dispatcher module under a real server: needs speech-dispatcher and a sound server (pactl)"

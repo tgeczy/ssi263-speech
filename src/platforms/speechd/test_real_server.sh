@@ -8,10 +8,12 @@
 #   pause and resume   after PAUSE and RESUME the server speaks the message again (two "Module speak!", and its
 #                      "Resume requested").  With the module answering 704 PAUSE it never does: the server waits for
 #                      an index mark the module does not report, and the rest of the message is lost.
+#   voices             LIST SYNTHESIS_VOICES gives a client every voice by name and language, none with a variant
+#                      (each carried "MALE1"; by PR 29's report a newer Orca then showed no names in its person list)
 #   quit               the server closes the module on its "210 OK QUIT" ("module closed successfully"), no broken pipe
 #
 # Controls: SD_SSI263_TEST_PAUSE_704=1, the module answers a PAUSE with 704 -- pause and resume must FAIL;
-# SD_SSI263_TEST_OLD_REPLIES=1, QUIT unanswered -- quit must FAIL.
+# SD_SSI263_TEST_OLD_REPLIES=1, QUIT unanswered and the voices listed as MALE1 -- voices and quit must FAIL.
 # Needs speech-dispatcher, python3 and a PulseAudio (or PipeWire) server for the null sink: without one of them it
 # says "skip" and exits 0, which is not a pass.
 MOD="$1"; DATA="$(cd "$2" && pwd)"
@@ -55,6 +57,17 @@ def cmd(line):
             return r
 cmd("SET self CLIENT_NAME test:sd_ssi263:main")
 cmd("SET self OUTPUT_MODULE ssi263")
+# the voices as a client is given them: one line each, name TAB language TAB variant
+f.write(b"LIST SYNTHESIS_VOICES\r\n"); f.flush()
+voices = []
+while True:
+    r = f.readline().decode("utf-8", "replace").rstrip("\r\n")
+    if len(r) < 4 or r[3] == " ":
+        break
+    voices.append(r[4:].split("\t"))
+with open(sys.argv[1] + ".voices", "w") as out:
+    out.write("%d %d %d\n" % (len(voices), sum(1 for v in voices if len(v) == 3 and v[0] and v[1]),
+                              sum(1 for v in voices if len(v) > 2 and v[2].strip())))
 f.write(b"SPEAK\r\n"); f.flush(); f.readline()
 f.write(b"This is a long message for the pause test, with a comma or two, that keeps going well past the moment "
         b"the client says pause. It has a second sentence as well, and a third one after it.\r\n.\r\n"); f.flush()
@@ -76,6 +89,13 @@ if [ "$(n 'Module pause!')" = 1 ] && [ "$(n 'Resume requested')" = 1 ] && [ "$(n
     echo "ok    pause and resume: the server spoke the message again after RESUME"
 else
     echo "FAIL  pause and resume: $(n 'Module pause!') pause, $(n 'Resume requested') resume taken up, $(n 'Module speak!') speak (want 1, 1, 2); the module's answers: $(n 'got paused') paused, $(n 'got stopped') stopped"
+    FAIL=1
+fi
+read -r V_ALL V_NAMED V_VARIANT < "$SOCK.voices" 2>/dev/null || { V_ALL=0; V_NAMED=0; V_VARIANT=0; }
+if [ "$V_ALL" -gt 0 ] && [ "$V_NAMED" = "$V_ALL" ] && [ "$V_VARIANT" = 0 ]; then
+    echo "ok    voices: $V_ALL listed to a client by name and language, none with a variant"
+else
+    echo "FAIL  voices: $V_ALL listed to a client, $V_NAMED with a name and a language, $V_VARIANT with a variant (want none)"
     FAIL=1
 fi
 if [ "$(n 'module closed successfully')" = 1 ] && [ "$(n 'Broken pipe to module')" = 0 ]; then
