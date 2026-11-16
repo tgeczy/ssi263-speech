@@ -624,6 +624,7 @@ with each release.
 | 0.8.5 | Tomi, and a Braille 'n Speak 640 owner (issue #15) | **GW Micro's Sounding Board** as a voice; the Braille 'n Speak 640 in the emulator, with the first Polish Braille 'n Speak firmware we know of; the double-speed upgrade; a unit screen on Android; pitch glides on the law measured on a real chip (engine v0.20) |
 | 0.9.0 | RetroBunn (PR #24); Steve (PR #23) | **Automated Functions' SmarTalk** on every platform; the Mockingboard starts each text clean; long texts on the Sounding Board and Speak-Out speak to the end; double speed no longer holds a vowel; the BT Speak's Blazie menus follow the device's own |
 | 0.9.1 | Tom and Tyler, listeners; Steve (PR #26) | The SmarTalk says contractions as words; at slow rates the Speak-Out and Sounding Board no longer start a letter with the end of the last; the release builds the BT Speak package itself |
+| 0.9.2 | Daniel (PR #29); Zachary (PR #27); Steve (PR #28) | The SAPI voices follow a program's volume, its changes of rate and pitch inside a text, spelling and skipping by sentence; Orca shows the voices by name; an update over a running voice on Linux finishes; the emulator keeps the owner's name and all 768 KB of a unit's memory |
 
 ## 0.7 migration credits (2026-09-30, release preparation)
 
