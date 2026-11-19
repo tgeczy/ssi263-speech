@@ -770,7 +770,7 @@ control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL 
 # marks passed read from its memory (SPKEMS.DVC is in the repository: it always runs)
 check "am_voice: index marks by the driver's own Ctrl-F" python3 nvda/tools/am_marks.py build/linux/libssi263_voices.so
 control "am_voice marks CONTROL (every mark with the first block, must fail)" "^FAIL place " "^FAIL clause " \
-    "^FAIL twins " "^FAIL end " "^FAIL dense " "^FAIL cancel " "^ok +frames " "^am marks: 7 FAILED$" \
+    "^FAIL job " "^FAIL twins " "^FAIL end " "^FAIL dense " "^FAIL cancel " "^ok +frames " "^am marks: 8 FAILED$" \
     -- env AM_MARKS_BREAK=1 python3 nvda/tools/am_marks.py build/linux/libssi263_voices.so
 control "am_voice marks CONTROL (a Ctrl-F for every mark on a word, must fail)" \
     "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^FAIL dash .*2 Ctrl-F after 'No'" \

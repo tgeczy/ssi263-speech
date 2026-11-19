@@ -21,6 +21,9 @@ count of marks passed rises (am_host.h amh_replies).
            duration, articulation or inflection bits (the same phoneme), and nothing more than SHIFT_MS later
   capital  a capital's pitch (ESC P printed before the marked text, and again after it): every frame as with the
            pitch and no marks, and the marks where they are without the pitch
+  job      the NVDA driver's way (amv_begin, amv_expect and amv_text for each line, amv_pitch between them: a say all
+           with a capital in it): three marked lines with a pitch command before the second and the third, every
+           mark exact and inside its own line's audio, in two jobs running
   twins    two marks on one word are reported together
   end      a mark after the last word is reported with the utterance's last sample
   dense    a mark before every word of a long sentence (Orca's way): all reported once, in order, at as many places
@@ -30,7 +33,7 @@ count of marks passed rises (am_host.h amh_replies).
     python am_marks.py [ssi263speech library]
 
 Controls (AM_MARKS_BREAK, am_voice.c amv_marks_break): 1 reports every mark with the first block (fails place, clause,
-twins, end, dense, cancel); 2 gives the driver a Ctrl-F for every mark (fails same and dash); 3 leaves the marks
+job, twins, end, dense, cancel); 2 gives the driver a Ctrl-F for every mark (fails same and dash); 3 leaves the marks
 after a cancel (fails cancel); 4 puts the Ctrl-F inside the word it should follow (fails bytes, and frames: the
 phonemes change).
 """
@@ -85,6 +88,11 @@ def load():
     lib.amv_say_bytes.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.amv_say_bytes_marked.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.POINTER(Mark), ctypes.c_int,
                                          ctypes.c_char_p, ctypes.c_int]
+    for name in ("amv_begin", "amv_end"):
+        getattr(lib, name).argtypes = [ctypes.c_void_p]
+    lib.amv_pitch.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    lib.amv_text.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.amv_expect.argtypes = [ctypes.c_void_p, ctypes.POINTER(Mark), ctypes.c_int]
     ctypes.c_int.in_dll(lib, "amv_marks_break").value = BREAK
     return lib
 
@@ -362,6 +370,40 @@ def main():
                                else "NOT as with the pitch and no marks", len(got), apart))
     lib.amh_set_int(h, b"log_writes", 0)
     lib.amh_clear_writes(h)
+
+    def job_text(line, ids):
+        """one text of a job, its Ctrl-Fs in it and the caller's numbers for them: ([(id, sample, exact)], samples)"""
+        arr = (Mark * len(ids))()
+        for k, i in enumerate(ids):
+            arr[k].at, arr[k].id = k + 1, i
+        lib.amv_expect(v, arr, len(ids))
+        lib.amv_text(v, line + b"\r", len(line) + 1)
+        pcm, done, got, total, blocks = ctypes.POINTER(ctypes.c_short)(), ctypes.c_int(0), [], 0, 0
+        r = ctypes.POINTER(Reached)()
+        while not done.value and blocks < MAX_BLOCKS:
+            n = lib.amv_render(v, ctypes.byref(pcm), ctypes.byref(done))
+            for k in range(lib.amv_reached(v, ctypes.byref(r))):
+                got.append((r[k].id, total + r[k].sample, r[k].exact))
+            total += n
+            blocks += 1
+        return got, total
+
+    wrong, n_marks = [], 0
+    for trial in range(2):
+        lib.amv_begin(v)
+        for line, ids, pitch in ((b"one two\x06 three four\x06 five six", [1, 2], None),
+                                 (b"Seven eight\x06 nine ten\x06 eleven", [3, 4], 20),
+                                 (b"twelve one\x06 two three\x06 four", [5, 6], 0)):
+            if pitch is not None:
+                lib.amv_pitch(v, pitch)
+            got, total = job_text(line, ids)
+            n_marks += len(got)
+            if [g[0] for g in got] != ids or not all(0 < s < total and e == 1 for _, s, e in got):
+                wrong.append("job %d, %r: %s of %d samples" % (trial + 1, line, got, total))
+        lib.amv_end(v)
+    check("job", not wrong, "; ".join(wrong[:2]) if wrong else
+          "two jobs of three marked lines, a pitch command before the second and the third: %d of 12 marks, each exact "
+          "and inside its own line" % n_marks)
 
     text = "one. nine. one."
     y, got, done, _ = run(lib, v, text, [5, 5, 11])

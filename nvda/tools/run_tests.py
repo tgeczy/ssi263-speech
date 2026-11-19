@@ -1767,8 +1767,8 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
     CHECKS.append(check("am_voice: index marks by the driver's own Ctrl-F", [PY, "am_marks.py"]))
     CHECKS.append(check("am_voice marks CONTROL (every mark with the first block, must fail)", [PY, "am_marks.py"],
                         env={"AM_MARKS_BREAK": "1"}, expect_fail=True,
-                        fail_marks=[r"^FAIL place ", r"^FAIL clause ", r"^FAIL twins ", r"^FAIL end ", r"^FAIL dense ",
-                                    r"^FAIL cancel ", r"^ok +frames ", r"^am marks: 7 FAILED$"]))
+                        fail_marks=[r"^FAIL place ", r"^FAIL clause ", r"^FAIL job ", r"^FAIL twins ", r"^FAIL end ",
+                                    r"^FAIL dense ", r"^FAIL cancel ", r"^ok +frames ", r"^am marks: 8 FAILED$"]))
     CHECKS.append(check("am_voice marks CONTROL (a Ctrl-F for every mark on a word, must fail)", [PY, "am_marks.py"],
                         env={"AM_MARKS_BREAK": "2"}, expect_fail=True,
                         fail_marks=[r"^FAIL same +three marks on one word: \[.3 Ctrl-F before 'two'",
