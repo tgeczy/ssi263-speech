@@ -71,7 +71,8 @@ before every word), in a session of their own, counted apart ("index marks: n of
   m_empty  a message of marks alone: its marks, then 702, no audio
   m_stop   STOP in a marked message: no 700 after the 703, and m_after: the next message reports its own marks
            only, all of them
-  m_as     the Accent SA (its marks estimated): every mark once and in order, the audio the unmarked reference's
+  m_as     the Accent SA (its own index marks, as_voice.h): as "marks", against a reference Accent SA given the
+           same marks
 
     python3 test_sd_ssi263.py <sd_ssi263> <libssi263speech.so> <data folder>
     SD_SSI263_TEST_MARKS_LATE=1: each block's audio sent before its marks -- marks must FAIL
@@ -346,6 +347,28 @@ class EngineRef:
                     self.f("cancel")(self.v)
                     break
         return b"".join(out)
+
+    def say_marked(self, text, ats):
+        """(PCM of the message, [(mark's index, samples before it)]): the Accent SA with a mark at each offset"""
+        assert self.key == "as"
+        ref_lib.asv_speak_marked.argtypes = [_P, _S, _I, ctypes.POINTER(Mark), _I]
+        ref_lib.asv_reached.argtypes = [_P, ctypes.POINTER(ctypes.POINTER(Reach))]
+        self._set(0, 0, 100)
+        arr = (Mark * max(1, len(ats)))()
+        for k, at in enumerate(ats):
+            arr[k].at, arr[k].id = at, k
+        ref_lib.asv_speak_marked(self.v, text.encode("utf-8"), 0, arr, len(ats))
+        pcm, done, out, got, total = ctypes.POINTER(ctypes.c_short)(), ctypes.c_int(0), [], [], 0
+        r = ctypes.POINTER(Reach)()
+        while not done.value:
+            n = self.f("render")(self.v, ctypes.byref(pcm), ctypes.byref(done))
+            for k in range(ref_lib.asv_reached(self.v, ctypes.byref(r))):
+                got.append((r[k].id, total + max(0, min(n, r[k].sample))))
+            if n:
+                out.append(ctypes.string_at(pcm, 2 * n))
+            total += n
+        return b"".join(out), got
+
 
 # ---- the server's side of the protocol --------------------------------------------------------------------------
 class Module:
@@ -836,12 +859,13 @@ asr = EngineRef("as")
 TEXT_AS = "this is a plain line of words, and then it goes on some more, until it ends"
 ssml, ats, names = marked(TEXT_AS)
 pcm, ev, _ = k.speak(ssml)
-ok = same("m_as", pcm, asr.say(TEXT_AS))
-at = [a for _, a in k.marks]
-marks.append(said("m_as", ok and [m[0] for m in k.marks] == names and at == sorted(at) and at[0] == 0
-                  and at[-1] > 0.5 * (len(pcm) // 2),
-                  "the Accent SA, estimated: %d of %d marks, in order %s, the last at %.2f of the audio" % (
-                      len(k.marks), len(names), at == sorted(at), at[-1] / float(len(pcm) // 2 or 1) if at else 0)))
+want, reached = asr.say_marked(TEXT_AS, ats)
+ok = same("m_as", pcm, want)
+where = [(names[i], at) for i, at in reached]
+marks.append(said("m_as", ok and k.marks == where and [m[0] for m in k.marks] == names
+                  and len(set(at for _, at in where)) >= len(names) - 2,
+                  "the Accent SA: %d of %d marks, in the text's order %s, each with the reference's audio before it %s" % (
+                      len(k.marks), len(names), [m[0] for m in k.marks] == names, k.marks == where)))
 k.send("QUIT")
 k.p.wait(timeout=10)
 print("index marks: %d of %d checks passed" % (sum(marks), len(marks)))
