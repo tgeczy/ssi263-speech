@@ -194,7 +194,15 @@ takes to finish ahead of the caller.
   five-word request in the test: up to 1.35 s late). A bookmark at a text's start or end, or between two
   utterances, was in place before and still is. A spelled text's bookmarks are still sent after it. Not tried
   with NVDA or JAWS themselves yet.
-- **Android, Apple.** Not on `ssv_speak_marked` yet. Android has ranges of the text but no marks, and what
+- **Android.** A request carries no marks; an engine can tell the framework which part of the text is being
+  spoken (`SynthesisCallback.rangeStart`), and TalkBack takes that (its `FailoverTextToSpeech.onRangeStart`). With
+  the app's setting "Tell Android which word is being spoken" on, the service marks every word's start and
+  reports each word at its frame of the audio (`SsiTtsService.kt`, `ssa_engine.h` `ssa_start_marked`). The setting
+  is OFF by default: nobody asks for these marks as NVDA's say all or Orca do, and a mark at every word moves
+  some units' pauses (above). Only a unit's own marks are used (`ssv_marks_exact`): the estimate renders the unit
+  eight blocks ahead for each one returned, which a phone may not have the speed for, so the estimated voices
+  speak as before and report no words. Not tried on a phone or with TalkBack yet.
+- **Apple.** Not on `ssv_speak_marked` yet: what
   VoiceOver sends has to be captured on a device first.
 
 ## Tests

@@ -309,6 +309,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=voice-order           # control: the Sounding Board under the Speak-Out must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=export                # control: the exported WAV's case must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=unopened              # control: a zip in a zip dropped in silence: must FAIL
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=words                 # control: the marked words' UTF-8 offsets must FAIL
 
 `test_import_native.py` makes every fixture at test time from the files in the firmware folder (`--firmware`, default
 `$SSI263_FIRMWARE`, else `firmware/blazie`, with `spanish/`, `tns/` and `once2000/` -- ONCE's September 2000
@@ -421,6 +422,17 @@ capital's: the slider's pitch as the setting, the difference as `PitchCommand`'s
 and restored after it by the voice itself (`sov_speak`, `amv_speak`), moved at least one of the box's ten steps
 (`ssa_speakout_pitch`, `ssa_accent_pitch`). The Braille Lite takes it as its pitch setting (32 steps of its own).
 
+**Tell Android which word is being spoken** (Voice settings page, off by default). An Android request carries no
+index marks, but an engine can tell the framework which part of the text is being spoken
+(`SynthesisCallback.rangeStart`), and TalkBack takes that. With the setting on, the service gives the unit a mark
+at every word's start (`SsiWords.kt`: each word's place in UTF-16 for Android and in UTF-8 for the native side)
+and reports each word at the frame of the audio where the unit passed its mark (`ssa_start_marked`,
+`ssa_reached`). Only a unit's own index marks are used: the English, Danish, Norwegian and Swedish Braille Lite,
+the Speak-Out, the Sounding Board, the Accents and the SmarTalk. On the other voices the marks would be estimated
+from the utterance's length, which means rendering the unit ahead of the listener; a phone may not have the speed
+for it, so those voices speak as before and report no words. It is off by default because a mark at every word
+moves some units' pauses (`docs/index-marks.md`), and nobody has listened to it on a phone yet.
+
 ## Files
 
 | File | What it does |
@@ -446,7 +458,8 @@ and restored after it by the voice itself (`sov_speak`, `amv_speak`), moved at l
 | `.../SsiImport.kt` | The import on the phone: the source's bytes, the native judgement, the Braille Lite's states made and checked, each unit made to speak, the files moved into place |
 | `.../SsiSettings.kt` | The settings, in device-protected storage, read once per utterance |
 | `.../SsiEngine.kt` | The one engine in the process: opens it, lists the voices (the Accents built in, the Braille Lite and the Speak-Out once imported), the default voice, owns it for one utterance at a time |
-| `.../SsiTtsService.kt` | The `TextToSpeechService`: voices and languages, the request's voice, rate and pitch, audio streamed block by block, stop |
+| `.../SsiTtsService.kt` | The `TextToSpeechService`: voices and languages, the request's voice, rate and pitch, audio streamed block by block, the words reported as they are spoken (when the setting is on), stop |
+| `.../SsiWords.kt` | A request's words for the unit's index marks: each one's place as Android counts it and as the native side does |
 | `.../SsiLanguages.kt` | What Android is told about each language (no Android context in it, so the JVM tests run it): availability, the voice for a request's language, CheckVoiceData's tags |
 | `.../SettingsActivity.kt` | The screen: Setup (the voices, the firmware's import -- the Braille Lite's and the Speak-Out's -- and removal with progress, status, a preview and its export to WAV, the system TTS settings, licences and source) and Voice settings (every voice's own); the adb test hooks (`autospeak`, `ttstest`, `setvoice`, `setrunahead`, `import`, `removefirmware`) |
 | `.../Updates.kt` | "Check for updates" (Panthera Speech's): by hand only, the newest `ssi263-speech-<version>.apk` across the recent releases by its own file name (not the tag; drafts and pre-releases skipped), handed to the browser -- the app asks for no install permission. The only use of the INTERNET permission |

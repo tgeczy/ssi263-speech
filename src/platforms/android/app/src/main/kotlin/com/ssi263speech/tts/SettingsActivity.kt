@@ -728,6 +728,12 @@ class SettingsActivity : Activity() {
             "their firmware is imported on the Setup page. A screen reader asks this engine for a voice once and keeps it; with " +
             "this on, the voice chosen here is heard straight away. A request in Spanish, German, Italian or Slovak " +
             "gets that language's Blazie unit either way, when it is here."))
+        ui.checkBox(root, "Tell Android which word is being spoken", s.wordMarks) { put(SsiSettings.WORD_MARKS, it) }
+        root.addView(ui.body("Off by default. On, every word is marked with the unit's own index mark, and Android is " +
+            "told when speech reaches each one: TalkBack and apps that follow what is read can use it. Only the units " +
+            "that have index marks of their own do this (the English Braille Lite, the Speak-Out, the Sounding Board, " +
+            "the Accents and the SmarTalk); the other voices speak as before. The marks can move a unit's pauses a " +
+            "little."))
 
         root.addView(ui.heading("Rate"))
         root.addView(ui.body("The NVDA add-ons' scale: 50 is the unit's factory rate. The rate an app asks for -- " +

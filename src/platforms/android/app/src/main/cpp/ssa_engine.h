@@ -175,6 +175,19 @@ int ssa_load(ssa_engine *e, int voice, char *err, int errlen);
 int ssa_start(ssa_engine *e, int voice, const char *utf8, const ssa_settings *s, int request_rate,
               int request_pitch);
 
+/* As ssa_start, with index marks (src/csrc/marks.h, through voices.h's ssv_speak_marked): ats, n_ats byte offsets
+   into utf8, in the text's order.  The service gives the start of every word and tells the framework which word
+   is being spoken (SynthesisCallback.rangeStart; TalkBack takes it).  The marks are used only where they are the
+   unit's own (ssv_marks_exact): the estimate renders the unit ahead of the listener, eight blocks for one, which a
+   phone has no speed to spare for -- such a voice is said as by ssa_start and reaches nothing.
+   ssa_reached: the marks the audio rendered so far has reached that were not given yet -- for each its number in
+   ats and its frame in the utterance's audio, counted from the first sample ssa_pull gave for it; out takes
+   2 * cap ints, the pairs written are returned.  A mark's frame can lie in audio a later ssa_pull gives (a pull
+   hands over part of a block): ask after every pull, before giving its audio on. */
+int ssa_start_marked(ssa_engine *e, int voice, const char *utf8, const ssa_settings *s, int request_rate,
+                     int request_pitch, const int *ats, int n_ats);
+int ssa_reached(ssa_engine *e, int *out, int cap);
+
 /* Up to cap 16-bit samples of the utterance into out: the count, 0 once it has finished, -2 when stopped. */
 int ssa_pull(ssa_engine *e, short *out, int cap);
 
@@ -218,7 +231,8 @@ int ssa_smartalk_pitch(int slider, int request);       /* ... with the SmarTalk'
    only); 9: ssa_set_mockingboard takes any file for either voice (no mbh_variant check); 10: the Braille Lite's
    line-start lift dropped; 11: the SmarTalk's request pitch dropped (no capital offset); 12: the SmarTalk's number
    words dropped (always off); 13: the SmarTalk's imported copy ignored (the built-in one used); 14: its built-in copy
-   ignored (import only). */
+   ignored (import only); 15: a mark's frame counted from its block's start, not the utterance's; 16: marks sent to
+   a voice that would estimate them. */
 extern int ssa_accent_break;
 extern int ssa_voice_break;
 

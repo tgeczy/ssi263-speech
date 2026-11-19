@@ -96,7 +96,12 @@ class SsiTtsService : TextToSpeechService() {
             // Armed only now, when this utterance becomes the one a stop should end: a stop aimed at the previous
             // one can arrive while this one is being set up (TGSpeechBox's stale-stop guard).
             stopRequested = false
-            val started = SsiEngine.start(voice, text, s, request.speechRate, request.pitch)
+            // With the setting on, every word's start is a mark for the unit: where it has index marks of its own,
+            // the framework is told which word is being spoken (rangeStart; TalkBack takes it, and apps that
+            // highlight what is read).  Off by default: the marks can move a unit's pauses.
+            val words = if (s.wordMarks) SsiWords.of(text) else emptyList()
+            val started = SsiEngine.start(voice, text, s, request.speechRate, request.pitch,
+                                          if (words.isEmpty()) null else IntArray(words.size) { words[it].utf8 })
             if (started < 0) {
                 Log.w(TAG, "start failed: ${SsiNative.nativeError()}")
                 callback.error(TextToSpeech.ERROR_SYNTHESIS)
@@ -108,9 +113,19 @@ class SsiTtsService : TextToSpeechService() {
             val bytes = ByteArray(size)
             var total = 0
             var finished = false
+            val reach = IntArray(2 * 32)
             while (!stopRequested) {
                 val n = SsiEngine.pull(bytes)
                 if (n <= 0) { finished = n == 0; break }
+                // the words this audio reaches, each at its frame: told before the audio is handed on
+                var k = SsiEngine.reached(reach)
+                while (k > 0) {
+                    for (i in 0 until k) {
+                        val w = words.getOrNull(reach[2 * i]) ?: continue
+                        callback.rangeStart(reach[2 * i + 1], w.start, w.end)
+                    }
+                    k = SsiEngine.reached(reach)
+                }
                 if (callback.audioAvailable(bytes, 0, n) != TextToSpeech.SUCCESS) break   // the framework let go
                 total += n
             }

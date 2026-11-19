@@ -80,10 +80,17 @@ object SsiNative {
     /** Begin an utterance (UTF-8).  The app's settings on the NVDA drivers' scales: rate, pitch, volume (every voice);
      * tone, pack, runAhead, lineLift, numbers (the Braille Lite's; numbers the Mockingboard's too); soTone, soJoin, soShort (the Speak-Out's).  requestRate,
      * requestPitch: the request's percentages (100 = normal), put on top by the C side (ssa_map.h, ssa_engine.h).
+     * marks: UTF-8 offsets into the text the service wants to be told of when speech reaches them (its words'
+     * starts), or null; nativeReached gives them back.
      * 0 when there is audio to pull, 1 when there is nothing to say, negative on failure. */
     external fun nativeStart(voice: Int, utf8: ByteArray, rate: Int, pitch: Int, tone: Int, volume: Int, pack: Int,
                              runAhead: Int, lineLift: Int, numbers: Int, soTone: Int, soJoin: Int, soShort: Int,
-                             requestRate: Int, requestPitch: Int): Int
+                             requestRate: Int, requestPitch: Int, marks: IntArray?): Int
+
+    /** The marks the audio pulled so far has reached and that were not given yet, as pairs in `out`: the mark's
+     * number among nativeStart's, and its frame in the utterance's audio.  The number of pairs.  Ask after every
+     * pull, before handing its audio on.  Only a voice whose unit has index marks of its own reaches any. */
+    external fun nativeReached(out: IntArray): Int
 
     /** Fill `out` with 16-bit little-endian PCM: the byte count, 0 when the utterance is over, -2 when stopped. */
     external fun nativePull(out: ByteArray): Int

@@ -849,6 +849,110 @@ static int st_direct(const char *file)
     return 0;
 }
 
+/* ---- index marks (ssa_start_marked, ssa_reached) ----------------------------------------------------------------- */
+/* a new engine with the Accent SA's ROMs and, when there, the Accent-mini's driver: every run on a unit of its own,
+   so that two runs can be held to each other (a kept unit does not say a text twice with the same samples) */
+static ssa_engine *marks_engine(const char *aicom, const char *dvc_path)
+{
+    size_t n2, n3, n4, n = 0;
+    unsigned char *u2 = slurp(aicom, "u2.BIN", &n2), *u3 = slurp(aicom, "u3.BIN", &n3), *u4 = slurp(aicom, "u4.BIN", &n4);
+    unsigned char *dvc = NULL;
+    ssa_engine *e = ssa_new(".");
+    FILE *f = dvc_path && strcmp(dvc_path, "-") ? fopen(dvc_path, "rb") : NULL;
+    if (f) {
+        long len;
+        fseek(f, 0, SEEK_END); len = ftell(f); fseek(f, 0, SEEK_SET);
+        dvc = (unsigned char *)malloc(len > 0 ? (size_t)len : 1);
+        n = dvc ? fread(dvc, 1, (size_t)len, f) : 0;
+        fclose(f);
+    }
+    if (!u2 || !u3 || !u4 || !e || !ssa_set_accent_roms(e, u2, n2, u3, n3, u4, n4)
+            || (dvc && !ssa_set_accent_mini(e, dvc, n))) {
+        ssa_free(e);
+        e = NULL;
+    }
+    free(u2); free(u3); free(u4); free(dvc);
+    if (e) ssa_configure(e, 22050, 1, 0);
+    return e;
+}
+
+/* one utterance on a new engine, pulled `chunk` samples at a time; ats NULL: ssa_start.  The (mark, frame) pairs
+   into pairs (cap of them); returns how many, -1 on a failure */
+static int marks_run(const char *aicom, const char *dvc, int voice, const char *text, const int *ats, int n_ats,
+                     int chunk, int *pairs, int cap, digest *d)
+{
+    ssa_engine *e = marks_engine(aicom, dvc);
+    ssa_settings s;
+    short buf[8192];
+    int r, n = -1, got = 0, k;
+    d->h = 1469598103934665603ULL;
+    d->samples = 0;
+    if (!e) return -1;
+    ssa_default_settings(&s);
+    r = ats ? ssa_start_marked(e, voice, text, &s, 100, 100, ats, n_ats) : ssa_start(e, voice, text, &s, 100, 100);
+    if (r == 0)
+        while ((n = ssa_pull(e, buf, chunk)) > 0) {
+            add(d, buf, n);
+            while (got < cap && (k = ssa_reached(e, pairs + 2 * got, cap - got)) > 0) got += k;
+        }
+    ssa_free(e);
+    return r != 0 || n < 0 ? -1 : got;
+}
+
+static void estimate_all(int on)                          /* voices.c's switch: every voice estimates its marks */
+{
+#ifdef _WIN32
+    _putenv(on ? "SSV_MARKS_ESTIMATE=1" : "SSV_MARKS_ESTIMATE=");
+#else
+    if (on) setenv("SSV_MARKS_ESTIMATE", "1", 1); else unsetenv("SSV_MARKS_ESTIMATE");
+#endif
+}
+
+/* --marks <aicom folder> <SPKEMS.DVC or ->: a mark at every word's start, as the service sends them, on the Accent SA
+   and the Accent-mini (units with index marks of their own).  "marks <voice>": each comes back once and in order,
+   the first at frame 0, the frames rising to past half of the utterance and never past its end, at as many places
+   as there are words (two may share one) -- and the same frames, and the same audio, whether it is pulled 250
+   samples at a time (a block in three pulls) or 4096.  "marks <voice>-estimate": with every voice made to estimate
+   (SSV_MARKS_ESTIMATE) no mark is reached and the audio is ssa_start's, sample for sample: the app does not use
+   the estimate. */
+static int marks(const char *aicom, const char *dvc)
+{
+    static const char *TEXT = "this is a plain line of words, and then it goes on some more, until it ends";
+    static const struct { int voice; const char *name; } V[] = {{SSA_ACCENT_SA, "sa"}, {SSA_ACCENT_MINI, "mini"}};
+    int ats[64], n_ats = 0, pa[128], pb[128], pc[128], i, v, rc = 0;
+    for (i = 0; TEXT[i]; i++)
+        if (TEXT[i] != ' ' && (i == 0 || TEXT[i - 1] == ' '))
+            ats[n_ats++] = i;
+    for (v = 0; v < 2; v++) {
+        digest da, db, dc, dp;
+        int a, b, c, p, ok, places = 1;
+        if (V[v].voice == SSA_ACCENT_MINI && (!dvc || !strcmp(dvc, "-")))
+            continue;
+        a = marks_run(aicom, dvc, V[v].voice, TEXT, ats, n_ats, 250, pa, 64, &da);
+        b = marks_run(aicom, dvc, V[v].voice, TEXT, ats, n_ats, 4096, pb, 64, &db);
+        ok = a == n_ats && b == n_ats && da.samples > 0 && pa[1] == 0;
+        for (i = 0; ok && i < n_ats; i++) {
+            ok = pa[2 * i] == i && pb[2 * i] == i && pa[2 * i + 1] == pb[2 * i + 1] && pa[2 * i + 1] <= da.samples
+                 && (i == 0 || pa[2 * i + 1] >= pa[2 * i - 1]);
+            places += i > 0 && pa[2 * i + 1] != pa[2 * i - 1];
+        }
+        ok = ok && places >= n_ats - 2 && pa[2 * n_ats - 1] > da.samples / 2 && da.h == db.h && da.samples == db.samples;
+        printf("marks %s %s %d of %d marks pulled 250 samples at a time, %d pulled 4096; at %d places, the last at "
+               "frame %d of %ld; the audio %s\n", V[v].name, ok ? "ok" : "FAIL", a, n_ats, b, places,
+               a == n_ats ? pa[2 * n_ats - 1] : -1, da.samples, da.h == db.h ? "the same both ways" : "NOT the same");
+        rc |= !ok;
+        p = marks_run(aicom, dvc, V[v].voice, TEXT, NULL, 0, 4096, pc, 64, &dp);
+        estimate_all(1);
+        c = marks_run(aicom, dvc, V[v].voice, TEXT, ats, n_ats, 4096, pc, 64, &dc);
+        estimate_all(0);
+        ok = p == 0 && c == 0 && dp.samples > 0 && dp.h == dc.h && dp.samples == dc.samples;
+        printf("marks %s-estimate %s with every voice estimating: %d marks reached (0 wanted), the audio %s "
+               "ssa_start's\n", V[v].name, ok ? "ok" : "FAIL", c, dp.h == dc.h ? "is" : "is NOT");
+        rc |= !ok;
+    }
+    return rc;
+}
+
 static int import(const char *file, const char *out)
 {
     size_t n;
@@ -894,6 +998,7 @@ int main(int argc, char **argv)
                     : !strcmp(brk, "mockingboard-variant") ? 9 : !strcmp(brk, "line-lift") ? 10
                     : !strcmp(brk, "smartalk-pitch") ? 11 : !strcmp(brk, "smartalk-numbers") ? 12
                     : !strcmp(brk, "smartalk-import-ignored") ? 13 : !strcmp(brk, "smartalk-builtin-ignored") ? 14
+                    : !strcmp(brk, "marks-frames") ? 15 : !strcmp(brk, "marks-estimate") ? 16
                     : 0;
     ssa_import_break = !brk ? 0 : !strcmp(brk, "import-hash") ? 1 : !strcmp(brk, "import-dsk") ? 2
                      : !strcmp(brk, "import-lang") ? 3 : !strcmp(brk, "import-release") ? 4
@@ -907,6 +1012,7 @@ int main(int argc, char **argv)
     if (argc >= 3 && !strcmp(argv[1], "--mb-direct")) return mb_direct(argv[2]);
     if (argc >= 3 && !strcmp(argv[1], "--st-direct")) return st_direct(argv[2]);
     if (argc >= 4 && !strcmp(argv[1], "--import")) return import(argv[2], argv[3]);
+    if (argc >= 4 && !strcmp(argv[1], "--marks")) return marks(argv[2], argv[3]);
     if (argc < 2) { fprintf(stderr, "usage: test_android_native <data folder> [<aicom folder>] | --texts\n"); return 2; }
     if (argc >= 3 && block("accent") && accent(argv[2])) return 1;
     if (argc >= 4 && strcmp(argv[3], "-") && block("mini") && mini(argv[3])) return 1;

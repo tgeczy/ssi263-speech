@@ -139,8 +139,11 @@ SSV_API void ssv_cancel(ssv_voice *v);
    or reported done: a text with nothing to say (ssv_speak_marked returned 0) gives its marks with the one ssv_render
    that follows.
      own marks   a Braille Lite whose release was measured for them (bl_languages.txt's marks column; bl_voice.h),
-                 not run ahead: each mark where the unit echoes its Ctrl-F, to the sample.
-     estimated   every other voice, for now: a mark is put at its share of the text's characters, as a share of the
+                 not run ahead: each mark where the unit echoes its Ctrl-F, to the sample.  The Speak-Out and the
+                 Sounding Board (so_voice.h), the Accent SA (as_voice.h), the Accent-mini (am_voice.h) and the
+                 SmarTalk (st_voice.h): where the unit or its driver says it passed its own mark.
+     estimated   every other voice (the Mockingboard, the other Braille Lite releases, a Braille Lite run ahead): a
+                 mark is put at its share of the text's characters, as a share of the
                  utterance's samples.  The utterance's length must be known for that, so the voice is rendered ahead
                  of the caller (8 blocks for each one returned, the first returned at once), and a mark is reported
                  once the unit is done and the returned audio has reached its place.  A mark in the first eighth or
@@ -152,6 +155,10 @@ SSV_API void ssv_cancel(ssv_voice *v);
 SSV_API int ssv_speak_marked(ssv_voice *v, const ssv_settings *s, const char *utf8, int pitch_offset,
                              const ssv_mark *marks, int n_marks);
 SSV_API int ssv_reached(ssv_voice *v, const ssv_reach **out);
+/* 1 when ssv_speak_marked with these settings would use the unit's own marks, 0 when it would estimate.  For a
+   caller that wants marks only where they cost no rendering ahead (the Android app: a phone has no speed to spare
+   for it).  It gives the unit the settings, as ssv_speak does. */
+SSV_API int ssv_marks_exact(ssv_voice *v, const ssv_settings *s);
 
 /* A bank: the units of one front end, kept as one NVDA driver instance keeps them (see the top). */
 typedef struct ssv_bank ssv_bank;

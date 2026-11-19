@@ -82,9 +82,9 @@ SO_API int sov_fault(const so_voice *v);
    at which the box's reply came: one before the first word with the first block, one after the last word with the
    last block (after its last sample), whatever else is left at the utterance's end with the last block too, not
    exact, and nothing after a cancel.
-   sov_marks_exact: 1 for the Speak-Out box.  0 for the Sounding Board, whose DOS driver reports marks another way
-   (INT 17h: a count and the last value), not used yet: sov_speak_marked then speaks without marks and reports none,
-   and the voice table estimates them (voices.c).
+   sov_marks_exact: 1 for the Speak-Out box, and for the Sounding Board, whose DOS driver reports marks another way
+   (INT 17h: a count and the last value; the host reads the driver's count, sb_host.h).  0 would mean
+   sov_speak_marked speaks without marks and reports none, and the voice table estimates them (voices.c).
 
    MEASURED on the emulated box (2026-11-19, docs/index-marks.md): the reply comes with the first chip frame of the
    word after the mark, within one 0.5 ms slice of it; one reply a chip interrupt; with the mark between two words

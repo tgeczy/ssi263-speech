@@ -129,6 +129,7 @@ typedef struct {
        speak_marked: as speak, or -2 when the unit cannot take marks for this utterance (estimated then) */
     int (*speak_marked)(void *u, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks);
     int (*reached)(void *u, const ssv_reach **out);
+    int (*marks_own)(void *u);                      /* after set: would speak_marked take the marks? */
 } ssv_engine;
 
 /* the Braille Lite: blazie.py (rate, pitch, volume, tone, short pauses, number words, run ahead, line-start lift;
@@ -192,6 +193,7 @@ static int eng_bl_speak_marked(void *u, const char *utf8, int pitch_offset, cons
     return n < 0 ? -1 : n > 0;
 }
 static int eng_bl_reached(void *u, const ssv_reach **out) { return blv_reached((bl_voice *)u, out); }
+static int eng_bl_marks_own(void *u) { return blv_marks_exact((bl_voice *)u); }
 static int eng_bl_render(void *u, const short **pcm, int *done) { return blv_render((bl_voice *)u, pcm, done); }
 static void eng_bl_cancel(void *u) { blv_cancel((bl_voice *)u); }
 static void eng_bl_destroy(void *u) { blv_destroy((bl_voice *)u); }
@@ -225,6 +227,7 @@ static int eng_as_speak_marked(void *u, const char *utf8, int pitch_offset, cons
     return asv_speak_marked((as_voice *)u, utf8, pitch_offset, marks, n_marks) > 0;
 }
 static int eng_as_reached(void *u, const ssv_reach **out) { return asv_reached((as_voice *)u, out); }
+static int eng_as_marks_own(void *u) { return asv_marks_exact((as_voice *)u); }
 static int eng_as_render(void *u, const short **pcm, int *done) { return asv_render((as_voice *)u, pcm, done); }
 static void eng_as_cancel(void *u) { asv_cancel((as_voice *)u); }
 static void eng_as_destroy(void *u) { asv_destroy((as_voice *)u); }
@@ -246,11 +249,12 @@ static void eng_so_set(void *u, const ssv_settings *s)
 static int eng_so_speak(void *u, const char *utf8, int pitch_offset) { return sov_speak((so_voice *)u, utf8, pitch_offset) > 0; }
 static int eng_so_speak_marked(void *u, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
 {
-    if (!sov_marks_exact((so_voice *)u))             /* (the Sounding Board: estimated) */
+    if (!sov_marks_exact((so_voice *)u))
         return -2;
     return sov_speak_marked((so_voice *)u, utf8, pitch_offset, marks, n_marks) > 0;
 }
 static int eng_so_reached(void *u, const ssv_reach **out) { return sov_reached((so_voice *)u, out); }
+static int eng_so_marks_own(void *u) { return sov_marks_exact((so_voice *)u); }
 static int eng_so_render(void *u, const short **pcm, int *done) { return sov_render((so_voice *)u, pcm, done); }
 static void eng_so_cancel(void *u) { sov_cancel((so_voice *)u); }
 static void eng_so_destroy(void *u) { sov_destroy((so_voice *)u); }
@@ -305,6 +309,7 @@ static int eng_am_speak_marked(void *u, const char *utf8, int pitch_offset, cons
     return r < 0 ? -1 : r > 0;
 }
 static int eng_am_reached(void *u, const ssv_reach **out) { return amv_reached((am_voice *)u, out); }
+static int eng_am_marks_own(void *u) { return amv_marks_exact((am_voice *)u); }
 static int eng_am_render(void *u, const short **pcm, int *done) { return amv_render((am_voice *)u, pcm, done); }
 static void eng_am_cancel(void *u) { amv_cancel((am_voice *)u); }
 static void eng_am_destroy(void *u) { amv_destroy((am_voice *)u); }
@@ -362,6 +367,7 @@ static int eng_st_speak_marked(void *u, const char *utf8, int pitch_offset, cons
     return stv_fault((st_voice *)u) ? -1 : r > 0;
 }
 static int eng_st_reached(void *u, const ssv_reach **out) { return stv_reached((st_voice *)u, out); }
+static int eng_st_marks_own(void *u) { return stv_marks_exact((st_voice *)u); }
 static int eng_st_render(void *u, const short **pcm, int *done) { return stv_render((st_voice *)u, pcm, done); }
 static void eng_st_cancel(void *u) { stv_cancel((st_voice *)u); }
 static void eng_st_destroy(void *u) { stv_destroy((st_voice *)u); }
@@ -370,27 +376,27 @@ static void eng_st_destroy(void *u) { stv_destroy((st_voice *)u); }
 static const ssv_engine *engine(int kind)
 {
     static const ssv_engine bl = {eng_bl_create, eng_bl_set, eng_bl_speak, eng_bl_render, eng_bl_cancel, eng_bl_destroy,
-                                  eng_bl_speak_marked, eng_bl_reached};
+                                  eng_bl_speak_marked, eng_bl_reached, eng_bl_marks_own};
     static const ssv_engine as = {eng_as_create, eng_as_set, eng_as_speak, eng_as_render, eng_as_cancel, eng_as_destroy,
-                                  eng_as_speak_marked, eng_as_reached};
+                                  eng_as_speak_marked, eng_as_reached, eng_as_marks_own};
 #ifdef SSV_HAVE_SPEAKOUT
     static const ssv_engine so = {eng_so_create, eng_so_set, eng_so_speak, eng_so_render, eng_so_cancel, eng_so_destroy,
-                                  eng_so_speak_marked, eng_so_reached};
+                                  eng_so_speak_marked, eng_so_reached, eng_so_marks_own};
 #endif
 #ifdef SSV_HAVE_ACCENTMINI
     static const ssv_engine am = {eng_am_create, eng_am_set, eng_am_speak, eng_am_render, eng_am_cancel, eng_am_destroy,
-                                  eng_am_speak_marked, eng_am_reached};
+                                  eng_am_speak_marked, eng_am_reached, eng_am_marks_own};
 #endif
 #ifdef SSV_HAVE_MOCKINGBOARD
     static const ssv_engine mb = {eng_mb_create, eng_mb_set, eng_mb_speak, eng_mb_render, eng_mb_cancel, eng_mb_destroy};
 #endif
 #ifdef SSV_HAVE_SOUNDINGBOARD
     static const ssv_engine sb = {eng_sb_create, eng_so_set, eng_so_speak, eng_so_render, eng_so_cancel, eng_so_destroy,
-                                  eng_so_speak_marked, eng_so_reached};
+                                  eng_so_speak_marked, eng_so_reached, eng_so_marks_own};
 #endif
 #ifdef SSV_HAVE_SMARTALK
     static const ssv_engine st = {eng_st_create, eng_st_set, eng_st_speak, eng_st_render, eng_st_cancel, eng_st_destroy,
-                                  eng_st_speak_marked, eng_st_reached};
+                                  eng_st_speak_marked, eng_st_reached, eng_st_marks_own};
 #endif
     switch (kind) {
     case SSV_BLAZIE: return &bl;
@@ -536,6 +542,23 @@ SSV_API void ssv_destroy(ssv_voice *v)
 
 SSV_API int ssv_index(const ssv_voice *v) { return v->index; }
 SSV_API int ssv_sample_rate(const ssv_voice *v) { return v->rate; }
+
+SSV_API int ssv_marks_exact(ssv_voice *v, const ssv_settings *s)
+{
+    ssv_settings d;
+    if (!v->e->marks_own || getenv("SSV_MARKS_ESTIMATE"))
+        return 0;
+    if (!s) { ssv_defaults(v->index, &d); s = &d; }
+    if (VOICES[v->index].engine == SSV_BLAZIE && !bl_has_numbers(VOICES[v->index].lang)
+            && (s->numbers || s->run_ahead)) {
+        d = *s;                    /* (as ssv_speak_marked gives this unit its settings) */
+        d.numbers = 0;
+        d.run_ahead = 0;
+        s = &d;
+    }
+    v->e->set(v->u, s);
+    return v->e->marks_own(v->u) != 0;
+}
 
 SSV_API int ssv_speak_marked(ssv_voice *v, const ssv_settings *s, const char *utf8, int pitch_offset,
                              const ssv_mark *marks, int n_marks)

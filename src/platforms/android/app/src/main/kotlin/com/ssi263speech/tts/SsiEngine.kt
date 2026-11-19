@@ -137,12 +137,16 @@ object SsiEngine {
     private fun bit(b: Boolean) = if (b) 1 else 0
 
     /** Inside withEngine: begin an utterance.  0 audio to pull, 1 nothing to say, negative on failure. */
-    fun start(voice: VoiceInfo, text: String, s: SsiSettings.Snapshot, requestRate: Int, requestPitch: Int): Int =
+    fun start(voice: VoiceInfo, text: String, s: SsiSettings.Snapshot, requestRate: Int, requestPitch: Int,
+              marks: IntArray? = null): Int =
         SsiNative.nativeStart(voice.index, text.toByteArray(Charsets.UTF_8), s.rate, s.pitch, s.tone, s.volume,
                               bit(s.shortPauses), bit(s.runAhead), bit(s.lineLift), bit(s.numbers), s.soTone,
                               bit(s.soJoin),
                               bit(s.soShortPauses),
-                              requestRate, requestPitch)
+                              requestRate, requestPitch, marks)
+
+    /** Inside withEngine, after a pull: the marks reached, as (mark, frame) pairs in `out`; how many pairs. */
+    fun reached(out: IntArray): Int = SsiNative.nativeReached(out)
 
     /** Inside withEngine: the next PCM bytes; 0 at the end, -2 when stopped. */
     fun pull(out: ByteArray): Int = SsiNative.nativePull(out)

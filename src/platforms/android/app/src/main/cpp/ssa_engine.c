@@ -129,6 +129,9 @@ struct ssa_engine {
     int cur;                           /* the utterance's voice; -1 when none is running */
     const short *block;                /* the last block rendered, valid until the next render */
     int block_n, block_at, done, blocks;
+    long frames;                       /* samples of the utterance rendered before the current block */
+    int *reach;                        /* ssa_reached: (mark, frame) pairs not yet given */
+    int n_reach, cap_reach;
     int stop;                          /* ssa_stop's flag: set from any thread, read with __atomic */
 };
 
@@ -367,6 +370,7 @@ void ssa_free(ssa_engine *e)
     free(e->mb[0]);
     free(e->mb[1]);
     free(e->st);
+    free(e->reach);
     free(e->datadir);
     free(e);
 }
@@ -531,6 +535,7 @@ static void accent_release(ssa_engine *e)
 
 void ssa_cancel(ssa_engine *e)
 {
+    e->n_reach = 0;                    /* no mark of a cancelled utterance is given */
     if (e->cur == SSA_ACCENT_SA) {
         if (ssa_accent_break == 3 && e->accent && !e->done)
             ssv_cancel(e->accent);     /* a kept unit must drop what it has not spoken */
@@ -557,7 +562,26 @@ int ssa_step_pitch(int slider, int request, int (*step)(int))
 
 int ssa_accent_pitch(int slider, int request) { return ssa_step_pitch(slider, request, asv_pitch_step); }
 
-static int start_accent(ssa_engine *e, const char *utf8, const ssa_settings *s, int request_rate, int request_pitch)
+/* ssv_speak; or, where the unit's own index marks would be used, ssv_speak_marked with the service's offsets as
+   marks numbered from 0 */
+static int say(ssv_voice *u, const ssv_settings *o, const char *utf8, int offset, const int *ats, int n_ats)
+{
+    ssv_mark *m;
+    int i, r;
+    if (!ats || n_ats <= 0 || (!ssv_marks_exact(u, o) && ssa_voice_break != 16)
+            || !(m = (ssv_mark *)malloc(sizeof *m * (size_t)n_ats)))
+        return ssv_speak(u, o, utf8, offset);
+    for (i = 0; i < n_ats; i++) {
+        m[i].at = ats[i];
+        m[i].id = i;
+    }
+    r = ssv_speak_marked(u, o, utf8, offset, m, n_ats);
+    free(m);
+    return r;
+}
+
+static int start_accent(ssa_engine *e, const char *utf8, const ssa_settings *s, int request_rate, int request_pitch,
+                        const int *ats, int n_ats)
 {
     char err[256];
     ssv_settings o;
@@ -568,7 +592,7 @@ static int start_accent(ssa_engine *e, const char *utf8, const ssa_settings *s, 
     e->spare = NULL;
     settings_for(e, SSA_ACCENT_SA, s, request_rate, request_pitch, &o, &offset);
     e->blocks = 0;
-    if (ssv_speak(e->accent, &o, utf8, offset) <= 0) {
+    if (say(e->accent, &o, utf8, offset, ats, n_ats) <= 0) {
         e->cur = SSA_ACCENT_SA;        /* released at once: nothing to say */
         e->done = 1;
         accent_release(e);
@@ -583,18 +607,26 @@ static int start_accent(ssa_engine *e, const char *utf8, const ssa_settings *s, 
 int ssa_start(ssa_engine *e, int voice, const char *utf8, const ssa_settings *s, int request_rate,
               int request_pitch)
 {
+    return ssa_start_marked(e, voice, utf8, s, request_rate, request_pitch, NULL, 0);
+}
+
+int ssa_start_marked(ssa_engine *e, int voice, const char *utf8, const ssa_settings *s, int request_rate,
+                     int request_pitch, const int *ats, int n_ats)
+{
     char err[256];
     ssv_settings o;
     int offset, r;
     ssa_cancel(e);                     /* an utterance still running is abandoned: its leftovers must not follow */
     __atomic_store_n(&e->stop, 0, __ATOMIC_SEQ_CST);
+    e->frames = 0;
+    e->n_reach = 0;
     if (voice == SSA_ACCENT_SA)
-        return start_accent(e, utf8, s, request_rate, request_pitch);
+        return start_accent(e, utf8, s, request_rate, request_pitch, ats, n_ats);
     if (ssa_load(e, voice, err, sizeof err) != 0)
         return -1;
     e->blocks = 0;
     settings_for(e, voice, s, request_rate, request_pitch, &o, &offset);
-    r = ssv_speak(e->units[voice], &o, utf8, offset);
+    r = say(e->units[voice], &o, utf8, offset, ats, n_ats);
     if (r < 0)                         /* the unit refused it: a synthesis error, not silence */
         return -1;
     if (!r)
@@ -604,9 +636,36 @@ int ssa_start(ssa_engine *e, int voice, const char *utf8, const ssa_settings *s,
     return 0;
 }
 
+/* the next block, and the marks it reached: each at its frame in the utterance's audio */
 static int render(ssa_engine *e)
 {
-    return ssv_render(e->cur == SSA_ACCENT_SA ? e->accent : e->units[e->cur], &e->block, &e->done);
+    ssv_voice *u = e->cur == SSA_ACCENT_SA ? e->accent : e->units[e->cur];
+    const ssv_reach *r;
+    int n = ssv_render(u, &e->block, &e->done), k = ssv_reached(u, &r), i;
+    if (k > 0 && e->n_reach + k > e->cap_reach) {
+        int *q = (int *)realloc(e->reach, sizeof(int) * 2 * (size_t)(e->n_reach + k));
+        if (q) { e->reach = q; e->cap_reach = e->n_reach + k; } else k = 0;
+    }
+    for (i = 0; i < k; i++) {
+        int s = r[i].sample < 0 || n <= 0 ? 0 : r[i].sample > n ? n : r[i].sample;
+        e->reach[2 * e->n_reach] = r[i].id;
+        e->reach[2 * e->n_reach + 1] = (int)((ssa_voice_break == 15 ? 0 : e->frames) + s);    /* (the control) */
+        e->n_reach++;
+    }
+    if (n > 0)
+        e->frames += n;
+    return n;
+}
+
+int ssa_reached(ssa_engine *e, int *out, int cap)
+{
+    int n = e->n_reach < cap ? e->n_reach : cap;
+    if (n <= 0)
+        return 0;
+    memcpy(out, e->reach, sizeof(int) * 2 * (size_t)n);
+    memmove(e->reach, e->reach + 2 * n, sizeof(int) * 2 * (size_t)(e->n_reach - n));
+    e->n_reach -= n;
+    return n;
 }
 
 int ssa_pull(ssa_engine *e, short *out, int cap)

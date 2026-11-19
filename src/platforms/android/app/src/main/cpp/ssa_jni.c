@@ -148,11 +148,12 @@ JNIEXPORT jint JNICALL FN(nativeStart)(JNIEnv *env, jclass cls, jint voice, jbyt
                                        jint tone, jint volume, jint pack, jint run_ahead, jint line_lift,
                                        jint numbers,
                                        jint so_tone, jint so_join, jint so_short, jint request_rate,
-                                       jint request_pitch)
+                                       jint request_pitch, jintArray jmarks)
 {
     ssa_settings s;
-    jsize n;
+    jsize n, n_marks = 0;
     char *utf8;
+    jint *marks = NULL;
     int r;
     (void)cls;
     if (!g_engine || !jutf8) return -1;
@@ -165,9 +166,31 @@ JNIEXPORT jint JNICALL FN(nativeStart)(JNIEnv *env, jclass cls, jint voice, jbyt
     s.run_ahead = run_ahead; s.line_lift = line_lift; s.numbers = numbers;
     s.so_tone = so_tone; s.so_join = so_join; s.so_short = so_short;
     g_error[0] = 0;
-    r = ssa_start(g_engine, voice, utf8, &s, request_rate, request_pitch);
+    if (jmarks && (n_marks = (*env)->GetArrayLength(env, jmarks)) > 0
+            && (marks = (jint *)malloc(sizeof(jint) * (size_t)n_marks)))
+        (*env)->GetIntArrayRegion(env, jmarks, 0, n_marks, marks);
+    r = ssa_start_marked(g_engine, voice, utf8, &s, request_rate, request_pitch, (const int *)marks,
+                         marks ? (int)n_marks : 0);
+    free(marks);
     free(utf8);
     return r;
+}
+
+/* The marks the audio pulled so far has reached and that were not given yet: (mark, frame) pairs into out; the
+   number of pairs (ssa_engine.h ssa_reached). */
+JNIEXPORT jint JNICALL FN(nativeReached)(JNIEnv *env, jclass cls, jintArray jout)
+{
+    jint pairs[128];
+    jsize cap;
+    int n;
+    (void)cls;
+    if (!g_engine || !jout) return 0;
+    cap = (*env)->GetArrayLength(env, jout) / 2;
+    if (cap > 64) cap = 64;
+    n = ssa_reached(g_engine, (int *)pairs, (int)cap);
+    if (n > 0)
+        (*env)->SetIntArrayRegion(env, jout, 0, 2 * n, pairs);
+    return n;
 }
 
 /* Up to out.length / 2 samples as 16-bit little-endian bytes (every Android ABI is little-endian): the byte count,

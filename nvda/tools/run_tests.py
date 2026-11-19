@@ -1439,6 +1439,14 @@ if os.path.isfile(ANDROID_TEST):
               r"an imported one over it \(source 2 then 2\)", r"^FAILED: 22 case\(s\) differ$"]),
             ("smartalk-builtin-ignored", "SmarTalk: the built-in copy ignored",
              [r"^FAIL +desktop +st-builtin +got \(0, ", r"^ok +desktop +st-default ", r"^FAILED: 2 case\(s\) differ$"]),
+            # index marks (ssa_start_marked, ssa_reached: the service's words): a mark's frame counted from its block's
+            # start; marks sent to a voice that would estimate them (rendered ahead of the listener)
+            ("marks-frames", "index marks: a mark's frame counted from its block",
+             [r"^FAIL +desktop +marks-sa: ", r"^ok +desktop +marks-sa-estimate: ",
+              r"^FAILED: %d case\(s\) differ$" % (1 + ANDROID_MINI)]),
+            ("marks-estimate", "index marks: sent to a voice that would estimate them",
+             [r"^FAIL +desktop +marks-sa-estimate: .* 17 marks reached", r"^ok +desktop +marks-sa: ",
+              r"^FAILED: %d case\(s\) differ$" % (1 + ANDROID_MINI)]),
             ) + ((
             ("numbers", "Braille Lite: number words dropped",
              [r"^FAIL +desktop +num-en +got ", r"^FAIL +desktop +num-es +got ", r"^ok +desktop +num-en-off ",
@@ -1485,7 +1493,8 @@ if os.path.isfile(ANDROID_TEST):
                 "speakout-pitch": "so", "speakout-settings": "so", "import-hash": "import", "import-dsk": "import",
                 "import-lang": "import", "import-release": "import", "import-units": "import", "import-sb": "import",
                 "import-st": "import", "smartalk-pitch": "st", "smartalk-numbers": "st",
-                "smartalk-import-ignored": "st", "smartalk-builtin-ignored": "st"}.get(
+                "smartalk-import-ignored": "st", "smartalk-builtin-ignored": "st",
+                "marks-frames": "marks", "marks-estimate": "marks"}.get(
                     brk, "mb" if brk.startswith("mockingboard-") else "accent")
         CHECKS.append(check("Android engine CONTROL (%s, must fail)" % what, [PY, ANDROID_TEST],
                             env={"SSI263_ANDROID_TEST_BREAK": brk, "SSI263_ANDROID_TEST_ONLY": only}, expect_fail=True,

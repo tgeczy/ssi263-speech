@@ -44,6 +44,12 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
   MOCKINGBOARD_DISKS (paths.local) has them (never in the repository; skipped, and said so, without them): the
   toolkit's gives the 1.1 file, Mockingboard disk 1's the early one, in DOS and ProDOS order and out of a zip; disk 2
   and a blank 140 KB disk refused with the disk reader's reason.
+- Index marks (test_android_native --marks; ssa_start_marked, ssa_reached): a mark at every word's start, as the
+  service sends them with "Tell Android which word is being spoken" on, on the Accent SA and the Accent-mini, whose
+  units have index marks of their own: each comes back once and in order with its frame in the utterance's audio,
+  the same frames and audio whether it is pulled 250 samples at a time or 4096; with every voice made to estimate
+  (voices.c's SSV_MARKS_ESTIMATE) none is reached and the audio is the unmarked one -- the app does not use the
+  estimate, which renders the unit ahead of the listener.  The program judges these itself.
 - The import: GW Micro's SPEAKOUT.HEX recognised by content (Intel HEX, then the known sha256) as it is, with LF
   line endings, with a DOS end-of-file mark, and out of a speakout.zip like GW Micro's; a HEX with one digit
   changed, one whose checksums were fixed after the change (another HEX), one cut short, and other files refused;
@@ -74,6 +80,8 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
                              mockingboard-pitch   ssa_voice_break 5: the Mockingboard's request pitch dropped
                              mockingboard-numbers ssa_voice_break 6: its number words dropped (always off)
                              mockingboard-import-ignored   7: the imported copy ignored (the built-in one used)
+                             marks-frames         15: a mark's frame counted from its block, not the utterance
+                             marks-estimate       16: marks sent to a voice that would estimate them
                              mockingboard-builtin-ignored  8: the built-in copies ignored (import only)
                              mockingboard-variant          9: either file taken for either voice
                              line-lift            ssa_voice_break 10: the Braille Lite's line-start lift dropped
@@ -1039,6 +1047,23 @@ def run_desktop(exe, data, aicom):
     return got
 
 
+def marks_cases(exe, aicom):
+    """Index marks through the app's front end (test_android_native --marks, which judges them itself): a mark at
+    every word's start on the Accent SA and the Accent-mini comes back once, in order, at its frame in the
+    utterance's audio, however the audio is pulled; with every voice made to estimate, none, and the audio is the
+    unmarked one (the app does not use the estimate: it renders the unit ahead of the listener)."""
+    r = subprocess.run([exe, "--marks", aicom, MINI_DVC if os.path.isfile(MINI_DVC) else "-"], capture_output=True,
+                       text=True)
+    lines = re.findall(r"^marks (\S+) (ok|FAIL) (.*)$", r.stdout, re.M)
+    for name, verdict, what in lines:
+        print("%-4s desktop  marks-%s: %s" % (verdict, name, what))
+    bad = sum(1 for _, verdict, _ in lines if verdict != "ok")
+    if not lines or (r.returncode and not bad):
+        print("FAIL desktop  marks: the program gave no verdict (%d): %s" % (r.returncode, r.stderr.strip()[:200]))
+        bad += 1
+    return bad
+
+
 def run_texts(exe):
     r = subprocess.run([exe, "--texts"], input="".join(t.encode("utf-8").hex() + "\n" for t in TEXTS),
                        capture_output=True, text=True)
@@ -1342,6 +1367,8 @@ def main():
             bad += checks("desktop", run_desktop(exe, data, a.aicom))
         if block("accent"):
             bad += compare_texts(run_texts(exe), text_want)
+        if block("marks"):
+            bad += marks_cases(exe, a.aicom)
         if block("import"):
             bad += blazie_import_cases(exe, data, a.firmware)
         if speakout and block("import"):

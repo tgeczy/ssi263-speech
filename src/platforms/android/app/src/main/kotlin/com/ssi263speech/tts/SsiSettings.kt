@@ -35,6 +35,8 @@ object SsiSettings {
     const val SAMPLE_RATE = "sample_rate"
     const val VOICE = "voice"
     const val OVERRIDE_VOICE = "override_voice"
+    const val WORD_MARKS = "word_marks"        // "Tell Android which word is being spoken": off (the unit's own index
+                                               // marks, one a word: docs/index-marks.md)
 
     val SAMPLE_RATES = listOf(11025, 22050, 44100)
 
@@ -47,7 +49,7 @@ object SsiSettings {
                         val sampleRate: Int = 22050, val voice: Int = SsiNative.ACCENT_SA,
                         val overrideVoice: Boolean = true, val runAhead: Boolean = false,
                         val soTone: Int = SO_DEFAULT_TONE, val soJoin: Boolean = true, val soShortPauses: Boolean = true,
-                        val numbers: Boolean = true, val lineLift: Boolean = false)
+                        val numbers: Boolean = true, val lineLift: Boolean = false, val wordMarks: Boolean = false)
 
     fun snapshot(ctx: Context): Snapshot {
         val p = prefs(ctx)
@@ -67,6 +69,7 @@ object SsiSettings {
             p.getBoolean(SO_JOIN, true),
             p.getBoolean(SO_SHORT_PAUSES, true),
             p.getBoolean(NUMBERS, true),
-            p.getBoolean(LINE_LIFT, false))
+            p.getBoolean(LINE_LIFT, false),
+            p.getBoolean(WORD_MARKS, false))
     }
 }
