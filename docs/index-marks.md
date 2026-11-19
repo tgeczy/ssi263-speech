@@ -144,8 +144,8 @@ waiting it makes the driver write the chip itself, which delays the speech; and 
 command sent after the marks waits to be reached. The count in memory rose on time in both cases.
 
 - **Inside a clause** (after a word, with a comma, a bracket or a quote after it or not): every chip write is the
-  unmarked text's, in value and time, at rates 0, 50 and 100, and on a fresh unit the audio is the unmarked audio
-  sample for sample. The mark is reported with the pause frame the chip is given after the word: 0.0 ms from it,
+  unmarked text's, in value and time, at rates 0, 50 and 100. On a fresh unit at the default rate the audio is
+  the unmarked audio sample for sample (the other rates' audio was not compared). The mark is reported with the pause frame the chip is given after the word: 0.0 ms from it,
   8 to 33 ms before the next word's first phoneme at the default rate.
 - **After a clause end** (. ! ? ; :), which is where nearly every index of a say all stands: ONE pause frame of
   8.4 ms is put in front of the next clause, and its first phoneme begins differently: the duration bits of its
