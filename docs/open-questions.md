@@ -153,6 +153,7 @@ can't say yet:
   technical manual, and an owner's board photo for the chip's marking.
 - **The Super Voice's voice.** Speech Systems' text-to-speech for the Color Computer is at
   hand too, with its dictionary and songs. It is 6809 code, and this project has no 6809 yet.
+  [super-voice.md](super-voice.md) says exactly where its disk is, and what its manual's notice allows.
 - **Reported, not yet shown.** RDI's Halcyon, the home system Thayer's Quest was made for: the
   SpeechChips.com museum's owner says it has a Votrax SC-02. We have the chip only on the
   arcade game's board, and have read no document that names it in the Halcyon. Settled by: a

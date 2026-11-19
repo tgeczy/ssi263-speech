@@ -100,6 +100,8 @@ device's software, you import it there yourself.
   answer would come from, and how you can help.
 - [Sources and credits](docs/sources.md): every data sheet, paper, patent, program and
   person this work stands on.
+- [Speech Systems' Super Voice](docs/super-voice.md): not a voice here yet. Where its disk
+  is kept, by exact link and checksum, and what it still needs.
 
 ## Layout
 
