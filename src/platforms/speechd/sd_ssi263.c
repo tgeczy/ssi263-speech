@@ -39,7 +39,12 @@
  * Rate, pitch and volume come from SSIP for every voice.  SSI263_DATADIR overrides the data folder.  The firmware is
  * not part of this program: it is loaded from there.  `sd_ssi263 --voices` lists the voices built in.
  *
- * Test hooks: SD_SSI263_TEST_NO_CANCEL=1 leaves the unit uncancelled on STOP and PAUSE; SD_SSI263_TEST_OLD_REPLIES=1
+ * Index marks: the message's <mark name="..."/> are reported (700) when speech reaches them, each between the audio
+ * before it and the audio after it: where the unit's own index mark says on a Braille Lite whose release was measured
+ * for them, estimated on the other voices (../../csrc/marks.h, docs/index-marks.md).
+ *
+ * Test hooks: SD_SSI263_TEST_NO_MARKS=1 gives the voice no marks and reports none; SD_SSI263_TEST_MARKS_LATE=1 sends
+ * each block's audio before its marks; SD_SSI263_TEST_NO_CANCEL=1 leaves the unit uncancelled on STOP and PAUSE; SD_SSI263_TEST_OLD_REPLIES=1
  * answers DEBUG and QUIT as up to 0.9.1 (old_replies below); SD_SSI263_TEST_PAUSE_704=1 answers a PAUSE with 704
  * (stop_event below); sd_voices.c's drop a key on its way to the voice -- the harness's controls must fail.
  */
@@ -141,6 +146,14 @@ static void send_line(const char *s)
 }
 
 /* 705: 16-bit mono little-endian, the payload HDLC-escaped (0x7D and '\n' -> 0x7D, byte ^ 0x20) */
+/* 700: speech has reached the mark of that name.  Sent between the audio before it and the audio after it: the
+   server holds it in its queue with them and reports it when its playback gets there. */
+static void send_mark(const char *name)
+{
+    printf("700-%s\n700 INDEX MARK\n", name);
+    fflush(stdout);
+}
+
 static void send_audio(const short *pcm, int n, int rate)
 {
     const unsigned char *p = (const unsigned char *)pcm, *end = p + (size_t)n * 2;
@@ -155,14 +168,63 @@ static void send_audio(const short *pcm, int n, int rate)
     fflush(stdout);
 }
 
-/* ---- text: SSML tags dropped, XML's five entities decoded -------------------------------------------------------- */
+/* ---- text: SSML tags dropped, XML's five entities decoded; its index marks kept -------------------------------- */
+/* The message's marks: <mark name="..."/>, the server's own (after each sentence, for PAUSE) and a client's (Orca
+   puts one before every word).  Each is kept with the place it stood at in the text as it is spoken, and reported
+   when speech reaches that place (speak() below; ../../csrc/marks.h). */
+static ssv_mark *marks;                 /* .at: bytes of the stripped text before it; .id: its index in names */
+static char **mark_names;
+static int n_marks, cap_marks;
+
+static void forget_marks(void)
+{
+    int k;
+    for (k = 0; k < n_marks; k++) free(mark_names[k]);
+    n_marks = 0;
+}
+
+/* r at a '<': when the tag is a mark with a name, the mark is kept, standing `at` bytes into the spoken text */
+static void keep_mark(const char *r, int at)
+{
+    const char *end = strchr(r, '>'), *p, *q;
+    char quote, *name;
+    if (!end || strncmp(r, "<mark", 5) || (r[5] != ' ' && r[5] != '\t' && r[5] != '/')) return;
+    for (p = r + 5; p < end; p++)
+        if (!strncmp(p, "name", 4) && (p[-1] == ' ' || p[-1] == '\t')) break;
+    if (p >= end) return;
+    p += 4;
+    while (p < end && (*p == ' ' || *p == '=')) p++;
+    if (p >= end || (*p != '"' && *p != '\'')) return;
+    quote = *p++;
+    for (q = p; q < end && *q != quote; q++) ;
+    if (q >= end) return;
+    if (n_marks == cap_marks) {
+        int cap = cap_marks ? cap_marks * 2 : 64;
+        ssv_mark *m = (ssv_mark *)realloc(marks, sizeof *m * (size_t)cap);
+        char **nm = m ? (char **)realloc(mark_names, sizeof *nm * (size_t)cap) : NULL;
+        if (m) marks = m;
+        if (!nm) return;
+        mark_names = nm;
+        cap_marks = cap;
+    }
+    name = (char *)malloc((size_t)(q - p) + 1);
+    if (!name) return;
+    memcpy(name, p, (size_t)(q - p));
+    name[q - p] = 0;
+    mark_names[n_marks] = name;
+    marks[n_marks].at = at;
+    marks[n_marks].id = n_marks;
+    n_marks++;
+}
+
 static void strip_ssml(char *s)
 {
     static const char *ent[][2] = {{"&amp;", "&"}, {"&lt;", "<"}, {"&gt;", ">"}, {"&quot;", "\""}, {"&apos;", "'"}};
     char *r = s, *w = s;
     int tag = 0, k;
+    forget_marks();
     while (*r) {
-        if (*r == '<') { tag = 1; r++; continue; }
+        if (*r == '<') { keep_mark(r, (int)(w - s)); tag = 1; r++; continue; }
         if (*r == '>' && tag) { tag = 0; r++; continue; }
         if (tag) { r++; continue; }
         if (*r == '&') {
@@ -275,7 +337,8 @@ static void choose_language(const char *lang)
 }
 
 /* What ends a message that a STOP or a PAUSE cut short: 703 for both.  The protocol has 704 for a pause, and
-   speech-dispatcher's own modules send it, but they also report index marks (700), which this module does not; on
+   speech-dispatcher's own modules send it; they also report index marks (700), which this module did not when this
+   was measured (it does now, speak() below: whether 704 can be answered with them is not measured yet).  On
    704 the server waits for the playback to reach a mark before it calls the message paused, so with none it never
    does, and RESUME speaks nothing (measured on speech-dispatcher 0.11.1 with the server playing the audio:
    test_real_server.sh).  On 703 it stops, keeps the message it had put on its paused list, and on RESUME speaks it
@@ -306,12 +369,22 @@ static void speak(char *text)
     }
     send_line("200 OK SPEAKING");
     send_line("701 BEGIN");
-    if (sdv_speak(v, &conf, to100(ssip_rate), to100(ssip_pitch), to100(ssip_volume), text, err, sizeof err) < 0)
+    if (sdv_speak_marked(v, &conf, to100(ssip_rate), to100(ssip_pitch), to100(ssip_volume), text,
+                         getenv("SD_SSI263_TEST_NO_MARKS") ? NULL : marks, n_marks, err, sizeof err) < 0)
         done = 1;
     while (!done) {
-        int n = sdv_render(v, &pcm, &done);
-        if (n > 0)
-            send_audio(pcm, n, conf.sample_rate);
+        const ssv_reach *r;
+        int n = sdv_render(v, &pcm, &done), k = sdv_reached(v, &r), j, from = 0;
+        /* each mark at its sample: the block's audio up to it, the mark, then the rest (a test's control sends
+           the block whole first) */
+        if (getenv("SD_SSI263_TEST_MARKS_LATE") && n > 0) { send_audio(pcm, n, conf.sample_rate); from = n; }
+        for (j = 0; j < k; j++) {
+            int at = r[j].sample < from ? from : r[j].sample > n ? n : r[j].sample;
+            if (at > from) { send_audio(pcm + from, at - from, conf.sample_rate); from = at; }
+            if (r[j].id >= 0 && r[j].id < n_marks) send_mark(mark_names[r[j].id]);
+        }
+        if (n > from)
+            send_audio(pcm + from, n - from, conf.sample_rate);
         if (!done && (stopped = poll_stop()) != GO) break;
     }
     if (stopped) {

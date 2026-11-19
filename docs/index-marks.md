@@ -93,10 +93,14 @@ takes to finish ahead of the caller.
 - **NVDA add-on.** Say all's lines go to the unit as one line with their indexes
   (`nvda/shared/ssi263_flow.py`). The Braille Lite driver uses the unit's own marks on the releases above; the other
   drivers estimate. The drivers do not go through `voices.h` yet.
-- **SAPI 5, speech-dispatcher, Android, Apple.** Not on `ssv_speak_marked` yet. What each needs is known:
-  speech-dispatcher wants its marks between its audio blocks in the order of the speech, SAPI wants bookmarks in the
-  order they are reached, Android has ranges of the text but no marks, and what VoiceOver sends has to be captured
-  on a device first.
+- **speech-dispatcher (Orca).** The module keeps the message's marks, the server's own after each sentence and
+  the one Orca puts before every word, and reports each between the audio before it and the audio after it, cut
+  at the mark's sample (`src/platforms/speechd/sd_ssi263.c`). The server holds a mark in its queue with the audio
+  and reports it when its playback gets there. A PAUSE is still answered as a stop, as before: whether the
+  server's pause and resume work with the marks has not been measured. Not tried with Orca itself yet.
+- **SAPI 5, Android, Apple.** Not on `ssv_speak_marked` yet. What each needs is known: SAPI wants bookmarks in
+  the order they are reached, Android has ranges of the text but no marks, and what VoiceOver sends has to be
+  captured on a device first.
 
 ## Tests
 
@@ -106,6 +110,9 @@ takes to finish ahead of the caller.
 - `tools/check_ssv_marks.py`: the voice table, on every voice whose firmware is present: no marks is `ssv_speak`,
   every mark once and in order, exact or estimated as it should be, the estimate never early. Two controls.
 - `nvda/tools/say_all_flow.py`: the NVDA drivers, say all's lines and their indexes.
+- `src/platforms/speechd/test_sd_ssi263.py`: the speech-dispatcher module, playing the server: a mark before every
+  word comes back once, in order, with exactly the audio before it that a reference voice given the same marks
+  has; a stop ends them; a message of marks alone reports them. Two controls.
 
 Not tested: a live say all in NVDA with the caret watched, and any real unit. The measurements above are of the
 emulated units running the original firmware.

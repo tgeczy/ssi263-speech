@@ -278,6 +278,16 @@ control "module CONTROL (SSI263LineLift ignored, must fail)" "^ra_sys +module .*
 control "module CONTROL (SSI263AccentInflection ignored, must fail)" "^as_speak +module .*identical" \
     "^as_infl +module .*DIFFER" "^$((N - 1)) of $N checks passed" -- env SD_SSI263_TEST_IGNORE_ACCENT_INFLECTION=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
+# the message's index marks (700; the harness counts them apart, "index marks: n of n"): each block's audio sent before
+# its marks -- no mark has the reference's audio before it; and the voice given no marks -- none is reported
+control "module CONTROL (each block's audio before its marks, must fail)" "^marks .*: NOT as expected" \
+    "^m_none .*: as expected" "^m_empty .*: as expected" "^$N of $N checks passed" \
+    -- env SD_SSI263_TEST_MARKS_LATE=1 \
+    python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
+control "module CONTROL (the marks not given to the voice, must fail)" "^marks .*: NOT as expected" \
+    "^m_stop .*: as expected" "^m_empty .*: NOT as expected" "^m_after .*: NOT as expected" \
+    "^m_as .*: NOT as expected" "^$N of $N checks passed" -- env SD_SSI263_TEST_NO_MARKS=1 \
+    python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # Accented letters (src/csrc/translit.h, first on every voice's text): the module, every voice's bytes, and the voices
 # speaking on fresh units, from a firmware folder laid out as firmware/ (the data folder's Braille Lites, the
 # repository's Aicom files, the Speak-Out's where test_sd_ssi263.py finds it; all five are required, a voice without

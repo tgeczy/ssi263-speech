@@ -41,6 +41,11 @@ those lines into `~/.config/ssi263-speech/sd_ssi263.conf`: they win over the mod
 `killall speech-dispatcher` (Orca reconnects by itself). Rate, pitch and volume come from Orca or spd-say, mapped
 onto each device's own: the middle is its factory rate and pitch.
 
+Index marks: the module tells speech-dispatcher when speech reaches each mark in a message (the ones Orca puts
+before every word, and the server's own after each sentence). On the English, Danish, Norwegian and Swedish Braille
+Lite the place is the unit's own index mark, exact; on the other voices it is estimated, good to a word or so
+(`docs/index-marks.md`).
+
 Builds: x86_64 and aarch64 (a Raspberry Pi 4 or 5 is fine: the unit runs several times faster than real time on a
 Pi 5). No Python, no other packages: one program.
 

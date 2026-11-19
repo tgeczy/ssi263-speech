@@ -201,17 +201,29 @@ static void settings_for(int i, const sd_settings *s, int rate, int pitch, int v
 
 int sdv_speak(int i, const sd_settings *s, int rate, int pitch, int volume, const char *utf8, char *err, int errlen)
 {
+    return sdv_speak_marked(i, s, rate, pitch, volume, utf8, NULL, 0, err, errlen);
+}
+
+int sdv_speak_marked(int i, const sd_settings *s, int rate, int pitch, int volume, const char *utf8,
+                     const ssv_mark *marks, int n_marks, char *err, int errlen)
+{
     ssv_settings o;
     if (sdv_load(i, s, err, errlen) != 0) return -1;
     settings_for(i, s, rate, pitch, volume, &o);
     /* 0 (nothing to say, or the unit refused it: the next speak recovers) still renders until done, as before */
-    return ssv_speak(units[built[i]], &o, utf8, 0) > 0;
+    return ssv_speak_marked(units[built[i]], &o, utf8, 0, marks, n_marks) > 0;
 }
 
 int sdv_render(int i, const short **pcm, int *done)
 {
     if (!units[built[i]]) { *done = 1; return 0; }
     return ssv_render(units[built[i]], pcm, done);
+}
+
+int sdv_reached(int i, const ssv_reach **out)
+{
+    *out = NULL;
+    return units[built[i]] ? ssv_reached(units[built[i]], out) : 0;
 }
 
 void sdv_cancel(int i)

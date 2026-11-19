@@ -60,7 +60,22 @@ one: the Braille Lite's files from <data folder>, and aicom-accent-sa/, aicom-ac
 <data folder> when they are there, else from the repository's firmware/ (SPEAKOUT.HEX also from
 <data folder>/../speakout-firmware: it is never in the repository).
 
+and the message's index marks (<mark name="..."/>: the server's own after each sentence, a client's -- Orca puts one
+before every word), in a session of their own, counted apart ("index marks: n of n"):
+
+  marks    a mark before every word, Orca's way, and one at the end: each reported once (700), in the text's order,
+           with exactly the audio before it that a reference bl_voice given the same marks has before it
+           (blv_speak_marked, blv_reached: the unit's own Ctrl-F, to the sample); the audio the reference's, byte
+           for byte; no 700 after the 702
+  m_none   the same text with no marks after it: no 700, the audio the unmarked reference's
+  m_empty  a message of marks alone: its marks, then 702, no audio
+  m_stop   STOP in a marked message: no 700 after the 703, and m_after: the next message reports its own marks
+           only, all of them
+  m_as     the Accent SA (its marks estimated): every mark once and in order, the audio the unmarked reference's
+
     python3 test_sd_ssi263.py <sd_ssi263> <libssi263speech.so> <data folder>
+    SD_SSI263_TEST_MARKS_LATE=1: each block's audio sent before its marks -- marks must FAIL
+    SD_SSI263_TEST_NO_MARKS=1: the voice given no marks, none reported -- marks, m_empty, m_after and m_as must FAIL
     SD_SSI263_TEST_NO_CANCEL=1 in the environment: the module leaves the unit uncancelled -- "stop" must FAIL
     SD_SSI263_TEST_OLD_REPLIES=1: DEBUG and QUIT answered, and the voices listed, as up to 0.9.1 -- voices, debug,
                                   dbg_mid and quit must FAIL
@@ -100,6 +115,18 @@ NUMBERS_FN = ctypes.cast(lib.bl_numbers, ctypes.c_void_p)     # bl_numbers.h: th
 lib.blv_host.restype = ctypes.c_void_p
 lib.blv_host.argtypes = [ctypes.c_void_p]
 lib.bh_set_int.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+
+
+class Mark(ctypes.Structure):                    # marks.h's ssv_mark
+    _fields_ = [("at", ctypes.c_int), ("id", ctypes.c_int)]
+
+
+class Reach(ctypes.Structure):                   # marks.h's ssv_reach
+    _fields_ = [("id", ctypes.c_int), ("sample", ctypes.c_int), ("exact", ctypes.c_int)]
+
+
+lib.blv_speak_marked.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(Mark), ctypes.c_int]
+lib.blv_reached.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.POINTER(Reach))]
 
 
 class BhWrite(ctypes.Structure):                 # bl_host.h's bh_write
@@ -172,6 +199,24 @@ class Ref:
         else:
             self.phonemes = self._drain()
         return b"".join(out)
+
+    def say_marked(self, text, ats):
+        """(PCM of the message, [(mark's index, samples before it)]): the text with a mark at each byte offset."""
+        lib.blv_set(self.v, 50, 50, 7, 100, 1)
+        arr = (Mark * max(1, len(ats)))()
+        for k, at in enumerate(ats):
+            arr[k].at, arr[k].id = at, k
+        lib.blv_speak_marked(self.v, text.encode("utf-8"), arr, len(ats))
+        pcm, done, out, got, total = ctypes.POINTER(ctypes.c_short)(), ctypes.c_int(0), [], [], 0
+        r = ctypes.POINTER(Reach)()
+        while not done.value:
+            n = lib.blv_render(self.v, ctypes.byref(pcm), ctypes.byref(done))
+            for k in range(lib.blv_reached(self.v, ctypes.byref(r))):
+                got.append((r[k].id, total + max(0, min(n, r[k].sample))))
+            if n:
+                out.append(ctypes.string_at(pcm, 2 * n))
+            total += n
+        return b"".join(out), got
 
 
 # ---- the other voices: the module's data folder, and each voice driven directly ------------------------------------
@@ -321,6 +366,8 @@ class Module:
             with open(os.path.join(home, ".config", "ssi263-speech", "sd_ssi263.conf"), "w") as f:
                 f.write(user_conf)
         self.rates = set()
+        self.marks = []                # the last message's index marks: (name, samples of audio before it)
+        self.late = 0                  # ... and how many of them came after the event that ended it
         self.p = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
 
     def send(self, *lines):
@@ -373,9 +420,14 @@ class Module:
         self.send(text, ".")
         assert self.line() == b"200 OK SPEAKING"
         pcm, blocks = [], 0
+        self.marks, self.late = [], 0
         while True:
             s = self.line()
             if s == b"701 BEGIN":
+                continue
+            if s.startswith(b"700-"):
+                assert self.line() == b"700 INDEX MARK"
+                self.marks.append((s[4:].decode("utf-8"), sum(len(b) for b in pcm) // 2))
                 continue
             if s.startswith(b"705-"):
                 pcm.append(self.audio_block(s))
@@ -731,9 +783,72 @@ flat, full = EngineRef("as", accent_inflection=0).say("Is it ready? It is."), En
 print("as_infl  the reference at inflection 0 %s the default's" % ("differs from" if flat != full else "is IDENTICAL to"))
 results.append(same("as_infl", pcm, flat) and flat != full)
 
+# ---- index marks ----------------------------------------------------------------------------------------------------
+def marked(text, end=None):
+    """(the SSML with a mark before every word, named as Orca names them, and `end` after the last; the byte offset
+    of each in the text; their names)"""
+    out, ats, names, at = [], [], [], 0
+    for w in text.split(" "):
+        names.append("%d:%d" % (at, at + len(w)))
+        ats.append(len(text[:at].encode("utf-8")))
+        out.append('<mark name="%s"/>%s' % (names[-1], w.replace("&", "&amp;")))
+        at += len(w) + 1
+    ssml = " ".join(out)
+    if end:
+        ssml += '<mark name="%s"/>' % end
+        names.append(end)
+        ats.append(len(text.encode("utf-8")))
+    return "<speak>%s</speak>" % ssml, ats, names
+
+
+marks = []
+k = Module()
+k.send("INIT")
+assert k.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
+kref = Ref()
+TEXT = "one, nine, one, nine & ten. A second sentence, then a third. The end"
+ssml, ats, names = marked(TEXT, "__spd_id_0")
+pcm, ev, _ = k.speak(ssml)
+want, reached = kref.say_marked(TEXT, ats)
+got_names = [n for n, _ in k.marks]
+ok = same("marks", pcm, want) and ev == "702 END"
+where = [(names[i], at) for i, at in reached]
+marks.append(said("marks", ok and k.marks == where and got_names == names and len(set(at for _, at in where)) >= len(names) - 2,
+                  "%d marks: %d reported, in the text's order %s, each with the reference's audio before it %s" % (
+                      len(names), len(k.marks), got_names == names, k.marks == where)))
+pcm, ev, _ = k.speak("<speak>%s</speak>" % TEXT.replace("&", "&amp;"))
+ok = same("m_none", pcm, kref.say(TEXT))
+marks.append(said("m_none", not k.marks and ev == "702 END", "no marks in the message: %d reported" % len(k.marks)) and ok)
+pcm, ev, n = k.speak('<speak><mark name="a"/> <mark name="b"/></speak>')
+marks.append(said("m_empty", ([m[0] for m in k.marks], pcm, ev) == (["a", "b"], b"", "702 END"),
+                  "marks alone: %s reported, %d audio blocks, ended with %s" % ([m[0] for m in k.marks], n, ev)))
+ssml, ats, names = marked(LONG)
+pcm, ev, _ = k.speak(ssml, stop_after=8)
+before = len(k.marks)
+ssml2, ats2, names2 = marked("And the next message.")
+pcm2, ev2, _ = k.speak(ssml2)
+marks.append(said("m_stop", ev == "703 STOP" and before < len(names), "a STOP in a marked message: ended with %s after "
+                  "%d of %d marks" % (ev, before, len(names))))
+marks.append(said("m_after", [m[0] for m in k.marks] == names2 and ev2 == "702 END",
+                  "the next message: its own %d marks, %d reported" % (len(names2), len(k.marks))))
+k.set(synthesis_voice="Accent SA")
+asr = EngineRef("as")
+TEXT_AS = "this is a plain line of words, and then it goes on some more, until it ends"
+ssml, ats, names = marked(TEXT_AS)
+pcm, ev, _ = k.speak(ssml)
+ok = same("m_as", pcm, asr.say(TEXT_AS))
+at = [a for _, a in k.marks]
+marks.append(said("m_as", ok and [m[0] for m in k.marks] == names and at == sorted(at) and at[0] == 0
+                  and at[-1] > 0.5 * (len(pcm) // 2),
+                  "the Accent SA, estimated: %d of %d marks, in order %s, the last at %.2f of the audio" % (
+                      len(k.marks), len(names), at == sorted(at), at[-1] / float(len(pcm) // 2 or 1) if at else 0)))
+k.send("QUIT")
+k.p.wait(timeout=10)
+print("index marks: %d of %d checks passed" % (sum(marks), len(marks)))
+
 print("%d of %d checks passed (stop after %d blocks, %d with run ahead)" % (sum(results), len(results), blocks,
                                                                           ra_blocks))
 if others:
     print("the Accent-mini's, the Speak-Out's and the Mockingboards' (1.1 and early): %d of %d checks passed" % (
         sum(others), len(others)))
-sys.exit(0 if all(results) and all(others) else 1)
+sys.exit(0 if all(results) and all(others) and all(marks) else 1)

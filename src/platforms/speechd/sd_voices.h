@@ -26,6 +26,8 @@ extern "C" {
 #endif
 
 /* The config's keys (sd_ssi263.c reads them; its header lists them).  Every engine takes rate, pitch and volume from SSIP. */
+#include "../../csrc/marks.h"
+
 typedef struct {
     char datadir[1024];
     int sample_rate;                   /* SSI263SampleRate: 11025, 22050, 44100 */
@@ -61,8 +63,13 @@ int sdv_load(int i, const sd_settings *s, char *err, int errlen);
 /* One message (UTF-8): the settings sent, then the text.  rate, pitch, volume on NVDA's 0-100 (50, 50, 100 = the
    unit's own).  1: there is audio to render; 0: nothing to say; -1: the unit could not be made. */
 int sdv_speak(int i, const sd_settings *s, int rate, int pitch, int volume, const char *utf8, char *err, int errlen);
+/* The same with the message's index marks (../../csrc/marks.h: byte offsets into utf8, in rising order). */
+int sdv_speak_marked(int i, const sd_settings *s, int rate, int pitch, int volume, const char *utf8,
+                     const ssv_mark *marks, int n_marks, char *err, int errlen);
 /* The next block (16-bit mono at s->sample_rate, valid until the next call; 0 samples is possible), *done at the end */
 int sdv_render(int i, const short **pcm, int *done);
+/* The marks speech reached in the block sdv_render just returned, each with its sample in it (voices.h ssv_reached) */
+int sdv_reached(int i, const ssv_reach **out);
 /* The unit drops what it has not spoken, so the next message starts clean. */
 void sdv_cancel(int i);
 void sdv_destroy_all(void);
