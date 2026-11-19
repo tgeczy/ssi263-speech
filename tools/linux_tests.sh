@@ -48,9 +48,9 @@ check "white-box tests (MAME Z180 core)" ./build/linux/test_z180_whitebox
 check "CPU contract tests (MAME 8085 core)" ./build/linux/test_i8085_contract
 check "CPU contract tests (MAME 8086 core)" ./build/linux/test_i86_contract
 check "CPU contract tests (MAME 6809 core)" ./build/linux/test_m6809_contract
-# Speech Systems' Super Voice (1984): the host's tests and their must-fail controls, when its program file is in the
+# Speech Systems' Super Voice (1984): the host's and the voice's tests and their must-fail controls, when its program file is in the
 # drop-in folder (it is in no checkout and no add-on)
-[ -f "$ROOT/firmware/speech-systems-super-voice/SUPERTOK.BIN" ] && check "Speech Systems Super Voice (1984): host tests and their controls" \
+[ -f "$ROOT/firmware/speech-systems-super-voice/SUPERTOK.BIN" ] && check "Speech Systems Super Voice (1984): host and voice tests and their controls" \
     python3 src/csrc/supervoice/sv_controls.py "$ROOT/firmware/speech-systems-super-voice"
 check "golden, native host (en)" python3 nvda/tools/bns_equiv.py --native "$LIB" \
     --against=nvda/tools/golden/blazie_en.txt

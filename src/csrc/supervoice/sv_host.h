@@ -44,8 +44,9 @@
  *                    end writes: R3 with the amplitude 0, then R4 = FFh.  The cut phoneme is still in the chip, and
  *                    the next text's opening would give it its amplitude back (MEASURED: that text up to 82 ms late,
  *                    the old phoneme sounding first).  So before the text after a cut the chip is rested: CTL 1 and
- *                    0 again, a pause loaded, 0.35 s of the chip's time run unheard (sv_host.c rest).  That text then
- *                    starts within the program's opening pause, 27.5 ms at its default rate, in silence.
+ *                    0 again, a pause loaded, the chip's time run to that pause's end unheard (sv_host.c rest).
+ *                    That text's first phoneme is then written at once, and it starts from silence whatever was
+ *                    cut.
  *   a text's pitch   lands at once until its first phoneme: the opening's own pitch, and a pitch code at the text's
  *                    head.  The chip would glide there from where its counter was, the bottom of its range on a
  *                    new chip, and the first word climbed (heard).  The Mockingboard host's remedy, chosen by ear

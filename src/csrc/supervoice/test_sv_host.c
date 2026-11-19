@@ -22,9 +22,10 @@
  *   cancel          a sentence cut at eleven times -- in stops, in vowels, in a long pause (R0 00h) -- and "HI
  *                   THERE" 20 ms later: after the cancel not busy, its last writes R3 with the amplitude 0 and R4
  *                   FFh; the next text is the golden one and returns (uncorrected, a cut in the long pause leaves
- *                   the chip in the mode without A/R and the call never returns); its first phoneme comes within
- *                   the program's own opening pause, PAUSE_S, with silence before it (uncorrected: up to 82 ms
- *                   late, the cut phoneme sounding first at up to half of full scale)
+ *                   the chip in the mode without A/R and the call never returns); its first phoneme is written
+ *                   at once (within 2 ms of rendered audio) and its first 20 ms are quiet, under 0.012 of full
+ *                   scale as on a new chip (uncorrected: up to 82 ms late, the cut phoneme sounding first at up
+ *                   to half of full scale)
  *   start_pitch     at a text's first phoneme the chip's pitch counter is on its target: on a new host, with a pitch
  *                   code at the text's head (^IT20,4), and for a text after one at another pitch; a pitch code
  *                   inside a text still glides
@@ -79,7 +80,6 @@ static const unsigned char GOLDEN2[] = {
     0x47, 0x65, 0x4B, 0x60, 0x4B, 0x4B, 0x73, 0x47, 0x78, 0x78, 0x59, 0x5A, 0x77, 0x64, 0x5C, 0xC0, 0x63, 0x59, 0x47,
     0x78, 0xC0, 0x67, 0x51, 0x59, 0x4F, 0x47, 0x46, 0x78, 0x68, 0xC0, 0xC0};
 #define TICK 0.0047                        /* 4096 cycles of the chip's clock, and a little */
-#define PAUSE_S 0.0275                     /* the program's opening pause: R0 C0h at its rate 10, 6 of those steps */
 #define LONG_TEXT "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG. IT COSTS 1984 DOLLARS, DOESN'T IT?"
 
 static unsigned char *slurp(const char *dir, long *n)
@@ -286,25 +286,29 @@ static void t_codes(const char *dir)
     svh_destroy(h);
 }
 
-/* "HI THERE" said now: the seconds from the call to its first phoneme, and the loudest sample before it (*peak);
-   then run to its end */
-static double onset(sv_host *h, double *peak)
+/* "HI THERE" said now: the seconds of audio rendered before its first phoneme is written (the chip's own clock
+   will not do: the rest after a cut runs it on), and the level, rms, of its first 20 ms (*head); then run to its
+   end */
+static double onset(sv_host *h, double *head)
 {
     const double *a;
-    double t0 = ssi263_time(svh_chip(h)), first = -1.0, t = 0.0;
-    *peak = 0.0;
+    double first = -1.0, t = 0.0, e = 0.0;
+    long n = 0;
     svh_clear_writes(h);
     if (!svh_say(h, (const unsigned char *)"HI THERE", 8))
         return -1.0;
+    if (r0_time(h, 1) >= 0)
+        first = 0.0;                                     /* written before the call's first wait */
     while (svh_busy(h) && t < 10.0) {
         int got = svh_run(h, 0.001, &a), k;
+        for (k = 0; k < got && n < 441; k++, n++)
+            e += a[k] * a[k];
         t += 0.001;
-        if (first < 0 && (first = r0_time(h, 1)) < 0)
-            for (k = 0; k < got; k++)
-                if (fabs(a[k]) > *peak)
-                    *peak = fabs(a[k]);
+        if (first < 0 && r0_time(h, 1) >= 0)
+            first = t;
     }
-    return first < 0 ? -1.0 : first - t0;
+    *head = sqrt(e / (double)(n ? n : 1));
+    return first;
 }
 
 static void t_cancel(const char *dir)
@@ -342,8 +346,8 @@ static void t_cancel(const char *dir)
         got = onset(h, &peak);
         bad_golden += against(h, GOLDEN, (int)sizeof GOLDEN) != -1;
         stuck += svh_busy(h) || svh_get_int(h, "fault") != 0;
-        late += got < 0 || got > PAUSE_S + TICK;
-        loud += peak > 0.002;
+        late += got < 0 || got > 0.002;
+        loud += peak > 0.012;
         if (got > worst_late)
             worst_late = got;
         if (peak > worst_peak)
@@ -353,8 +357,8 @@ static void t_cancel(const char *dir)
     }
     check("cancel", in_pause && r3 == 0x50 && r4 == 0xFF && !bad_golden && !stuck && !late && !loud,
           "%d cuts (stops, vowels, a long pause %d): after the cancel R3 %02X, R4 %02X; the next text other than "
-          "golden %d, not returned %d, its first phoneme later than the opening pause at %d (the latest %.1f ms), "
-          "sound before it at %d (the loudest %.4f)", n, in_pause, r3 & 255, r4 & 255, bad_golden, stuck, late,
+          "golden %d, not returned %d, its first phoneme not at once at %d (the latest %.1f ms), its first 20 ms "
+          "loud at %d (the loudest %.4f rms)", n, in_pause, r3 & 255, r4 & 255, bad_golden, stuck, late,
           worst_late * 1000, loud, worst_peak);
 }
 

@@ -25,7 +25,7 @@
                                               (the most seen, a fresh program and 240 characters: under 0.2 s) */
 #define WAIT_LIMIT 4474431ULL              /* 5 s without a write to the chip while speaking: its longest phoneme
                                               (rate 0, duration 00) is under a third of a second */
-#define REST_S 0.35                        /* the chip's time a cut phoneme is given to end, unheard (rest) */
+#define REST_S 0.35                        /* longer than any pause lasts: ssi263_skip stops at the pause's end (rest) */
 
 struct sv_host {
     uint8_t mem[65536];
@@ -364,8 +364,10 @@ static int step(sv_host *h)
    because cancel took the amplitude away; the program's opening gives the amplitude back, and the chip does not
    request until that phoneme's time is up.  MEASURED (35 cut times over a sentence, the next text 20 ms later): its
    first phoneme came up to 82 ms late at the default rate, the old phoneme sounding before it at up to 0.52 of full
-   scale.  So a pause is loaded and the chip's time run on, unheard, past the longest phoneme there is; the next
-   text then starts as on a chip that ended its own way.  A HOST feature (sv_host.h). */
+   scale.  So the chip is put through CTL 1 and 0 with a pause, and its time run on, unheard, to that pause's end
+   (ssi263_skip stops there): the chip is requesting and at rest, and the next text's first phoneme is written
+   at once.  MEASURED (72 cut times, the next text at once): its level over its first 80 ms is the same at every
+   cut, whatever was cut, and under 0.03 of full scale as on a new chip.  A HOST feature (sv_host.h). */
 static void rest(sv_host *h)
 {
     int r3 = ssi263_reg(h->chip, 3) & 0x70;      /* cancel left the amplitude 0 */

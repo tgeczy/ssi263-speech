@@ -1,7 +1,8 @@
-"""The Super Voice host's tests and their must-fail controls: test_sv_host.c as it is (all must pass), then each
-variant undoing one rule of the host (sv_host.c) in a temporary copy -- exactly that rule's tests must then fail.
-The runner guard (exit code, summary line, the full test inventory) is ../cpu/contract_controls.py's.  The 6809 core
-and the chip are built once; each variant is sv_host.c alone, built side by side (nvda/tools/run_tests.py runs this).
+"""The Super Voice's tests and their must-fail controls: test_sv_host.c and test_sv_voice.c as they are (all must
+pass), then each variant undoing one rule of the host (sv_host.c) or of the voice (sv_voice.c) in a temporary copy --
+exactly that rule's tests must then fail.  The runner guard (exit code, summary line, the full test inventory) is
+../cpu/contract_controls.py's.  The 6809 core, the chip and the shared text path are built once; each variant is its
+one file alone, built side by side (nvda/tools/run_tests.py runs this).
 
     python src/csrc/supervoice/sv_controls.py <folder holding SUPERTOK.BIN>
 """
@@ -30,7 +31,7 @@ VARIANTS = {
     "every text finds the program as loaded": (
         "    memcpy(h->mem, h->loaded, sizeof h->mem);                /* every text finds the program as loaded (sv_host.h) */\n",
         "", ["cancel", "codes", "each_text_fresh", "stuck_guard"]),
-    # (cancel too: the text after a cut then starts later than the program's opening pause)
+    # (cancel too: the text after a cut is then not written at once)
     "the chip's time stands still at a text's start": (
         "    h->skip_start = 1;\n", "    h->skip_start = 0;\n", ["cancel", "starts_at_once"]),
     # the status read at the chip's time of the last write or block end: a request is seen up to a block late, so the
@@ -61,6 +62,39 @@ VARIANTS = {
         "    if (!svh_is_known(image, n)) {", "    if (0) {", ["wrong_image"]),
 }
 
+# the same for sv_voice.c
+VOICE_VARIANTS = {
+    "the control character and the quote taken out": (
+        "        if (c == '^' || c == '\"')", "        if (0)", ["parts_rules"]),
+    "a hyphen made a space": (
+        "        else if (c == '-' && !isdigit((unsigned char)t[i + 1]))", "        else if (0)", ["parts_rules"]),
+    # the program says "point" after "Page 1"
+    "a space before a digit's period": (
+        "        else if (c == '.' && i > 0 &&", "        else if (0 && c == '.' && i > 0 &&", ["parts_rules", "point"]),
+    "the numbers setting": (
+        "    char *t = at_say_text(utf8 ? utf8 : \"\", numbers), *o;",
+        "    char *t = at_say_text(utf8 ? utf8 : \"\", 0), *o;", ["parts_text"]),
+    "sentence ends first": (
+        "        k = cut_after(s, n, max, \".!?\");", "        k = -1;", ["parts_split"]),
+    "nothing added at the program's defaults": (
+        "        if (rate != RATE_DEFAULT)", "        if (1)", ["default_plain"]),
+    "the rate reaches the program": (
+        "        if (rate != RATE_DEFAULT)", "        if (0)", ["settings"]),
+    "the pitch reaches the program": (
+        "        if (pitch != PITCH_DEFAULT)", "        if (0)", ["settings"]),
+    "a capital raises the pitch": (
+        "                      + (v->offset ? ", "                      + (0 ? ", ["settings"]),
+    "the volume as gain": (
+        "        ssi_pcm16(y, n, v->gain, v->pcm);", "        ssi_pcm16(y, n, 1.0, v->pcm);", ["volume"]),
+    # the new parts would wait for the old text to end
+    "a text being said is cut by the next": (
+        "    svh_cancel(v->h);                       /* a text still being said is cut: the host rests the chip before the next */\n",
+        "", ["speak_over"]),
+}
+
+# (its name, the file its rules are in, its test, its rules)
+SUITES = [("host", "sv_host.c", "test_sv_host.c", VARIANTS), ("voice", "sv_voice.c", "test_sv_voice.c", VOICE_VARIANTS)]
+
 C = ["-O2", "-std=gnu99", "-ffp-contract=off"]
 CXX = ["-O3", "-std=c++17", "-fno-exceptions", "-fno-rtti", "-ffp-contract=off", "-w"]
 
@@ -76,7 +110,6 @@ def main():
     env = dict(os.environ, PATH=bindir + os.pathsep + os.environ["PATH"])
     gcc, gxx = os.path.join(bindir, "gcc"), os.path.join(bindir, "g++")
     inc = ["-I" + CSRC, "-I" + os.path.join(CSRC, "cpu"), "-I" + HERE]
-    source = open(os.path.join(HERE, "sv_host.c"), encoding="utf-8").read()
 
     with tempfile.TemporaryDirectory() as tmp:
         def obj(cc, flags, src, name):
@@ -85,27 +118,39 @@ def main():
             return out
 
         with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
-            shared = list(pool.map(lambda a: obj(*a), [
-                (gxx, CXX, os.path.join(CSRC, "cpu", "m6809_mame.cpp"), "m6809_mame"),
-                (gcc, C, os.path.join(CSRC, "ssi263.c"), "ssi263"),
-                (gcc, C, os.path.join(CSRC, "ssi263dsp.c"), "ssi263dsp"),
-                (gcc, C, os.path.join(HERE, "test_sv_host.c"), "test_sv_host")]))
+            built = dict(zip(
+                ("m6809_mame", "ssi263", "ssi263dsp", "accent_text", "numwords", "sv_host", "test_sv_host.c",
+                 "test_sv_voice.c"),
+                pool.map(lambda a: obj(*a), [
+                    (gxx, CXX, os.path.join(CSRC, "cpu", "m6809_mame.cpp"), "m6809_mame"),
+                    (gcc, C, os.path.join(CSRC, "ssi263.c"), "ssi263"),
+                    (gcc, C, os.path.join(CSRC, "ssi263dsp.c"), "ssi263dsp"),
+                    (gcc, C + ["-w"], os.path.join(CSRC, "accent_text.c"), "accent_text"),
+                    (gcc, C + ["-w"], os.path.join(CSRC, "numwords.c"), "numwords"),
+                    (gcc, C, os.path.join(HERE, "sv_host.c"), "sv_host"),
+                    (gcc, C, os.path.join(HERE, "test_sv_host.c"), "test_sv_host"),
+                    (gcc, C, os.path.join(HERE, "test_sv_voice.c"), "test_sv_voice")])))
+            chip = [built["m6809_mame"], built["ssi263"], built["ssi263dsp"]]
+            # what each suite's variant file is linked with
+            rest = {"host": [built["test_sv_host.c"]] + chip,
+                    "voice": [built["test_sv_voice.c"], built["sv_host"], built["accent_text"], built["numwords"]] + chip}
+            sources = {name: open(os.path.join(HERE, name), encoding="utf-8").read() for _s, name, _t, _v in SUITES}
 
             def build(job):
-                """the test program with this sv_host.c; a wrapper that runs it on the firmware folder"""
-                k, (_rule, (old, new, _want)) = job
-                text = source
+                """the suite's test program with this copy of its file; a wrapper that runs it on the firmware folder"""
+                suite, fname, k, (_rule, (old, new, _want)) = job
+                text = sources[fname]
                 if old is not None:
                     assert text.count(old) == 1, "the rule's code moved: %s" % old[:60]
                     text = text.replace(old, new)
-                d = os.path.join(tmp, "v%d" % k)
+                d = os.path.join(tmp, "%s_v%d" % (suite, k))
                 os.mkdir(d)
-                with open(os.path.join(d, "sv_host.c"), "w", encoding="utf-8", newline="\n") as f:
+                with open(os.path.join(d, fname), "w", encoding="utf-8", newline="\n") as f:
                     f.write(text)
-                host = obj(gcc, C, os.path.join(d, "sv_host.c"), "sv_host_%d" % k)
+                mine = obj(gcc, C, os.path.join(d, fname), "%s_%d" % (suite, k))
                 exe = os.path.join(d, "tm.exe" if os.name == "nt" else "tm")
-                subprocess.run([gxx, "-static" if os.name == "nt" else "-pthread", "-o", exe, host] + shared + ["-lm"],
-                               env=env, check=True)
+                subprocess.run([gxx, "-static" if os.name == "nt" else "-pthread", "-o", exe, mine] + rest[suite]
+                               + ["-lm"], env=env, check=True)
                 wrapper = exe + "_run" + (".cmd" if os.name == "nt" else "")
                 with open(wrapper, "w") as f:
                     if os.name == "nt":
@@ -116,29 +161,35 @@ def main():
                     os.chmod(wrapper, 0o755)
                 return wrapper
 
-            jobs = [(0, (None, (None, None, [])))] + [(k + 1, v) for k, v in enumerate(VARIANTS.items())]
+            jobs = []
+            for suite, fname, _test, variants in SUITES:
+                jobs.append((suite, fname, 0, (None, (None, None, []))))
+                jobs += [(suite, fname, k + 1, v) for k, v in enumerate(variants.items())]
             runners = list(pool.map(build, jobs))
-            try:
-                results, f = run_tests(runners[0], suffixes=("",))
-            except RunError as e:
-                print("BAD  the host as it is: %s" % e)
-                sys.exit(1)
-            inventory = sorted(results)
-            bad = bool(f)
-            print("%-4s the host as it is -> %d tests, failing: %s" % ("ok" if not f else "BAD", len(results),
-                                                                     ", ".join(f) or "none"))
+            inventories, bad = {}, 0
+            for job, runner in zip(jobs, runners):
+                if job[3][0] is None:                  # each suite as it is first: its inventory
+                    try:
+                        results, f = run_tests(runner, suffixes=("",))
+                    except RunError as e:
+                        print("BAD  the %s as it is: %s" % (job[0], e))
+                        sys.exit(1)
+                    inventories[job[0]] = sorted(results)
+                    bad += bool(f)
+                    print("%-4s the %s as it is -> %d tests, failing: %s" % ("ok" if not f else "BAD", job[0],
+                                                                           len(results), ", ".join(f) or "none"))
 
             def run_variant(pair):
-                (_k, (rule, (_old, _new, want))), runner = pair
+                (suite, _fname, _k, (rule, (_old, _new, want))), runner = pair
                 try:
-                    _r, f = run_tests(runner, inventory, suffixes=("",))
+                    _r, f = run_tests(runner, inventories[suite], suffixes=("",))
                 except RunError as e:
                     return 1, "BAD  undone: %-48s -> the run itself failed: %s" % (rule, e)
                 ok = f == sorted(want)
                 return (not ok), "%-4s undone: %-48s -> failing: %s" % ("ok" if ok else "BAD", rule,
                                                                        ", ".join(f) or "none")
 
-            for b, line in pool.map(run_variant, list(zip(jobs, runners))[1:]):
+            for b, line in pool.map(run_variant, [(j, r) for j, r in zip(jobs, runners) if j[3][0] is not None]):
                 bad += b
                 print(line)
     print("controls: %s" % ("all as expected" if not bad else "%d NOT as expected" % bad))

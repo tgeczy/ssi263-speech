@@ -4,8 +4,8 @@ The Super Voice was a speech cartridge for the Tandy Color Computer with an SSI-
 runs its own text-to-speech, SUPERTOK ("V5.0A", by Del Software for Speech Systems), unchanged, on MAME's 6809
 (`../cpu/m6809_mame.cpp`) and our chip.
 
-**It is a host, not a voice yet.** A text goes in, the chip's audio comes out, and the tests hold it to that. The
-voice for the screen readers (settings, long text in parts, the voice table) is not written. Tomi has heard its
+**It is not in the voice table yet.** The host (a text in, the chip's audio out) and the voice layer on it
+(settings, the text path, long text in parts) are here and tested; no front end lists it. Tomi has heard its
 first clips (19 November 2026: close to the Mockingboard in sound, and a first word that climbed in pitch, remedied
 below); nobody has judged it as a voice.
 
@@ -18,9 +18,11 @@ goes there and why it is not here; `../../../docs/super-voice.md` says where the
 | File | What it is for |
 |---|---|
 | `sv_host.h`, `sv_host.c` | The host: 64 KB of RAM and the chip, nothing else. `SUPERTOK.BIN` placed as LOADM places it (only the known file, by sha256); a text given as Extended BASIC's USR gives a string (the manual's own example: the entry at 5805h, the descriptor in X); the 6809 and the chip in step, the chip brought up to the 6809's time at every access; D7 of a read high while the chip requests. The header says which numbers are the host's and not the cartridge's: the chip's time standing still until the program first waits for it (so speech starts at once), every text finding the program as loaded, cancel and the chip rested after it, a text's pitch landing at once, and the guards (a call that waits for ever, a program that leaves its own code). |
+| `sv_voice.h`, `sv_voice.c` | The voice: NVDA's rate and pitch onto the program's own control codes (`^S` 1-16, `^IT` 1-32; at 50 and 50 nothing is added, so the default voice is the cartridge's own), the volume as gain, a capital's pitch; the shared 7-bit text path (`../accent_text.c`); four rules for what this program does with a screen reader's text (its control character `^` and its "quote" taken out, a hyphen made a space unless a digit follows, a space before a period that follows a digit, or it says "point"); long text in parts of at most 200 characters, cut at sentence ends, then clause marks, then spaces. Numbers are the program's own by default. |
+| `test_sv_voice.c` | The voice on the real program (12 tests): the setting steps, the text path, the four rules, the splitting, nothing added at the defaults, rate, pitch and a capital at the chip, speaking, 600 characters in parts, "Page 1." without "point", cancel then speak, speaking over a text, the volume. |
 | `sv_render.c` | The C API alone: the firmware folder and a text into a WAV (`sv_render <folder> "text" out.wav [--log]`). |
 | `test_sv_host.c` | The host on the real program (10 tests): the golden phonemes of two texts with the program's opening and closing writes, speech starting at once (and at the machine's 103 ms with the skip off), a text after another one the same as on a new host, the program's control codes reaching the chip, a sentence cut at eleven places and the text after each (whole, on time, nothing of the cut phoneme before it), a text's first phoneme on its pitch (no climb), the same writes whatever the block size, the guard on a chip that never requests, the refusals and the 240 characters, a changed byte refused. Skips (77) without the file. |
-| `sv_controls.py` | The test as it is, then its must-fail controls (11 rules): each rule undone in a scratch copy of `sv_host.c`, exactly its tests must fail. Run by `nvda/tools/run_tests.py` and `tools/linux_tests.sh` when the file is in its drop-in folder. |
+| `sv_controls.py` | Both tests as they are, then their must-fail controls (11 host rules, 11 voice rules): each rule undone in a scratch copy of its file, exactly its tests must fail. Run by `nvda/tools/run_tests.py` and `tools/linux_tests.sh` when the file is in its drop-in folder. |
 
 ## What the program does, and what the host rests on
 
@@ -41,9 +43,9 @@ goes there and why it is not here; `../../../docs/super-voice.md` says where the
   never returns. That is why every text starts from the program as loaded.
 - **A cut phoneme stays in the chip.** Cancel takes the amplitude away as the program's own end does, but the phoneme
   runs on, and the next text's opening gives the amplitude back: measured, the next text came up to 82 ms late with
-  the old phoneme sounding first. So after a cut the host loads a pause and runs the chip's time on, unheard, before
-  the next text. That text then starts within the program's own opening pause (27.5 ms at the default rate), in
-  silence, at every cut tried.
+  the old phoneme sounding first. So after a cut the host loads a pause and runs the chip's time to its end,
+  unheard, before the next text. That text's first phoneme is then written at once, and it starts from silence:
+  the same quiet rise at every cut tried, whatever was cut.
 - **The first word climbed.** The chip glides to a text's pitch from wherever its counter was, the bottom of its
   range on a new chip. Tomi heard it in the first clips, as on the Mockingboard before the same remedy: until a
   text's first phoneme, its pitch lands at once.
