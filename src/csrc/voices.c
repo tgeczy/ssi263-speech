@@ -347,6 +347,12 @@ static int eng_st_speak(void *u, const char *utf8, int pitch_offset)
     int r = stv_speak((st_voice *)u, utf8, pitch_offset);
     return stv_fault((st_voice *)u) ? -1 : r > 0;
 }
+static int eng_st_speak_marked(void *u, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
+{
+    int r = stv_speak_marked((st_voice *)u, utf8, pitch_offset, marks, n_marks);
+    return stv_fault((st_voice *)u) ? -1 : r > 0;
+}
+static int eng_st_reached(void *u, const ssv_reach **out) { return stv_reached((st_voice *)u, out); }
 static int eng_st_render(void *u, const short **pcm, int *done) { return stv_render((st_voice *)u, pcm, done); }
 static void eng_st_cancel(void *u) { stv_cancel((st_voice *)u); }
 static void eng_st_destroy(void *u) { stv_destroy((st_voice *)u); }
@@ -373,7 +379,8 @@ static const ssv_engine *engine(int kind)
                                   eng_so_speak_marked, eng_so_reached};
 #endif
 #ifdef SSV_HAVE_SMARTALK
-    static const ssv_engine st = {eng_st_create, eng_st_set, eng_st_speak, eng_st_render, eng_st_cancel, eng_st_destroy};
+    static const ssv_engine st = {eng_st_create, eng_st_set, eng_st_speak, eng_st_render, eng_st_cancel, eng_st_destroy,
+                                  eng_st_speak_marked, eng_st_reached};
 #endif
     switch (kind) {
     case SSV_BLAZIE: return &bl;

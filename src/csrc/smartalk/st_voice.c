@@ -42,6 +42,14 @@ struct st_voice {
     int n_cmd;                                              /* the settings to send before the first part */
     short *pcm;
     int pcm_cap;
+    /* index marks (st_voice.h) */
+    struct { int id, seq; } *mk;                           /* the marks not yet reached: seq 0 at once, -1 at the
+                                                              utterance's end, else the number of its Ctrl-F among
+                                                              the utterance's */
+    int n_mk, cap_mk, got06;                               /* got06: the Ctrl-Fs the TSR has counted of them */
+    ssv_reach *reached;                                    /* what the last stv_render's block reached */
+    int n_reached, cap_reached;
+    int blk_ran, blk_start, blk_count;                     /* the block the last render made */
 };
 
 static int clamp(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -327,6 +335,151 @@ static int make_parts(const char *utf8, int numbers, char ***out)
     return l.n;
 }
 
+/* ---- index marks (st_voice.h) -------------------------------------------------------------------------------------- */
+/* the tests' controls (nvda/tools/st_marks.py; an app never sets it): 1 reports every mark with the first block; 2
+   gives the TSR a Ctrl-F for every one of the caller's marks; 3 leaves the marks after a cancel; 4 puts the Ctrl-F
+   inside the marked word, after its first letter */
+ST_API int stv_marks_break = 0;
+
+static int count_words(const char *t)
+{
+    int n = 0, i = 0;
+    while (t[i]) {
+        while (t[i] == ' ') i++;
+        if (!t[i]) break;
+        n++;
+        while (t[i] && t[i] != ' ') i++;
+    }
+    return n;
+}
+
+/* the k-th word (from 0) of the parts taken as one text: a copy, malloc'd; NULL past the end */
+static char *nth_word(char **parts, int n_parts, int k)
+{
+    int p, i;
+    for (p = 0; p < n_parts; p++)
+        for (i = 0; parts[p][i]; ) {
+            int a;
+            while (parts[p][i] == ' ') i++;
+            if (!parts[p][i]) break;
+            a = i;
+            while (parts[p][i] && parts[p][i] != ' ') i++;
+            if (k-- == 0) {
+                char *w = (char *)malloc((size_t)(i - a) + 1);
+                if (w) { memcpy(w, parts[p] + a, (size_t)(i - a)); w[i - a] = 0; }
+                return w;
+            }
+        }
+    return NULL;
+}
+
+/* the word of the whole text a mark at byte `at` of the source stands before (0 to nw): the source up to the mark
+   -- from the start of the run of text it stands in -- made the voice's text by itself, its words held against the
+   whole's (bl_voice.c's way) */
+static int mark_word(const char *utf8, int at, int numbers, char **parts, int n_parts, int nw)
+{
+    int len = (int)strlen(utf8), j = 0, pnw, i = 0;
+    char *prefix, *pt;
+    if (at <= 0) return 0;
+    if (at > len) at = len;
+    if (at < len)
+        while (at > 0 && (unsigned char)utf8[at] > ' ' && (unsigned char)utf8[at - 1] > ' ') at--;
+    while (at > 0 && at < len && ((unsigned char)utf8[at] & 0xC0) == 0x80) at--;
+    prefix = (char *)malloc((size_t)at + 1);
+    if (!prefix) return 0;
+    memcpy(prefix, utf8, (size_t)at);
+    prefix[at] = 0;
+    pt = voice_text(prefix, numbers);
+    free(prefix);
+    if (!pt) return 0;
+    pnw = count_words(pt);
+    for (j = 0; j < pnw && j < nw; j++) {
+        char *w = nth_word(parts, n_parts, j);
+        int a, same;
+        while (pt[i] == ' ') i++;
+        a = i;
+        while (pt[i] && pt[i] != ' ') i++;
+        same = w && (int)strlen(w) == i - a && !memcmp(w, pt + a, (size_t)(i - a));
+        free(w);
+        if (!same) break;
+    }
+    free(pt);
+    return j;
+}
+
+/* The parts with the TSR's index mark, Ctrl-F, for each of the caller's marks: directly after the word BEFORE the
+   marked one, in whichever part that word is -- the TSR takes a Ctrl-F for a space, and "word<06> next" leaves its
+   speech as it is where "word <06>next" can move a 4.3 ms pause at its two fastest rates (measured).  The parts
+   themselves are the unmarked text's: no mark moves where the text is cut.  seqs as accent_text.h's at_say_marked.
+   0 when out of memory (the parts are then as they were, every seq 0). */
+static int mark_parts(const char *utf8, int numbers, char **parts, int n_parts, const ssv_mark *marks, int n_marks,
+                      int *seqs, int *n06)
+{
+    int nw = 0, p, i, w, last = 0, count = 0, *mk;
+    *n06 = 0;
+    for (i = 0; i < n_marks; i++) seqs[i] = 0;
+    for (p = 0; p < n_parts; p++) nw += count_words(parts[p]);
+    mk = (int *)calloc((size_t)nw + 2, sizeof(int));           /* per word: the Ctrl-Fs for it, then their number */
+    if (!mk) return 0;
+    for (i = 0; i < n_marks; i++) {
+        w = mark_word(utf8, marks[i].at, numbers, parts, n_parts, nw);
+        if (w < last) w = last;                                /* in the caller's order, never back */
+        last = w;
+        seqs[i] = w;
+        if (w > 0 && w < nw && (!mk[w] || stv_marks_break == 2)) mk[w]++;
+    }
+    for (p = 0, w = 0; p < n_parts; p++) {                     /* w: the number of the word a part's scan is at */
+        const char *t = parts[p];
+        int n = (int)strlen(t), m = 0, k;
+        char *out = (char *)malloc((size_t)n + (size_t)n_marks + 1);
+        if (!out) { free(mk); for (i = 0; i < n_marks; i++) seqs[i] = 0; return 0; }
+        for (i = 0; i < n; ) {
+            if (t[i] == ' ') { out[m++] = t[i++]; continue; }
+            if (stv_marks_break == 4 && mk[w] > 0) {           /* the control: inside the marked word */
+                out[m++] = t[i++];
+                for (k = mk[w]; k > 0; k--) out[m++] = 0x06;
+            }
+            while (i < n && t[i] != ' ') out[m++] = t[i++];
+            w++;                                               /* that word is written: the next one's marks follow it */
+            if (w < nw && mk[w] > 0 && stv_marks_break != 4)
+                for (k = mk[w]; k > 0; k--) out[m++] = 0x06;
+        }
+        out[m] = 0;
+        free(parts[p]);
+        parts[p] = out;
+    }
+    for (w = 1; w < nw; w++)
+        if (mk[w]) { count += mk[w]; mk[w] = count; }
+    for (i = 0; i < n_marks; i++)
+        seqs[i] = seqs[i] <= 0 ? 0 : seqs[i] >= nw ? -1 : mk[seqs[i]];
+    *n06 = count;
+    free(mk);
+    return 1;
+}
+
+ST_API int stv_parts_marked(const char *utf8, int numbers, const ssv_mark *marks, int n_marks, char *out, int cap)
+{
+    char **p = NULL;
+    int n = make_parts(utf8, numbers, &p), i, len = 0, n06, *seqs;
+    if (n < 0)
+        return -1;
+    seqs = (int *)malloc(sizeof(int) * (size_t)(n_marks > 0 ? n_marks : 1));
+    if (seqs) mark_parts(utf8, numbers, p, n, marks, n_marks, seqs, &n06);
+    free(seqs);
+    for (i = 0; i < n; i++)
+        len += (int)strlen(p[i]) + (i ? 1 : 0);
+    if (out && len < cap) {
+        out[0] = 0;
+        for (i = 0; i < n; i++) {
+            if (i) strcat(out, "|");
+            strcat(out, p[i]);
+        }
+    }
+    for (i = 0; i < n; i++) free(p[i]);
+    free(p);
+    return len;
+}
+
 ST_API int stv_parts(const char *utf8, int numbers, char *out, int cap)
 {
     char **p = NULL;
@@ -417,6 +570,8 @@ ST_API void stv_destroy(st_voice *v)
     sth_destroy(v->h);
     free(v->exe);
     free(v->pcm);
+    free(v->mk);
+    free(v->reached);
     free(v);
 }
 
@@ -494,15 +649,38 @@ static int say_next(st_voice *v)
 
 ST_API int stv_speak(st_voice *v, const char *utf8, int pitch_offset)
 {
+    return stv_speak_marked(v, utf8, pitch_offset, NULL, 0);
+}
+
+ST_API int stv_speak_marked(st_voice *v, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
+{
     char **p = NULL;
-    int n;
+    int n, i, n06 = 0, *seqs = NULL;
     if (stv_fault(v) && !restart(v))
         return 0;
     if (v->active || sth_busy(v->h, QUIET, 0.0))
         stv_cancel(v);
     free_parts(v);
+    v->n_mk = v->n_reached = v->got06 = 0;
     n = make_parts(utf8, v->numbers, &p);
-    if (n <= 0) {
+    if (!marks || n_marks <= 0)
+        n_marks = 0;
+    if (n_marks) {                                    /* (out of memory: spoken without marks) */
+        seqs = (int *)malloc(sizeof(int) * (size_t)n_marks);
+        if (n_marks > v->cap_mk) {
+            void *q = realloc(v->mk, sizeof *v->mk * (size_t)n_marks);
+            if (q) { v->mk = q; v->cap_mk = n_marks; }
+        }
+        if (!seqs || n_marks > v->cap_mk) n_marks = 0;
+    }
+    if (n_marks) {
+        for (i = 0; i < n_marks; i++) seqs[i] = 0;
+        if (n > 0) mark_parts(utf8, v->numbers, p, n, marks, n_marks, seqs, &n06);
+        for (i = 0; i < n_marks; i++) { v->mk[i].id = marks[i].id; v->mk[i].seq = seqs[i]; }
+        v->n_mk = n_marks;
+    }
+    free(seqs);
+    if (n <= 0) {                                     /* nothing to say: its marks with the next render */
         free(p);
         return 0;
     }
@@ -533,12 +711,13 @@ ST_API int stv_speak(st_voice *v, const char *utf8, int pitch_offset)
     return 1;
 }
 
-ST_API int stv_render(st_voice *v, const short **pcm, int *done)
+static int render_block(st_voice *v, const short **pcm, int *done)
 {
     const double *y;
     int n, start = 0, count;
     *pcm = v->pcm;
     *done = 0;
+    v->blk_ran = v->blk_start = v->blk_count = 0;
     if (!v->active || v->fault) {
         v->active = 0;
         *done = 1;
@@ -578,6 +757,9 @@ ST_API int stv_render(st_voice *v, const short **pcm, int *done)
     *pcm = v->pcm;
     if (count > 0)
         ssi_pcm16(y + start, count, v->gain, v->pcm);
+    v->blk_ran = 1;
+    v->blk_start = start;
+    v->blk_count = count > 0 ? count : 0;
     if (v->snap_until_speech && sth_get_double(v->h, "last_speech") >= v->t_start) {
         /* the first phoneme is set up; a leftover snap would flatten a glide later (so_voice.c) */
         ssi263_set_snap_pitch(sth_chip(v->h), 0);
@@ -598,8 +780,68 @@ ST_API int stv_render(st_voice *v, const short **pcm, int *done)
     return count > 0 ? count : 0;
 }
 
+/* What the block just made has reached: the TSR counts a Ctrl-F as it writes what follows it; the k-th counted is the
+   k-th sent.  With `done` the rest come with the block's last sample. */
+static void report_marks(st_voice *v, int returned, int done)
+{
+    const sth_reply *rp = NULL;
+    int nr = v->blk_ran ? sth_replies(v->h, &rp) : 0, i, j = 0, kept = 0, last = 0;
+    v->n_reached = 0;
+    if (!v->n_mk) return;
+    if (v->n_mk > v->cap_reached) {
+        ssv_reach *r = (ssv_reach *)realloc(v->reached, sizeof(ssv_reach) * (size_t)v->n_mk);
+        if (!r) { v->n_mk = 0; return; }
+        v->reached = r;
+        v->cap_reached = v->n_mk;
+    }
+    for (i = 0; i < v->n_mk; i++) {
+        int seq = v->mk[i].seq, s = 0, exact = 0;
+        if (stv_marks_break == 1 || seq == 0) { s = 0; exact = seq == 0; }
+        else if (seq > 0 && seq <= v->got06 + nr) {          /* counted in this block: by its place among them */
+            j = seq - v->got06 - 1;
+            s = (j >= 0 ? rp[j].sample : 0) - v->blk_start;
+            exact = 1;
+        } else if (done) { s = returned; exact = seq == -1; }
+        else {                                               /* not yet */
+            v->mk[kept++] = v->mk[i];
+            continue;
+        }
+        if (s < last) s = last;
+        if (s > returned) s = returned;
+        last = s;
+        v->reached[v->n_reached].id = v->mk[i].id;
+        v->reached[v->n_reached].sample = s;
+        v->reached[v->n_reached].exact = exact;
+        v->n_reached++;
+    }
+    v->got06 += nr;
+    v->n_mk = kept;
+}
+
+ST_API int stv_render(st_voice *v, const short **pcm, int *done)
+{
+    int n = render_block(v, pcm, done);
+    if (v->fault) { v->n_mk = v->n_reached = 0; return n; }
+    report_marks(v, n, *done);
+    return n;
+}
+
+ST_API int stv_reached(st_voice *v, const ssv_reach **out)
+{
+    *out = v->reached;
+    return v->n_reached;
+}
+
+ST_API int stv_marks_exact(const st_voice *v)
+{
+    (void)v;
+    return 1;
+}
+
 ST_API void stv_cancel(st_voice *v)
 {
+    if (stv_marks_break != 3)
+        v->n_mk = v->n_reached = 0;                          /* no mark of a cancelled text is reported */
     free_parts(v);
     v->active = 0;
     v->n_cmd = 0;

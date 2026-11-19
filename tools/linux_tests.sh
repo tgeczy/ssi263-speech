@@ -762,6 +762,19 @@ control "as_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^as marks: 1 FAILED$" -- env AS_MARKS_BREAK=3 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
 control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^as marks: 5 FAILED$" -- env AS_MARKS_BREAK=4 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
+# ... and the SmarTalk's (st_voice.h): Ctrl-F after the word before each marked word, the parts cut where they are
+# without marks, the TSR's own count of marks passed (S_TALK.EXE is in the repository: it always runs)
+check "st_voice: index marks by the TSR's own Ctrl-F" python3 nvda/tools/st_marks.py build/linux/libssi263_voices.so
+control "st_voice marks CONTROL (every mark with the first block, must fail)" "^FAIL place " "^FAIL twins " \
+    "^FAIL end " "^FAIL dense " "^FAIL cancel " "^ok +frames " "^st marks: 5 FAILED$" \
+    -- env ST_MARKS_BREAK=1 python3 nvda/tools/st_marks.py build/linux/libssi263_voices.so
+control "st_voice marks CONTROL (a Ctrl-F for every mark on a word, must fail)" \
+    "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^st marks: 1 FAILED$" \
+    -- env ST_MARKS_BREAK=2 python3 nvda/tools/st_marks.py build/linux/libssi263_voices.so
+control "st_voice marks CONTROL (the marks left after a cancel, must fail)" "^FAIL cancel .* [1-9] reported after it" \
+    "^st marks: 1 FAILED$" -- env ST_MARKS_BREAK=3 python3 nvda/tools/st_marks.py build/linux/libssi263_voices.so
+control "st_voice marks CONTROL (the Ctrl-F inside the marked word, must fail)" "^FAIL frames .*phonemes DIFFER" \
+    "^FAIL bytes " "^st marks: 4 FAILED$" -- env ST_MARKS_BREAK=4 python3 nvda/tools/st_marks.py build/linux/libssi263_voices.so
 # ... and the Sounding Board's, the same cases: its marks read from its DOS driver's own count (sb_host.h)
 if [ -f $SOFW/gw-micro-sounding-board/SB.COM ]; then
     SBM="env SSI263_SOUNDINGBOARD_DIR=$SOFW/gw-micro-sounding-board"

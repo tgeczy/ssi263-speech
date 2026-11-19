@@ -54,6 +54,17 @@ ST_API void sth_say(st_host *h, const unsigned char *bytes, int n);
 /* run(): `seconds` of chip time in `step` slices: the chip's audio at out_rate, in an internal buffer valid until the
    next call (what a blocked say made first).  Returns the sample count (-1: a fault). */
 ST_API int sth_run(st_host *h, double seconds, double step, const double **audio);
+/* The index marks (Ctrl-F in the text, st_voice.h) the TSR passed in the audio the last sth_run returned, each with
+   the samples of that audio made when it was passed (to the host's slice).  The TSR keeps what its status call
+   (INT 17h AH=2: DH, and the call clears it) reports in a word of its own; the host reads that word after every
+   slice instead of calling, which would clear it and run the TSR's code.  The marks carry no name: they are the
+   next ones in the order they were sent.  At most STH_REPLIES a run; sth_get_int "marks" counts every one ever
+   passed.  Ctrl-X (sth_cancel) zeroes the TSR's count: none of a cancelled text is given. */
+typedef struct {
+    int sample;                            /* samples of the run's audio made when it was passed */
+} sth_reply;
+#define STH_REPLIES 64
+ST_API int sth_replies(const st_host *h, const sth_reply **out);
 /* skip(): the TSR runs with the chip keeping time but making no sound; returns the time run */
 ST_API double sth_skip(st_host *h, double seconds, double step);
 /* input_pending(): bytes of phonemes the rules have queued and the IRQ handler has not yet sent (4 a phoneme) */

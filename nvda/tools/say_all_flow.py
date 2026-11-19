@@ -365,7 +365,7 @@ def main():
             check("gated", sorted(reached4) == [1, 2] and used == 0 and reached4.get(2, 0) < len(a3),
                   "this unit's own marks are not used: %d Ctrl-F sent for the index (0 wanted), the index at %.2f "
                   "of the audio" % (used, at))
-    if WHICH == "speakout" or (WHICH == "accent" and VOICE == "sa"):
+    if WHICH in ("speakout", "smartalk") or (WHICH == "accent" and VOICE == "sa"):
         # the Speak-Out's and the Sounding Board's own index marks (so_voice.h): the second line's index where the box says speech is, not
         # at its share of the characters; and the line as long as without them (the box's speech is the same)
         long_short = [IndexCommand(1), "w w w w", IndexCommand(2), "it is on this"]

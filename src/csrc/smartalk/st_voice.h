@@ -36,6 +36,7 @@
 
 #include <stddef.h>
 #include "st_host.h"
+#include "../marks.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,6 +63,26 @@ ST_API void stv_cancel(st_voice *v);
 /* nonzero once the host has faulted or the box stalled (speaking, silent for 4 s), until the next speak boots a new
    box */
 ST_API int stv_fault(const st_voice *v);
+
+/* Index marks (../marks.h).  The TSR has its own (its manual): a Ctrl-F in the text is counted when speech passes it,
+   and the status request (INT 17h AH=2) returns the count in DH and clears it; nothing switches it on.
+   stv_speak_marked: as stv_speak, a Ctrl-F directly after the word before each word one of the caller's marks stands
+   before.  The text is made the voice's whole, exactly as without marks, and cut into the same parts: no mark moves a
+   cut.  Marks on one word are one Ctrl-F; one before the first word needs none.
+   stv_reached: the marks speech reached in the block the last stv_render returned, in order, each with the sample at
+   which the TSR's count rose (st_host.h sth_replies): one before the first word with the first block, one after the
+   last word and whatever is left with the last, nothing after a cancel.
+   MEASURED on the emulated TSR (2026-11-19, docs/index-marks.md): the count rises in the interrupt that writes what
+   follows the mark -- the next word's first phoneme at rate digits 0 to 7, a pause 4.3 ms before it at 8 and 9; a
+   mark at a word break is a space to the TSR and leaves the speech as it is at digits 0 to 7; at 8 and 9 it can add
+   or remove a 4.3 ms pause write unless it stands before the space ("word<06> next"), which is where it is put;
+   Ctrl-X zeroes the count. */
+ST_API int stv_marks_exact(const st_voice *v);
+ST_API int stv_speak_marked(st_voice *v, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks);
+ST_API int stv_reached(st_voice *v, const ssv_reach **out);
+/* The parts stv_speak_marked would send (as stv_parts), for tests. */
+ST_API int stv_parts_marked(const char *utf8, int numbers, const ssv_mark *marks, int n_marks, char *out, int cap);
+ST_API extern int stv_marks_break;          /* the tests' controls (st_voice.c) */
 
 /* The TSR's digit for NVDA's pitch (0-9; 50 = 5), for its rate (0-9; 50 = 3), and its tone letter for 0-25 (else
    'I'), for tests and front ends. */

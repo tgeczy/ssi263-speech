@@ -34,6 +34,7 @@
 #define DATA_SEG_AT 0x538          /* CS:0538 holds the TSR's data segment */
 #define QUEUED 0x1E2               /* in it: bytes of phonemes waiting (4 each) ... */
 #define SPEAKING 0x1EC             /* ... and 1 while it speaks */
+#define MARK_COUNT 0x2DA           /* ... and the index marks passed since its last status call or Ctrl-X: a word */
 #define BANNER "SmarTalk Version 1.21"
 #define TIMER_HZ (1193182.0 / 65536)
 #define RET_LINEAR ((unsigned long)BIOS_SEG * 16 + RETURN_OFF)
@@ -68,6 +69,11 @@ struct st_host {
     int log_on;
     sth_write *wl;
     int n_wl, cap_wl;
+    /* index marks (sth_replies) */
+    sth_reply rp[STH_REPLIES];
+    int n_rp, rp_read;                                    /* rp_read: the list is a finished run's (the next mark
+                                                             starts a new one) */
+    int mark_seen, marks;                                 /* the TSR's count as last read; every mark passed */
 };
 
 /* ---- faults: what smartalk.py raises ------------------------------------------------------------------------------ */
@@ -524,6 +530,28 @@ static int exec_exe(st_host *h, const unsigned char *data, size_t n, int psp, co
 
 /* ---- driving the TSR ----------------------------------------------------------------------------------------------- */
 /* _cpu */
+/* the TSR's own count of marks passed, read after a slice: those new since the last look, at `sample` of the audio
+   being made (the pending audio's or the run's: one buffer follows the other) */
+static void marks_poll(st_host *h, int sample)
+{
+    int count, fresh;
+    if (h->data_seg <= 0)
+        return;
+    count = word(h, MARK_COUNT);
+    if (count < h->mark_seen)                           /* zeroed (a Ctrl-X): it counts from nothing again */
+        h->mark_seen = 0;
+    fresh = count - h->mark_seen;
+    h->mark_seen = count;
+    if (!fresh)
+        return;
+    if (h->rp_read) { h->n_rp = 0; h->rp_read = 0; }
+    for (; fresh > 0; fresh--) {
+        h->marks++;
+        if (h->n_rp < STH_REPLIES)
+            h->rp[h->n_rp++].sample = sample;
+    }
+}
+
 static int cpu(st_host *h, uint64_t count)
 {
     emu_start(h, 0, count);                             /* until 0: pc86.py passes the linear address 0 */
@@ -560,6 +588,7 @@ static int far_call(st_host *h, int seg, int off, uint64_t budget, double wait_l
             return -1;
         dt = dt_since(h, before);
         emu_start(h, (uint32_t)RET_LINEAR, steps_for(h, dt));
+        marks_poll(h, h->n_pend);                       /* (a mark passed while a print call waits) */
         waited += dt;
     }
     if (h->stopped)
@@ -622,6 +651,7 @@ ST_API int sth_run(st_host *h, double seconds, double step, const double **audio
     if (h->fault)
         return -1;
     /* out = self.pending: the run's audio follows what the blocked calls made */
+    if (h->rp_read) { h->n_rp = 0; h->rp_read = 0; }    /* (what a blocked call passed stays: its audio comes first) */
     swap = h->buf; h->buf = h->pend; h->pend = swap;
     cap = h->cap_buf; h->cap_buf = h->cap_pend; h->cap_pend = cap;
     h->n_buf = h->n_pend;
@@ -637,10 +667,18 @@ ST_API int sth_run(st_host *h, double seconds, double step, const double **audio
         dt = dt_since(h, before);
         if (cpu(h, steps_for(h, dt)) < 0)
             return -1;
+        marks_poll(h, h->n_buf);
         t += dt;
     }
+    h->rp_read = 1;
     *audio = h->buf;
     return h->n_buf;
+}
+
+ST_API int sth_replies(const st_host *h, const sth_reply **out)
+{
+    *out = h->rp;
+    return h->rp_read ? h->n_rp : 0;
 }
 
 ST_API double sth_skip(st_host *h, double seconds, double step)
@@ -657,6 +695,7 @@ ST_API double sth_skip(st_host *h, double seconds, double step)
         dt = dt_since(h, before);
         if (cpu(h, steps_for(h, dt)) < 0)
             return -1.0;
+        marks_poll(h, 0);                               /* (no audio is made here: counted, at the next run's start) */
         t += dt;
     }
     return t;
@@ -702,6 +741,9 @@ ST_API void sth_cancel(st_host *h, double limit)
             return;
         t += s;
     }
+    h->n_rp = 0;                                /* the cancelled text's marks: none is given */
+    h->rp_read = 0;
+    h->mark_seen = word(h, MARK_COUNT);
 }
 
 ST_API int sth_fault(const st_host *h) { return h->fault; }
@@ -849,6 +891,7 @@ ST_API int sth_get_int(const st_host *h, const char *name)
 {
     if (!strcmp(name, "preparing")) return h->preparing;
     if (!strcmp(name, "log_writes")) return h->log_on;
+    if (!strcmp(name, "marks")) return h->marks;
     if (!strcmp(name, "request")) return ssi263_request(h->chip) ? 1 : 0;
     if (!strcmp(name, "control")) return h->control;
     return -1;

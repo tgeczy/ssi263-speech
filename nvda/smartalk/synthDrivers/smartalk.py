@@ -36,6 +36,7 @@ try:
 except ImportError:                       # an engine from before it: each text a line of its own
     _flow = None
 FLOW = True                               # (the tests' control takes it away)
+OWN_MARKS = True                          # (... or has each index estimated, as on a unit without index marks)
 PART = 160                                # the characters the voice takes as one part (st_voice.h's STV_PART)
 
 FIRMWARE = os.path.join(_ENGINE_DIR, "S_TALK.EXE")
@@ -323,7 +324,14 @@ class SynthDriver(SynthDriver):
                 # prepares the text itself
                 # (in groups of at most PART characters, cut between lines: the voice's own parts)
                 for parts, marks, chars in _flow.line_groups(value, lambda t: " ".join(t.split()), PART):
-                    if parts and box.say(" ".join(parts), offset):
+                    # the TSR's own index marks (a Ctrl-F in the text, which it counts as speech passes it:
+                    # st_voice.h), the voice putting them in; else each index at its share of the line
+                    if parts and OWN_MARKS and hasattr(box, "say_marked") and box.own_marks():
+                        if box.say_marked(" ".join(parts), marks, offset):
+                            told = _flow.play_own(box.render, box.reached, self._player.feed, self._notifyIndex,
+                                                  self._cancelFlag.is_set)
+                            marks[:] = [m for m in marks if m[1] not in told]
+                    elif parts and box.say(" ".join(parts), offset):
                         _flow.play_line(box.render, marks, chars, self._player.feed, self._notifyIndex,
                                         self._cancelFlag.is_set)
                     if box.fault:

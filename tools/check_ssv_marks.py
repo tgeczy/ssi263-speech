@@ -46,8 +46,8 @@ VOICES = ["blazie:blazie", "blazie:blazie_es", "blazie:blazie_de", "speakout:spe
           "accentmini:sa", "accentmini:mini",
           "mockingboard:mockingboard", "smartalk:smartalk"]
 # the voices whose unit's own marks are used: the Braille Lite releases measured for them (bl_languages.txt), the
-# Speak-Out, the Sounding Board and the Accent SA
-OWN = {"blazie:blazie", "speakout:speakout", "speakout:soundingboard", "accentmini:sa"}
+# Speak-Out, the Sounding Board, the Accent SA and the SmarTalk
+OWN = {"blazie:blazie", "speakout:speakout", "speakout:soundingboard", "accentmini:sa", "smartalk:smartalk"}
 TEXT = "this is a plain line of words, and then it goes on some more, until it ends"
 MAX_BLOCKS = 1500
 AHEAD = 8                           # voices.c AHEAD

@@ -89,13 +89,26 @@ control "as_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^as marks: 1 FAILED$" -- env AS_MARKS_BREAK=3 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
 control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^as marks: 5 FAILED$" -- env AS_MARKS_BREAK=4 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
-check "voice table: index marks, estimated, on the voices in the repository" python3 tools/check_ssv_marks.py \
+# ... and the SmarTalk's (st_voice.h): Ctrl-F after the word before each marked word, the parts cut where they are
+# without marks, the TSR's own count of marks passed (S_TALK.EXE is in the repository: it always runs)
+check "st_voice: index marks by the TSR's own Ctrl-F" python3 nvda/tools/st_marks.py $B/libssi263_voices.so
+control "st_voice marks CONTROL (every mark with the first block, must fail)" "^FAIL place " "^FAIL twins " \
+    "^FAIL end " "^FAIL dense " "^FAIL cancel " "^ok +frames " "^st marks: 5 FAILED$" \
+    -- env ST_MARKS_BREAK=1 python3 nvda/tools/st_marks.py $B/libssi263_voices.so
+control "st_voice marks CONTROL (a Ctrl-F for every mark on a word, must fail)" \
+    "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^st marks: 1 FAILED$" \
+    -- env ST_MARKS_BREAK=2 python3 nvda/tools/st_marks.py $B/libssi263_voices.so
+control "st_voice marks CONTROL (the marks left after a cancel, must fail)" "^FAIL cancel .* [1-9] reported after it" \
+    "^st marks: 1 FAILED$" -- env ST_MARKS_BREAK=3 python3 nvda/tools/st_marks.py $B/libssi263_voices.so
+control "st_voice marks CONTROL (the Ctrl-F inside the marked word, must fail)" "^FAIL frames .*phonemes DIFFER" \
+    "^FAIL bytes " "^st marks: 4 FAILED$" -- env ST_MARKS_BREAK=4 python3 nvda/tools/st_marks.py $B/libssi263_voices.so
+check "voice table: index marks, on the voices in the repository" python3 tools/check_ssv_marks.py \
     $B/libssi263_voices.so --firmware "$ROOT/firmware"
 control "voice table marks CONTROL (the estimate reports every mark at once, must fail)" \
-    "^FAIL smartalk:smartalk +place " "^ssv marks: [0-9]+ FAILED$" \
+    "^FAIL accentmini:mini +place " "^ssv marks: [0-9]+ FAILED$" \
     -- env SSV_MARKS_BREAK=1 python3 tools/check_ssv_marks.py $B/libssi263_voices.so --firmware "$ROOT/firmware"
 control "voice table marks CONTROL (the audio rendered ahead returned from its start, must fail)" \
-    "^FAIL smartalk:smartalk +audio " "^ssv marks: [0-9]+ FAILED$" \
+    "^FAIL accentmini:mini +audio " "^ssv marks: [0-9]+ FAILED$" \
     -- env SSV_MARKS_BREAK=queue python3 tools/check_ssv_marks.py $B/libssi263_voices.so --firmware "$ROOT/firmware"
 control "accented letters: bytes CONTROL (the pass off, must fail)" '^FAIL blazie +bytes ' '^FAIL speakout +bytes ' \
     "^ +'t\\\\xfck\\\\xf6r' -> b't k r" '^translit bytes: 5 of 10 FAILED' \

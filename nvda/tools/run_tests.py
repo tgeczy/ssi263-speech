@@ -551,7 +551,8 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("blazie", "blaz
     _argv = [PY, "say_all_flow.py", _which] + ([_voice] if _voice else [])
     CHECKS.append(check("say all's lines flow: %s" % _name, _argv, env={"SSI263_SYNTH_DRIVERS": _UNITS},
                         ok=lambda out: bool(re.search(r"^say all flow: all ok$", out, re.M))))
-    if _name in ("Braille Lite", "Speak-Out", "Sounding Board", "Accent SA"):   # its indexes are the unit's own marks: estimated
+    if _name in ("Braille Lite", "Speak-Out", "Sounding Board", "Accent SA", "SmarTalk"):   # its indexes are the unit's own
+        # marks: estimated
         # instead, "own" must fail
         CHECKS.append(check("say all's lines CONTROL (%s: its own index marks unused, must fail)" % _name, _argv,
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "SAY_ALL_FLOW_BREAK": "estimate"},
@@ -1761,6 +1762,23 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
     CHECKS.append(check("as_voice marks CONTROL (the Ctrl-F inside its word, must fail)", [PY, "as_marks.py"],
                         env={"AS_MARKS_BREAK": "4"}, expect_fail=True,
                         fail_marks=[r"^FAIL frames .*phonemes DIFFER", r"^FAIL bytes ", r"^as marks: 5 FAILED$"]))
+    # ... and the SmarTalk's (st_voice.h): Ctrl-F after the word before each marked word, the parts cut where they
+    # are without marks, the TSR's own count of marks passed
+    CHECKS.append(check("st_voice: index marks by the TSR's own Ctrl-F", [PY, "st_marks.py"]))
+    CHECKS.append(check("st_voice marks CONTROL (every mark with the first block, must fail)", [PY, "st_marks.py"],
+                        env={"ST_MARKS_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL place ", r"^FAIL twins ", r"^FAIL end ", r"^FAIL dense ", r"^FAIL cancel ",
+                                    r"^ok +frames ", r"^st marks: 5 FAILED$"]))
+    CHECKS.append(check("st_voice marks CONTROL (a Ctrl-F for every mark on a word, must fail)", [PY, "st_marks.py"],
+                        env={"ST_MARKS_BREAK": "2"}, expect_fail=True,
+                        fail_marks=[r"^FAIL same +three marks on one word: \[.3 Ctrl-F before 'two'",
+                                    r"^st marks: 1 FAILED$"]))
+    CHECKS.append(check("st_voice marks CONTROL (the marks left after a cancel, must fail)", [PY, "st_marks.py"],
+                        env={"ST_MARKS_BREAK": "3"}, expect_fail=True,
+                        fail_marks=[r"^FAIL cancel .* [1-9] reported after it", r"^st marks: 1 FAILED$"]))
+    CHECKS.append(check("st_voice marks CONTROL (the Ctrl-F inside the marked word, must fail)", [PY, "st_marks.py"],
+                        env={"ST_MARKS_BREAK": "4"}, expect_fail=True,
+                        fail_marks=[r"^FAIL frames .*phonemes DIFFER", r"^FAIL bytes ", r"^st marks: 4 FAILED$"]))
     _SB_DIR = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "gw-micro-sounding-board")
     if all(os.path.isfile(os.path.join(_SB_DIR, n)) for n in ("SBLOAD.COM", "SB.COM")):
         # ... and the Sounding Board's, the same cases: its marks read from its DOS driver's own count of marks
@@ -1975,12 +1993,12 @@ SSV_MARKS = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "
 CHECKS.append(check("voice table: index marks, own or estimated, on every voice here", SSV_MARKS))
 CHECKS.append(check("voice table marks CONTROL (the estimate reports every mark at once, must fail)", SSV_MARKS,
                     env={"SSV_MARKS_BREAK": "1"}, expect_fail=True,
-                    fail_marks=[r"^FAIL smartalk:smartalk +place ", r"^FAIL accentmini:mini +place ",
+                    fail_marks=[r"^FAIL accentmini:mini +place ", r"^ok +accentmini:mini +once ",
                                 r"^ok +smartalk:smartalk +once ", r"^ssv marks: [0-9]+ FAILED$"]))
 CHECKS.append(check("voice table marks CONTROL (the audio rendered ahead returned from its start, must fail)", SSV_MARKS,
                     env={"SSV_MARKS_BREAK": "queue"}, expect_fail=True,
-                    fail_marks=[r"^FAIL smartalk:smartalk +audio ", r"^FAIL accentmini:mini +audio ",
-                                r"^ok +smartalk:smartalk +none ", r"^ssv marks: [0-9]+ FAILED$"]))
+                    fail_marks=[r"^FAIL accentmini:mini +audio ", r"^ok +accentmini:mini +none ",
+                                r"^ssv marks: [0-9]+ FAILED$"]))
 if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "blazie", "spanish", "BL2SPA.BNS")):
     CHECKS.append(check("voice table marks CONTROL (an unmeasured release's marks taken for its own, must fail)",
                         SSV_MARKS, env={"SSV_MARKS_OWN_BREAK": "1"}, expect_fail=True,

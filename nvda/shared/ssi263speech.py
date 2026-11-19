@@ -128,6 +128,10 @@ def load(path):
         _sig(lib, "stv_render", _I, [_P, ctypes.POINTER(_SHORTS), ctypes.POINTER(_I)])
         _sig(lib, "stv_cancel", None, [_P])
         _sig(lib, "stv_fault", _I, [_P])
+        if hasattr(lib, "stv_speak_marked"):             # the TSR's own index marks (st_voice.h)
+            _sig(lib, "stv_marks_exact", _I, [_P])
+            _sig(lib, "stv_speak_marked", _I, [_P, _S, _I, ctypes.POINTER(_Mark), _I])
+            _sig(lib, "stv_reached", _I, [_P, ctypes.POINTER(ctypes.POINTER(_Reach))])
         _sig(lib, "stv_host", _P, [_P])
         _sig(lib, "sth_chip", _P, [_P])
         _sig(lib, "sth_get_double", _D, [_P, _S])
@@ -511,6 +515,24 @@ class SmarTalkC:
         """one text item, with a capital's offset; False when there is nothing to say"""
         data = text.encode("utf-8", "replace")
         return bool(self._lib.stv_speak(self._v, data, int(pitch_offset or 0)))
+
+    # ---- the TSR's own index marks (st_voice.h): a Ctrl-F in the text, counted by the TSR as speech passes it --------
+    def own_marks(self):
+        return hasattr(self._lib, "stv_speak_marked") and bool(self._lib.stv_marks_exact(self._v))
+
+    def say_marked(self, text, marks, pitch_offset=0):
+        """say() with index marks: [(the characters of text before the mark, the caller's number for it)], in the
+        text's order; reached() gives them after each render()"""
+        data = text.encode("utf-8", "replace")
+        arr = (_Mark * max(1, len(marks)))()
+        for k, (chars, number) in enumerate(marks):
+            arr[k].at, arr[k].id = len(text[:chars].encode("utf-8", "replace")), int(number)
+        return bool(self._lib.stv_speak_marked(self._v, data, int(pitch_offset or 0), arr, len(marks)))
+
+    def reached(self):
+        """the marks speech reached in the block render() just returned: [(the caller's number, its sample)]"""
+        p = ctypes.POINTER(_Reach)()
+        return [(p[k].id, p[k].sample) for k in range(self._lib.stv_reached(self._v, ctypes.byref(p)))]
 
     def render(self):
         """the next 30 ms block: (16-bit PCM bytes, done)"""

@@ -79,6 +79,7 @@ LPT_IRQ = 7                  # the TSR's default (I7): vector 0Fh
 ARGS = "L1 I7 T0 F3 S1"      # SMARTALK.BAT's line for S_TALK, as MAKEIT.BAT writes it
 DATA_SEG_AT = 0x538          # CS:0538 holds the TSR's data segment
 QUEUED, SPEAKING = 0x1E2, 0x1EC   # in it: bytes of phonemes waiting (4 each), and 1 while it speaks
+MARK_COUNT = 0x2DA                # ... and the index marks passed since its last status call or Ctrl-X: a word
 START_LINES = "{ smartalk ready\nUsing conventional memory.\n"   # what ST_RUN prints to the TSR
 TIMER_HZ = 1193182.0 / 65536
 REGS = {"ax": UC_X86_REG_AX, "bx": UC_X86_REG_BX, "cx": UC_X86_REG_CX, "dx": UC_X86_REG_DX,
@@ -154,6 +155,10 @@ class SmarTalk:
         self.preparing = False
         self.say_time = 0.0
         self.pending = []
+        self.replies = []                # the index marks passed in the audio the last run() returned: the samples
+        self._replies_read = False       # of that audio made when each was passed (st_host.h sth_replies)
+        self._mark_seen = 0
+        self.marks = 0                   # every mark ever passed
         self.insns = 0
         self.stopped = None
         self.resident = None
@@ -407,6 +412,22 @@ class SmarTalk:
         return False
 
     # ---- driving the TSR ----------------------------------------------------------------------
+    def _marks_poll(self, sample):
+        """the TSR's own count of marks passed, read after a slice: those new since the last look"""
+        if not getattr(self, "data_seg", 0):
+            return
+        count = self._word(MARK_COUNT)
+        if count < self._mark_seen:      # zeroed (a Ctrl-X): it counts from nothing again
+            self._mark_seen = 0
+        fresh = count - self._mark_seen
+        self._mark_seen = count
+        if not fresh:
+            return
+        if self._replies_read:
+            self.replies, self._replies_read = [], False
+        self.marks += fresh
+        self.replies += [sample] * fresh
+
     def _cpu(self, count):
         self.uc.emu_start(self.r("cs") * 16 + self.r("ip"), 0, count=count)
         self.insns += count
@@ -472,14 +493,20 @@ class SmarTalk:
     def run(self, seconds, step=0.0005):
         out, t = self.pending, 0.0
         self.pending = []
+        if self._replies_read:
+            self.replies, self._replies_read = [], False
+        made = sum(len(p) for p in out)
         while t < seconds:
             self._try_irq()
             before = self.chip.time
             y = self.chip.run_until_request(step) if not self.chip.request else self.chip.run(step / 4)
             out.append(y)
+            made += len(y)
             dt = max(self.chip.time - before, 1e-5)
             self._cpu(max(100, int(self.cpu_ips * dt)))
+            self._marks_poll(made)
             t += dt
+        self._replies_read = True
         return self.chip.dsp.concat(out)
 
     def skip(self, seconds, step=0.002):
@@ -492,6 +519,7 @@ class SmarTalk:
             self.chip.skip(min(step, seconds - t))
             dt = max(self.chip.time - before, 1e-5)
             self._cpu(max(100, int(self.cpu_ips * dt)))
+            self._marks_poll(0)
             t += dt
         return t
 
@@ -518,6 +546,8 @@ class SmarTalk:
         t = self.skip(0.01)
         while t < limit and self.busy():
             t += self.skip(0.01)
+        self.replies, self._replies_read = [], False      # the cancelled text's marks: none is given
+        self._mark_seen = self._word(MARK_COUNT)
         return t
 
     def busy(self, quiet=0.05, patience=1.5):

@@ -34,7 +34,7 @@ a voice here uses it yet.
 | Sounding Board (GW Micro) | the same command | INT 17h AH=02h on the driver's port: how many marks were passed since the last call, and the last one's value | yes |
 | Accent SA (Aicom) | Ctrl-F, after ESC Y X and ESC = Y | one 06h per mark on its serial line; off at power-up | yes |
 | Accent-mini (Aicom) | Ctrl-F, after ESC Y X and ESC Y Z | INT 17h AH=02h: the count since the last read | not yet |
-| SmarTalk (Automated Functions) | Ctrl-F, always on | INT 17h AH=2: the count | not yet |
+| SmarTalk (Automated Functions) | Ctrl-F, always on | INT 17h AH=2: the count | yes |
 | Mockingboard (Sweet Micro Systems) | none | the host can read which frame is being spoken | estimated |
 | Speech Systems Super Voice (1984) | none | the host sees every phoneme written | not a voice yet |
 
@@ -118,6 +118,22 @@ once, with the first marked text, since it powers up with marks off (`src/csrc/a
 - The voice holds some blocks of audio back before it gives them out (a silence while the unit still works); a
   mark reached in such a block comes out with that audio, at its sample in it.
 
+## The SmarTalk: measured
+
+A Ctrl-F directly after the word before the marked one ("word<06> next"): the TSR takes it for a space, and that
+is the one place where it leaves the speech alone at every rate. The text is cut into the same parts as without
+marks. The host reads the TSR's own count of marks passed after every slice (`src/csrc/smartalk/st_voice.h`).
+
+- A mark before every word of two texts against none, at rates 0, 50 and 100 with the inflection on and off (12
+  marked utterances): every phoneme and its R1 to R4 the unmarked text's, in order; at rates 0 and 50 the times
+  between them the same to 0.1 ms. On a fresh unit the audio with a mark before every word is the unmarked audio
+  sample for sample.
+- At rate 100 phonemes came up to 20 ms apart from the unmarked run. There the TSR also gives each phoneme one of
+  two duration settings in turn, starting with one or the other by what was said before, marks or none.
+- The count rises as the chip is given the marked word's first phoneme: in a six-word sentence each mark was 0.0
+  ms from its word's first phoneme load. The TSR runs its words together, so the audio shows no word starts to
+  check against.
+
 ## The estimate
 
 A mark is put at its share of the text's characters, as a share of the utterance's samples. The length must be
@@ -131,8 +147,8 @@ takes to finish ahead of the caller.
 - **NVDA add-on.** Say all's lines go to the unit as one line with their indexes
   (`nvda/shared/ssi263_flow.py`). The Braille Lite driver uses the unit's own marks on the releases above, and
   the Speak-Out and Sounding Board driver the box's and the Accent driver the Accent SA's (the audio is fed up to
-  a mark's sample, the index reported, then the rest); the Accent-mini, the SmarTalk and the Mockingboard are
-  estimated. The drivers do not go through `voices.h` yet.
+  a mark's sample, the index reported, then the rest), and the SmarTalk driver the TSR's; the Accent-mini and the
+  Mockingboard are estimated. The drivers do not go through `voices.h` yet.
 - **speech-dispatcher (Orca).** The module keeps the message's marks, the server's own after each sentence and
   the one Orca puts before every word, and reports each between the audio before it and the audio after it, cut
   at the mark's sample (`src/platforms/speechd/sd_ssi263.c`). The server holds a mark in its queue with the audio
@@ -156,6 +172,8 @@ takes to finish ahead of the caller.
 - `nvda/tools/so_marks.py`: the Speak-Out voice, and with `--soundingboard` the Sounding Board, the same cases as
   the Braille Lite's. Four must-fail controls.
 - `nvda/tools/as_marks.py`: the Accent SA voice, the same cases. Four must-fail controls.
+- `nvda/tools/st_marks.py`: the SmarTalk voice; its marks are placed against the chip's writes, and its parts
+  against the unmarked text's. Four must-fail controls.
 - `tools/check_ssv_marks.py`: the voice table, on every voice whose firmware is present: no marks is `ssv_speak`,
   every mark once and in order, exact or estimated as it should be, the estimate never early. Two controls.
 - `nvda/tools/say_all_flow.py`: the NVDA drivers, say all's lines and their indexes.
