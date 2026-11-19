@@ -54,6 +54,7 @@
 // seen at the next step's A, a wait's line at its next slot).
 #include "m6809_mame_machine.cpp"
 
+#include <cstddef>
 #include <new>
 
 // The cycles a pass may take before it is suspended (the header: only a run of page prefixes gets there).
@@ -86,8 +87,8 @@ static bool m6809_defined(int page, uint8_t op)
     if (page == 0)
         return M6809_PAGE1[op] != 0;
     const unsigned char *list = page == 1 ? M6809_PAGE2 : M6809_PAGE3;
-    size_t n = page == 1 ? sizeof M6809_PAGE2 : sizeof M6809_PAGE3;
-    for (size_t k = 0; k < n; k++)
+    std::size_t n = page == 1 ? sizeof M6809_PAGE2 : sizeof M6809_PAGE3;
+    for (std::size_t k = 0; k < n; k++)
         if (list[k] == op)
             return true;
     return false;                             // a second prefix (10h 10h) included: Table 9 has none
