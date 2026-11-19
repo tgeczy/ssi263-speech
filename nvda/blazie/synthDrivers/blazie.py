@@ -356,6 +356,29 @@ def _folds(firmware):
     return _folds_cache[firmware]
 
 
+_own_marks_cache = {}
+
+
+def _own_marks(firmware):
+    """True when the firmware's release was measured for its own index marks (bl_firmware.h blv_release_marks, the
+    release table's marks column): a Ctrl-F inside a line echoed where speech reaches it, the speech left as it is.
+    The English, Danish, Norwegian and Swedish units; not the Spanish (marks change its speech: more phonemes, the
+    same sentences longer) nor the German ones (a mark changes a phoneme), whose indexes are estimated like those
+    of a unit that never echoes."""
+    if firmware not in _own_marks_cache:
+        own = False
+        try:
+            import ctypes
+            lib = ctypes.CDLL(DLL)
+            lib.blv_release_of.argtypes = [ctypes.c_char_p]
+            lib.blv_release_marks.argtypes = [ctypes.c_int]
+            own = lib.blv_release_marks(lib.blv_release_of(os.fsencode(firmware))) == 1
+        except (OSError, AttributeError) as e:
+            log.warning("Braille Lite: the release's index marks not read (%s: %s)" % (DLL, e))
+        _own_marks_cache[firmware] = own
+    return _own_marks_cache[firmware]
+
+
 def _numbers(text, lang="en"):
     """Numbers as words, except money: the firmware says "$25" as "twenty five dollars" and
     "$1,234.56" with its cents, but drops a "$" in front of words, so "$twenty five" was
@@ -804,6 +827,7 @@ class SynthDriver(SynthDriver):
         unit.run(0.05)
         unit.whine = None if self._whine == "off" else self._whine
         unit.folds = _folds(firmware)
+        unit.own_marks = _own_marks(firmware)
         unit.encoding = encoding
         unit.lang = lang.split("-")[0]
         if not echoes and hasattr(type(unit), "no_echo"):
@@ -1089,10 +1113,11 @@ class SynthDriver(SynthDriver):
             marks, own = None, False
             if kind == "line":                   # say all's lines, as one (ssi263_flow.py; _flowed)
                 parts, marks, chars = _flow.line_text(value, lambda t: " ".join(self._prepared(t, unit).split()))
-                # the unit's own index marks, when it echoes them and is not run ahead of the listener (its echoes
-                # then come at the capture's frontier, bl_host.h); else each index at its share of the line
-                own = (OWN_MARKS and hasattr(unit, "geti") and not getattr(unit, "no_echo", 0)
-                       and not getattr(unit, "run_ahead", 0))
+                # the unit's own index marks, when its release was measured for them (_own_marks), it echoes and is
+                # not run ahead of the listener (its echoes then come at the capture's frontier, bl_host.h); else
+                # each index at its share of the line
+                own = (OWN_MARKS and getattr(unit, "own_marks", False) and hasattr(unit, "geti")
+                       and not getattr(unit, "no_echo", 0) and not getattr(unit, "run_ahead", 0))
                 starts, at = [], 0               # the characters of the line before each text
                 for part in parts:
                     starts.append(at)

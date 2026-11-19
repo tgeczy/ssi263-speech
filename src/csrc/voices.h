@@ -35,6 +35,7 @@
 #define SSI263_VOICES_H
 
 #include <stddef.h>
+#include "marks.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -128,6 +129,29 @@ SSV_API int ssv_speak(ssv_voice *v, const ssv_settings *s, const char *utf8, int
 SSV_API int ssv_render(ssv_voice *v, const short **pcm, int *done);
 /* Stops the utterance; the next speak starts clean. */
 SSV_API void ssv_cancel(ssv_voice *v);
+
+/* Index marks (marks.h): places in the text a screen reader wants to be told of when speech reaches them.
+   ssv_speak_marked: as ssv_speak, with the caller's marks (byte offsets into utf8, in rising order).  With none it
+   IS ssv_speak: nothing is done for marks' sake, the audio the same sample for sample.
+   ssv_reached: the marks speech reached in the block the last ssv_render returned, in the caller's order, each with
+   its sample in that block (0 to the block's count) and whether its place is exact -- where the unit's own index
+   mark says -- or estimated.  Read it after every ssv_render of a marked utterance, also one that returned 0 samples
+   or reported done: a text with nothing to say (ssv_speak_marked returned 0) gives its marks with the one ssv_render
+   that follows.
+     own marks   a Braille Lite whose release was measured for them (bl_languages.txt's marks column; bl_voice.h),
+                 not run ahead: each mark where the unit echoes its Ctrl-F, to the sample.
+     estimated   every other voice, for now: a mark is put at its share of the text's characters, as a share of the
+                 utterance's samples.  The utterance's length must be known for that, so the voice is rendered ahead
+                 of the caller (8 blocks for each one returned, the first returned at once), and a mark is reported
+                 once the unit is done and the returned audio has reached its place.  A mark in the first eighth or
+                 so of an utterance can therefore come late, by at most the time the unit takes to finish ahead of
+                 the caller; none comes early by more than the estimate is off.
+   Every mark is reported exactly once: at the utterance's end the ones still left come with its last block
+   (estimated), so a caller waiting on one is never left waiting.  After ssv_cancel none of the cancelled text's
+   marks is reported. */
+SSV_API int ssv_speak_marked(ssv_voice *v, const ssv_settings *s, const char *utf8, int pitch_offset,
+                             const ssv_mark *marks, int n_marks);
+SSV_API int ssv_reached(ssv_voice *v, const ssv_reach **out);
 
 /* A bank: the units of one front end, kept as one NVDA driver instance keeps them (see the top). */
 typedef struct ssv_bank ssv_bank;

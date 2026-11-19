@@ -190,6 +190,8 @@ class Blazie:
         # when everything sent has been spoken, exactly one ^F is still owed.
         self.sent_f = 0
         self.echo_f = 0
+        self.echoes = []           # the last run()'s ^F echoes: (its number -- echo_f with it counted --, the samples
+        self._made = 0             # of that run's audio made when it came): the unit's own index marks (bl_voice.h)
         self.say_time = 0.0
         self.preparing = False     # a line sent and no phoneme of it spoken yet
         self.turbo = 4.0           # CPU speed-up while preparing (the unit reads a whole line first)
@@ -230,6 +232,7 @@ class Blazie:
                 self.tx.append(b)
                 if b == 0x06:
                     self.echo_f += 1
+                    self.echoes.append((self.echo_f, self._made))
                     self.say_time = self.chip.time           # progress: patience counts from here
                     if self._stale_f > 0:
                         # the held flush line of an EARLIER say(), answered now that new text
@@ -363,6 +366,7 @@ class Blazie:
         the unit silently reads a line (`preparing`), `prep_step` may be coarser -- each step
         is one pipe round trip, and at a high turbo those dominate (tools/latency_check.py)."""
         out, t = [], 0.0
+        self.echoes, self._made = [], 0
         while t < seconds:
             if self.chip.request != self.ar:
                 self.ar = self.chip.request
@@ -373,6 +377,7 @@ class Blazie:
             st = self.prep_step if (self.preparing and self.prep_step) else step
             y = self.chip.run_until_request(st) if not self.chip.request else self.chip.run(st / 4)
             out.append(y)
+            self._made += len(y)
             dt = max(self.chip.time - before, 1e-5)
             speed = self.turbo if self.preparing else 1.0
             self._cmd("R %d" % max(1, int(CLOCK_HZ * dt * speed)))

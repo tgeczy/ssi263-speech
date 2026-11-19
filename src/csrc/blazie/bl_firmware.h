@@ -88,6 +88,10 @@ BL_API int blv_release_speaks(int release);
 #define BLV_TRILLIONS_READS 2
 #define BLV_TRILLIONS_DIGITS 3
 BL_API int blv_release_trillions(int release);
+/* 1 when the release's own index marks were measured usable (bl_languages.txt's marks = own): a Ctrl-F inside a line
+   is echoed where speech reaches it and the speech keeps its phonemes and their times; 0 otherwise (never echoed,
+   disturbed by it, or not measured); -1 past the list.  bl_voice.h blv_marks_exact reads it. */
+BL_API int blv_release_marks(int release);
 BL_API const char *blv_release_tag(int release);
 BL_API int blv_release_model(int release);
 BL_API int blv_release_code_page(int release);

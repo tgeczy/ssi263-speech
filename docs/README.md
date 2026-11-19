@@ -11,6 +11,8 @@
 - [sources.md](sources.md): data sheets, papers, patents, software and people.
 - [super-voice.md](super-voice.md): Speech Systems' Super Voice for the Color Computer: where its disk is, by
   exact link and checksum, and what it needs before it can be a voice here.
+- [index-marks.md](index-marks.md): index marks: what each unit has of its own, what was measured, and how a
+  screen reader is told where speech is.
 - [mockingboard-firmware.md](mockingboard-firmware.md): the Mockingboard voices' firmware: which disks, what
   the importers recognize, and which archives keep them.
 

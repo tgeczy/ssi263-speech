@@ -13,6 +13,7 @@
 #define BL_VOICE_H
 
 #include "bl_host.h"
+#include "../marks.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -90,6 +91,48 @@ BL_API int blv_render(bl_voice *v, const short **pcm, int *done);
 BL_API void blv_cancel(bl_voice *v);
 /* Nonzero after a host fault ended or refused the last utterance (cleared by the next blv_speak's recovery). */
 BL_API int blv_fault(const bl_voice *v);
+
+/* Index marks (../marks.h).  The unit has its own: a Ctrl-F anywhere in a line is echoed when speech reaches it.
+   blv_speak_marked: as blv_speak, each mark's Ctrl-F glued to the front of the word it stands before.  The text is
+   prepared whole, exactly as without marks; marks that fall on one word are one Ctrl-F.
+   blv_reached: the marks speech reached in the block the last blv_render returned, in order, each with the sample
+   at which its echo came.  A mark before the first word comes with the first block; one after the last word when
+   the last line's own echo does; whatever is left when the utterance is over comes with its last block, not exact
+   (so no caller is left waiting), and nothing after a cancel.
+   blv_marks_exact: 1 only for a release measured for it (bl_languages.txt's marks column, bl_firmware.h
+   blv_release_marks) that echoes and is not run ahead of the listener (its echoes then come ahead of the audio).
+   Otherwise blv_speak_marked speaks the text without marks and reports none: the voice table estimates their
+   places (voices.c).
+
+   MEASURED through this path on the emulated units (2026-11-19: a mark before every word of five texts against the
+   same text without marks, rates 0, 50 and 100, short pauses off and on):
+   - the English releases (June 2003, September and January 2000), the Danish, the Norwegian and the Swedish: every
+     mark echoed in order where its word begins (in the pause before it, as the audio shows); the phonemes and their
+     R2, R3, R4 the same; the times between phoneme loads the same to 1 ms at rates 0 and 50; the text spoken after a
+     marked one as before.  A mark adds one pause frame at its word boundary (R0 = C0h with the registers as last
+     written), inside the pause already there.
+   - what a mark DOES change there: the unit starts a sentence's final fall (R1 lowered for its last phonemes) one
+     phoneme late when a mark stands where the fall begins -- R1 on one phoneme of some sentences, 24 phonemes in
+     the 60 marked utterances of each release.  And at rate 100 the unit's pauses move by up to 55 ms with marks
+     (up to 18 ms from one unmarked run to the next): it is busy there.  Both are the firmware's own doing with its
+     own index marks; the Ctrl-F before the space, as a word of its own, or at the end of the line before measured
+     the same.
+   - the Spanish releases: marks change the speech itself.  Through the shipped Spanish voice with the number words
+     on, the unit steady from one unmarked run to the next: three sentences 52 phoneme loads and 4.64 s without
+     marks, 59 loads and 5.45 s with one before every word (short pauses on); a list of words with commas between
+     them came out the same.
+   - the German releases: a mark changes a phoneme of some sentences.  Their marks, and the Spanish ones', are
+     estimated.
+   - the units that never echo Ctrl-F: estimated.
+   The host takes a mark's echo for a line's end (its "preparing", bl_host.c) until the next phoneme, which the echo
+   comes with: no write moved in the measurement above. */
+BL_API int blv_marks_exact(const bl_voice *v);
+BL_API int blv_speak_marked(bl_voice *v, const char *utf8, const ssv_mark *marks, int n_marks);
+BL_API int blv_reached(bl_voice *v, const ssv_reach **out);
+/* The bytes blv_speak_marked would send (as blv_say_bytes), for tests. */
+BL_API int blv_say_bytes_marked(const char *utf8, int encoding, int pack, const ssv_mark *marks, int n_marks,
+                                unsigned char *out, int cap);
+BL_API extern int blv_marks_break;          /* the tests' controls (bl_voice.c) */
 /* A test's control (blv_fault_test.py sets it; nothing else does): nonzero puts back the 0.7 draft's handling --
    a refused say taken as said, a fault taken as busy -- which must fail that test. */
 BL_API extern int blv_break_fault;

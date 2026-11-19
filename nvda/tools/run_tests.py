@@ -20,7 +20,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-# a check's own output may carry characters the console lacks ("Â£", U+FFFD): never let the report crash the run
+# a check's own output may carry characters the console lacks ("£", U+FFFD): never let the report crash the run
 sys.stdout.reconfigure(errors="replace")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -533,7 +533,8 @@ if os.path.isfile(os.path.join(ENG, "BL2ENG.BNS")):
 # the stand-in NVDA (say_all_flow.py), the units of the 0.8 add-on from its own folder.  The control takes the
 # drivers' FLOW away: each text a sentence of its own again, "flows" must fail.
 _UNITS = os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "synthDrivers", "_ssi263_unified")
-for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", None, "Speak-Out"),
+for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("blazie", "blazie_es", "Braille Lite (Spanish)"),
+                              ("blazie", "blazie_de", "Braille Lite (German)"), ("speakout", None, "Speak-Out"),
                               ("speakout", "soundingboard", "Sounding Board"), ("accent", "mini", "Accent-mini"),
                               ("accent", "sa", "Accent SA"), ("mockingboard", None, "Mockingboard"),
                               ("smartalk", None, "SmarTalk")):
@@ -551,6 +552,16 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", Non
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "SAY_ALL_FLOW_BREAK": "estimate"},
                             expect_fail=True, fail_marks=[r"^FAIL own ", r"^ok +flows ", r"^ok +indexes ",
                                                           r"^say all flow: 1 FAILED$"]))
+    if _voice in ("blazie_es", "blazie_de"):
+        if not os.path.isfile(os.path.join(_UNITS, "_ssi263_blazie", *{
+                "blazie_es": ("BL2SPA.BNS",), "blazie_de": ("Lite2000_de.BNS",)}[_voice])):
+            CHECKS.pop()                    # (the unit's files are not in this build: the check would only skip)
+            continue
+        # a release not measured for its own index marks: the driver told they are usable, "gated" must fail
+        CHECKS.append(check("say all's lines CONTROL (%s: its own index marks used unmeasured, must fail)" % _name,
+                            _argv, env={"SSI263_SYNTH_DRIVERS": _UNITS, "SAY_ALL_FLOW_BREAK": "gate"},
+                            expect_fail=True, fail_marks=[r"^FAIL gated .*1 Ctrl-F sent for the index",
+                                                          r"^say all flow: \d FAILED$"]))
     if _name in ("Braille Lite", "Sounding Board"):
         CHECKS.append(check("say all's lines CONTROL (%s: each text its own line again, must fail)" % _name, _argv,
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "SAY_ALL_FLOW_BREAK": "1"}, expect_fail=True,
@@ -1886,6 +1897,42 @@ CHECKS.append(check("bl_voice CONTROL (fault taken as busy, must fail)", [PY, "b
                     fail_marks=[r"^FAIL the faulted utterance ends and says so: .*NOT DONE",
                                 r"^blv fault: 2 FAILED$"]))
 CHECKS.append(check("bl_voice = the NVDA driver, byte for byte", [PY, "voice_equiv.py"]))
+# index marks (src/csrc/marks.h): the Braille Lite's own Ctrl-F at the front of each marked word, each mark reported
+# where the unit echoes it; the words never changed by a mark, the chip's writes compared with the unmarked text's
+CHECKS.append(check("bl_voice: index marks by the unit's own Ctrl-F", [PY, "voice_marks.py"]))
+CHECKS.append(check("bl_voice marks CONTROL (every mark in the first block, must fail)", [PY, "voice_marks.py"],
+                    env={"VOICE_MARKS_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL place ", r"^FAIL lines ", r"^FAIL end ", r"^FAIL dense ", r"^FAIL cancel ",
+                                r"^voice marks: 6 FAILED$"]))
+CHECKS.append(check("bl_voice marks CONTROL (a Ctrl-F for every mark on one word, must fail)", [PY, "voice_marks.py"],
+                    env={"VOICE_MARKS_BREAK": "2"}, expect_fail=True,
+                    fail_marks=[r"^FAIL same +three marks on one word: \[.3 Ctrl-F before 'two'", r"^voice marks: 2 FAILED$"]))
+CHECKS.append(check("bl_voice marks CONTROL (the marks left after a cancel, must fail)", [PY, "voice_marks.py"],
+                    env={"VOICE_MARKS_BREAK": "3"}, expect_fail=True,
+                    fail_marks=[r"^FAIL cancel .* 5 reported after it", r"^voice marks: 1 FAILED$"]))
+CHECKS.append(check("bl_voice marks CONTROL (a mark inside an amount where it stands, must fail)", [PY, "voice_marks.py"],
+                    env={"VOICE_MARKS_BREAK": "4"}, expect_fail=True,
+                    fail_marks=[r"^FAIL bytes .*Ctrl-F before \['pounds'\], wanted \['5'\]", r"^voice marks: 1 FAILED$"]))
+CHECKS.append(check("bl_voice marks CONTROL (the Ctrl-F inside its word, must fail)", [PY, "voice_marks.py"],
+                    env={"VOICE_MARKS_BREAK": "5"}, expect_fail=True,
+                    fail_marks=[r"^FAIL frames .*phonemes DIFFER", r"^FAIL speech ", r"^voice marks: 9 FAILED$"]))
+# ... and through the voice table (voices.h ssv_speak_marked): the unit's own on a measured Braille Lite, estimated on
+# every other voice; no marks = ssv_speak
+SSV_MARKS = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_ssv_marks.py")]
+CHECKS.append(check("voice table: index marks, own or estimated, on every voice here", SSV_MARKS))
+CHECKS.append(check("voice table marks CONTROL (the estimate reports every mark at once, must fail)", SSV_MARKS,
+                    env={"SSV_MARKS_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL smartalk:smartalk +place ", r"^FAIL accentmini:sa +place ",
+                                r"^ok +smartalk:smartalk +once ", r"^ssv marks: [0-9]+ FAILED$"]))
+CHECKS.append(check("voice table marks CONTROL (the audio rendered ahead returned from its start, must fail)", SSV_MARKS,
+                    env={"SSV_MARKS_BREAK": "queue"}, expect_fail=True,
+                    fail_marks=[r"^FAIL smartalk:smartalk +audio ", r"^FAIL accentmini:sa +audio ",
+                                r"^ok +smartalk:smartalk +none ", r"^ssv marks: [0-9]+ FAILED$"]))
+if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "blazie", "spanish", "BL2SPA.BNS")):
+    CHECKS.append(check("voice table marks CONTROL (an unmeasured release's marks taken for its own, must fail)",
+                        SSV_MARKS, env={"SSV_MARKS_OWN_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL blazie:blazie_es +kind +exact \(wanted estimated\)",
+                                    r"^ssv marks: [0-9]+ FAILED$"]))
 CHECKS.append(check("bl_voice CONTROL (packing flipped, must fail)", [PY, "voice_equiv.py"],
                     env={"VOICE_EQUIV_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^DIFF ", r"^(?!17 )[0-9]+ of 17 utterances byte-identical to the NVDA driver$"]))
@@ -1903,9 +1950,9 @@ CHECKS.append(check("bl_voice text = the driver's, 5000 random texts", [PY, "voi
 CHECKS.append(check("bl_voice text CONTROL (no currencies, must fail)", [PY, "voice_text_equiv.py", "2000", "1"],
                     env={"VOICE_TEXT_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^DIFF ", r"^(?!2000 )\d+ of 2000 texts give the unit the same bytes"]))
-# Accented letters (Tomi: typing Ã¡ Ã© Å‘ Ãº Å± Ã³ Ã¼ Ã¶ said nothing, "tÃ¼kÃ¶r" was "t k r"): src/csrc/translit.h runs first
+# Accented letters (Tomi: typing á é ő ú ű ó ü ö said nothing, "tükör" was "t k r"): src/csrc/translit.h runs first
 # on every voice's text -- a letter the firmware lacks becomes its base letters ("tukor"), alone its words ("a
-# acute"), decomposed input as composed ("a" U+0301 as Ã¡); the Spanish unit keeps cp850's own.  translit_test.py:
+# acute"), decomposed input as composed ("a" U+0301 as á); the Spanish unit keeps cp850's own.  translit_test.py:
 # the module (test_translit.c), every voice's bytes, the five voices speaking on fresh units (each accented text
 # sounds as its ASCII spelling, each utterance complete, ASCII text the same PCM with the pass on and off), and the
 # Braille Lite's NVDA driver.  Three layers (Astra, Reply 162): handwritten fixtures own the conversion; no-change
@@ -1964,7 +2011,7 @@ CHECKS.append(check("accented letters: driver CONTROL (the pass off, must fail)"
                                 r"^ok   blazie_es driver +'\\xf1': the unit was sent \['\\xf1'\]",
                                 r"^FAIL blazie_es driver +'\\u0151': the unit was sent \[\]",
                                 r"^translit driver: \d+ of 10 FAILED \(TRANSLIT_BREAK=1"]))
-# other currencies than the dollar reach every unit as words (a listener: "Â£2.63" was read "2.63")
+# other currencies than the dollar reach every unit as words (a listener: "£2.63" was read "2.63")
 CHECKS.append(check("currency rule", [PY, "currency_test.py", "rules"]))
 for w in ("blazie", "speakout", "accent"):
     CHECKS.append(check("currency %s: the unit is sent pounds and pence" % w, [PY, "currency_test.py", w]))

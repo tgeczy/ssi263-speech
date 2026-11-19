@@ -125,6 +125,10 @@ typedef struct {
     int (*render)(void *u, const short **pcm, int *done);
     void (*cancel)(void *u);
     void (*destroy)(void *u);
+    /* the unit's own index marks (marks.h), for an engine that has them; NULL: its marks are estimated.
+       speak_marked: as speak, or -2 when the unit cannot take marks for this utterance (estimated then) */
+    int (*speak_marked)(void *u, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks);
+    int (*reached)(void *u, const ssv_reach **out);
 } ssv_engine;
 
 /* the Braille Lite: blazie.py (rate, pitch, volume, tone, short pauses, number words, run ahead, line-start lift;
@@ -178,6 +182,16 @@ static int eng_bl_speak(void *u, const char *utf8, int pitch_offset)
     (void)pitch_offset;
     return n < 0 ? -1 : n > 0;
 }
+static int eng_bl_speak_marked(void *u, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
+{
+    int n;
+    (void)pitch_offset;
+    if (!blv_marks_exact((bl_voice *)u))             /* (after eng_bl_set: run ahead and the packing are this text's) */
+        return -2;
+    n = blv_speak_marked((bl_voice *)u, utf8, marks, n_marks);
+    return n < 0 ? -1 : n > 0;
+}
+static int eng_bl_reached(void *u, const ssv_reach **out) { return blv_reached((bl_voice *)u, out); }
 static int eng_bl_render(void *u, const short **pcm, int *done) { return blv_render((bl_voice *)u, pcm, done); }
 static void eng_bl_cancel(void *u) { blv_cancel((bl_voice *)u); }
 static void eng_bl_destroy(void *u) { blv_destroy((bl_voice *)u); }
@@ -328,7 +342,8 @@ static void eng_st_destroy(void *u) { stv_destroy((st_voice *)u); }
 
 static const ssv_engine *engine(int kind)
 {
-    static const ssv_engine bl = {eng_bl_create, eng_bl_set, eng_bl_speak, eng_bl_render, eng_bl_cancel, eng_bl_destroy};
+    static const ssv_engine bl = {eng_bl_create, eng_bl_set, eng_bl_speak, eng_bl_render, eng_bl_cancel, eng_bl_destroy,
+                                  eng_bl_speak_marked, eng_bl_reached};
     static const ssv_engine as = {eng_as_create, eng_as_set, eng_as_speak, eng_as_render, eng_as_cancel, eng_as_destroy};
 #ifdef SSV_HAVE_SPEAKOUT
     static const ssv_engine so = {eng_so_create, eng_so_set, eng_so_speak, eng_so_render, eng_so_cancel, eng_so_destroy};
@@ -419,7 +434,22 @@ struct ssv_voice {
     const ssv_engine *e;
     void *u;
     int folds;                     /* a Blazie unit whose own reader folds a trillion (bl_firmware.h BLV_TRILLIONS_FOLD) */
+    /* index marks (marks.h, voices.h): how this utterance's are found */
+    int marks;                     /* MARKS_NONE (ssv_render passes the engine's blocks through), _OWN, _ESTIMATED */
+    struct { int id; double share; } *mk;          /* estimated: those not yet reported, each its share of the text */
+    int n_mk, cap_mk;
+    short *q;                      /* estimated: the audio rendered ahead of the caller, */
+    int q_len, q_cap, q_at;        /*   its samples, and where the caller is in them, */
+    int *qb, n_qb, cap_qb, qb_at;  /*   block by block as the engine gave them */
+    long total, fed;               /* samples rendered, samples returned */
+    int eng_done, calls;
+    ssv_reach *reached;          /* the marks the last block reached (ssv_reached) */
+    int n_reached, cap_reached;
 };
+#define MARKS_NONE 0
+#define MARKS_OWN 1
+#define MARKS_ESTIMATED 2
+#define AHEAD 8                    /* blocks rendered for each block returned, as the NVDA add-on's ssi263_flow.py */
 
 static int valid_rate(int r) { return r == 11025 || r == 22050 || r == 44100 ? r : 22050; }
 
@@ -465,13 +495,18 @@ SSV_API void ssv_destroy(ssv_voice *v)
 {
     if (!v) return;
     v->e->destroy(v->u);
+    free(v->mk);
+    free(v->q);
+    free(v->qb);
+    free(v->reached);
     free(v);
 }
 
 SSV_API int ssv_index(const ssv_voice *v) { return v->index; }
 SSV_API int ssv_sample_rate(const ssv_voice *v) { return v->rate; }
 
-SSV_API int ssv_speak(ssv_voice *v, const ssv_settings *s, const char *utf8, int pitch_offset)
+SSV_API int ssv_speak_marked(ssv_voice *v, const ssv_settings *s, const char *utf8, int pitch_offset,
+                             const ssv_mark *marks, int n_marks)
 {
     ssv_settings d;
     int guard = 0;
@@ -487,11 +522,152 @@ SSV_API int ssv_speak(ssv_voice *v, const ssv_settings *s, const char *utf8, int
     v->e->set(v->u, s);
     if (guard)                     /* but past twelve digits a folding unit gets them a digit at a time (blazie.py) */
         blv_set_numbers((bl_voice *)v->u, bl_trillions);
-    return v->e->speak(v->u, utf8 ? utf8 : "", pitch_offset);
+    if (!utf8) utf8 = "";
+    v->marks = MARKS_NONE;
+    v->n_mk = v->n_reached = 0;
+    v->q_len = v->q_at = v->n_qb = v->qb_at = 0;
+    v->total = v->fed = 0;
+    v->eng_done = v->calls = 0;
+    if (marks && n_marks > 0) {
+        int r, i, at = 0, cp = 0, all = 0;
+        if (v->e->speak_marked && (r = v->e->speak_marked(v->u, utf8, pitch_offset, marks, n_marks)) != -2) {
+            if (r >= 0) v->marks = MARKS_OWN;
+            return r;
+        }
+        /* estimated: each mark's share of the text's characters (UTF-8: the bytes that start one) */
+        if (n_marks > v->cap_mk) {
+            void *q = realloc(v->mk, sizeof *v->mk * (size_t)n_marks);
+            if (q) { v->mk = q; v->cap_mk = n_marks; }
+        }
+        if (n_marks <= v->cap_mk) {
+            for (i = 0; utf8[i]; i++) all += ((unsigned char)utf8[i] & 0xC0) != 0x80;
+            for (i = 0; i < n_marks; i++) {
+                for (; utf8[at] && at < marks[i].at; at++) cp += ((unsigned char)utf8[at] & 0xC0) != 0x80;
+                v->mk[i].id = marks[i].id;
+                v->mk[i].share = all ? (double)cp / all : 0.0;
+            }
+            v->n_mk = n_marks;
+            v->marks = MARKS_ESTIMATED;
+        }
+    }
+    {
+        int r = v->e->speak(v->u, utf8, pitch_offset);
+        if (r < 0) { v->marks = MARKS_NONE; v->n_mk = 0; }      /* the unit failed: nothing was said, none reached */
+        return r;
+    }
 }
 
-SSV_API int ssv_render(ssv_voice *v, const short **pcm, int *done) { return v->e->render(v->u, pcm, done); }
-SSV_API void ssv_cancel(ssv_voice *v) { v->e->cancel(v->u); }
+SSV_API int ssv_speak(ssv_voice *v, const ssv_settings *s, const char *utf8, int pitch_offset)
+{
+    return ssv_speak_marked(v, s, utf8, pitch_offset, NULL, 0);
+}
+
+static int reached_room(ssv_voice *v, int n)
+{
+    if (n > v->cap_reached) {
+        ssv_reach *r = (ssv_reach *)realloc(v->reached, sizeof(ssv_reach) * (size_t)n);
+        if (!r) return 0;
+        v->reached = r;
+        v->cap_reached = n;
+    }
+    return 1;
+}
+
+/* estimated marks: the engine rendered ahead of the caller, so the utterance's length is known before the caller
+   has heard much of it; then each mark at its share of that length */
+static int render_estimated(ssv_voice *v, const short **pcm, int *done)
+{
+    int ahead = v->calls++ ? AHEAD : 1, n = 0, i, kept = 0;      /* the first block at once: no wait for a first sound */
+    const char *brk = getenv("SSV_MARKS_BREAK");                 /* the tests' controls: "queue" returns the buffer's
+                                                                    start for every block; anything else reports
+                                                                    every mark at once */
+    int brk_queue = brk && !strcmp(brk, "queue"), brk_now = brk && !brk_queue;
+    if (v->qb_at == v->n_qb)                                     /* the caller has it all: from the buffer's start */
+        v->q_len = v->q_at = v->n_qb = v->qb_at = 0;
+    while (!v->eng_done && ahead-- > 0) {
+        const short *p;
+        int d = 0, got = v->e->render(v->u, &p, &d);
+        if (got < 0) got = 0;
+        if (v->q_len + got > v->q_cap) {
+            int cap = v->q_cap ? v->q_cap : 16384;
+            short *b;
+            while (cap < v->q_len + got) cap *= 2;
+            b = (short *)realloc(v->q, sizeof(short) * (size_t)cap);
+            if (!b) { v->eng_done = 1; break; }
+            v->q = b;
+            v->q_cap = cap;
+        }
+        if (v->n_qb == v->cap_qb) {
+            int cap = v->cap_qb ? v->cap_qb * 2 : 256, *b = (int *)realloc(v->qb, sizeof(int) * (size_t)cap);
+            if (!b) { v->eng_done = 1; break; }
+            v->qb = b;
+            v->cap_qb = cap;
+        }
+        if (got) memcpy(v->q + v->q_len, p, sizeof(short) * (size_t)got);
+        v->q_len += got;
+        v->qb[v->n_qb++] = got;
+        v->total += got;
+        v->eng_done = d;
+    }
+    if (v->qb_at < v->n_qb) {
+        n = v->qb[v->qb_at++];
+        *pcm = v->q + (brk_queue ? 0 : v->q_at);
+        v->q_at += n;
+    } else
+        *pcm = v->q;
+    *done = v->eng_done && v->qb_at == v->n_qb;
+    v->n_reached = 0;
+    if (!reached_room(v, v->n_mk)) v->n_mk = 0;
+    for (i = 0; i < v->n_mk; i++) {
+        double at = v->mk[i].share * (double)v->total - (double)v->fed;      /* its place, in this block's samples */
+        int now = brk_now || v->mk[i].share <= 0.0 || *done || (v->eng_done && at <= (double)n);
+        if (!now || kept) {                                      /* (in the caller's order: none passes one kept) */
+            v->mk[kept++] = v->mk[i];
+            continue;
+        }
+        v->reached[v->n_reached].id = v->mk[i].id;
+        v->reached[v->n_reached].sample = v->mk[i].share <= 0.0 || at < 0.0 ? 0 : at > (double)n ? n : (int)at;
+        v->reached[v->n_reached].exact = 0;
+        if (v->n_reached && v->reached[v->n_reached].sample < v->reached[v->n_reached - 1].sample)
+            v->reached[v->n_reached].sample = v->reached[v->n_reached - 1].sample;
+        v->n_reached++;
+    }
+    v->n_mk = kept;
+    v->fed += n;
+    return n;
+}
+
+SSV_API int ssv_render(ssv_voice *v, const short **pcm, int *done)
+{
+    int n;
+    if (v->marks == MARKS_ESTIMATED)
+        return render_estimated(v, pcm, done);
+    n = v->e->render(v->u, pcm, done);
+    v->n_reached = 0;
+    if (v->marks == MARKS_OWN) {                     /* the engine's, kept here: one place to read them */
+        const ssv_reach *r;
+        int k = v->e->reached(v->u, &r);
+        if (k > 0 && reached_room(v, k)) {
+            memcpy(v->reached, r, sizeof(ssv_reach) * (size_t)k);
+            v->n_reached = k;
+        }
+    }
+    return n;
+}
+
+SSV_API int ssv_reached(ssv_voice *v, const ssv_reach **out)
+{
+    *out = v->reached;
+    return v->n_reached;
+}
+
+SSV_API void ssv_cancel(ssv_voice *v)
+{
+    v->e->cancel(v->u);
+    v->marks = MARKS_NONE;                           /* none of a cancelled text's marks is reported */
+    v->n_mk = v->n_reached = 0;
+    v->q_len = v->q_at = v->n_qb = v->qb_at = 0;
+}
 
 /* ---- a bank ---------------------------------------------------------------------------------------------------------- */
 /* the table's slots 0..8, one per release voice, the Sounding Board's and the SmarTalk's: the last slot + 1.  (It was

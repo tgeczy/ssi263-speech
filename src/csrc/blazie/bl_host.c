@@ -52,6 +52,8 @@ struct bl_host {
     unsigned char *tx;
     int n_tx, cap_tx;
     int sent_f, echo_f, stale_f;
+    bh_echo echoes[BH_ECHOES];     /* the last bh_run's (bh_echoes) */
+    int n_echoes, in_run;
     double say_time, last_speech, last_load, ar_time, turbo, prep_step;
     int preparing, turbo_between_lines;
     double *buf;
@@ -242,6 +244,11 @@ static void events(bl_host *h)
                 HTR("ECHO t=%.6f echo_f=%d->%d sent_f=%d stale=%d\n", ssi263_time(h->chip), h->echo_f, h->echo_f + 1,
                     h->sent_f, h->stale_f);
                 h->echo_f += 1;
+                if (h->in_run && h->n_echoes < BH_ECHOES) {    /* where in this run's audio it came (bh_echoes) */
+                    h->echoes[h->n_echoes].n = h->echo_f;
+                    h->echoes[h->n_echoes].sample = h->n_buf;
+                    h->n_echoes++;
+                }
                 h->say_time = ssi263_time(h->chip);        /* progress: patience counts from here */
                 if (h->stale_f > 0)
                     h->stale_f -= 1;                       /* an earlier say()'s held flush line */
@@ -895,6 +902,8 @@ BL_API int bh_run(bl_host *h, double seconds, double step, const double **audio)
 {
     double t = 0.0;
     h->n_buf = 0;
+    h->n_echoes = 0;
+    h->in_run = 1;
     if (h->idle)
         bl_idle_begin(h->idle);
     if (h->ra.active || h->n_held)
@@ -932,6 +941,7 @@ BL_API int bh_run(bl_host *h, double seconds, double step, const double **audio)
         bl_idle_render(h->idle, h->buf, h->n_buf);         /* in place of the whine below */
     else if (h->whine)
         add_whine(h, h->buf, h->n_buf);
+    h->in_run = 0;
     *audio = h->buf;
     return h->n_buf;
 }
@@ -1121,6 +1131,12 @@ BL_API int bh_tx(const bl_host *h, const unsigned char **bytes)
 {
     *bytes = h->tx;
     return h->n_tx;
+}
+
+BL_API int bh_echoes(const bl_host *h, const bh_echo **out)
+{
+    *out = h->echoes;
+    return h->n_echoes;
 }
 
 BL_API void bh_clear_tx(bl_host *h)

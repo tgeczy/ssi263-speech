@@ -69,6 +69,21 @@ control "SmarTalk voice CONTROL (the bank's last slot kept on a boot change, mus
 control "SmarTalk voice CONTROL (the contractions as they are, must fail)" "^FAIL  said as: don't +\"don't\"$" \
     "^FAIL  said as: I'm " "^FAIL  don't: said as one word, no letter T " "^ok    said as: rock 'n roll " \
     "^st voice: 6 FAILED$" -- env ST_TEXT_BREAK=1 python3 tools/check_st_voice.py $B/libssi263_voices.so
+# index marks (src/csrc/marks.h, docs/index-marks.md), what needs no firmware of them: the bytes the Braille Lite voice
+# would send its unit for a marked text, and the voice table's marks on the voices whose files are in the repository
+# (the Accents, the SmarTalk: estimated); controls as linux_tests.sh's
+check "bl_voice: index marks, the bytes for the unit" python3 nvda/tools/voice_marks.py
+control "bl_voice marks CONTROL (a Ctrl-F for every mark on one word, must fail)" \
+    "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^voice marks: 2 FAILED$" \
+    -- env VOICE_MARKS_BREAK=2 python3 nvda/tools/voice_marks.py
+check "voice table: index marks, estimated, on the voices in the repository" python3 tools/check_ssv_marks.py \
+    $B/libssi263_voices.so --firmware "$ROOT/firmware"
+control "voice table marks CONTROL (the estimate reports every mark at once, must fail)" \
+    "^FAIL smartalk:smartalk +place " "^ssv marks: [0-9]+ FAILED$" \
+    -- env SSV_MARKS_BREAK=1 python3 tools/check_ssv_marks.py $B/libssi263_voices.so --firmware "$ROOT/firmware"
+control "voice table marks CONTROL (the audio rendered ahead returned from its start, must fail)" \
+    "^FAIL smartalk:smartalk +audio " "^ssv marks: [0-9]+ FAILED$" \
+    -- env SSV_MARKS_BREAK=queue python3 tools/check_ssv_marks.py $B/libssi263_voices.so --firmware "$ROOT/firmware"
 control "accented letters: bytes CONTROL (the pass off, must fail)" '^FAIL blazie +bytes ' '^FAIL speakout +bytes ' \
     "^ +'t\\\\xfck\\\\xf6r' -> b't k r" '^translit bytes: 5 of 10 FAILED' \
     -- env TRANSLIT_BREAK=1 python3 nvda/tools/translit_test.py bytes

@@ -30,9 +30,11 @@ Each unit's `notifySynth` is set to this driver, so NVDA's speech manager accept
 between two texts spoken apart. Say all's lines that end no sentence come as one utterance with an index before
 each line, and with "Join phrases" on they go to the unit as one line so that they flow
 (`nvda/shared/ssi263_flow.py`). Inside such a line the Braille Lite's indexes are its unit's own index marks
-(Ctrl-F, echoed when speech reaches it): exact. The other units' are estimated for now, by the index's share of
-the text, good to a word or so; the Accents and the Sounding Board have index marks of their own that the drivers
-do not use yet. With "Join phrases" off every text is a sentence of its own again, and every index exact.
+(Ctrl-F, echoed when speech reaches it), exact, on the releases measured for them: the English, Danish, Norwegian
+and Swedish ones (the release table's `marks` column; on the Spanish and German units a mark inside a line changes the speech).
+The other units' are estimated for now, by the index's share of the text, good to a word or so; the Speak-Out, the
+Sounding Board, the Accents and the SmarTalk have index marks of their own that the drivers do not use yet
+(`docs/index-marks.md`). With "Join phrases" off every text is a sentence of its own again, and every index exact.
 
 Tests (`nvda/tools`, run by `run_tests.py`), each with must-fail controls: `unified_driver_equiv.py` (every unit
 through this driver, byte for byte against its own driver, the notifications naming this driver),

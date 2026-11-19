@@ -92,6 +92,43 @@ control "release voices CONTROL (the echo ignored, must fail)" "^FAIL bl2_hu_199
 control "release voices CONTROL (a non-echoing unit's own end left out, must fail)" \
     "^FAIL bl2_hu_1999_07: speaks: .* (0\.9|1\.[0-9])[0-9] s after its last sound" "^release voices: [0-9]+ FAILED$" \
     -- env SSI263_RELEASE_VOICES_BREAK=slow python3 src/csrc/blazie/test_release_voices.py --lib "$LIB" --firmware "$DATA"
+# index marks (src/csrc/marks.h): the Braille Lite's own Ctrl-F at the front of each marked word, each mark reported
+# where the unit echoes it; the words never changed by a mark, the chip's writes compared with the unmarked text's
+check "bl_voice: index marks by the unit's own Ctrl-F" env SSI263_FIRMWARE="$DATA" python3 nvda/tools/voice_marks.py
+control "bl_voice marks CONTROL (every mark in the first block, must fail)" "^FAIL place " "^FAIL lines " \
+    "^FAIL end " "^FAIL dense " "^FAIL cancel " "^voice marks: 6 FAILED$" \
+    -- env SSI263_FIRMWARE="$DATA" VOICE_MARKS_BREAK=1 python3 nvda/tools/voice_marks.py
+control "bl_voice marks CONTROL (a Ctrl-F for every mark on one word, must fail)" \
+    "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^voice marks: 2 FAILED$" \
+    -- env SSI263_FIRMWARE="$DATA" VOICE_MARKS_BREAK=2 python3 nvda/tools/voice_marks.py
+control "bl_voice marks CONTROL (the marks left after a cancel, must fail)" "^FAIL cancel .* 5 reported after it" \
+    "^voice marks: 1 FAILED$" -- env SSI263_FIRMWARE="$DATA" VOICE_MARKS_BREAK=3 python3 nvda/tools/voice_marks.py
+control "bl_voice marks CONTROL (a mark inside an amount where it stands, must fail)" \
+    "^FAIL bytes .*Ctrl-F before ..pounds.., wanted ..5.." "^voice marks: 1 FAILED$" \
+    -- env SSI263_FIRMWARE="$DATA" VOICE_MARKS_BREAK=4 python3 nvda/tools/voice_marks.py
+control "bl_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
+    "^FAIL speech " "^voice marks: 9 FAILED$" -- env SSI263_FIRMWARE="$DATA" VOICE_MARKS_BREAK=5 python3 nvda/tools/voice_marks.py
+# ... and through the voice table (voices.h ssv_speak_marked): the unit's own on a measured Braille Lite, estimated
+# on every other voice; no marks = ssv_speak.  A firmware folder for the table: the Braille Lite's files from the
+# data folder, the repository's own (Aicom's, the SmarTalk), the Speak-Out where it is
+MFW=build/marks-firmware
+rm -rf $MFW && mkdir -p $MFW/blazie/spanish $MFW/gw-micro-speakout
+ln -sf "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state" $MFW/blazie/
+[ -f "$DATA/BL2SPA.BNS" ] && ln -sf "$DATA/BL2SPA.BNS" "$DATA/bl2spa_fresh.state" $MFW/blazie/spanish/
+for so in "$DATA/gw-micro-speakout" "$ROOT/firmware/gw-micro-speakout" "$DATA/../speakout-firmware"; do
+    [ -f "$so/SPEAKOUT.HEX" ] && { ln -sf "$so/SPEAKOUT.HEX" $MFW/gw-micro-speakout/; break; }
+done
+for d in aicom-accent-mini aicom-accent-sa automated-functions-smartalk; do
+    ln -sf "$ROOT/firmware/$d" $MFW/$d
+done
+check "voice table: index marks, own or estimated, on every voice here" python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so \
+    --firmware $MFW
+control "voice table marks CONTROL (the estimate reports every mark at once, must fail)" \
+    "^FAIL [a-z]+:[a-z_]+ +place " "^ssv marks: [0-9]+ FAILED$" \
+    -- env SSV_MARKS_BREAK=1 python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
+control "voice table marks CONTROL (the audio rendered ahead returned from its start, must fail)" \
+    "^FAIL [a-z]+:[a-z_]+ +audio " "^ssv marks: [0-9]+ FAILED$" \
+    -- env SSV_MARKS_BREAK=queue python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
 # ... and never early: past each first done the same unit runs on 1.5 s and must not speak again (Astra, Reply 248)
 check "no-echo end: every done final (the units that never echo)" python3 src/csrc/blazie/test_no_echo_end.py \
     --lib "$LIB" --firmware "$DATA"

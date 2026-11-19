@@ -60,6 +60,12 @@ struct bl_voice {
                                      faults, Astra's Reply 112); the next blv_speak recovers with bh_cancel first */
     short *pcm;
     int pcm_cap;
+    struct { int id, ord; } *mk;   /* the utterance's index marks not yet reached: ord 0 at once, else the
+                                     number (the host's "echo_f") of the echo that reaches it */
+    int n_mk, cap_mk;
+    int own_marks;                /* the firmware's release was measured for its own marks (blv_release_marks) */
+    ssv_reach *reached;         /* those the last blv_render's block reached (blv_reached) */
+    int n_reached, cap_reached;
 };
 
 /* the tests' controls (test_release_voices.py; an app never sets it): 1 boots every firmware with the fast keys, 2
@@ -102,6 +108,7 @@ BL_API bl_voice *blv_create(const char *firmware, const char *state, int encodin
     v->host = bh_create(firmware, state, v->chip, out_rate, BOARD_LOWPASS_HZ, key_at, codes, n,
                         start + (unsigned long long)n * gap, 0, err, errlen);
     if (!v->host) { ssi263_free(v->chip); free(v); return NULL; }
+    v->own_marks = release >= 0 && blv_release_marks(release) == 1;
     if (release >= 0 && blv_release_echo(release) == 0 && blv_voice_break != 2) {
         bh_set_int(v->host, "no_echo", 1);
         if (blv_voice_break == 3)          /* the control: its own end left out (bl_host.c no_echo_finished) */
@@ -131,6 +138,8 @@ BL_API void blv_destroy(bl_voice *v)
     if (v->host) bh_destroy(v->host);
     if (v->chip) ssi263_free(v->chip);
     free(v->pcm);
+    free(v->mk);
+    free(v->reached);
     free(v);
 }
 
@@ -636,21 +645,19 @@ static int numbers(blv_numbers_fn fn, unsigned **t, int m, int encoding)
 
 /* ---- the text the driver hands unit.say(): _translit (translit.h; the driver's ssv_translit), currencies, _clean,
    (_numbers), _lines, encoded, each line \r ^F, one more \r ^F.  malloc'd into *out (the caller frees it); returns the number of lines (0: nothing to say) -------------- */
-static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn, unsigned char **out, int *out_len)
+/* the text as the unit is to read it (_translit, currencies, _clean, _numbers): code points, malloc'd into *out (the
+   caller frees it); their count, -1 when out of memory */
+static int prepared(const char *utf8, int encoding, blv_numbers_fn fn, unsigned **out)
 {
-    int n = (int)strlen(utf8), m, nl, k, w, len = 0;
+    int n = (int)strlen(utf8), m;
     unsigned *cps, *cur, *t;
-    int *ws = NULL, *we = NULL;
-    span *ln = NULL;
-    unsigned char *data = NULL;
     *out = NULL;
-    *out_len = 0;
     cps = (unsigned *)malloc(sizeof(unsigned) * (size_t)(n + 1));
-    if (!cps) return 0;
+    if (!cps) return -1;
     m = utf8_decode(utf8, cps);
     /* translit.h first: the letters this unit's alphabet lacks, as base letters (or a lone one's words) */
     cur = (unsigned *)malloc(sizeof(unsigned) * (size_t)tl_room(m));
-    if (!cur) { free(cps); return 0; }
+    if (!cur) { free(cps); return -1; }
     m = tl_apply(cps, m, known_of(encoding), cur);
     free(cps);
     cps = cur;
@@ -659,7 +666,7 @@ static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn
     t = (unsigned *)malloc(sizeof(unsigned) * (size_t)(24 * m + 48));
     if (!cur || !t) {
         free(cps); free(cur); free(t);
-        return 0;
+        return -1;
     }
     /* numwords.currencies(value, unit.lang): the English unit only */
     if (encoding == BLV_LATIN1)
@@ -671,31 +678,131 @@ static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn
         int r = numbers(fn, &t, m, encoding);
         if (r >= 0) m = r;
     }
+    free(cps); free(cur);
+    *out = t;
+    return m;
+}
+
+/* the words of prepared text, as lines() and str.split() take them: their starts and ends; their count */
+static int words_of(const unsigned *t, int n, int *ws, int *we)
+{
+    int nw = 0, i = 0;
+    while (i < n) {
+        if (py_isspace(t[i])) { i++; continue; }
+        ws[nw] = i;
+        while (i < n && !py_isspace(t[i])) i++;
+        we[nw++] = i;
+    }
+    return nw;
+}
+
+/* the tests' controls (voice_marks.py; an app never sets it): 1 reports every mark in the first block, not where its
+   echo comes; 2 gives the unit a Ctrl-F for every mark, also those that fall on the same word; 3 leaves the marks
+   after a cancel; 4 takes a mark inside a run of text where it stands, not from the run's start; 5 puts the Ctrl-F
+   inside its word, after the first letter; 6 takes every echoing release's marks for its own */
+BL_API int blv_marks_break = 0;
+
+/* The word of the whole prepared text that a mark at byte `at` of the source stands before (0 to nw; nw: after the
+   last word).  The text is never prepared in pieces: the source up to the mark is prepared by itself and its words
+   are held against the whole's.  Where they stop agreeing is the word the mark belongs to -- the next word when the
+   mark stands between two, the START of the word when it stands inside one, the start of a number or an amount
+   that the preparation rewrites as a whole (marks.h). */
+static int mark_word(const char *utf8, int at, int encoding, blv_numbers_fn fn, const unsigned *t, const int *ws,
+                     const int *we, int nw)
+{
+    int len = (int)strlen(utf8), pm, pnw, j = 0, *pws, *pwe;
+    unsigned *pt;
+    char *prefix;
+    if (at <= 0) return 0;
+    if (at > len) at = len;
+    /* inside a run of text with no space in it: from the run's start -- the preparation may rewrite the run as a
+       whole (an amount of money, a number), and its first word is where the run begins to be spoken */
+    if (at < len && blv_marks_break != 4)
+        while (at > 0 && (unsigned char)utf8[at] > ' ' && (unsigned char)utf8[at - 1] > ' ') at--;
+    while (at > 0 && at < len && ((unsigned char)utf8[at] & 0xC0) == 0x80) at--;    /* never inside a character */
+    prefix = (char *)malloc((size_t)at + 1);
+    if (!prefix) return 0;
+    memcpy(prefix, utf8, (size_t)at);
+    prefix[at] = 0;
+    pm = prepared(prefix, encoding, fn, &pt);
+    free(prefix);
+    if (pm < 0) return 0;
+    pws = (int *)malloc(sizeof(int) * (size_t)(pm + 1));
+    pwe = (int *)malloc(sizeof(int) * (size_t)(pm + 1));
+    if (pws && pwe) {
+        pnw = words_of(pt, pm, pws, pwe);
+        for (j = 0; j < pnw && j < nw; j++) {
+            int a = pwe[j] - pws[j];
+            if (a != we[j] - ws[j] || memcmp(pt + pws[j], t + ws[j], sizeof(unsigned) * (size_t)a)) break;
+        }
+    }
+    free(pt); free(pws); free(pwe);
+    return j;
+}
+
+
+/* marks: the caller's, in rising order of `at`; ords (n_marks of them), for each: 0 it stands before the first word
+   (reached at once), > 0 the number of its Ctrl-F among the 06h bytes of the data, -1 after the last word.  *n06:
+   the 06h bytes in the data, the flush line's included. */
+static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn, const ssv_mark *marks, int n_marks,
+                     int *ords, int *n06, unsigned char **out, int *out_len)
+{
+    int m, nl, k, w, len = 0, nw, count = 0, i;
+    unsigned *t;
+    int *ws = NULL, *we = NULL, *mk = NULL;
+    span *ln = NULL;
+    unsigned char *data = NULL;
+    *out = NULL;
+    *out_len = 0;
+    if (n06) *n06 = 0;
+    for (i = 0; i < n_marks; i++) ords[i] = 0;
+    m = prepared(utf8, encoding, fn, &t);
+    if (m < 0) return 0;
     ws = (int *)malloc(sizeof(int) * (size_t)(m + 1));
     we = (int *)malloc(sizeof(int) * (size_t)(m + 1));
     ln = (span *)malloc(sizeof(span) * (size_t)(m + 1));
-    data = (unsigned char *)malloc((size_t)m * 3 + 16);
-    if (!ws || !we || !ln || !data) {
-        free(cps); free(cur); free(t); free(ws); free(we); free(ln); free(data);
+    mk = (int *)calloc((size_t)(m + 2), sizeof(int));          /* per word: the Ctrl-Fs in front of it */
+    data = (unsigned char *)malloc((size_t)m * 3 + 16 + (size_t)n_marks);
+    if (!ws || !we || !ln || !mk || !data) {
+        free(t); free(ws); free(we); free(ln); free(mk); free(data);
         return 0;
     }
     nl = lines(t, m, pack, ws, we, ln);
-    /* unit.say(lines): each line encoded ("replace" -> '?'), then \r ^F; one more \r ^F flushes */
+    nw = nl ? ln[nl - 1].w1 : 0;
+    for (i = 0; i < n_marks; i++) {
+        w = mark_word(utf8, marks[i].at, encoding, fn, t, ws, we, nw);
+        if (i && w < ords[i - 1]) w = ords[i - 1];             /* in the caller's order, never back */
+        ords[i] = w;                                           /* (its word, until the data is laid out) */
+        if (w > 0 && w < nw && (!mk[w] || blv_marks_break == 2)) mk[w]++;
+    }
+    /* unit.say(lines): each line encoded ("replace" -> '?'), then \r ^F; one more \r ^F flushes.  A marked word has
+       its Ctrl-F glued to its front: the unit echoes it when speech reaches the word, at a line's start too */
     for (k = 0; k < nl; k++) {
         for (w = ln[k].w0; w < ln[k].w1; w++) {
-            int i;
+            int j;
+            int n6 = mk[w];
             if (w > ln[k].w0) data[len++] = ' ';
-            for (i = ws[w]; i < we[w]; i++) {
-                int b = encoding != BLV_LATIN1 ? cp_byte(encoding, t[i]) : (t[i] < 256 ? (int)t[i] : -1);
+            for (j = blv_marks_break == 5 ? 0 : n6; j > 0; j--) data[len++] = 0x06;
+            count += n6;
+            if (n6) mk[w] = count;                             /* now: the number of its (last) Ctrl-F */
+            for (j = ws[w]; j < we[w]; j++) {
+                int b = encoding != BLV_LATIN1 ? cp_byte(encoding, t[j]) : (t[j] < 256 ? (int)t[j] : -1);
                 data[len++] = (unsigned char)(b < 0 ? '?' : b);
+                if (blv_marks_break == 5 && j == ws[w])        /* the control: inside the word, after its first letter */
+                    for (b = n6; b > 0; b--) data[len++] = 0x06;
             }
         }
         data[len++] = '\r'; data[len++] = 0x06;
+        count++;
     }
     if (nl) {
         data[len++] = '\r'; data[len++] = 0x06;
+        count++;
     }
-    free(cps); free(cur); free(t); free(ws); free(we); free(ln);
+    for (i = 0; i < n_marks; i++)
+        ords[i] = !nl || ords[i] <= 0 ? 0 : ords[i] >= nw ? -1 : mk[ords[i]];
+    if (n06) *n06 = count;
+    free(t); free(ws); free(we); free(ln); free(mk);
     *out = data;
     *out_len = len;
     return nl;
@@ -720,7 +827,7 @@ BL_API int blv_say_bytes(const char *utf8, int encoding, int pack, unsigned char
 BL_API int blv_say_bytes_with(const char *utf8, int encoding, int pack, blv_numbers_fn fn, unsigned char *out, int cap)
 {
     unsigned char *data;
-    int len, nl = say_bytes(utf8, encoding, pack, fn, &data, &len);
+    int len, nl = say_bytes(utf8, encoding, pack, fn, NULL, 0, NULL, NULL, &data, &len);
     (void)nl;
     if (data && len <= cap)
         memcpy(out, data, (size_t)len);
@@ -728,10 +835,88 @@ BL_API int blv_say_bytes_with(const char *utf8, int encoding, int pack, blv_numb
     return len;
 }
 
+
+/* ---- index marks (marks.h) --------------------------------------------------------------------------------------- */
+BL_API int blv_marks_exact(const bl_voice *v)
+{
+    /* the unit's own Ctrl-F, when its release was measured for it (bl_languages.txt's marks column), it echoes (a
+       caller may have set "no_echo" itself) and it is not run ahead of the listener (its echoes then come at the
+       capture's frontier, bl_host.h) */
+    return (v->own_marks || blv_marks_break == 6) && !(v->run_ahead && v->pack) && bh_get_int(v->host, "no_echo") <= 0;
+}
+
+/* The marks speech has reached in the block just run: those whose Ctrl-F the unit has echoed, each at the sample its
+   echo came (less the `start` samples trimmed from the block's head), and, with `all`, the rest after the block's
+   last sample (the utterance is over). */
+static void report_marks(bl_voice *v, int start, int count, int all)
+{
+    const bh_echo *e;
+    int ne = bh_echoes(v->host, &e), ef = bh_get_int(v->host, "echo_f"), i, j, kept = 0, last = 0;
+    v->n_reached = 0;
+    if (!v->n_mk)
+        return;
+    if (blv_marks_break == 1)
+        ef = 0x7FFFFFFF;
+    if (v->n_mk > v->cap_reached) {
+        ssv_reach *r = (ssv_reach *)realloc(v->reached, sizeof(ssv_reach) * (size_t)v->n_mk);
+        if (!r) { v->n_mk = 0; return; }
+        v->reached = r;
+        v->cap_reached = v->n_mk;
+    }
+    for (i = 0; i < v->n_mk; i++) {
+        int ord = v->mk[i].ord, s = 0, exact = ord <= 0;     /* (before the first word: the utterance's start) */
+        if (ord > ef && !all) {                              /* not yet: its echo is still to come */
+            v->mk[kept++] = v->mk[i];
+            continue;
+        }
+        if (ord > ef)                                        /* the utterance is over and its echo never came (a
+                                                                fault, a unit that dropped it): with the last block,
+                                                                so that no caller is left waiting -- and not exact */
+            s = count;
+        else if (ord > 0)
+            for (j = 0; j < ne; j++)
+                if (e[j].n == ord) { s = e[j].sample - start; exact = 1; break; }
+        if (s < last) s = last;
+        if (s > count) s = count;
+        last = s;
+        v->reached[v->n_reached].id = v->mk[i].id;
+        v->reached[v->n_reached].sample = s;
+        v->reached[v->n_reached].exact = exact;              /* (0 too for an echo this block's run did not record) */
+        v->n_reached++;
+    }
+    v->n_mk = kept;
+}
+
+BL_API int blv_reached(bl_voice *v, const ssv_reach **out)
+{
+    *out = v->reached;
+    return v->n_reached;
+}
+
+BL_API int blv_say_bytes_marked(const char *utf8, int encoding, int pack, const ssv_mark *marks, int n_marks,
+                                unsigned char *out, int cap)
+{
+    unsigned char *data;
+    int len, *ords = (int *)malloc(sizeof(int) * (size_t)(n_marks > 0 ? n_marks : 1));
+    if (!ords) return 0;
+    say_bytes(utf8, encoding, pack, NULL, marks, n_marks, ords, NULL, &data, &len);
+    if (data && len <= cap)
+        memcpy(out, data, (size_t)len);
+    free(data);
+    free(ords);
+    return len;
+}
+
 /* ---- _speakSegment + _speakItems (one text item) ----------------------------------------------------------------- */
 BL_API int blv_speak(bl_voice *v, const char *utf8)
 {
-    int r = unit_rate(v->rate), p = unit_pitch(v->pitch), tone = v->tone, nl, len;
+    return blv_speak_marked(v, utf8, NULL, 0);
+}
+
+BL_API int blv_speak_marked(bl_voice *v, const char *utf8, const ssv_mark *marks, int n_marks)
+{
+    int r = unit_rate(v->rate), p = unit_pitch(v->pitch), tone = v->tone, nl, len, n06 = 0, base, i;
+    int *ords = NULL;
     unsigned char *data;
     const double *y;
     if (r != v->sent_rate || p != v->sent_pitch || tone != v->sent_tone) {
@@ -752,7 +937,28 @@ BL_API int blv_speak(bl_voice *v, const char *utf8)
         bh_cancel(v->host, 3.0, -1.0, -1.0);
         v->fault = 0;
     }
-    nl = say_bytes(utf8, v->encoding, v->pack, v->numbers, &data, &len);
+    v->n_mk = v->n_reached = 0;
+    if (!marks || n_marks <= 0 || !blv_marks_exact(v))
+        n_marks = 0;                                 /* (a caller asks blv_marks_exact first) */
+    if (n_marks) {
+        ords = (int *)malloc(sizeof(int) * (size_t)n_marks);
+        if (n_marks > v->cap_mk) {
+            void *q = realloc(v->mk, sizeof *v->mk * (size_t)n_marks);
+            if (q) { v->mk = q; v->cap_mk = n_marks; }
+        }
+        if (!ords || n_marks > v->cap_mk)
+            n_marks = 0;
+    }
+    nl = say_bytes(utf8, v->encoding, v->pack, v->numbers, marks, n_marks, ords, &n06, &data, &len);
+    /* each mark's echo, by its number: the unit echoes its Ctrl-Fs in the order it was sent them, the lines' own
+       among them; one after the last word is reached when the last line's own comes */
+    base = bh_get_int(v->host, "sent_f");
+    for (i = 0; i < n_marks; i++) {
+        v->mk[i].id = marks[i].id;
+        v->mk[i].ord = ords[i] == 0 ? 0 : ords[i] > 0 ? base + ords[i] : base + n06 - 1;
+    }
+    v->n_mk = n_marks;
+    free(ords);
     if (nl) {
         /* the line-start lift (blv_set_line_lift): the first line of speech that interrupted other speech (or
            came first), as the unit lifts a line moved to; never speech queued behind other speech (say-all) */
@@ -763,6 +969,7 @@ BL_API int blv_speak(bl_voice *v, const char *utf8)
         bh_set_int(v->host, "turbo_between_lines", v->pack);
         if (bh_say(v->host, data, len) < 0 && !blv_break_fault) {   /* refused: say so, never silently */
             v->fault = 1;
+            v->n_mk = 0;
             free(data);
             return -1;
         }
@@ -777,7 +984,11 @@ BL_API int blv_render(bl_voice *v, const short **pcm, int *done)
     const double *y;
     int n, start = 0;
     *pcm = v->pcm;
-    if (!v->active) { *done = 1; return 0; }
+    if (!v->active) {                                /* nothing to say: its marks are reached at once */
+        report_marks(v, 0, 0, 1);
+        *done = 1;
+        return 0;
+    }
     n = bh_run(v->host, BLOCK_S, 0.0005, &y);
     if (v->lead) {                                   /* _trim_lead */
         int k;
@@ -818,6 +1029,7 @@ BL_API int blv_render(bl_voice *v, const short **pcm, int *done)
             *done = 1;
             v->quiet_since = blv_clock();
         }
+        report_marks(v, start, n - start, busy <= 0);
     }
     return n - start;
 }
@@ -827,6 +1039,8 @@ BL_API void blv_cancel(bl_voice *v)
     bh_cancel(v->host, 3.0, -1.0, -1.0);
     v->lift_next = 1;
     v->active = 0;
+    if (blv_marks_break != 3)
+        v->n_mk = v->n_reached = 0;                  /* no mark of a cancelled text is reported */
     v->fault = 0;
 }
 

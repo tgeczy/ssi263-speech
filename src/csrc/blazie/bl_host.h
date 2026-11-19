@@ -114,6 +114,16 @@ BL_API void bh_braille_bars(bl_host *h, int down);
 BL_API double bh_get_double(const bl_host *h, const char *name);
 BL_API void bh_set_double(bl_host *h, const char *name, double v);
 BL_API int bh_tx(const bl_host *h, const unsigned char **bytes);   /* every byte the unit sent back */
+/* The ^F echoes of the last bh_run, for a caller that uses the unit's echo as an index mark (bl_voice.h): each
+   with its number ("echo_f" once it had come) and the sample of that run's audio at which it came.  At most
+   BH_ECHOES are kept a run (a 30 ms run sees one or two); "echo_f" itself is never short.  Not for the run
+   ahead mode: there the echoes come at the capture's frontier, ahead of the audio. */
+typedef struct {
+    int n;                                 /* its number: the value of "echo_f" with this echo counted */
+    int sample;                            /* samples of the run's audio made when it came */
+} bh_echo;
+#define BH_ECHOES 64
+BL_API int bh_echoes(const bl_host *h, const bh_echo **out);
 BL_API void bh_clear_tx(bl_host *h);        /* forget them (a program that never reads them: the emulator app) */
 /* the serial port carried to a real port (bl_board.h's bl_serial_*); the drivers never attach it */
 BL_API int bh_serial_attach(bl_host *h, int on);

@@ -34,6 +34,11 @@ class _Write(ctypes.Structure):
     _fields_ = [("t", _D), ("reg", _I), ("val", _I)]
 
 
+class _Echo(ctypes.Structure):
+    """bl_host.h's bh_echo: a ^F echo of the last run, its number and the samples of the run made when it came"""
+    _fields_ = [("n", _I), ("sample", _I)]
+
+
 class RaWrite(ctypes.Structure):
     """run_ahead.h's ra_write: a captured write, its CPU cycle and its segment (acknowledgements before it)"""
     _fields_ = [("cyc", ctypes.c_ulonglong), ("seg", _I), ("reg", ctypes.c_ubyte), ("val", ctypes.c_ubyte)]
@@ -94,6 +99,7 @@ def _load(path):
     lib.bh_skip.argtypes = [_P, _D]
     lib.bh_skip.restype = _D
     lib.bh_run.argtypes = [_P, _D, _D, ctypes.POINTER(ctypes.POINTER(_D))]
+    lib.bh_echoes.argtypes = [_P, ctypes.POINTER(ctypes.POINTER(_Echo))]
     lib.bh_run.restype = _I
     lib.bh_set_whine.argtypes = [_P, _I]
     lib.bh_get_whine.argtypes = [_P]
@@ -372,5 +378,7 @@ class NativeBlazie:
         out = array("d", bytes(8 * n))
         if n:
             ctypes.memmove(out.buffer_info()[0], p, 8 * n)
+        e = ctypes.POINTER(_Echo)()                          # blazie.py's echoes: this run's ^F echoes
+        self.echoes = [(e[k].n, e[k].sample) for k in range(self._lib.bh_echoes(self._h, ctypes.byref(e)))]
         self._drain()
         return out
