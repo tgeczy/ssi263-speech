@@ -33,7 +33,7 @@ a voice here uses it yet.
 | Speak-Out (GW Micro) | Ctrl-E `[` and one byte (05h 5Bh xx) | sends that byte back on its serial line; on at power-up, Ctrl-E `]` 1 / 0 turns it on and off | yes |
 | Sounding Board (GW Micro) | the same command | INT 17h AH=02h on the driver's port: how many marks were passed since the last call, and the last one's value | yes |
 | Accent SA (Aicom) | Ctrl-F, after ESC Y X and ESC = Y | one 06h per mark on its serial line; off at power-up | yes |
-| Accent-mini (Aicom) | Ctrl-F, after ESC Y X and ESC Y Z | INT 17h AH=02h: the count since the last read | not yet |
+| Accent-mini (Aicom) | Ctrl-F, after ESC Y X | its driver counts the marks passed (INT 17h AH=02h gives the count after ESC Y Z; the host reads it in the driver's memory) | yes |
 | SmarTalk (Automated Functions) | Ctrl-F, always on | INT 17h AH=2: the count | yes |
 | Mockingboard (Sweet Micro Systems) | none | the host can read which frame is being spoken | estimated |
 | Speech Systems Super Voice (1984) | none | the host sees every phoneme written | not a voice yet |
@@ -134,6 +134,39 @@ marks. The host reads the TSR's own count of marks passed after every slice (`sr
   ms from its word's first phoneme load. The TSR runs its words together, so the audio shows no word starts to
   check against.
 
+## The Accent-mini: measured
+
+A Ctrl-F directly after the last spoken word before the marked one, its punctuation included: where the manual
+says to put it ("right after the word to be marked"). The driver counts a mark when the word before it has ended.
+The host reads that count in the driver's memory after every slice; it does not make the Status Read call
+(`src/csrc/accentmini/am_host.h`). Two things were measured about that call: made while the chip's request is
+waiting it makes the driver write the chip itself, which delays the speech; and it gives no count while an option
+command sent after the marks waits to be reached. The count in memory rose on time in both cases.
+
+- **Inside a clause** (after a word, with a comma, a bracket or a quote after it or not): every chip write is the
+  unmarked text's, in value and time, at rates 0, 50 and 100, and on a fresh unit the audio is the unmarked audio
+  sample for sample. The mark is reported with the pause frame the chip is given after the word: 0.0 ms from it,
+  8 to 33 ms before the next word's first phoneme at the default rate.
+- **After a clause end** (. ! ? ; :), which is where nearly every index of a say all stands: ONE pause frame of
+  8.4 ms is put in front of the next clause, and its first phoneme begins differently: the duration bits of its
+  first frame, and in some texts the articulation or inflection bits of one or two frames, all within the first
+  20 ms. Every phoneme is the same. What follows is at the same times (to 0.2 ms) or 8.4 ms later, for each
+  such mark: both were seen at the default rate, at the fastest rate always the 8.4 ms. Five one-word
+  sentences with a mark before each came out 30 ms longer in all (4.89 s). The mark is reported at the head
+  of the next clause.
+- The mark could go before the punctuation instead, which costs nothing in an ordinary word. It is not used:
+  before the full stop of "Dr." it changed the reading and added 0.67 s, and which words the driver takes for
+  abbreviations is not known.
+- Two marks with nothing spoken between them cost 62 ms (around a dash that stands alone): marks there share one
+  Ctrl-F, after the word before the dash.
+- A corpus of twelve sentences (abbreviations, a.m., U.S., decimals, money, a time, brackets, quotes, an
+  ellipsis, a dash), a mark after every word: every phoneme the same in all of them.
+- With ESC P or ESC R printed while a marked text was being spoken the count still rose on time; with two such
+  prints, 0.7 s apart, the last three marks came together at the end. Why is not known. The voice prints no
+  command while a text is spoken: a capital's pitch goes before its text and is restored after it, and with it
+  the marks were where they are without it.
+- Not heard by anyone yet: "the same" means the same chip writes and samples.
+
 ## The estimate
 
 A mark is put at its share of the text's characters, as a share of the utterance's samples. The length must be
@@ -147,8 +180,8 @@ takes to finish ahead of the caller.
 - **NVDA add-on.** Say all's lines go to the unit as one line with their indexes
   (`nvda/shared/ssi263_flow.py`). The Braille Lite driver uses the unit's own marks on the releases above, and
   the Speak-Out and Sounding Board driver the box's and the Accent driver the Accent SA's (the audio is fed up to
-  a mark's sample, the index reported, then the rest), and the SmarTalk driver the TSR's; the Accent-mini and the
-  Mockingboard are estimated. The drivers do not go through `voices.h` yet.
+  a mark's sample, the index reported, then the rest), and the Accent-mini's and the SmarTalk's as well; the
+  Mockingboard is estimated. The drivers do not go through `voices.h` yet.
 - **speech-dispatcher (Orca).** The module keeps the message's marks, the server's own after each sentence and
   the one Orca puts before every word, and reports each between the audio before it and the audio after it, cut
   at the mark's sample (`src/platforms/speechd/sd_ssi263.c`). The server holds a mark in its queue with the audio
@@ -172,10 +205,13 @@ takes to finish ahead of the caller.
 - `nvda/tools/so_marks.py`: the Speak-Out voice, and with `--soundingboard` the Sounding Board, the same cases as
   the Braille Lite's. Four must-fail controls.
 - `nvda/tools/as_marks.py`: the Accent SA voice, the same cases. Four must-fail controls.
+- `nvda/tools/am_marks.py`: the Accent-mini voice; inside a clause every chip write is held to the unmarked
+  text's, after a clause end to the one pause frame. Four must-fail controls.
 - `nvda/tools/st_marks.py`: the SmarTalk voice; its marks are placed against the chip's writes, and its parts
   against the unmarked text's. Four must-fail controls.
 - `tools/check_ssv_marks.py`: the voice table, on every voice whose firmware is present: no marks is `ssv_speak`,
-  every mark once and in order, exact or estimated as it should be, the estimate never early. Two controls.
+  every mark once and in order, exact or estimated as it should be; and again with every voice made to
+  estimate, the estimate never early. Two controls.
 - `nvda/tools/say_all_flow.py`: the NVDA drivers, say all's lines and their indexes.
 - `sapi/test_sapi_requests.py`: JAWS's request, a bookmark between every pair of words: each event arrives when
   the bytes written are its offset. Two controls.

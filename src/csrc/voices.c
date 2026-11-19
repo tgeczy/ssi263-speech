@@ -296,6 +296,15 @@ static int eng_am_speak(void *u, const char *utf8, int pitch_offset)
     int r = amv_speak((am_voice *)u, utf8, pitch_offset);
     return r < 0 ? -1 : r > 0;
 }
+static int eng_am_speak_marked(void *u, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
+{
+    int r;
+    if (!amv_marks_exact((am_voice *)u))                     /* a driver whose count is not known: estimated */
+        return -2;
+    r = amv_speak_marked((am_voice *)u, utf8, pitch_offset, marks, n_marks);
+    return r < 0 ? -1 : r > 0;
+}
+static int eng_am_reached(void *u, const ssv_reach **out) { return amv_reached((am_voice *)u, out); }
 static int eng_am_render(void *u, const short **pcm, int *done) { return amv_render((am_voice *)u, pcm, done); }
 static void eng_am_cancel(void *u) { amv_cancel((am_voice *)u); }
 static void eng_am_destroy(void *u) { amv_destroy((am_voice *)u); }
@@ -369,7 +378,8 @@ static const ssv_engine *engine(int kind)
                                   eng_so_speak_marked, eng_so_reached};
 #endif
 #ifdef SSV_HAVE_ACCENTMINI
-    static const ssv_engine am = {eng_am_create, eng_am_set, eng_am_speak, eng_am_render, eng_am_cancel, eng_am_destroy};
+    static const ssv_engine am = {eng_am_create, eng_am_set, eng_am_speak, eng_am_render, eng_am_cancel, eng_am_destroy,
+                                  eng_am_speak_marked, eng_am_reached};
 #endif
 #ifdef SSV_HAVE_MOCKINGBOARD
     static const ssv_engine mb = {eng_mb_create, eng_mb_set, eng_mb_speak, eng_mb_render, eng_mb_cancel, eng_mb_destroy};
@@ -552,7 +562,10 @@ SSV_API int ssv_speak_marked(ssv_voice *v, const ssv_settings *s, const char *ut
     v->eng_done = v->calls = 0;
     if (marks && n_marks > 0) {
         int r, i, at = 0, cp = 0, all = 0;
-        if (v->e->speak_marked && (r = v->e->speak_marked(v->u, utf8, pitch_offset, marks, n_marks)) != -2) {
+        /* (SSV_MARKS_ESTIMATE: the tests' switch, every voice estimated -- what a unit without marks of its own
+           gets, a Braille Lite release not measured for them, and one run ahead) */
+        if (v->e->speak_marked && !getenv("SSV_MARKS_ESTIMATE")
+                && (r = v->e->speak_marked(v->u, utf8, pitch_offset, marks, n_marks)) != -2) {
             if (r >= 0) v->marks = MARKS_OWN;
             return r;
         }

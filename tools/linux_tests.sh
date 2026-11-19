@@ -123,12 +123,16 @@ for d in aicom-accent-mini aicom-accent-sa automated-functions-smartalk; do
 done
 check "voice table: index marks, own or estimated, on every voice here" python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so \
     --firmware $MFW
+# ... every voice made to estimate (SSV_MARKS_ESTIMATE: what a unit without marks of its own gets), and its controls
+check "voice table: index marks, estimated, on every voice here" env SSV_MARKS_ESTIMATE=1 \
+    python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
 control "voice table marks CONTROL (the estimate reports every mark at once, must fail)" \
-    "^FAIL [a-z]+:[a-z_]+ +place " "^ssv marks: [0-9]+ FAILED$" \
-    -- env SSV_MARKS_BREAK=1 python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
+    "^FAIL accentmini:mini +place " "^FAIL smartalk:smartalk +place " "^ssv marks: [0-9]+ FAILED$" \
+    -- env SSV_MARKS_ESTIMATE=1 SSV_MARKS_BREAK=1 python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
 control "voice table marks CONTROL (the audio rendered ahead returned from its start, must fail)" \
-    "^FAIL [a-z]+:[a-z_]+ +audio " "^ssv marks: [0-9]+ FAILED$" \
-    -- env SSV_MARKS_BREAK=queue python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
+    "^FAIL accentmini:mini +audio " "^FAIL smartalk:smartalk +audio " "^ssv marks: [0-9]+ FAILED$" \
+    -- env SSV_MARKS_ESTIMATE=1 SSV_MARKS_BREAK=queue python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
+control "voice table marks CONTROL (the unit's own mark inside a word, must fail)" \n    "^FAIL accentmini:mini +audio " "^FAIL smartalk:smartalk +audio " "^ok +accentmini:sa +once " \n    "^ssv marks: [0-9]+ FAILED$" \n    -- env SSV_MARKS_SAME_BREAK=1 python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
 # ... and never early: past each first done the same unit runs on 1.5 s and must not speak again (Astra, Reply 248)
 check "no-echo end: every done final (the units that never echo)" python3 src/csrc/blazie/test_no_echo_end.py \
     --lib "$LIB" --firmware "$DATA"
@@ -762,6 +766,19 @@ control "as_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^as marks: 1 FAILED$" -- env AS_MARKS_BREAK=3 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
 control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^as marks: 5 FAILED$" -- env AS_MARKS_BREAK=4 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
+# ... and the Accent-mini's (am_voice.h): Ctrl-F after the word before each marked word, the driver's own count of
+# marks passed read from its memory (SPKEMS.DVC is in the repository: it always runs)
+check "am_voice: index marks by the driver's own Ctrl-F" python3 nvda/tools/am_marks.py build/linux/libssi263_voices.so
+control "am_voice marks CONTROL (every mark with the first block, must fail)" "^FAIL place " "^FAIL clause " \
+    "^FAIL twins " "^FAIL end " "^FAIL dense " "^FAIL cancel " "^ok +frames " "^am marks: 7 FAILED$" \
+    -- env AM_MARKS_BREAK=1 python3 nvda/tools/am_marks.py build/linux/libssi263_voices.so
+control "am_voice marks CONTROL (a Ctrl-F for every mark on a word, must fail)" \
+    "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^FAIL dash .*2 Ctrl-F after 'No'" \
+    "^am marks: 2 FAILED$" -- env AM_MARKS_BREAK=2 python3 nvda/tools/am_marks.py build/linux/libssi263_voices.so
+control "am_voice marks CONTROL (the marks left after a cancel, must fail)" "^FAIL cancel .* [1-9] reported after it" \
+    "^am marks: 1 FAILED$" -- env AM_MARKS_BREAK=3 python3 nvda/tools/am_marks.py build/linux/libssi263_voices.so
+control "am_voice marks CONTROL (the Ctrl-F inside the word before, must fail)" "^FAIL frames .*phonemes DIFFER" \
+    "^FAIL bytes " "^am marks: 8 FAILED$" -- env AM_MARKS_BREAK=4 python3 nvda/tools/am_marks.py build/linux/libssi263_voices.so
 # ... and the SmarTalk's (st_voice.h): Ctrl-F after the word before each marked word, the parts cut where they are
 # without marks, the TSR's own count of marks passed (S_TALK.EXE is in the repository: it always runs)
 check "st_voice: index marks by the TSR's own Ctrl-F" python3 nvda/tools/st_marks.py build/linux/libssi263_voices.so

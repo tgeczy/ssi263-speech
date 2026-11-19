@@ -426,9 +426,9 @@ class SynthDriver(SynthDriver):
                 continue
             if kind == "line":                   # say all's lines, as one line (ssi263_flow.py)
                 parts, marks, chars = _flow.line_text(value, lambda t: box.prepare(t, self._numbers))
-                # the unit's own index marks where its voice has them (the Accent SA: a Ctrl-F in the text, which the
-                # unit answers when speech reaches it, as_voice.h; the Accent-mini's are not used yet): one at the
-                # front of each text an index stands before
+                # the unit's own index marks (a Ctrl-F in the text): the Accent SA answers each when speech reaches
+                # it, one at the front of each text an index stands before (as_voice.h); the Accent-mini's driver
+                # counts each when the word before it has ended, one at the end of the text before (am_voice.h)
                 if parts:
                     self._set_phase("running the card")
                 own = (parts and OWN_MARKS and hasattr(box, "own_marks") and box.own_marks()

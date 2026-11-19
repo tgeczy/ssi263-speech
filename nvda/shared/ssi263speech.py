@@ -375,16 +375,17 @@ class _Accent(_Unit):
 
 
 class _AccentMarks:
-    """the Accents' own index mark (as_voice.h): Ctrl-F, which the unit answers when the word before it has ended;
-    all alike, so the k-th of a text is called k"""
+    """the Accents' own index mark (as_voice.h, am_voice.h): Ctrl-F, which the unit answers (the Accent SA) or its
+    driver counts (the Accent-mini) when the word before it has ended; all alike, so the k-th of a text is called k"""
 
     def mark_text(self, k):
         return "\x06", k
 
 
-class AccentMiniC(_Accent):
+class AccentMiniC(_AccentMarks, _Accent):
     """Aicom's Accent-mini: its DOS driver SPKEMS.DVC on MAME's 8086 and the NVDA driver's front end (am_voice.h)."""
     _api, _host = "amv", "amh"
+    mark_trails = True            # its driver counts a mark when the word BEFORE it has ended: the mark goes there
 
     def __init__(self, lib_path, dvc, out_rate):
         _Unit.__init__(self, lib_path, out_rate)

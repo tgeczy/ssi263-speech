@@ -63,6 +63,20 @@ AM_API int amh_say(am_host *h, const unsigned char *bytes, int n, int speech, in
 /* `seconds` of chip time in `step` slices (0.0005 s): the chip's audio at out_rate (what a blocked call made first),
    in an internal buffer valid until the next call.  Returns the sample count, -1 on a fault. */
 AM_API int amh_run(am_host *h, double seconds, double step, const double **audio);
+/* The index marks the audio amh_run just returned has passed.  With ESC Y X sent, a Ctrl-F (06h) in the text is the
+   driver's index marker (its manual, 3.2.4): it counts each one when the word before it has ended.  The count is the
+   LPT Status Read's DH (INT 17h AH=2, after ESC Y Z); the host does not make that call -- the driver, called while
+   the chip's request waits, writes the chip itself and delays the speech (measured), and it holds the count back
+   while an option command waits -- but reads the driver's own count, a byte of its data, after every slice.  The
+   marks carry no name: they are the next ones in the order they were sent.  At most AMH_REPLIES a run;
+   amh_get_int "marks" counts every one passed since amh_set_int "marks" 0, which also forgets those not yet
+   given; "marks_known" is 0 for a driver image whose count the host does not know (no mark is then given).  A
+   flush (amh_cancel) drops the marks of the text it cut: none of them is given. */
+typedef struct {
+    int sample;                            /* samples of the run's audio made when it was passed */
+} amh_reply;
+#define AMH_REPLIES 64
+AM_API int amh_replies(const am_host *h, const amh_reply **out);
 /* The driver runs with the chip keeping time but making no sound (step 0.002 s); returns the time run, -1 on a fault. */
 AM_API double amh_skip(am_host *h, double seconds, double step);
 /* 1 while the Accent is still busy with what it was given (accent.py's quiet 0.03 s, patience 1.5 s) */
@@ -80,7 +94,7 @@ AM_API const char *amh_error(const am_host *h);    /* why the host faulted; "" w
 
 /* The host's state, by name.  Doubles: "cpu_ips", "last_speech", "say_time", "time" (the chip's; read-only).  Ints:
    "preparing", "log_writes" (keep every write for amh_writes), "control", "in_service", "irq_latched", "call" (a
-   background call running), "settles", "request" (read-only).  -1: unknown. */
+   background call running), "settles", "request" (read-only), "marks", "marks_known" (amh_replies).  -1: unknown. */
 AM_API double amh_get_double(const am_host *h, const char *name);
 AM_API void amh_set_double(am_host *h, const char *name, double v);
 AM_API int amh_get_int(const am_host *h, const char *name);

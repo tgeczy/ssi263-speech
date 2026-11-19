@@ -5,10 +5,13 @@ voice whose firmware is in the firmware folder.
            utterances: a unit is not steady from one utterance to the next, a fresh one from the same start is),
            nothing reported
   once     a mark before every word: each reported exactly once, in the caller's order, its sample inside its block
-  kind     exact on a Braille Lite whose release was measured for its own marks (blazie:blazie) and on the Speak-Out,
-           estimated on every other voice -- and on that Braille Lite too while it is run ahead of the listener
+  kind     exact on a Braille Lite whose release was measured for its own marks (blazie:blazie), on the Speak-Out,
+           the Sounding Board, the Accents and the SmarTalk, estimated on every other voice -- and on that Braille
+           Lite too while it is run ahead of the listener
   audio    estimated marks send the unit nothing, and the audio rendered ahead comes back whole and in order: the
-           samples are the unmarked utterance's, byte for byte (fresh units, as "none")
+           samples are the unmarked utterance's, byte for byte (fresh units, as "none").  And on the Accent-mini
+           and the SmarTalk, whose own marks inside a clause were measured to change nothing: the same with
+           their own marks (TEXT is one clause)
   place    estimated: no mark before its share of the utterance (to a block), none later than the unit takes to
            finish ahead of the caller (an eighth of the utterance and two blocks); a mark at offset 0 at sample 0
            of the first block
@@ -19,9 +22,14 @@ voice whose firmware is in the firmware folder.
 
     python tools/check_ssv_marks.py [library] [--firmware DIR]
 
+SSV_MARKS_ESTIMATE=1 (voices.c) makes every voice estimate, and this check expect it: the estimate's cases ("audio",
+"place") on every voice here.  The suites run the check both ways; the estimate's two controls run with it.
+
 Controls: SSV_MARKS_BREAK=1 (voices.c) -- the estimate reports every mark at once: "place" must fail on every
 estimated voice.  SSV_MARKS_BREAK=queue -- the estimate returns the start of its buffer for every block: "audio"
-must fail on every estimated voice.  SSV_MARKS_OWN_BREAK=1 (bl_voice.c blv_marks_break 6) -- a Braille Lite whose release was not
+must fail on every estimated voice.  SSV_MARKS_SAME_BREAK=1 (am_voice.c amv_marks_break 4, st_voice.c
+stv_marks_break 4) -- the unit's own mark inside a word: "audio" must fail on the Accent-mini and the SmarTalk.
+SSV_MARKS_OWN_BREAK=1 (bl_voice.c blv_marks_break 6) -- a Braille Lite whose release was not
 measured for its own marks uses them all the same: "kind" must fail on the Spanish unit (whose marks then come early,
 "place": what the release table's marks column keeps away).
 """
@@ -46,8 +54,13 @@ VOICES = ["blazie:blazie", "blazie:blazie_es", "blazie:blazie_de", "speakout:spe
           "accentmini:sa", "accentmini:mini",
           "mockingboard:mockingboard", "smartalk:smartalk"]
 # the voices whose unit's own marks are used: the Braille Lite releases measured for them (bl_languages.txt), the
-# Speak-Out, the Sounding Board, the Accent SA and the SmarTalk
-OWN = {"blazie:blazie", "speakout:speakout", "speakout:soundingboard", "accentmini:sa", "smartalk:smartalk"}
+# Speak-Out, the Sounding Board, the Accents and the SmarTalk
+OWN = {"blazie:blazie", "speakout:speakout", "speakout:soundingboard", "accentmini:sa", "accentmini:mini",
+       "smartalk:smartalk"}
+if os.environ.get("SSV_MARKS_ESTIMATE"):       # voices.c: every voice estimated
+    OWN = set()
+# ... and those whose own marks leave TEXT's audio as it is without them, sample for sample (docs/index-marks.md)
+SAME = {"accentmini:mini", "smartalk:smartalk"}
 TEXT = "this is a plain line of words, and then it goes on some more, until it ends"
 MAX_BLOCKS = 1500
 AHEAD = 8                           # voices.c AHEAD
@@ -84,6 +97,12 @@ def load():
     lib.ssv_destroy.argtypes = [ctypes.c_void_p]
     if os.environ.get("SSV_MARKS_OWN_BREAK"):        # bl_voice.c's control 6: every echoing release's marks its own
         ctypes.c_int.in_dll(lib, "blv_marks_break").value = 6
+    if os.environ.get("SSV_MARKS_SAME_BREAK"):       # the Accent-mini's and the SmarTalk's control 4: the mark
+        for name in ("amv_marks_break", "stv_marks_break"):        # inside a word
+            try:
+                ctypes.c_int.in_dll(lib, name).value = 4
+            except ValueError:
+                pass                                # (a library built without that voice)
     return lib
 
 
@@ -183,6 +202,11 @@ def main():
         exact = sorted(set(g[2] for g in got))
         check("kind", exact == [1 if own else 0], "%s (wanted %s)" % (
             "exact" if exact == [1] else "estimated" if exact == [0] else "mixed %s" % exact, "exact" if own else "estimated"))
+        if own and vid in SAME:
+            marked = fresh(lib, i, ats)
+            check("audio", bool(plain) and marked == plain, "its own mark before every word: %s as without (%d "
+                  "against %d)" % ("the same samples" if marked == plain else "NOT the same samples",
+                                   len(marked or b"") // 2, len(plain or b"") // 2))
         if not own:
             marked = fresh(lib, i, ats)
             check("audio", bool(plain) and marked == plain, "a mark before every word: %s as without (%d against %d)" % (

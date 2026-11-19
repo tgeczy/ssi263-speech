@@ -7,8 +7,8 @@
  *
  * nvda/tools/am_voice_equiv.py gates it: the real NVDA driver's PCM and this one's, byte for byte, on the same texts
  * and settings (every sample rate, the settings' extremes, a capital, a cancel mid-utterance), and the text it sends
- * on random texts.  Not modelled: NVDA's index commands (a caller marks its own places) and more than one pitch
- * command per utterance (the capital's restore is this API's, after the text, as the driver's finally).
+ * on random texts.  Not modelled: more than one pitch command per utterance (the capital's restore is this API's,
+ * after the text, as the driver's finally).  NVDA's index commands are the driver's own index marks (below).
  *
  * The driver (SPKEMS.DVC, firmware/aicom-accent-mini) comes from the caller, as a path or in memory; never built in.
  * Not thread-safe per voice; different voices may be used from different threads.  MIT.
@@ -21,6 +21,7 @@
 
 #include <stddef.h>
 #include "am_host.h"
+#include "../marks.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -78,6 +79,40 @@ AM_API int amv_pitch(am_voice *v, int pitch_offset);
 AM_API int amv_text(am_voice *v, const unsigned char *bytes, int n);
 AM_API int amv_end(am_voice *v);
 AM_API int amv_flush(am_voice *v);
+
+/* Index marks (../marks.h).  The Accent-mini has its own (its manual, 3.2.4): after ESC Y X a Ctrl-F (06h) in the
+   text is an index marker, which the driver counts when the word before it has ended (am_host.h amh_replies: the
+   host reads the driver's count, it does not ask for it).  Off at power-up: the voice sends ESC Y X once, with the
+   first marked text.
+   amv_speak_marked: as amv_speak, a Ctrl-F directly after the last spoken word before each word one of the
+   caller's marks stands before (accent_text.h at_say_marked, AT_MARK_AFTER) -- where the manual says to put it
+   ("right after the word to be marked").  amv_reached: the marks the audio the last amv_render returned has
+   reached, each with its sample in it.  One before the first word comes with the first block, one after the last
+   word and whatever else is left with the last, and nothing after a cancel.  amv_expect: the same for a job
+   (amv_begin ... amv_end): the caller put the Ctrl-Fs in the text it gives amv_text and says here, for each of its
+   marks, which Ctrl-F of that text is its own (marks[i].at: 1 for the first ...; marks[i].id: the caller's
+   number).  amv_marks_exact: 0 for a driver image whose count the host does not know (amv_speak_marked then
+   speaks without marks and reports them all with the last block).
+   MEASURED on the emulated driver (2026-11-19, docs/index-marks.md):
+   - the count rises with the pause frame after the marked word, 8 to 33 ms before the next word's first phoneme
+     at rates 0 and 5; after a clause end at the head of the next clause;
+   - a Ctrl-F after a word inside a clause (a comma, a bracket or a quote after it or not) leaves every chip
+     write as it is without it, in value and time;
+   - a Ctrl-F after . ! ? ; : puts ONE pause frame (C0h, 8.4 ms) in front of the next clause and changes how its
+     first phoneme begins (the duration bits, and in some texts the articulation or inflection bits, of its
+     first one or two frames); the phonemes are the same and what follows is at most 8.4 ms later.  Before the
+     punctuation it would cost nothing in ordinary words but 0.67 s and another reading in "Dr.": not used;
+   - two Ctrl-Fs with nothing spoken between them (around a dash alone) cost 62 ms: marks there share one;
+   - with ESC P or ESC R printed while marked text is spoken the count still rises on time (the Status Read's DH
+     does not: it waits for the command); with TWO such prints the count waited too.  The voice prints none
+     while a text is spoken. */
+AM_API int amv_marks_exact(const am_voice *v);
+AM_API int amv_speak_marked(am_voice *v, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks);
+AM_API int amv_reached(am_voice *v, const ssv_reach **out);
+AM_API int amv_expect(am_voice *v, const ssv_mark *marks, int n_marks);
+/* The line amv_speak_marked would send (as amv_say_bytes), for tests. */
+AM_API int amv_say_bytes_marked(const char *utf8, int numbers, const ssv_mark *marks, int n_marks, char *out, int cap);
+AM_API extern int amv_marks_break;          /* the tests' controls (am_voice.c) */
 
 /* The driver's _accent_pitch: NVDA's pitch 0-100 on the Accent's ESC P 0-9 (50 -> 5). */
 AM_API int amv_pitch_step(int pitch);

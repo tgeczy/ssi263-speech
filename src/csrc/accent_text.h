@@ -29,15 +29,21 @@ int at_inflection(int inflection);
 /* The text the driver sends for one text item, without its "\r": _clean(currencies(text)).strip(), then _numbers()
    when numbers is on.  malloc'd; NULL when out of memory. */
 char *at_say_text(const char *utf8, int numbers);
-/* The same text with the Accents' index mark, Ctrl-F (06h), at the front of each word one of the caller's marks
-   stands before, after the space before it (marks.h; as_voice.h for what the unit does with it).  The text is
+/* The same text with the Accents' index mark, Ctrl-F (06h), for each word one of the caller's marks stands before
+   (marks.h).  where: AT_MARK_FRONT, at the front of that word, after the space before it (the Accent SA:
+   as_voice.h for what the unit does with it); AT_MARK_AFTER, directly after the last word before it that has a
+   letter or a digit, its punctuation included (the Accent-mini: am_voice.h; two Ctrl-Fs with nothing spoken
+   between them cost that unit 60 ms, so a dash alone carries none).  The text is
    prepared whole, as at_say_text prepares it; a mark inside a word, or inside a number or an amount that is
    rewritten, goes to its start; marks on one word are ONE Ctrl-F (N of them with no word between speak as N-1
    carriage returns there: measured).  seqs (n_marks of them): for each mark 0 (before the first word: reached at
    once), -1 (after the last word) or the number, from 1, of its Ctrl-F among those in the text.  *n06: how many
    Ctrl-Fs the text has.  brk: a test's control, 0 in use (2: a Ctrl-F for every mark; 4: inside the word, after
    its first letter).  malloc'd, NUL-terminated; NULL or "" when there is nothing to say (every seq 0). */
-char *at_say_marked(const char *utf8, int numbers, const ssv_mark *marks, int n_marks, int *seqs, int *n06, int brk);
+#define AT_MARK_FRONT 0
+#define AT_MARK_AFTER 1
+char *at_say_marked(const char *utf8, int numbers, const ssv_mark *marks, int n_marks, int *seqs, int *n06, int where,
+                    int brk);
 
 /* accent.py's / accent_sa.py's say(speech=None) on Latin-1 bytes: 1 if a letter or digit (str.isalnum) is left
    outside the ESC commands (_ESC). */

@@ -97,13 +97,31 @@ def line_groups(run, prepare, limit):
         yield line_text(group, prepare)
 
 
-def own_line(parts, marks, mark_text):
+def own_line(parts, marks, mark_text, trails=False):
     """The line for a unit that reports its own index marks: the texts joined by spaces, the unit's mark at the front
     of each text an index stands before -- after the joining space, where every such unit takes it for nothing but a
     word boundary (docs/index-marks.md).  parts, marks: line_text's; mark_text(k) -> (the k-th mark's characters,
     what the unit will call it), k from 1.  Returns (the line, [(what the unit calls the mark, the index)]); indexes
     on one text share one mark; an index before the first text or after the last has none (they are reported at
-    the line's start and end)."""
+    the line's start and end).
+    trails: the unit wants its mark directly after the word before (the Accent-mini, am_voice.h): it goes at the
+    end of the last text before the index that has a letter or a digit, before the joining space; indexes that
+    come to one place share one mark (two marks with nothing spoken between them cost that unit 60 ms), and one
+    with nothing spoken before it is called 0: reached at once."""
+    if trails:
+        texts, at, pairs, k, spoken, named = [], 0, [], 0, -1, {}
+        for n, part in enumerate(parts):
+            here = [i for c, i in marks if c == at and c > 0]
+            if here and spoken >= 0 and spoken not in named:
+                k += 1
+                text, named[spoken] = mark_text(k)
+                texts[spoken] += text
+            pairs += [(named[spoken] if spoken >= 0 else 0, i) for i in here]
+            texts.append(part)
+            if any(ch.isascii() and ch.isalnum() for ch in part):
+                spoken = n
+            at += len(part) + 1
+        return " ".join(texts), pairs
     line, at, pairs, k = "", 0, [], 0
     for n, part in enumerate(parts):
         here = [i for c, i in marks if c == at and c > 0]
@@ -121,7 +139,7 @@ def say_own(box, parts, marks, feed, notify, cancelled):
     """A line said to a unit with its own index marks (box.own_marks()): its audio to the player, each index where
     the unit says speech is.  marks is emptied of the indexes reported; what is left stood after the last text.
     False when the unit would not take the marks (nothing was said: the caller says the line without them)."""
-    line, pairs = own_line(parts, marks, box.mark_text)
+    line, pairs = own_line(parts, marks, box.mark_text, getattr(box, "mark_trails", False))
     if pairs and not box.expect(pairs):
         return False
     while marks and marks[0][0] == 0:            # an index before the first text: at once

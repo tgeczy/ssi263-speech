@@ -565,7 +565,7 @@ AS_API int asv_say_bytes_marked(const char *utf8, int with_numbers, const ssv_ma
     int n, *seqs = (int *)malloc(sizeof(int) * (size_t)(n_marks > 0 ? n_marks : 1));
     char *text;
     if (!seqs) return 0;
-    text = at_say_marked(utf8, with_numbers, marks, n_marks, seqs, NULL, asv_marks_break);
+    text = at_say_marked(utf8, with_numbers, marks, n_marks, seqs, NULL, AT_MARK_FRONT, asv_marks_break);
     free(seqs);
     n = text ? (int)strlen(text) : 0;
     if (text && out && n < cap)
@@ -628,7 +628,7 @@ AS_API int asv_speak_marked(as_voice *v, const char *utf8, int pitch_offset, con
     marks_on(v);
     if (pitch_offset)
         pitch_item(v, pitch_offset);
-    text = at_say_marked(utf8, v->numbers, marks, n_marks, seqs, &n06, asv_marks_break);
+    text = at_say_marked(utf8, v->numbers, marks, n_marks, seqs, &n06, AT_MARK_FRONT, asv_marks_break);
     if (!take_marks(v, marks, seqs, n_marks, n06)) v->n_mk = 0;
     free(seqs);
     if (!text || !*text) {                                   /* nothing to say: its marks with the next render */

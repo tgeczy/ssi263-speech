@@ -35,7 +35,20 @@ struct am_voice {
     double t_start, gain;
     short *pcm;
     int pcm_cap;
+    /* index marks (am_voice.h) */
+    struct { int id, seq; } *mk;                       /* the marks not yet reached: seq 0 at once, -1 at the
+                                                          utterance's end, else the number of its Ctrl-F among
+                                                          those sent since begin() */
+    int n_mk, cap_mk;
+    int sent06, got06;                                 /* Ctrl-Fs sent since then, and those the driver counted */
+    int index_on;                                      /* this card has been told Ctrl-F is its marker (ESC Y X) */
+    ssv_reach *reached;                                /* what the last amv_render's audio reached */
+    int n_reached, cap_reached;
 };
+
+/* the tests' controls (nvda/tools/am_marks.py): 1 every mark with the first block; 2 a Ctrl-F for every mark on
+   a word; 3 the marks left after a cancel; 4 the Ctrl-F inside the word it should follow */
+int amv_marks_break = 0;
 
 /* ---- _boot ---------------------------------------------------------------------------------------------------- */
 static am_host *boot(const unsigned char *dvc, size_t n, double out_rate, char *err, int errlen)
@@ -123,6 +136,8 @@ AM_API void amv_destroy(am_voice *v)
     amh_destroy(v->h);
     free(v->dvc);
     free(v->pcm);
+    free(v->mk);
+    free(v->reached);
     free(v);
 }
 
@@ -170,6 +185,7 @@ static int restart(am_voice *v)                        /* self._box = self._boot
     v->chip = amh_chip(h);
     defaults_sent(v);
     v->fault = 0;
+    v->index_on = 0;                       /* a new card: it powers up with the marks off */
     return 1;
 }
 
@@ -229,6 +245,11 @@ static int begin(am_voice *v)
     v->active = 0;
     if (v->fault && !restart(v))
         return -1;
+    if (amv_marks_break != 3) {                               /* marks: counted from here */
+        v->n_mk = v->n_reached = 0;
+        v->sent06 = v->got06 = 0;
+        amh_set_int(v->h, "marks", 0);
+    }
     /* only what changed: repeated option commands emit preparation records of their own */
     if (r != v->sent_rate) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bR%c", r);
     if (p != v->sent_pitch) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bP%d", p);
@@ -270,6 +291,111 @@ AM_API int amv_speak(am_voice *v, const char *utf8, int pitch_offset)
     k = text_item(v, (const unsigned char *)line, (int)n + 1);
     free(line);
     return k;
+}
+
+/* ---- index marks (am_voice.h) ------------------------------------------------------------------------------------ */
+AM_API int amv_marks_exact(const am_voice *v)
+{
+    return amh_get_int(v->h, "marks_known") == 1;
+}
+
+AM_API int amv_say_bytes_marked(const char *utf8, int with_numbers, const ssv_mark *marks, int n_marks, char *out, int cap)
+{
+    int n, *seqs = (int *)malloc(sizeof(int) * (size_t)(n_marks > 0 ? n_marks : 1));
+    char *text;
+    if (!seqs) return 0;
+    text = at_say_marked(utf8, with_numbers, marks, n_marks, seqs, NULL, AT_MARK_AFTER, amv_marks_break);
+    free(seqs);
+    n = text ? (int)strlen(text) : 0;
+    if (text && out && n < cap)
+        memcpy(out, text, (size_t)n + 1);
+    free(text);
+    return n;
+}
+
+/* the card told that Ctrl-F is its index marker: off at power-up, so once for every card made (measured: it
+   survives a flush, and alone changes nothing that is spoken) */
+static int marks_on(am_voice *v)
+{
+    if (!v->index_on) {
+        if (say_str(v, "\x1bYX") < 0)
+            return -1;
+        v->index_on = 1;
+    }
+    return 0;
+}
+
+static int take_marks(am_voice *v, const ssv_mark *marks, const int *seqs, int n_marks, int n06)
+{
+    int i;
+    if (v->n_mk + n_marks > v->cap_mk) {
+        void *q = realloc(v->mk, sizeof *v->mk * (size_t)(v->n_mk + n_marks));
+        if (!q) return 0;
+        v->mk = q;
+        v->cap_mk = v->n_mk + n_marks;
+    }
+    for (i = 0; i < n_marks; i++) {
+        v->mk[v->n_mk].id = marks[i].id;
+        v->mk[v->n_mk++].seq = seqs[i] > 0 ? v->sent06 + seqs[i] : seqs[i];
+    }
+    v->sent06 += n06;
+    return 1;
+}
+
+AM_API int amv_speak_marked(am_voice *v, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
+{
+    char *text, *line;
+    size_t n;
+    int *seqs, n06 = 0, k;
+    if (!marks || n_marks <= 0)
+        return amv_speak(v, utf8, pitch_offset);
+    v->job = 0;
+    if (begin(v) < 0)
+        return -1;
+    seqs = (int *)calloc((size_t)n_marks, sizeof(int));
+    if (!seqs) { failed(v); return -1; }
+    if (!amv_marks_exact(v)) {                               /* a driver whose count is not known: said without
+                                                                marks, they come with the last block */
+        text = at_say_text(utf8, v->numbers);
+        for (k = 0; k < n_marks; k++) seqs[k] = -3;
+    } else {
+        if (marks_on(v) < 0) { free(seqs); failed(v); return -1; }
+        text = at_say_marked(utf8, v->numbers, marks, n_marks, seqs, &n06, AT_MARK_AFTER, amv_marks_break);
+    }
+    if (pitch_offset && pitch_item(v, pitch_offset) < 0) { free(seqs); free(text); return -1; }
+    if (!take_marks(v, marks, seqs, n_marks, n06)) v->n_mk = 0;
+    free(seqs);
+    if (!text || !*text) {                                   /* nothing to say: its marks with the next render */
+        free(text);
+        if (restore_pitch(v) < 0) { failed(v); return -1; }
+        return 0;
+    }
+    n = strlen(text);
+    line = (char *)malloc(n + 2);
+    if (!line) { free(text); restore_pitch(v); v->n_mk = 0; return 0; }
+    memcpy(line, text, n);
+    line[n] = '\r';
+    free(text);
+    k = text_item(v, (const unsigned char *)line, (int)n + 1);
+    free(line);
+    return k;
+}
+
+AM_API int amv_expect(am_voice *v, const ssv_mark *marks, int n_marks)
+{
+    int i, n06 = 0, *seqs;
+    if (!marks || n_marks <= 0 || v->fault || !amv_marks_exact(v))
+        return 0;
+    seqs = (int *)malloc(sizeof(int) * (size_t)n_marks);
+    if (!seqs) return 0;
+    for (i = 0; i < n_marks; i++) {
+        seqs[i] = marks[i].at;
+        if (marks[i].at > n06) n06 = marks[i].at;
+    }
+    if (marks_on(v) < 0) { free(seqs); failed(v); return 0; }
+    i = take_marks(v, marks, seqs, n_marks, n06);
+    free(seqs);
+    return i;
 }
 
 /* a text's end: in a job the pitch stays as the sequence left it until amv_end (the driver's finally) */
@@ -328,6 +454,8 @@ static void resend_pitch(am_voice *v)                         /* _resend_pitch *
    and _resend_pitch when a pitch command may have been dropped */
 AM_API int amv_flush(am_voice *v)
 {
+    if (amv_marks_break != 3)
+        v->n_mk = v->n_reached = 0;                          /* no mark of a cancelled job is reported */
     if (v->fault && !restart(v))
         return -1;
     if (amh_cancel(v->h, CANCEL_LIMIT) < 0) { failed(v); return -1; }
@@ -336,7 +464,75 @@ AM_API int amv_flush(am_voice *v)
     return v->fault ? -1 : 0;
 }
 
+static int room(ssv_reach **p, int *cap, int need)
+{
+    if (need > *cap) {
+        ssv_reach *q = (ssv_reach *)realloc(*p, sizeof(ssv_reach) * (size_t)need);
+        if (!q) return 0;
+        *p = q;
+        *cap = need;
+    }
+    return 1;
+}
+
+/* What the audio amv_render is about to return has reached: `count` samples, the block's from `start` on (the
+   lead trim).  The driver counts each Ctrl-F when the word before it has ended; the k-th counted is the k-th sent.
+   ran: the host ran for this block (its replies are this block's). */
+static void report_marks(am_voice *v, int ran, int start, int count, int done)
+{
+    const amh_reply *rp = NULL;
+    int nr = ran ? amh_replies(v->h, &rp) : 0, i, j = 0, kept = 0, at = 0;
+    v->n_reached = 0;
+    if (v->n_mk && !room(&v->reached, &v->cap_reached, v->n_mk))
+        v->n_mk = 0;
+    for (i = 0; i < v->n_mk; i++) {
+        int seq = v->mk[i].seq, s = -1, exact = 1;
+        if (seq == 0 || amv_marks_break == 1) {              /* before the first word: at once */
+            s = 0;
+            exact = seq == 0;
+        } else if (seq > 0) {
+            while (v->got06 < seq && j < nr) {
+                v->got06++;
+                at = rp[j++].sample - start;
+            }
+            if (v->got06 >= seq)
+                s = at < 0 ? 0 : at > count ? count : at;
+        }
+        if (s < 0 && done) {                                 /* the text is done: after the last word, or left over */
+            s = count;
+            exact = seq == -1;
+        }
+        if (s < 0) {
+            v->mk[kept++] = v->mk[i];
+            continue;
+        }
+        v->reached[v->n_reached].id = v->mk[i].id;
+        v->reached[v->n_reached].sample = s;
+        v->reached[v->n_reached++].exact = exact;
+    }
+    v->n_mk = kept;
+    v->got06 += nr - j;                                      /* (Ctrl-Fs nobody waits for) */
+}
+
+AM_API int amv_reached(am_voice *v, const ssv_reach **out)
+{
+    *out = v->reached;
+    return v->n_reached;
+}
+
+static int render_block(am_voice *v, const short **pcm, int *done, int *ran, int *from);
+
 AM_API int amv_render(am_voice *v, const short **pcm, int *done)
+{
+    int ran = 0, start = 0, n = render_block(v, pcm, done, &ran, &start);
+    if (v->fault)
+        v->n_mk = v->n_reached = 0;
+    else
+        report_marks(v, ran, start, n, *done);
+    return n;
+}
+
+static int render_block(am_voice *v, const short **pcm, int *done, int *ran, int *from)
 {
     const double *y;
     int n, start = 0, count;
@@ -345,6 +541,7 @@ AM_API int amv_render(am_voice *v, const short **pcm, int *done)
     if (!v->active) { *done = 1; return 0; }
     n = amh_run(v->h, BLOCK_S, STEP_S, &y);
     if (n < 0) { failed(v); *done = 1; return 0; }
+    *ran = 1;
     if (v->lead) {                                            /* _trim_lead */
         int k;
         start = n;
@@ -356,6 +553,7 @@ AM_API int amv_render(am_voice *v, const short **pcm, int *done)
             }
     }
     count = n - start;
+    *from = start;
     if (count > v->pcm_cap) {
         short *q = (short *)realloc(v->pcm, (size_t)count * sizeof(short));
         if (!q) { failed(v); *done = 1; return 0; }
@@ -389,6 +587,8 @@ AM_API int amv_render(am_voice *v, const short **pcm, int *done)
    dropped.  After the utterance has finished it does nothing, as the driver's cancel between jobs. */
 AM_API void amv_cancel(am_voice *v)
 {
+    if (amv_marks_break != 3)
+        v->n_mk = v->n_reached = 0;                          /* no mark of a cancelled text is reported */
     if (!v->active)
         return;
     if (finish(v) < 0 || amh_cancel(v->h, CANCEL_LIMIT) < 0) {

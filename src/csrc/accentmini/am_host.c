@@ -15,6 +15,7 @@
 #include "../accent_text.h"
 
 #define LOAD_SEG 0x0800            /* the driver image sits at 0800:0000 */
+#define MARK_COUNT 0x6E3           /* ... and counts the index marks speech has passed in this byte of it */
 #define PACKET_SEG 0x0060          /* DOS request packets */
 #define TEXT_SEG 0x0070            /* a write request's transfer buffer */
 #define STACK_SEG 0x9000
@@ -70,6 +71,12 @@ struct am_host {
     /* audio */
     double *pend, *buf;
     int n_pend, cap_pend, n_buf, cap_buf;
+    /* index marks (amh_replies) */
+    unsigned long mark_at;                                /* the driver's count of marks passed: its byte, 0 unknown */
+    amh_reply rp[AMH_REPLIES];
+    int n_rp, rp_read;                                    /* rp_read: the list is a finished run's (the next mark
+                                                             starts a new one) */
+    int mark_seen, marks;                                 /* the driver's count as last read; every mark passed */
     int settles;
     long long insns;
     int log_on;
@@ -614,8 +621,29 @@ static int chip_slice(am_host *h, double step, double **buf, int *n, int *cap)
     return 1;
 }
 
+/* the driver's own count of marks passed (modulo 256), read between slices: those new since the last look, at
+   `sample` of the audio being made (the pending audio's or the run's: one buffer follows the other) */
+static void marks_poll(am_host *h, int sample)
+{
+    int count, fresh;
+    if (!h->mark_at)
+        return;
+    count = h->mem[h->mark_at];
+    fresh = (count - h->mark_seen) & 0xFF;
+    h->mark_seen = count;
+    if (!fresh)
+        return;
+    if (h->rp_read) { h->n_rp = 0; h->rp_read = 0; }
+    for (; fresh > 0; fresh--) {
+        h->marks++;
+        if (h->n_rp < AMH_REPLIES)
+            h->rp[h->n_rp++].sample = sample;
+    }
+}
+
 static int pending_slice(am_host *h, double step)
 {
+    marks_poll(h, h->n_pend);                           /* (a mark passed while a driver call waits) */
     if (!chip_slice(h, step, &h->pend, &h->n_pend, &h->cap_pend)) {
         raise_(h, "out of memory");
         return 0;
@@ -859,6 +887,8 @@ AM_API int amh_run(am_host *h, double seconds, double step, const double **audio
     if (h->fault)
         return -1;
     /* out = self.pending: the run's audio follows what the blocked calls made */
+    if (h->rp_read) { h->n_rp = 0; h->rp_read = 0; }    /* (what a blocked call passed stays: its audio comes first) */
+    marks_poll(h, h->n_pend);
     swap = h->buf; h->buf = h->pend; h->pend = swap;
     cap = h->cap_buf; h->cap_buf = h->cap_pend; h->cap_pend = cap;
     h->n_buf = h->n_pend;
@@ -877,10 +907,18 @@ AM_API int amh_run(am_host *h, double seconds, double step, const double **audio
                 return -1;
         } else if (cpu(h, steps_for(h, dt)) < 0)
             return -1;
+        marks_poll(h, h->n_buf);
         t += dt;
     }
+    h->rp_read = 1;
     *audio = h->buf;
     return h->n_buf;
+}
+
+AM_API int amh_replies(const am_host *h, const amh_reply **out)
+{
+    *out = h->rp;
+    return h->rp_read ? h->n_rp : 0;
 }
 
 AM_API int amh_speaking(const am_host *h)
@@ -899,11 +937,15 @@ AM_API int amh_busy(const am_host *h, double quiet, double patience)
 AM_API double amh_skip(am_host *h, double seconds, double step)
 {
     double t = 0.0;
+    int k;
     if (h->fault)
         return -1.0;
     if (h->call && finish_call(h, 0.0005) < 0)
         return -1.0;
     h->n_pend = 0;
+    if (!h->rp_read)                                    /* (their audio is dropped: at the next run's start) */
+        for (k = 0; k < h->n_rp; k++)
+            h->rp[k].sample = 0;
     while (t < seconds - 1e-9) {
         double before, dt, s = seconds - t;
         try_irq(h);
@@ -912,6 +954,7 @@ AM_API double amh_skip(am_host *h, double seconds, double step)
         dt = dt_since(h, before);
         if (cpu(h, steps_for(h, dt)) < 0)
             return -1.0;
+        marks_poll(h, 0);                               /* (no audio is made here: counted, at the next run's start) */
         t += dt;
     }
     return t;
@@ -936,6 +979,14 @@ AM_API double amh_boot(am_host *h, double limit)
     return t;
 }
 
+static void marks_forget(am_host *h)
+{
+    h->n_rp = 0;
+    h->rp_read = 0;
+    if (h->mark_at)
+        h->mark_seen = h->mem[h->mark_at];
+}
+
 AM_API double amh_cancel(am_host *h, double limit)
 {
     static const unsigned char CTRL_X[] = {0x18};
@@ -955,6 +1006,8 @@ AM_API double amh_cancel(am_host *h, double limit)
             return -1.0;
         t += s;
     }
+    marks_forget(h);                                    /* the cut text's marks: none is given (the driver counted
+                                                           one more while a call was being dropped: measured) */
     return t;
 }
 
@@ -1059,6 +1112,18 @@ AM_API am_host *amh_create(const unsigned char *dvc, size_t n, ssi263 *chip, dou
     h->last_speech = -1.0;
     memcpy(m + (unsigned long)IDLE_SEG * 16, idle, sizeof idle);
     h->lpt = m[(unsigned long)LOAD_SEG * 16 + 0x53];    /* the driver answers INT 17h for this printer */
+    /* its count of index marks passed is the byte at 0800:06E3 (found by watching memory while marked text was
+       spoken): known by the one place the driver counts it up, MOV AL,[06E3] / INC AL / MOV [06E3],AL.  Another
+       driver image without exactly that gives no marks. */
+    {
+        static const uint8_t count_up[8] = {0xA0, 0xE3, 0x06, 0xFE, 0xC0, 0xA2, 0xE3, 0x06};
+        unsigned long at, found = 0;
+        for (at = 0; at + sizeof count_up <= size; at++)
+            if (!memcmp(m + (unsigned long)LOAD_SEG * 16 + at, count_up, sizeof count_up))
+                found++;
+        h->mark_at = found == 1 ? (unsigned long)LOAD_SEG * 16 + MARK_COUNT : 0;
+        h->mark_seen = h->mark_at ? m[h->mark_at] : 0;
+    }
     client[5] = (uint8_t)h->lpt;
     memcpy(m + (unsigned long)CLIENT_SEG * 16, client, sizeof client);
     pc86_set_hooks(h->p, on_in, on_out, on_int, h);
@@ -1148,6 +1213,8 @@ AM_API int amh_get_int(const am_host *h, const char *name)
     if (!strcmp(name, "call")) return h->call;
     if (!strcmp(name, "settles")) return h->settles;
     if (!strcmp(name, "request")) return ssi263_request(h->chip) ? 1 : 0;
+    if (!strcmp(name, "marks")) return h->marks;
+    if (!strcmp(name, "marks_known")) return h->mark_at ? 1 : 0;
     return -1;
 }
 
@@ -1157,6 +1224,10 @@ AM_API void amh_set_int(am_host *h, const char *name, int v)
         h->preparing = v != 0;
     else if (!strcmp(name, "log_writes"))
         h->log_on = v != 0;
+    else if (!strcmp(name, "marks")) {
+        h->marks = v;
+        marks_forget(h);
+    }
 }
 
 AM_API int amh_writes(const am_host *h, const amh_write **writes)

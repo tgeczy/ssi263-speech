@@ -43,7 +43,8 @@ onto each device's own: the middle is its factory rate and pitch.
 
 Index marks: the module tells speech-dispatcher when speech reaches each mark in a message (the ones Orca puts
 before every word, and the server's own after each sentence). On the English, Danish, Norwegian and Swedish Braille
-Lite the place is the unit's own index mark, exact; on the other voices it is estimated, good to a word or so
+Lite, the Speak-Out, the Sounding Board, the Accents and the SmarTalk the place is the unit's own index mark,
+exact; on the other voices it is estimated, good to a word or so
 (`docs/index-marks.md`).
 
 Builds: x86_64 and aarch64 (a Raspberry Pi 4 or 5 is fine: the unit runs several times faster than real time on a

@@ -37,6 +37,7 @@ except ImportError:                       # the research tree: src/ on sys.path
     from ssi263 import SSI263  # noqa: E402
 
 LOAD_SEG = 0x0800            # the driver image (130 KB) sits at 0800:0000
+MARK_COUNT = 0x6E3           # ... and counts the index marks speech has passed in this byte of it (am_host.h)
 PACKET_SEG = 0x0060          # DOS request packets
 TEXT_SEG = 0x0070            # a write request's transfer buffer
 STACK_SEG = 0x9000
@@ -136,6 +137,13 @@ class Accent:
         self.writes = []                          # (chip time, reg, value)
         self.keep_writes = True
         self.pending = []           # audio the chip made while a driver call waited on it
+        # index marks (am_host.h amh_replies): the samples of the audio the last run() returned made when each
+        # was passed; the driver's count is known by the one place it counts it up
+        self.replies, self._replies_read = [], False
+        self._mark_at = LOAD_SEG * 16 + MARK_COUNT if bytes(image).count(
+            bytes([0xA0, 0xE3, 0x06, 0xFE, 0xC0, 0xA2, 0xE3, 0x06])) == 1 else 0
+        self._mark_seen = image[MARK_COUNT] if self._mark_at else 0
+        self.marks = 0              # every mark passed
         self.insns = 0
         self.call = None            # a driver call left running in the background (say(background=True))
         self.settles = 0            # host calls that had to let an interrupted handler finish first
@@ -443,6 +451,7 @@ class Accent:
                 self._stop("driver call %04X:%04X still waiting after %.0f s" % (seg, off, waited))
                 break
             self._try_irq()
+            self._marks_poll(self._pending_n())
             before = self.chip.time
             y = self.chip.run_until_request(step) if not self.chip.request else self.chip.run(step / 4)
             self.pending.append(y)
@@ -477,10 +486,34 @@ class Accent:
         elif self.call["waited"] > self.call["limit"]:
             raise RuntimeError("driver call %s still waiting after %.0f s" % (self.call["name"], self.call["waited"]))
 
+    def _marks_poll(self, sample):
+        """the driver's own count of marks passed (modulo 256), read between slices: those new since the last
+        look, at `sample` of the audio being made"""
+        if not self._mark_at:
+            return
+        count = self.uc.mem_read(self._mark_at, 1)[0]
+        fresh = (count - self._mark_seen) & 0xFF
+        self._mark_seen = count
+        if not fresh:
+            return
+        if self._replies_read:
+            self.replies, self._replies_read = [], False
+        self.marks += fresh
+        self.replies += [sample] * fresh
+
+    def _marks_forget(self):
+        self.replies, self._replies_read = [], False
+        if self._mark_at:
+            self._mark_seen = self.uc.mem_read(self._mark_at, 1)[0]
+
+    def _pending_n(self):
+        return sum(len(y) for y in self.pending)
+
     def _finish_call(self, step=0.0005):
         """Run a background call to its end, keeping what the card says (as the old blocking call)."""
         while self.call:
             self._try_irq()
+            self._marks_poll(self._pending_n())
             before = self.chip.time
             y = self.chip.run_until_request(step) if not self.chip.request else self.chip.run(step / 4)
             self.pending.append(y)
@@ -516,6 +549,7 @@ class Accent:
         while self.r("cs") != IDLE_SEG and waited < limit:
             # the handler waits on the card: let the card run (what it says is kept)
             self._try_irq()
+            self._marks_poll(self._pending_n())
             before = self.chip.time
             y = self.chip.run_until_request(step) if not self.chip.request else self.chip.run(step / 4)
             self.pending.append(y)
@@ -590,6 +624,10 @@ class Accent:
             raise RuntimeError(self.stopped)
 
     def run(self, seconds, step=0.0005):
+        if self._replies_read:          # (what a blocked call passed stays: its audio comes first)
+            self.replies, self._replies_read = [], False
+        made = self._pending_n()
+        self._marks_poll(made)
         out, t = self.pending, 0.0
         self.pending = []
         while t < seconds:
@@ -597,12 +635,15 @@ class Accent:
             before = self.chip.time
             y = self.chip.run_until_request(step) if not self.chip.request else self.chip.run(step / 4)
             out.append(y)
+            made += len(y)
             dt = max(self.chip.time - before, 1e-5)
             if self.call:
                 self._call_step(dt)
             else:
                 self._cpu(max(100, int(self.cpu_ips * dt)))
+            self._marks_poll(made)
             t += dt
+        self._replies_read = True
         return self.chip.dsp.concat(out)
 
     @property
@@ -621,6 +662,8 @@ class Accent:
         if self.call:
             self._finish_call()
         self.pending = []
+        if not self._replies_read:      # (their audio is dropped: at the next run's start)
+            self.replies = [0] * len(self.replies)
         t = 0.0
         while t < seconds - 1e-9:
             self._try_irq()
@@ -628,6 +671,7 @@ class Accent:
             self.chip.skip(min(step, seconds - t))
             dt = max(self.chip.time - before, 1e-5)
             self._cpu(max(100, int(self.cpu_ips * dt)))
+            self._marks_poll(0)
             t += dt
         return t
 
@@ -690,6 +734,7 @@ class Accent:
         t = self.skip(0.01)
         while t < limit and self.busy():
             t += self.skip(0.01)
+        self._marks_forget()            # the cut text's marks: none is given
         return t
 
 
