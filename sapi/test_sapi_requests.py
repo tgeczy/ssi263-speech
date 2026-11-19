@@ -12,7 +12,9 @@ The checks:
   - rate: a fragment's RateAdj (+4), the program's rate (+4), and +2 with +2, are the same audio, and not rate 0's;
   - volume: the program's volume 50 halves the samples; a fragment's Volume 50 is the same audio; 50 of 50 is 25;
   - pitch: a pitch change inside a request is three unit utterances -- the same audio as three requests;
-  - JAWS's request (a word a fragment, a bookmark between every pair) is the joined text's audio, bookmarks in order;
+  - JAWS's request (a word a fragment, a bookmark between every pair) is the joined text's audio, bookmarks in order
+    (byte for byte on the Spanish unit, whose marks are estimated; as long on the English one, which gets its own
+    index marks between the words);
   - spell: a <spell> fragment is each character as a text of its own (the same audio as one request a character), on
     the English and the Spanish unit, and not the word's audio;
   - skip: +1, 0, +2 and -1 are answered with that count and speech goes on from that sentence (as long as that text
@@ -20,9 +22,10 @@ The checks:
     sentences are answered with what could be done and the request ends; an abort with a skip is an abort;
   - bookmarks: one before any text arrives before any audio; one between two unit utterances arrives between them
     with the bytes written as its offset; one at the end arrives after the audio and before the 150 ms of silence;
-    JAWS's (inside one unit utterance) all arrive, in order -- after the audio, which is printed, not judged.
+    JAWS's (inside one unit utterance) all arrive, in order, each at its place: the bytes written when its event
+    comes are its offset (the voice's index marks, src/csrc/marks.h: the unit's own on the English Braille Lite).
 
-SSI263_SAPI_REQUESTS_BREAK=partial-write | deadline-wall | markup | spell | skip | marks-end puts one bug back in
+SSI263_SAPI_REQUESTS_BREAK=partial-write | deadline-wall | markup | spell | skip | marks-end | marks-late puts one bug back in
 every request (the DLL's SSI263_SAPI_TEST_BREAK): the must-fail controls, registered in nvda/tools/run_tests.py.
 
     python sapi/test_sapi_requests.py [--arch x64|x86|both] [--verbose]
@@ -87,6 +90,8 @@ PROCS = {
     "pitch-sep": [req([S("Hello there,")]), req([S("how are you", middle=8)]), req([S("today.")])],
     "jaws": [req([S("Hello,"), B(1), S("how"), B(2), S("are"), B(3), S("you"), B(4), S("today?"), B(5)])],
     "jaws-joined": [req([S("Hello, how are you today?")])],
+    "jaws-es": [req([S("Hola,"), B(1), S("como"), B(2), S("estas"), B(3), S("hoy?"), B(4)], voice=ES)],
+    "jaws-es-joined": [req([S("Hola, como estas hoy?")], voice=ES)],
     "spell": [req([L("Hi 2")])],
     "spell-sep": [req([S("H")]), req([S("i")]), req([S("2")])],
     "spell-word": [req([S("Hi 2")])],
@@ -206,7 +211,17 @@ def checks(g):
         "%s against %s as three requests" % (secs(len(whole("pitch-mid"))), secs(len(sep))))
     # JAWS
     r = g["jaws"][0]
-    add("JAWS: a word a fragment is the joined text", r["pcm"] == whole("jaws-joined"))
+    # one unit utterance, not a sentence a word.  On the Spanish unit, whose index marks are estimated, the audio is
+    # the joined text's byte for byte.  The English Braille Lite gets its own index mark between the words, which
+    # leaves every phoneme and its time but can start the sentence's final fall a phoneme late (bl_voice.h): as
+    # long as the joined text, to a hundredth
+    es = g["jaws-es"][0]
+    add("JAWS: a word a fragment is the joined text (Spanish: byte for byte; its bookmarks in order)",
+        es["pcm"] == whole("jaws-es-joined") and [e[0] for e in es["events"]] == ["1", "2", "3", "4"],
+        "%s, bookmarks %s" % (secs(len(es["pcm"])), ",".join(e[0] for e in es["events"]) or "none"))
+    add("JAWS: a word a fragment is one unit utterance (English: as long as the joined text)",
+        abs(len(r["pcm"]) - len(whole("jaws-joined"))) <= 0.01 * len(whole("jaws-joined")),
+        "%s against %s" % (secs(len(r["pcm"])), secs(len(whole("jaws-joined")))))
     add("JAWS: its five bookmarks, in order", [e[0] for e in r["events"]] == ["1", "2", "3", "4", "5"],
         ",".join(e[0] for e in r["events"]) or "none")
     # spell
@@ -251,7 +266,13 @@ def checks(g):
     late = [w - o for _n, w, o in ev]
     add("JAWS: offsets in order, none past the audio",
         all(x[2] <= y[2] for x, y in zip(ev, ev[1:])) and all(o <= len(body(g["jaws"][0])) for _n, _w, o in ev),
-        "inside one unit utterance, so each came after its audio: %s late" % ", ".join(secs(x) for x in late))
+        "%s" % ", ".join(secs(o) for _n, _w, o in ev))
+    # ... and each arrives AT its place: a program that takes a bookmark when its event comes (NVDA from 2025.1: its
+    # own audio stream, the events in the order they arrive) is told of a word when the audio before it has been
+    # written, not when the whole utterance has been
+    add("JAWS: each bookmark arrives at its place (the bytes written when it comes are its offset)",
+        len(ev) == 5 and all(x == 0 for x in late) and len(set(o for _n, _w, o in ev)) >= 4,
+        "late by %s; at %s" % (", ".join(secs(x) for x in late), ", ".join(secs(o) for _n, _w, o in ev)))
     return out
 
 

@@ -32,6 +32,10 @@ typedef struct {
     int (*speak)(ssv_voice *v, const ssv_settings *s, const char *utf8, int pitch_offset);
     int (*render)(ssv_voice *v, const short **pcm, int *done);
     void (*cancel)(ssv_voice *v);
+    /* index marks (../src/csrc/marks.h): SAPI's bookmarks inside a text */
+    int (*speak_marked)(ssv_voice *v, const ssv_settings *s, const char *utf8, int pitch_offset,
+                        const ssv_mark *marks, int n_marks);
+    int (*reached)(ssv_voice *v, const ssv_reach **out);
 } ssi_api;
 
 /* Loads dir\ssi263speech.dll (dir: a folder, no trailing backslash) and resolves every function.  1, or 0 with the

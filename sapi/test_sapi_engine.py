@@ -20,7 +20,9 @@ checks first -- SSI263_SAPI_REF_BREAK=dist, the reference on nvda/dist's drivers
     words off) and each sample rate: the same;
   - BrailleLiteNumbers with no value, 1 and 0 on both Braille Lite voices ("1,234,567", Spain's "1.234.567"): each the
     same as the Python server with the driver's numberWords so; no value = 1, and 0 differs from 1;
-  - a bookmark between two halves: the event comes, and the audio is the joined text's;
+  - a bookmark between two halves: the event comes, and the audio is the joined text's -- byte for byte where the
+    voice's index marks are estimated; on the English Braille Lite, which gets its own index mark for the bookmark
+    (src/csrc/marks.h), as long as it and not the same bytes;
   - SAPI's abort after a few writes: Speak returns S_OK at once, nothing more is written (no events, no silence),
     and the next text comes out whole (voiced, as long as alone within 10 %);
   - the controls, in the same run (each must make its cases differ): SSI263_SAPI_TEST_BREAK=voice (English and
@@ -100,6 +102,8 @@ NATIVE_ONLY += RELEASE
 LONG = "This sentence is long enough to be cut somewhere in the middle of it, surely. And a few more words follow it."
 ABORT_AFTER = 6
 
+
+OWN_MARKS = ("blazie:blazie",)        # the voices whose unit takes its own index mark for a bookmark
 
 def cases(voices):
     """[(label, voice, sapi rate, middle adj, settings, break, abort after, text, second text or None)], in the order
@@ -309,6 +313,15 @@ def main():
                     elif "CONTROL" in label:
                         ok = data != want
                         what = "differs from %s, as it must" % server if ok else "the same: NOT caught"
+                    elif t2 and vid in OWN_MARKS:
+                        # the bookmark is the unit's own index mark, a Ctrl-F before the next word: every phoneme and
+                        # its time as without it, one pause frame more (bl_voice.h) -- as long, not the same bytes
+                        ok = hr == 0 and declared == sr and len(data) == len(want) and data != want and marks == "7"
+                        what = ("as long as %s's joined text (%d samples), the unit's own index mark in it" % (
+                            server, len(want) // 2) if len(data) == len(want) and data != want else
+                                "%d samples against %d%s" % (len(data) // 2, len(want) // 2,
+                                                             ", the SAME bytes: no mark reached the unit"
+                                                             if data == want else "")) + ", bookmark %s" % marks
                     else:
                         ok = hr == 0 and declared == sr and data == want and (marks == "7" if t2 else marks == "-")
                         what = ("byte-identical to " + server if data == want else

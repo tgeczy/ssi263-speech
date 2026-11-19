@@ -459,7 +459,9 @@ if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "sapi-dev", "x86",
              [r"^FAIL x64 the deadline does not count time SAPI takes", r"^sapi requests: 1 FAILED$"]),
             ("markup", "no fragment's rate, volume or pitch looked at, nor the program's volume",
              [r"^FAIL x64 rate: a fragment's \+4 is the program's \+4", r"^FAIL x64 volume: the program's 50 halves",
-              r"^FAIL x64 pitch: a change inside a request", r"^sapi requests: 5 FAILED$"]),
+              # (four: it was five while a bookmark inside an utterance came after it -- with no pitch looked at,
+              # "bookmark between two unit utterances" has no two utterances, and that bookmark is now in place)
+              r"^FAIL x64 pitch: a change inside a request", r"^sapi requests: 4 FAILED$"]),
             ("spell", "a <spell> spoken as the word",
              [r"^FAIL x64 spell \(English\)", r"^FAIL x64 spell \(Spanish\)", r"^FAIL x64 spell: not the word",
               r"^sapi requests: 3 FAILED$"]),
@@ -468,7 +470,9 @@ if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "sapi-dev", "x86",
               r"^sapi requests: 7 FAILED$"]),
             ("marks-end", "every bookmark sent after all the audio",
              [r"^FAIL x64 bookmark before the text: before any audio", r"^FAIL x64 bookmark between two unit utterances",
-              r"^sapi requests: 2 FAILED$"])):
+              r"^FAIL x64 JAWS: each bookmark arrives at its place", r"^sapi requests: 3 FAILED$"]),
+            ("marks-late", "a bookmark inside a unit utterance sent after the utterance's audio",
+             [r"^FAIL x64 JAWS: each bookmark arrives at its place .*late by [1-9]", r"^sapi requests: 1 FAILED$"])):
         CHECKS.append(check("SAPI engine DLL requests CONTROL (%s, must fail)" % what,
                             [PY, SAPI_REQUESTS, "--arch", "x64"], env={"SSI263_SAPI_REQUESTS_BREAK": brk},
                             expect_fail=True, fail_marks=marks))

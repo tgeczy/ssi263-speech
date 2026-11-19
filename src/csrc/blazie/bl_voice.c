@@ -845,6 +845,8 @@ BL_API int blv_marks_exact(const bl_voice *v)
     return (v->own_marks || blv_marks_break == 6) && !(v->run_ahead && v->pack) && bh_get_int(v->host, "no_echo") <= 0;
 }
 
+#define ORD_END 0x7FFFFFFF         /* a mark after the last word: reached with the utterance's last sample */
+
 /* The marks speech has reached in the block just run: those whose Ctrl-F the unit has echoed, each at the sample its
    echo came (less the `start` samples trimmed from the block's head), and, with `all`, the rest after the block's
    last sample (the utterance is over). */
@@ -864,7 +866,8 @@ static void report_marks(bl_voice *v, int start, int count, int all)
         v->cap_reached = v->n_mk;
     }
     for (i = 0; i < v->n_mk; i++) {
-        int ord = v->mk[i].ord, s = 0, exact = ord <= 0;     /* (before the first word: the utterance's start) */
+        int ord = v->mk[i].ord, s = 0, exact = ord <= 0 || ord == ORD_END;   /* (before the first word, after the
+                                                                                last: the utterance's start, its end) */
         if (ord > ef && !all) {                              /* not yet: its echo is still to come */
             v->mk[kept++] = v->mk[i];
             continue;
@@ -951,11 +954,11 @@ BL_API int blv_speak_marked(bl_voice *v, const char *utf8, const ssv_mark *marks
     }
     nl = say_bytes(utf8, v->encoding, v->pack, v->numbers, marks, n_marks, ords, &n06, &data, &len);
     /* each mark's echo, by its number: the unit echoes its Ctrl-Fs in the order it was sent them, the lines' own
-       among them; one after the last word is reached when the last line's own comes */
+       among them; one after the last word is reached at the utterance's end (ORD_END) */
     base = bh_get_int(v->host, "sent_f");
     for (i = 0; i < n_marks; i++) {
         v->mk[i].id = marks[i].id;
-        v->mk[i].ord = ords[i] == 0 ? 0 : ords[i] > 0 ? base + ords[i] : base + n06 - 1;
+        v->mk[i].ord = ords[i] == 0 ? 0 : ords[i] > 0 ? base + ords[i] : ORD_END;
     }
     v->n_mk = n_marks;
     free(ords);

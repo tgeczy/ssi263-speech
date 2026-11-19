@@ -96,9 +96,10 @@ BL_API int blv_fault(const bl_voice *v);
    blv_speak_marked: as blv_speak, each mark's Ctrl-F glued to the front of the word it stands before.  The text is
    prepared whole, exactly as without marks; marks that fall on one word are one Ctrl-F.
    blv_reached: the marks speech reached in the block the last blv_render returned, in order, each with the sample
-   at which its echo came.  A mark before the first word comes with the first block; one after the last word when
-   the last line's own echo does; whatever is left when the utterance is over comes with its last block, not exact
-   (so no caller is left waiting), and nothing after a cancel.
+   at which its echo came.  A mark before the first word comes with the first block; one after the last word with the
+   last block, after its last sample (the utterance's end, when its last sound has died away: the last line's own
+   echo comes before that); whatever else is left when the utterance is over comes with the last block too, not
+   exact (so no caller is left waiting), and nothing after a cancel.
    blv_marks_exact: 1 only for a release measured for it (bl_languages.txt's marks column, bl_firmware.h
    blv_release_marks) that echoes and is not run ahead of the listener (its echoes then come ahead of the audio).
    Otherwise blv_speak_marked speaks the text without marks and reports none: the voice table estimates their

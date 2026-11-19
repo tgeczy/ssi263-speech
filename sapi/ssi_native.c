@@ -33,6 +33,8 @@ int ssi_load(ssi_api *api, const wchar_t *dir, char *err, int errlen)
     GET(speak, "ssv_speak")
     GET(render, "ssv_render")
     GET(cancel, "ssv_cancel")
+    GET(speak_marked, "ssv_speak_marked")
+    GET(reached, "ssv_reached")
 #undef GET
     api->dll = h;
     return 1;

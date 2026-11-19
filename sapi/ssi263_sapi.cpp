@@ -486,10 +486,13 @@ public:
         while(ok&&!aborted&&!ended&&si<segs.size()){
             Seg &g=segs[si];
             const size_t from=startChr; startChr=0;
-            /* A bookmark's event goes to SAPI before the audio that follows it wherever its place in the audio is
-             * known exactly: here, at a segment's start (the bytes written so far), and at its end below.  One
-             * inside a segment has no known place -- the unit speaks the segment whole -- so it follows the
-             * segment's audio with an offset in proportion to its place in the text, an estimate. */
+            /* A bookmark's event goes to SAPI before the audio that follows it: here, at a segment's start (the
+             * bytes written so far), at its end below, and inside it where the voice says speech has reached it
+             * (its index marks, voices.h ssv_speak_marked: the unit's own on a Braille Lite measured for them,
+             * estimated on the other voices) -- the block's audio is written up to the mark, then the event,
+             * then the rest.  A program that takes a bookmark when its event comes (NVDA from 2025.1) is then
+             * told of it when the audio before it has been written, not after the whole utterance.  Up to
+             * 0.9.2 one inside a segment followed the segment's audio, its offset a share of the text's. */
             if(!marksLast)
                 for(size_t i=0;i<g.marks.size();i++)
                     if(g.marks[i].chars==from)bookmark(site,g.marks[i].name,total);
@@ -506,9 +509,21 @@ public:
             if(g.spell)spell_units(g.text,units); else units.push_back(g.text.substr(from));
             const unsigned long long segStart=total;
             bool skipped=false;
+            /* "marks-late": a control, a bookmark inside a segment after the segment's audio, as it was.  A
+             * spelled segment is several unit texts: its bookmarks stay estimates after its audio. */
+            const bool placed=!g.spell&&!marksLast&&strcmp(brk,"marks-late");
+            std::vector<char> sent(g.marks.size(),0);
             for(size_t ui=0;ui<units.size()&&ok&&!aborted&&!ended&&!skipped;ui++){
                 std::string u=utf8(units[ui]);
-                int said=g_api.speak(v,&s,u.c_str(),0);
+                std::vector<ssv_mark> um;        /* the segment's bookmarks inside this text: byte offsets, UTF-8 */
+                if(placed)
+                    for(size_t i=0;i<g.marks.size();i++)
+                        if(g.marks[i].chars>from){
+                            ssv_mark m; m.at=(int)utf8(units[ui].substr(0,g.marks[i].chars-from)).size(); m.id=(int)i;
+                            um.push_back(m);
+                        }
+                int said=um.empty()?g_api.speak(v,&s,u.c_str(),0)
+                                   :g_api.speak_marked(v,&s,u.c_str(),0,um.data(),(int)um.size());
                 if(said<0){ok=false;break;}
                 bool done=false;
                 unsigned long long unitBytes=0;
@@ -561,27 +576,43 @@ public:
                     int isdone=0; const short *pcm=0;
                     int n=g_api.render(v,&pcm,&isdone);
                     done=isdone!=0;
-                    if(n>0){
-                        quiet=GetTickCount();
-                        if(!qfirst.QuadPart)QueryPerformanceCounter(&qfirst);
-                        int w=write_all(site,pcm,(ULONG)n*2,total,deadline,!strcmp(brk,"partial-write"));
-                        if(w!=WROTE){g_api.cancel(v);if(w==WRITE_ABORTED)aborted=true;else ok=false;break;}
-                        unitBytes+=(unsigned long long)n*2;
-                        if(!strcmp(brk,"deadline-wall")&&GetTickCount()-began>deadline){   /* a control: time on SAPI
-                                                                                              counted, as it was */
-                            aborted=true; g_api.cancel(v); break;
+                    /* the bookmarks speech reached in this block, each with its sample in it: the audio up to
+                     * the first, its event, the audio up to the next, ... and the rest */
+                    const ssv_reach *rc=0; const int nr=um.empty()?0:g_api.reached(v,&rc);
+                    int at=0; bool stop=false;
+                    for(int j=0;j<=nr&&!stop;j++){
+                        int upto=n; if(j<nr){upto=rc[j].sample; if(upto<at)upto=at; if(upto>n)upto=n;}
+                        if(upto>at){
+                            quiet=GetTickCount();
+                            if(!qfirst.QuadPart)QueryPerformanceCounter(&qfirst);
+                            int w=write_all(site,pcm+at,(ULONG)(upto-at)*2,total,deadline,!strcmp(brk,"partial-write"));
+                            if(w!=WROTE){g_api.cancel(v);if(w==WRITE_ABORTED)aborted=true;else ok=false;stop=true;break;}
+                            unitBytes+=(unsigned long long)(upto-at)*2;
+                            at=upto;
+                            if(!strcmp(brk,"deadline-wall")&&GetTickCount()-began>deadline){   /* a control: time on
+                                                                                              SAPI counted, as it was */
+                                aborted=true; g_api.cancel(v); stop=true; break;
+                            }
+                            quiet=GetTickCount();
                         }
-                        quiet=GetTickCount();
+                        if(j<nr&&rc[j].id>=0&&(size_t)rc[j].id<g.marks.size()&&!sent[rc[j].id]){
+                            bookmark(site,g.marks[rc[j].id].name,total);
+                            sent[rc[j].id]=1;
+                        }
                     }
+                    if(stop)break;
                 }
             }
             if(!ok||aborted||ended)break;
             if(skipped)continue;
             if(!marksLast){
+                /* what the voice did not report (a spelled segment's, the control's; a text with nothing to say):
+                 * after the segment's audio -- a placed one at the bytes written, the others at their share */
                 const double len=(double)(g.text.size()-from),bytes=(double)(total-segStart);
                 for(size_t i=0;i<g.marks.size();i++)
-                    if(g.marks[i].chars>from)
-                        bookmark(site,g.marks[i].name,segStart+(unsigned long long)((double)(g.marks[i].chars-from)/len*bytes));
+                    if(g.marks[i].chars>from&&!sent[i])
+                        bookmark(site,g.marks[i].name,placed?total:
+                                 segStart+(unsigned long long)((double)(g.marks[i].chars-from)/len*bytes));
             }
             si++;
         }

@@ -98,9 +98,15 @@ takes to finish ahead of the caller.
   at the mark's sample (`src/platforms/speechd/sd_ssi263.c`). The server holds a mark in its queue with the audio
   and reports it when its playback gets there. A PAUSE is still answered as a stop, as before: whether the
   server's pause and resume work with the marks has not been measured. Not tried with Orca itself yet.
-- **SAPI 5, Android, Apple.** Not on `ssv_speak_marked` yet. What each needs is known: SAPI wants bookmarks in
-  the order they are reached, Android has ranges of the text but no marks, and what VoiceOver sends has to be
-  captured on a device first.
+- **SAPI 5.** A bookmark inside a text is a mark for the voice; the engine writes the audio up to it, sends the
+  bookmark's event with the bytes written as its offset, then writes the rest (`sapi/ssi263_sapi.cpp`). Up to
+  0.9.2 such a bookmark was sent after its whole utterance, with an offset guessed from the text: a program that
+  takes a bookmark when its event arrives, as NVDA does from 2025.1, was told of every word at the end (JAWS's
+  five-word request in the test: up to 1.35 s late). A bookmark at a text's start or end, or between two
+  utterances, was in place before and still is. A spelled text's bookmarks are still sent after it. Not tried
+  with NVDA or JAWS themselves yet.
+- **Android, Apple.** Not on `ssv_speak_marked` yet. Android has ranges of the text but no marks, and what
+  VoiceOver sends has to be captured on a device first.
 
 ## Tests
 
@@ -110,6 +116,8 @@ takes to finish ahead of the caller.
 - `tools/check_ssv_marks.py`: the voice table, on every voice whose firmware is present: no marks is `ssv_speak`,
   every mark once and in order, exact or estimated as it should be, the estimate never early. Two controls.
 - `nvda/tools/say_all_flow.py`: the NVDA drivers, say all's lines and their indexes.
+- `sapi/test_sapi_requests.py`: JAWS's request, a bookmark between every pair of words: each event arrives when
+  the bytes written are its offset. Two controls.
 - `src/platforms/speechd/test_sd_ssi263.py`: the speech-dispatcher module, playing the server: a mark before every
   word comes back once, in order, with exactly the audio before it that a reference voice given the same marks
   has; a stop ends them; a message of marks alone reports them. Two controls.
