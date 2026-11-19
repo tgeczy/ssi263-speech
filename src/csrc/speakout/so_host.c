@@ -40,6 +40,8 @@ struct so_host {
     int n_wl, cap_wl;
     unsigned char *waiting;                /* text said and not yet sent (feed) */
     int n_wait, cap_wait;
+    soh_reply rp[SOH_REPLIES];             /* the last soh_run's (soh_replies) */
+    int n_rp, in_run, tx_count;
     int pace_break;                        /* SSI263_SO_PACE_BREAK=1, the tests' control: all text at once, as it was */
     int tail_break;                        /* SSI263_SO_TAIL_BREAK=1, the tests' control: busy() without held() */
 };
@@ -193,6 +195,19 @@ static void run_cpu(so_host *h, double dt)
     for (i = 0; i < k; i++)
         chip_write(h, w[i].reg, w[i].val);
     so_clear_writes(h->b);
+    {                                      /* what the box sent back in the slice: where in this run's audio */
+        const uint8_t *t;
+        k = so_tx(h->b, &t);
+        for (i = 0; i < k; i++) {
+            h->tx_count++;
+            if (h->in_run && h->n_rp < SOH_REPLIES) {
+                h->rp[h->n_rp].value = t[i];
+                h->rp[h->n_rp].sample = h->n_buf;
+                h->n_rp++;
+            }
+        }
+        so_clear_tx(h->b);
+    }
 }
 
 /* ---- say, input_pending, busy ------------------------------------------------------------------------------------ */
@@ -297,6 +312,8 @@ SO_API int soh_run(so_host *h, double seconds, double step, const double **audio
     double t = 0.0;
     feed(h);
     h->n_buf = 0;
+    h->n_rp = 0;
+    h->in_run = 1;
     *audio = h->buf;
     while (t < seconds) {
         double before, dt;
@@ -305,13 +322,17 @@ SO_API int soh_run(so_host *h, double seconds, double step, const double **audio
         before = ssi263_time(h->chip);
         if (!ssi263_request(h->chip)) {
             n = (long)(step * h->out_rate);                  /* int(): truncation */
-            if (!reserve(h, n + 1))
+            if (!reserve(h, n + 1)) {
+                h->in_run = 0;
                 return -1;
+            }
             got = ssi263_run_until_request(h->chip, n, h->buf + h->n_buf);
         } else {
             n = (long)nearbyint(step / 4 * h->out_rate);     /* round(): half to even */
-            if (!reserve(h, n + 1))
+            if (!reserve(h, n + 1)) {
+                h->in_run = 0;
                 return -1;
+            }
             got = ssi263_run(h->chip, n, h->buf + h->n_buf);
         }
         h->n_buf += (int)got;
@@ -321,8 +342,15 @@ SO_API int soh_run(so_host *h, double seconds, double step, const double **audio
         run_cpu(h, dt);
         t += dt;
     }
+    h->in_run = 0;
     *audio = h->buf;
     return h->n_buf;
+}
+
+SO_API int soh_replies(const so_host *h, const soh_reply **out)
+{
+    *out = h->rp;
+    return h->n_rp;
 }
 
 SO_API double soh_skip(so_host *h, double seconds, double step)
@@ -406,6 +434,7 @@ SO_API int soh_get_int(const so_host *h, const char *name)
     if (!strcmp(name, "request")) return ssi263_request(h->chip) ? 1 : 0;
     if (!strcmp(name, "steps")) return (int)so_steps(h->b);
     if (!strcmp(name, "log_writes")) return h->log_on;
+    if (!strcmp(name, "tx_count")) return h->tx_count;
     return -1;
 }
 

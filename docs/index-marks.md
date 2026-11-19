@@ -30,7 +30,7 @@ a voice here uses it yet.
 | Unit | Its own index mark | How it answers | Used |
 |---|---|---|---|
 | Braille Lite 2000 (Blazie) | Ctrl-F (06h) anywhere in a line | echoes 06h on its serial line when speech reaches it | yes, on the releases below |
-| Speak-Out (GW Micro) | Ctrl-E `[` and one byte (05h 5Bh xx) | sends that byte back on its serial line; on at power-up, Ctrl-E `]` 1 / 0 turns it on and off | not yet |
+| Speak-Out (GW Micro) | Ctrl-E `[` and one byte (05h 5Bh xx) | sends that byte back on its serial line; on at power-up, Ctrl-E `]` 1 / 0 turns it on and off | yes |
 | Sounding Board (GW Micro) | the same command | INT 17h AH=02h on the driver's port: how many marks were passed since the last call, and the last one's value | not yet |
 | Accent SA (Aicom) | Ctrl-F, after ESC Y X and ESC = Y | one 06h per mark on its serial line; off at power-up | not yet |
 | Accent-mini (Aicom) | Ctrl-F, after ESC Y X and ESC Y Z | INT 17h AH=02h: the count since the last read | not yet |
@@ -80,6 +80,24 @@ Swedish):
 - Any release while it is run ahead of the listener (the experimental setting): its echoes then come ahead of the
   audio.
 
+## The Speak-Out: measured
+
+The box's mark goes at the front of the marked word, after the space before it, where the box takes it for
+nothing but a word boundary; its reply is read off the box's serial transmit line, which the emulated board used
+to discard (`src/csrc/speakout/so_voice.h`).
+
+- A mark before every word of two texts against none, at rates 0, 50 and 100, with "Join phrases" and the short
+  pauses on and off (24 marked utterances): every phoneme load with its R1 to R4 is the unmarked text's, in order.
+  The times between phonemes are the same to 2.0 ms; the same text said twice without marks differs by 2.2 ms.
+  So a mark changes nothing that could be measured, unlike on the Braille Lite.
+- The reply comes with the first chip frame of the word after the mark. Against the audio (short pauses off, so
+  that the box pauses at commas and full stops): each mark in the pause before its word, also across a sentence's
+  end and after a cancel.
+- The box sends one reply a chip interrupt, so marks stacked on one place would run late; the voice gives the box
+  one mark a word.
+- The Sounding Board is the same front end behind a DOS driver, which reports marks as a count and a last value
+  through INT 17h. That is not used yet: its marks are estimated.
+
 ## The estimate
 
 A mark is put at its share of the text's characters, as a share of the utterance's samples. The length must be
@@ -91,8 +109,9 @@ takes to finish ahead of the caller.
 ## Front ends
 
 - **NVDA add-on.** Say all's lines go to the unit as one line with their indexes
-  (`nvda/shared/ssi263_flow.py`). The Braille Lite driver uses the unit's own marks on the releases above; the other
-  drivers estimate. The drivers do not go through `voices.h` yet.
+  (`nvda/shared/ssi263_flow.py`). The Braille Lite driver uses the unit's own marks on the releases above, and
+  the Speak-Out driver the box's (the audio is fed up to a mark's sample, the index reported, then the rest);
+  the other drivers estimate, the Sounding Board's among them. The drivers do not go through `voices.h` yet.
 - **speech-dispatcher (Orca).** The module keeps the message's marks, the server's own after each sentence and
   the one Orca puts before every word, and reports each between the audio before it and the audio after it, cut
   at the mark's sample (`src/platforms/speechd/sd_ssi263.c`). The server holds a mark in its queue with the audio
@@ -113,6 +132,7 @@ takes to finish ahead of the caller.
 - `nvda/tools/voice_marks.py`: the Braille Lite voice. The bytes sent; each mark's place against the pauses the
   audio shows, also across a sentence's end and after a cancel; the chip's writes with marks against without. Five
   must-fail controls.
+- `nvda/tools/so_marks.py`: the Speak-Out voice, the same cases as the Braille Lite's. Four must-fail controls.
 - `tools/check_ssv_marks.py`: the voice table, on every voice whose firmware is present: no marks is `ssv_speak`,
   every mark once and in order, exact or estimated as it should be, the estimate never early. Two controls.
 - `nvda/tools/say_all_flow.py`: the NVDA drivers, say all's lines and their indexes.

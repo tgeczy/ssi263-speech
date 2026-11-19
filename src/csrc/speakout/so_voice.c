@@ -48,7 +48,21 @@ struct so_voice {
     double t_start, gain;
     short *pcm;
     int pcm_cap;
+    /* index marks (so_voice.h) */
+    struct { int id, value; } *mk; /* the utterance's marks not yet reached: value = the byte the box sends back
+                                      when speech reaches it, MK_NOW at once, MK_END at the utterance's end */
+    int n_mk, cap_mk;
+    int next_value;                /* the next mark's byte (MARK_FIRST .. MARK_LAST, round and round) */
+    int index_on;                  /* this box has been told to send its replies (Ctrl-E ] 1) */
+    ssv_reach *reached;            /* the marks the last sov_render's block reached (sov_reached) */
+    int n_reached, cap_reached;
 };
+#define MK_NOW 0
+#define MK_END -1
+/* the bytes used for marks: letters and digits, well away from the thirteen values the box does not send back as
+   they are (05h, 18h, 19h, BAh-BFh, FAh, FCh, FDh, FEh: 18h is its cancel) */
+#define MARK_FIRST 0x30
+#define MARK_LAST 0x7A
 
 /* ---- the box's host: the Speak-Out's (so_host.h), or the Sounding Board's (sb_host.h), which takes the same calls -- */
 typedef struct {
@@ -133,6 +147,7 @@ static void take_box(so_voice *v, box b)
     v->sb = b.sb;
 #endif
     v->chip = box_chip(b);
+    v->index_on = 0;                        /* a new box: not told yet */
 }
 
 /* the box booted and the voice's defaults set; the voice freed on failure */
@@ -220,6 +235,8 @@ SO_API void sov_destroy(so_voice *v)
     free(v->sbcom);
 #endif
     free(v->pcm);
+    free(v->mk);
+    free(v->reached);
     free(v);
 }
 
@@ -312,8 +329,9 @@ static int clean(const unsigned *in, int n, unsigned char *out)
 /* str.strip() after _clean: the only whitespace left is the space, U+0085 and U+00A0 */
 static int strip_space(unsigned char c) { return c == ' ' || c == 0x85 || c == 0xA0; }
 
-/* the bytes box.say() gets for one text item: the text, then "\r"; malloc'd, the length in *len (0: nothing to say) */
-static unsigned char *say_text(const char *utf8, int *len)
+/* the text as the box is to read it (translit.h, the currencies, _clean, str.strip()): malloc'd with room for a "\r"
+   after it, the length in *len (0: nothing to say) */
+static unsigned char *cleaned(const char *utf8, int *len)
 {
     size_t n = strlen(utf8);
     unsigned *t = (unsigned *)malloc((n + 1) * sizeof(unsigned)), *u;
@@ -341,10 +359,220 @@ static unsigned char *say_text(const char *utf8, int *len)
     for (b = m; b > a && strip_space(c[b - 1]); b--) ;
     if (b > a) {
         memmove(c, c + a, (size_t)(b - a));
-        c[b - a] = '\r';
-        *len = b - a + 1;
+        *len = b - a;
     }
     return c;
+}
+
+/* the bytes box.say() gets for one text item: the text, then "\r"; malloc'd, the length in *len (0: nothing to say) */
+static unsigned char *say_text(const char *utf8, int *len)
+{
+    unsigned char *c = cleaned(utf8, len);
+    if (c && *len)
+        c[(*len)++] = '\r';
+    return c;
+}
+
+/* ---- index marks (so_voice.h) -------------------------------------------------------------------------------------- */
+/* the tests' controls (nvda/tools/so_marks.py; an app never sets it): 1 reports every mark with the first block; 2
+   gives the box a mark for every one of the caller's, also those on the same word; 3 leaves the marks after a
+   cancel; 4 puts the box's mark inside its word, after the first letter */
+SO_API int sov_marks_break = 0;
+
+/* the words of cleaned text: their starts and ends; their count */
+static int words_of(const unsigned char *c, int n, int *ws, int *we)
+{
+    int nw = 0, i = 0;
+    while (i < n) {
+        if (strip_space(c[i])) { i++; continue; }
+        ws[nw] = i;
+        while (i < n && !strip_space(c[i])) i++;
+        we[nw++] = i;
+    }
+    return nw;
+}
+
+/* The word of the whole cleaned text that a mark at byte `at` of the source stands before (0 to nw; nw: after the
+   last), as bl_voice.c finds it: the source up to the mark -- from the start of the run of text it stands in --
+   cleaned by itself, its words held against the whole's; where they stop agreeing is the mark's word. */
+static int mark_word(const char *utf8, int at, const unsigned char *c, const int *ws, const int *we, int nw)
+{
+    int len = (int)strlen(utf8), pn, pnw, j = 0, *pws, *pwe;
+    unsigned char *pc;
+    char *prefix;
+    if (at <= 0) return 0;
+    if (at > len) at = len;
+    if (at < len)
+        while (at > 0 && (unsigned char)utf8[at] > ' ' && (unsigned char)utf8[at - 1] > ' ') at--;
+    while (at > 0 && at < len && ((unsigned char)utf8[at] & 0xC0) == 0x80) at--;
+    prefix = (char *)malloc((size_t)at + 1);
+    if (!prefix) return 0;
+    memcpy(prefix, utf8, (size_t)at);
+    prefix[at] = 0;
+    pc = cleaned(prefix, &pn);
+    free(prefix);
+    if (!pc) return 0;
+    pws = (int *)malloc(sizeof(int) * (size_t)(pn + 1));
+    pwe = (int *)malloc(sizeof(int) * (size_t)(pn + 1));
+    if (pws && pwe) {
+        pnw = words_of(pc, pn, pws, pwe);
+        for (j = 0; j < pnw && j < nw; j++) {
+            int a = pwe[j] - pws[j];
+            if (a != we[j] - ws[j] || memcmp(pc + pws[j], c + ws[j], (size_t)a)) break;
+        }
+    }
+    free(pc); free(pws); free(pwe);
+    return j;
+}
+
+/* The bytes for a marked text: the cleaned text with the box's index mark, 05h 5Bh xx, at the front of each marked
+   word -- after the space before it, where the box takes it for nothing but a word boundary (so_voice.h) -- then
+   "\r".  values (n_marks of them): for each of the caller's marks MK_NOW (before the first word), MK_END (after the
+   last) or the byte of its word's mark, taken from *next on.  malloc'd, the length in *len (0: nothing to say, every
+   value MK_NOW). */
+static unsigned char *marked_text(const char *utf8, const ssv_mark *marks, int n_marks, int *values, int *next, int *len)
+{
+    int n, nw, i, w, m = 0, last = 0;
+    unsigned char *c = cleaned(utf8, &n), *out = NULL;
+    int *ws = NULL, *we = NULL, *mv = NULL, *extra = NULL;
+    *len = 0;
+    for (i = 0; i < n_marks; i++) values[i] = MK_NOW;
+    if (!c || !n) { free(c); return NULL; }
+    ws = (int *)malloc(sizeof(int) * (size_t)(n + 1));
+    we = (int *)malloc(sizeof(int) * (size_t)(n + 1));
+    mv = (int *)calloc((size_t)(n + 2), sizeof(int));          /* per word: its mark's byte, 0 none */
+    extra = (int *)calloc((size_t)(n + 2), sizeof(int));
+    out = (unsigned char *)malloc((size_t)n + 3 * (size_t)n_marks + 2);
+    if (!ws || !we || !mv || !extra || !out) {
+        free(c); free(ws); free(we); free(mv); free(extra); free(out);
+        return NULL;
+    }
+    nw = words_of(c, n, ws, we);
+    for (i = 0; i < n_marks; i++) {
+        w = mark_word(utf8, marks[i].at, c, ws, we, nw);
+        if (w < last) w = last;                                /* in the caller's order, never back */
+        last = w;
+        if (w <= 0) continue;
+        if (w >= nw) { values[i] = MK_END; continue; }
+        if (!mv[w]) {
+            mv[w] = *next;
+            *next = *next >= MARK_LAST ? MARK_FIRST : *next + 1;
+        } else if (sov_marks_break == 2)
+            extra[w]++;                                        /* the control: a mark more for each on the word */
+        values[i] = mv[w];
+    }
+    for (w = 0, i = 0; i < n; i++) {
+        int at_word = w < nw && i == ws[w];
+        if (at_word && mv[w] && sov_marks_break != 4) {
+            int k;
+            for (k = 0; k <= extra[w]; k++) { out[m++] = 0x05; out[m++] = 0x5B; out[m++] = (unsigned char)mv[w]; }
+        }
+        out[m++] = c[i];
+        if (at_word && mv[w] && sov_marks_break == 4) { out[m++] = 0x05; out[m++] = 0x5B; out[m++] = (unsigned char)mv[w]; }
+        if (at_word) w++;
+    }
+    out[m++] = '\r';
+    free(c); free(ws); free(we); free(mv); free(extra);
+    *len = m;
+    return out;
+}
+
+SO_API int sov_say_bytes_marked(const char *utf8, const ssv_mark *marks, int n_marks, unsigned char *out, int cap)
+{
+    int n, next = MARK_FIRST, *values = (int *)malloc(sizeof(int) * (size_t)(n_marks > 0 ? n_marks : 1));
+    unsigned char *text;
+    if (!values) return 0;
+    text = marked_text(utf8, marks, n_marks, values, &next, &n);
+    if (text && n <= cap)
+        memcpy(out, text, (size_t)n);
+    free(text);
+    free(values);
+    return n;
+}
+
+SO_API int sov_marks_exact(const so_voice *v)
+{
+    return v->h != NULL;                    /* the Speak-Out box; the Sounding Board's driver reports marks another
+                                               way (INT 17h), not used yet */
+}
+
+/* The marks speech has reached in the block just run: those whose byte the box has sent back, each at the sample its
+   reply came (less the `start` samples trimmed from the block's head); with `all` (the utterance is over) the rest
+   after the block's last sample. */
+static void report_marks(so_voice *v, int start, int count, int all)
+{
+    const soh_reply *rp = NULL;
+    int nr = v->h ? soh_replies(v->h, &rp) : 0, i, j, kept = 0, last = 0, upto = 0;
+    v->n_reached = 0;
+    if (!v->n_mk) return;
+    if (v->n_mk > v->cap_reached) {
+        ssv_reach *r = (ssv_reach *)realloc(v->reached, sizeof(ssv_reach) * (size_t)v->n_mk);
+        if (!r) { v->n_mk = 0; return; }
+        v->reached = r;
+        v->cap_reached = v->n_mk;
+    }
+    /* how far the replies reach into the marks still waiting: a reply is a mark's when it is that mark's byte; the
+       marks before it then count as reached with it (a reply lost on the way) */
+    for (j = 0; j < nr; j++)
+        for (i = upto; i < v->n_mk; i++)
+            if (v->mk[i].value == rp[j].value) {
+                upto = i + 1;
+                while (upto < v->n_mk && v->mk[upto].value == rp[j].value)    /* the caller's marks on one word */
+                    upto++;
+                break;
+            }
+    for (i = 0; i < v->n_mk; i++) {
+        int val = v->mk[i].value, s = 0, exact = 0;
+        if (sov_marks_break == 1 || val == MK_NOW) { s = 0; exact = val == MK_NOW; }
+        else if (i < upto) {
+            for (j = 0; j < nr; j++)
+                if (rp[j].value == val) { s = rp[j].sample - start; exact = 1; break; }
+            if (j == nr)                         /* (reached with a later mark's reply) */
+                for (j = 0; j < nr; j++) if (rp[j].sample - start >= last) { s = rp[j].sample - start; break; }
+        } else if (all) { s = count; exact = val == MK_END; }
+        else {                                   /* not yet: its reply is still to come */
+            v->mk[kept++] = v->mk[i];
+            continue;
+        }
+        if (s < last) s = last;
+        if (s > count) s = count;
+        last = s;
+        v->reached[v->n_reached].id = v->mk[i].id;
+        v->reached[v->n_reached].sample = s;
+        v->reached[v->n_reached].exact = exact;
+        v->n_reached++;
+    }
+    v->n_mk = kept;
+}
+
+SO_API int sov_reached(so_voice *v, const ssv_reach **out)
+{
+    *out = v->reached;
+    return v->n_reached;
+}
+
+static void say_str(so_voice *v, const char *s);
+
+SO_API int sov_expect(so_voice *v, const ssv_mark *marks, int n_marks)
+{
+    int i;
+    if (!sov_marks_exact(v) || !marks || n_marks <= 0)
+        return 0;
+    if (v->n_mk + n_marks > v->cap_mk) {
+        void *q = realloc(v->mk, sizeof *v->mk * (size_t)(v->n_mk + n_marks));
+        if (!q) return 0;
+        v->mk = q;
+        v->cap_mk = v->n_mk + n_marks;
+    }
+    for (i = 0; i < n_marks; i++) {
+        v->mk[v->n_mk].id = marks[i].id;
+        v->mk[v->n_mk++].value = marks[i].at;
+    }
+    if (!v->index_on) {                     /* (as sov_speak_marked: the box told to send its replies) */
+        say_str(v, "\x05]1");
+        v->index_on = 1;
+    }
+    return 1;
 }
 
 SO_API int sov_say_bytes(const char *utf8, unsigned char *out, int cap)
@@ -406,6 +634,7 @@ static void begin(so_voice *v)
     box_settings s;
     if (v->active)
         sov_cancel(v);
+    v->n_mk = v->n_reached = 0;
     if (v->fault) {                         /* the driver's "speech failed; rebooting the emulated box" */
         char err[128];
         box b = boot(v, v->out_rate, err, (int)sizeof err);
@@ -447,6 +676,49 @@ SO_API int sov_speak(so_voice *v, const char *utf8, int pitch_offset)
         pitch_item(v, pitch_offset);
     text = say_text(utf8, &n);
     if (!text || !n) {
+        free(text);
+        restore_pitch(v);
+        return 0;
+    }
+    text_item(v, text, n);
+    free(text);
+    return 1;
+}
+
+SO_API int sov_speak_marked(so_voice *v, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
+{
+    unsigned char *text;
+    int n, i, *values;
+    if (!marks || n_marks <= 0 || !sov_marks_exact(v))       /* (a caller asks sov_marks_exact first) */
+        return sov_speak(v, utf8, pitch_offset);
+    v->job = 0;
+    begin(v);
+    values = (int *)malloc(sizeof(int) * (size_t)n_marks);
+    if (n_marks > v->cap_mk) {
+        void *q = realloc(v->mk, sizeof *v->mk * (size_t)n_marks);
+        if (q) { v->mk = q; v->cap_mk = n_marks; }
+    }
+    if (!values || n_marks > v->cap_mk) {                    /* out of memory: spoken without marks */
+        free(values);
+        n_marks = 0;
+        values = NULL;
+    }
+    if (!v->index_on) {                                      /* the box told to send its replies: on at power-up as
+                                                                measured, said once so as not to depend on that */
+        say_str(v, "\x05]1");
+        v->index_on = 1;
+    }
+    if (!v->next_value) v->next_value = MARK_FIRST;
+    if (pitch_offset)
+        pitch_item(v, pitch_offset);
+    text = n_marks ? marked_text(utf8, marks, n_marks, values, &v->next_value, &n) : say_text(utf8, &n);
+    for (i = 0; i < n_marks; i++) {
+        v->mk[i].id = marks[i].id;
+        v->mk[i].value = values[i];
+    }
+    v->n_mk = n_marks;
+    free(values);
+    if (!text || !n) {                                       /* nothing to say: its marks with the next render */
         free(text);
         restore_pitch(v);
         return 0;
@@ -504,9 +776,14 @@ SO_API int sov_render(so_voice *v, const short **pcm, int *done)
     int n, start = 0, count;
     *pcm = v->pcm;
     *done = 0;
-    if (!v->active) { *done = 1; return 0; }
+    if (!v->active) {                                          /* nothing to say: its marks are reached at once */
+        report_marks(v, 0, 0, 1);
+        *done = 1;
+        return 0;
+    }
     n = box_run(box_of(v), BLOCK_S, STEP_S, &y);
     if (n < 0) {                    /* the host has faulted (the Sounding Board's does so): rebooted at the next begin */
+        report_marks(v, 0, 0, 1);
         finish(v);
         v->fault = !getenv("SO_VOICE_FAULT_BREAK");     /* the tests' control: the fault unsaid, as it was */
         *done = 1;
@@ -525,7 +802,7 @@ SO_API int sov_render(so_voice *v, const short **pcm, int *done)
     count = n - start;
     if (count > v->pcm_cap) {
         short *q = (short *)realloc(v->pcm, (size_t)count * sizeof(short));
-        if (!q) { finish(v); *done = 1; return 0; }
+        if (!q) { report_marks(v, 0, 0, 1); finish(v); *done = 1; return 0; }
         v->pcm = q;
         v->pcm_cap = count;
     }
@@ -546,6 +823,7 @@ SO_API int sov_render(so_voice *v, const short **pcm, int *done)
         v->active = 0;
         *done = 1;
     }
+    report_marks(v, start, count > 0 ? count : 0, *done);
     return count > 0 ? count : 0;
 }
 
@@ -553,6 +831,8 @@ SO_API int sov_render(so_voice *v, const short **pcm, int *done)
    utterance in progress the driver's worker is idle and a cancel leaves the box alone: so does this. */
 SO_API void sov_cancel(so_voice *v)
 {
+    if (sov_marks_break != 3)
+        v->n_mk = v->n_reached = 0;                            /* no mark of a cancelled text is reported */
     if (!v->active)
         return;
     sov_end(v);                                                /* _speakJob's finally */

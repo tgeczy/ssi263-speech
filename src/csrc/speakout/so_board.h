@@ -55,6 +55,12 @@ int so_input_count(const so_board *b);  /* the bytes queued and loaded, not yet 
 
 int so_writes(const so_board *b, const so_write **w);     /* the chip writes since so_clear_writes, in order */
 void so_clear_writes(so_board *b);
+/* The bytes the box sent on its serial line since so_clear_tx (the SCU's data register, OUT port 0), in order: its
+   replies to index marks (so_voice.h).  At most SO_TX are kept between two clears; the box sends one a chip
+   interrupt at the most, and the host clears after every slice. */
+#define SO_TX 64
+int so_tx(const so_board *b, const uint8_t **bytes);
+void so_clear_tx(so_board *b);
 
 void so_read(const so_board *b, uint32_t addr, uint8_t *out, int n);
 void so_poke(so_board *b, uint32_t addr, const uint8_t *data, int n);

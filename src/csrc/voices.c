@@ -239,6 +239,13 @@ static void eng_so_set(void *u, const ssv_settings *s)
     sov_set((so_voice *)u, s->rate, s->pitch, s->tone, s->volume, s->join, s->pack);
 }
 static int eng_so_speak(void *u, const char *utf8, int pitch_offset) { return sov_speak((so_voice *)u, utf8, pitch_offset) > 0; }
+static int eng_so_speak_marked(void *u, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
+{
+    if (!sov_marks_exact((so_voice *)u))             /* (the Sounding Board: estimated) */
+        return -2;
+    return sov_speak_marked((so_voice *)u, utf8, pitch_offset, marks, n_marks) > 0;
+}
+static int eng_so_reached(void *u, const ssv_reach **out) { return sov_reached((so_voice *)u, out); }
 static int eng_so_render(void *u, const short **pcm, int *done) { return sov_render((so_voice *)u, pcm, done); }
 static void eng_so_cancel(void *u) { sov_cancel((so_voice *)u); }
 static void eng_so_destroy(void *u) { sov_destroy((so_voice *)u); }
@@ -346,7 +353,8 @@ static const ssv_engine *engine(int kind)
                                   eng_bl_speak_marked, eng_bl_reached};
     static const ssv_engine as = {eng_as_create, eng_as_set, eng_as_speak, eng_as_render, eng_as_cancel, eng_as_destroy};
 #ifdef SSV_HAVE_SPEAKOUT
-    static const ssv_engine so = {eng_so_create, eng_so_set, eng_so_speak, eng_so_render, eng_so_cancel, eng_so_destroy};
+    static const ssv_engine so = {eng_so_create, eng_so_set, eng_so_speak, eng_so_render, eng_so_cancel, eng_so_destroy,
+                                  eng_so_speak_marked, eng_so_reached};
 #endif
 #ifdef SSV_HAVE_ACCENTMINI
     static const ssv_engine am = {eng_am_create, eng_am_set, eng_am_speak, eng_am_render, eng_am_cancel, eng_am_destroy};
@@ -355,7 +363,8 @@ static const ssv_engine *engine(int kind)
     static const ssv_engine mb = {eng_mb_create, eng_mb_set, eng_mb_speak, eng_mb_render, eng_mb_cancel, eng_mb_destroy};
 #endif
 #ifdef SSV_HAVE_SOUNDINGBOARD
-    static const ssv_engine sb = {eng_sb_create, eng_so_set, eng_so_speak, eng_so_render, eng_so_cancel, eng_so_destroy};
+    static const ssv_engine sb = {eng_sb_create, eng_so_set, eng_so_speak, eng_so_render, eng_so_cancel, eng_so_destroy,
+                                  eng_so_speak_marked, eng_so_reached};
 #endif
 #ifdef SSV_HAVE_SMARTALK
     static const ssv_engine st = {eng_st_create, eng_st_set, eng_st_speak, eng_st_render, eng_st_cancel, eng_st_destroy};

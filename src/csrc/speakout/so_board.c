@@ -20,6 +20,8 @@ struct so_board {
     so_scu scu;
     so_write *w;
     int n_w, cap_w;
+    uint8_t tx[SO_TX];                      /* so_tx */
+    int n_tx;
     /* so_run_steps_unicorn: the step's start, as its boundary saw it */
     int watch;                              /* record at the boundary */
     uint32_t step_pc;
@@ -72,7 +74,9 @@ static void out(void *ctx, uint16_t p, uint8_t v)
 {
     so_board *b = (so_board *)ctx;
     if (p == 8 || p == 9)
-        so_icu_out(&b->icu, p, v);          /* everything else: ignored, as speakout.py ignores it */
+        so_icu_out(&b->icu, p, v);
+    else if (p == 0 && b->n_tx < SO_TX)     /* the serial unit's data register: a byte for the PC (so_tx) */
+        b->tx[b->n_tx++] = v;               /* everything else: ignored, as speakout.py ignores it */
 }
 
 static int ack(void *ctx, int line, int n)
@@ -258,6 +262,17 @@ int so_writes(const so_board *b, const so_write **w)
 void so_clear_writes(so_board *b)
 {
     b->n_w = 0;
+}
+
+int so_tx(const so_board *b, const uint8_t **bytes)
+{
+    *bytes = b->tx;
+    return b->n_tx;
+}
+
+void so_clear_tx(so_board *b)
+{
+    b->n_tx = 0;
 }
 
 void so_read(const so_board *b, uint32_t addr, uint8_t *out, int n)

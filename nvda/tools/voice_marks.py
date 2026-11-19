@@ -16,6 +16,7 @@ to the front of the word a mark stands before, and each mark reported where the 
            on at most one phoneme a sentence (the unit starts a sentence's final fall a phoneme late when a mark
            stands where it begins: its own doing, bl_voice.h); at rates 0 and 50 the times between phoneme loads
            the same to STEP_MS and one pause frame added for each Ctrl-F
+  twins    two marks on one word are reported together, where the unit's one echo for them comes
   end      a mark after the last word is reported once the last word has begun, and before done
   dense    a mark before every word of a long sentence (Orca's way): all reported once, in order, never earlier than
            the one before, at as many places
@@ -354,6 +355,12 @@ def main():
               "%d marked utterances (rates 0, 50, 100; short pauses off, on): every phoneme and its R2-R4 as without "
               "marks, R1 a phoneme late on %d, the times between phonemes the same to %.1f ms at rates 0 and 50, one "
               "pause frame a Ctrl-F" % (runs, r1_total, worst_all))
+
+        text = "one, nine, one"
+        y, got, done, _ = run(lib, v, text, [5, 5, 11])
+        check("twins", done and [g[0] for g in got] == [100, 101, 102] and got[0][1] == got[1][1] < got[2][1] < len(y),
+              "two marks on one word and one on the next: reported at %s ms of %d" % (
+                  ", ".join("%d" % ms(g[1]) for g in got), ms(len(y))))
 
         text = "one, nine, one"
         y, got, done, _ = run(lib, v, text, [len(text)])

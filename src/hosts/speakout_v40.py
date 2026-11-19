@@ -68,6 +68,9 @@ def _load():
         lib.so_writes.argtypes = [_P, ctypes.POINTER(ctypes.POINTER(_Write))]
         lib.so_writes.restype = c_int
         lib.so_clear_writes.argtypes = [_P]
+        lib.so_tx.argtypes = [_P, ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte))]
+        lib.so_tx.restype = c_int
+        lib.so_clear_tx.argtypes = [_P]
         lib.so_read.argtypes = [_P, c_uint32, ctypes.c_char_p, c_int]
         for fn in (lib.so_cycles, lib.so_steps):
             fn.argtypes = [_P]
@@ -135,6 +138,14 @@ class Board:
         n = self._lib.so_writes(self._h, ctypes.byref(self._wp))
         out = [(self._wp[i].reg, self._wp[i].val) for i in range(n)]
         self._lib.so_clear_writes(self._h)
+        return out
+
+    def take_tx(self):
+        """The bytes the box sent on its serial line since the last call, in order (so_board.h so_tx)."""
+        p = ctypes.POINTER(ctypes.c_ubyte)()
+        n = self._lib.so_tx(self._h, ctypes.byref(p))
+        out = [p[i] for i in range(n)]
+        self._lib.so_clear_tx(self._h)
         return out
 
     def read(self, addr, n):

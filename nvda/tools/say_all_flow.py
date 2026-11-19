@@ -63,6 +63,9 @@ OWN_VOICES = (None, "blazie")     # the Braille Lite voices whose release was me
 # SSI263_SYNTH_DRIVERS: another folder's drivers (the 0.8 add-on's units: synthDrivers/_ssi263_unified)
 BUILD = os.environ.get("SSI263_SYNTH_DRIVERS") or repo_paths.synth_drivers(WHICH)
 TICK_MS = 6.0
+BLOCK_MS = 30.0                   # a render block: the silence between two texts of one job is whole blocks, one more
+                                  # or less by where the unit is when the next text reaches it (the capital sequence
+                                  # six times in a row on the Speak-Out: its sound ending at 1046-1058 ms, once 1079)
 SAME_MS = 15.0                    # two utterances of five words on these units: up to 13 ms apart (the SmarTalk)
 if VOICE == "blazie_de":            # the German Braille Lite says the same two lines 1,444 to 1,473 ms long from
     SAME_MS = 35.0                # one run to the next, with no mark sent to it (four runs)
@@ -230,6 +233,15 @@ def say(seq, timeout=30.0):
     return audio[start:], reached
 
 
+def sound_end(audio):
+    """the last sample that sounds (a fiftieth of the loudest), plus one: an utterance's length without the silence
+    after it, which is a 30 ms block more or less from one utterance to the next"""
+    if not len(audio):
+        return 0
+    loud = np.nonzero(np.abs(audio) > np.max(np.abs(audio)) / 50.0)[0]
+    return int(loud[-1]) + 1 if len(loud) else 0
+
+
 def flow(on):
     """the driver with its lines joined, or without (each text a line of its own)"""
     drv_mod.FLOW = bool(on) and not BREAK
@@ -282,9 +294,9 @@ def main():
     flow(False)
     r2, _ = say(cap)
     flow(True)
-    check("capital", abs(ms(len(a2)) - ms(len(r2))) <= 3 * TICK_MS and sorted(reached2) == [1, 2],
-          "a capital between two texts: %.0f ms, without the flow %.0f ms; indexes %s" % (
-              ms(len(a2)), ms(len(r2)), sorted(reached2)))
+    check("capital", abs(ms(sound_end(a2)) - ms(sound_end(r2))) <= 3 * TICK_MS + BLOCK_MS and sorted(reached2) == [1, 2],
+          "a capital between two texts: its sound ends at %.0f ms, without the flow at %.0f ms; indexes %s" % (
+              ms(sound_end(a2)), ms(sound_end(r2)), sorted(reached2)))
 
     d._set_joinPhrases(False)
     off, reached3 = say(seq)
@@ -353,6 +365,22 @@ def main():
             check("gated", sorted(reached4) == [1, 2] and used == 0 and reached4.get(2, 0) < len(a3),
                   "this unit's own marks are not used: %d Ctrl-F sent for the index (0 wanted), the index at %.2f "
                   "of the audio" % (used, at))
+    if WHICH == "speakout" and VOICE is None:
+        # the Speak-Out's own index marks (so_voice.h): the second line's index where the box says speech is, not
+        # at its share of the characters; and the line as long as without them (the box's speech is the same)
+        long_short = [IndexCommand(1), "w w w w", IndexCommand(2), "it is on this"]
+        keep = drv_mod.OWN_MARKS
+        drv_mod.OWN_MARKS = False
+        say(long_short)
+        est, _ = say(long_short)
+        drv_mod.OWN_MARKS = keep
+        a3, reached4 = say(long_short)
+        at = reached4.get(2, 0) / (float(len(a3)) or 1.0)
+        check("own", sorted(reached4) == [1, 2] and at >= OWN_AT and reached4.get(2, 0) < len(a3)
+              and abs(ms(sound_end(a3)) - ms(sound_end(est))) <= SAME_MS + BLOCK_MS,
+              "\"w w w w\" then \"it is on this\": the second line's index at %.2f of the audio (its share of "
+              "the characters: 0.36); its sound ends at %.0f ms, with the indexes estimated at %.0f ms" % (
+                  at, ms(sound_end(a3)), ms(sound_end(est))))
     print("say all flow: %s" % ("all ok" if not failures else "%d FAILED" % failures))
     return 1 if failures else 0
 

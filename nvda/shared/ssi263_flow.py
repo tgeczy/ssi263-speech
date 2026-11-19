@@ -97,6 +97,28 @@ def line_groups(run, prepare, limit):
         yield line_text(group, prepare)
 
 
+def play_own(render, reached, feed, notify, cancelled):
+    """The line has been said to a unit that reports its own index marks: its audio to the player, each index
+    where the unit says speech is -- the block's audio up to the mark's sample, the index, then the rest.  render:
+    the unit's next block, (PCM bytes, done); reached(): the marks in that block, [(index, sample)]; feed, notify:
+    the driver's player and its index callback; cancelled(): stop.  Returns the indexes reported."""
+    done, told = False, []
+    while not done and not cancelled():
+        pcm, done = render()
+        at = 0
+        for index, sample in reached():
+            cut = max(at, min(len(pcm), 2 * sample))
+            if cut > at and not cancelled():
+                feed(pcm[at:cut])
+            at = cut
+            if not cancelled():
+                notify(index)
+                told.append(index)
+        if len(pcm) > at and not cancelled():
+            feed(pcm[at:])
+    return told
+
+
 def play_line(render, marks, chars, feed, notify, cancelled):
     """The line has been said to the unit: its audio to the player, each index reported at its place.  render: the
     unit's next block, (PCM bytes, done); feed, notify: the driver's player and its index callback; cancelled():

@@ -22,6 +22,7 @@
 
 #include <stddef.h>
 #include "so_host.h"
+#include "../marks.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,6 +70,39 @@ SO_API void sov_cancel(so_voice *v);
 /* Nonzero once the V40 has faulted (an undefined opcode or a halt the firmware never makes): the box is rebooted by
    the next sov_speak, as the driver reboots it when speech fails. */
 SO_API int sov_fault(const so_voice *v);
+
+/* Index marks (../marks.h).  The box has its own: 05h 5Bh xx (Ctrl-E [ and a byte) in the text comes back as the
+   byte xx on its serial line when speech reaches that place; Ctrl-E ] 1 turns the replies on (they are on at
+   power-up) and Ctrl-E ] 0 off.  Its manual leaves the command out; GW Micro's own Windows driver settings name it
+   (Marker=^E[^F, MarkerReply=^F, Initialize=^E]1^M), and so does the Sounding Board's manual.
+   sov_speak_marked: as sov_speak, the box's mark at the front of the word each of the caller's marks stands before:
+   after the space before it, where the box takes it for nothing but a word boundary.  The text is prepared whole,
+   exactly as without marks; marks on one word are one mark to the box; one before the first word needs none.
+   sov_reached: the marks speech reached in the block the last sov_render returned, in order, each with the sample
+   at which the box's reply came: one before the first word with the first block, one after the last word with the
+   last block (after its last sample), whatever else is left at the utterance's end with the last block too, not
+   exact, and nothing after a cancel.
+   sov_marks_exact: 1 for the Speak-Out box.  0 for the Sounding Board, whose DOS driver reports marks another way
+   (INT 17h: a count and the last value), not used yet: sov_speak_marked then speaks without marks and reports none,
+   and the voice table estimates them (voices.c).
+
+   MEASURED on the emulated box (2026-11-19, docs/index-marks.md): the reply comes with the first chip frame of the
+   word after the mark, within one 0.5 ms slice of it; one reply a chip interrupt; with the mark between two words
+   every chip write of the marked text is the unmarked text's, in order, and the times between phonemes the same to
+   1.0 ms; thirteen of the 256 values must not be used (05h, 18h, 19h, BAh-BFh, FAh, FCh, FDh, FEh). */
+SO_API int sov_marks_exact(const so_voice *v);
+SO_API int sov_speak_marked(so_voice *v, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks);
+SO_API int sov_reached(so_voice *v, const ssv_reach **out);
+/* The bytes sov_speak_marked would send for the text (as sov_say_bytes; the marks' bytes from 30h on), for tests. */
+SO_API int sov_say_bytes_marked(const char *utf8, const ssv_mark *marks, int n_marks, unsigned char *out, int cap);
+/* In a job (sov_begin ... sov_end, the NVDA driver's): the box's marks in the text about to be given to sov_text.
+   The caller put 05h 5Bh xx at the front of the words itself; here it says which bytes to expect, in the text's
+   order: marks[i].at is the byte xx (one the box sends back as it is: 30h-7Ah are), marks[i].id the caller's own
+   number.  sov_reached then gives them after each sov_render, as for sov_speak_marked; what the box has not sent
+   back when the text is done comes with its last block.  0 when this box's replies are not used
+   (sov_marks_exact): the caller then leaves the marks out of the text. */
+SO_API int sov_expect(so_voice *v, const ssv_mark *marks, int n_marks);
+SO_API extern int sov_marks_break;          /* the tests' controls (so_voice.c) */
 
 /* A job: NVDA's whole speech sequence as the NVDA driver (nvda/speakout/synthDrivers/speakout.py, since 0.7.5 on
    this library) speaks it -- several texts, PitchCommands and IndexCommands in one utterance, which sov_speak cannot

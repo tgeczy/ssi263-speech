@@ -96,7 +96,7 @@ control "release voices CONTROL (a non-echoing unit's own end left out, must fai
 # where the unit echoes it; the words never changed by a mark, the chip's writes compared with the unmarked text's
 check "bl_voice: index marks by the unit's own Ctrl-F" env SSI263_FIRMWARE="$DATA" python3 nvda/tools/voice_marks.py
 control "bl_voice marks CONTROL (every mark in the first block, must fail)" "^FAIL place " "^FAIL lines " \
-    "^FAIL end " "^FAIL dense " "^FAIL cancel " "^voice marks: 6 FAILED$" \
+    "^FAIL end " "^FAIL dense " "^FAIL cancel " "^FAIL twins " "^voice marks: 7 FAILED$" \
     -- env SSI263_FIRMWARE="$DATA" VOICE_MARKS_BREAK=1 python3 nvda/tools/voice_marks.py
 control "bl_voice marks CONTROL (a Ctrl-F for every mark on one word, must fail)" \
     "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^voice marks: 2 FAILED$" \
@@ -729,6 +729,26 @@ done
 for sb in "$DATA/gw-micro-sounding-board" "$ROOT/firmware/gw-micro-sounding-board" "$DATA/../speakout-firmware"; do
     [ -f "$sb/SB.COM" ] && [ -f "$sb/SBLOAD.COM" ] && { ln -sf "$sb/SB.COM" "$sb/SBLOAD.COM" $SOFW/gw-micro-sounding-board/; break; }
 done
+# index marks (src/csrc/marks.h): the Speak-Out's own, Ctrl-E [ x at the front of each marked word, each mark reported
+# where the box's reply comes on its serial line; the chip's writes the unmarked text's (as run_tests.py's)
+if [ -f $SOFW/gw-micro-speakout/SPEAKOUT.HEX ]; then
+    SOM="env SSI263_SPEAKOUT_HEX=$SOFW/gw-micro-speakout/SPEAKOUT.HEX"
+    check "so_voice: index marks by the box's own Ctrl-E [" $SOM python3 nvda/tools/so_marks.py \
+        build/linux/libssi263_voices.so
+    control "so_voice marks CONTROL (every mark with the first block, must fail)" "^FAIL place " "^FAIL lines " \
+        "^FAIL end " "^FAIL dense " "^FAIL cancel " "^FAIL twins " "^ok +frames " "^so marks: 6 FAILED$" \
+        -- $SOM SO_MARKS_BREAK=1 python3 nvda/tools/so_marks.py build/linux/libssi263_voices.so
+    control "so_voice marks CONTROL (a mark for every one on a word, must fail)" \
+        "^FAIL same +three marks on one word: ..3 mark before 'two'" "^so marks: 2 FAILED$" \
+        -- $SOM SO_MARKS_BREAK=2 python3 nvda/tools/so_marks.py build/linux/libssi263_voices.so
+    control "so_voice marks CONTROL (the marks left after a cancel, must fail)" "^FAIL cancel .* 5 reported after it" \
+        "^so marks: 1 FAILED$" -- $SOM SO_MARKS_BREAK=3 python3 nvda/tools/so_marks.py build/linux/libssi263_voices.so
+    control "so_voice marks CONTROL (the box's mark inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
+        "^FAIL bytes " "^so marks: 7 FAILED$" \
+        -- $SOM SO_MARKS_BREAK=4 python3 nvda/tools/so_marks.py build/linux/libssi263_voices.so
+else
+    echo "skip  so_voice index marks: no SPEAKOUT.HEX here"
+fi
 if [ -f $SOFW/gw-micro-speakout/SPEAKOUT.HEX ] && [ -f $SOFW/gw-micro-sounding-board/SB.COM ]; then
     check "Speak-Out and Sounding Board at rate 0: no letter starts with the last" python3 tools/check_so_tail.py \
         build/linux/libssi263_voices.so $SOFW

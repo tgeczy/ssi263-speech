@@ -551,8 +551,8 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("blazie", "blaz
     _argv = [PY, "say_all_flow.py", _which] + ([_voice] if _voice else [])
     CHECKS.append(check("say all's lines flow: %s" % _name, _argv, env={"SSI263_SYNTH_DRIVERS": _UNITS},
                         ok=lambda out: bool(re.search(r"^say all flow: all ok$", out, re.M))))
-    if _name == "Braille Lite":             # its indexes are the unit's own marks: estimated instead, "own" must fail
-        CHECKS.append(check("say all's lines CONTROL (Braille Lite: its own index marks unused, must fail)", _argv,
+    if _name in ("Braille Lite", "Speak-Out"):   # its indexes are the unit's own marks: estimated instead, "own" must fail
+        CHECKS.append(check("say all's lines CONTROL (%s: its own index marks unused, must fail)" % _name, _argv,
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "SAY_ALL_FLOW_BREAK": "estimate"},
                             expect_fail=True, fail_marks=[r"^FAIL own ", r"^ok +flows ", r"^ok +indexes ",
                                                           r"^say all flow: 1 FAILED$"]))
@@ -1725,6 +1725,24 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
                             [PY, "so_voice_text_equiv.py", "2000", "1"], env={"SO_VOICE_TEXT_BREAK": "1"},
                             expect_fail=True,
                             fail_marks=[r"^DIFF ", r"^(?!2000 )\d+ of 2000 texts give the box the same bytes"]))
+    if os.path.isfile(SO_HEX):
+        # index marks (src/csrc/marks.h): the Speak-Out's own, Ctrl-E [ x at the front of each marked word, each mark
+        # reported where the box's reply comes on its serial line; the chip's writes the unmarked text's
+        CHECKS.append(check("so_voice: index marks by the box's own Ctrl-E [", [PY, "so_marks.py"]))
+        CHECKS.append(check("so_voice marks CONTROL (every mark with the first block, must fail)", [PY, "so_marks.py"],
+                            env={"SO_MARKS_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL place ", r"^FAIL lines ", r"^FAIL end ", r"^FAIL dense ",
+                                        r"^FAIL cancel ", r"^FAIL twins ", r"^ok +frames ", r"^so marks: 6 FAILED$"]))
+        CHECKS.append(check("so_voice marks CONTROL (a mark for every one on a word, must fail)", [PY, "so_marks.py"],
+                            env={"SO_MARKS_BREAK": "2"}, expect_fail=True,
+                            fail_marks=[r"^FAIL same +three marks on one word: \[.3 mark before 'two'",
+                                        r"^so marks: 2 FAILED$"]))
+        CHECKS.append(check("so_voice marks CONTROL (the marks left after a cancel, must fail)", [PY, "so_marks.py"],
+                            env={"SO_MARKS_BREAK": "3"}, expect_fail=True,
+                            fail_marks=[r"^FAIL cancel .* 5 reported after it", r"^so marks: 1 FAILED$"]))
+        CHECKS.append(check("so_voice marks CONTROL (the box's mark inside its word, must fail)", [PY, "so_marks.py"],
+                            env={"SO_MARKS_BREAK": "4"}, expect_fail=True,
+                            fail_marks=[r"^FAIL frames .*phonemes DIFFER", r"^FAIL bytes ", r"^so marks: 7 FAILED$"]))
     if os.path.isfile(SO_HEX) and os.path.isfile(os.path.join(SO_LIB, "so_render.exe")):
         CHECKS.append(check("Speak-Out: the C API alone (so_render)",
                             [os.path.join(SO_LIB, "so_render.exe"), SO_HEX, "Testing one two three.",
@@ -1907,7 +1925,7 @@ CHECKS.append(check("bl_voice: index marks by the unit's own Ctrl-F", [PY, "voic
 CHECKS.append(check("bl_voice marks CONTROL (every mark in the first block, must fail)", [PY, "voice_marks.py"],
                     env={"VOICE_MARKS_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^FAIL place ", r"^FAIL lines ", r"^FAIL end ", r"^FAIL dense ", r"^FAIL cancel ",
-                                r"^voice marks: 6 FAILED$"]))
+                                r"^FAIL twins ", r"^voice marks: 7 FAILED$"]))
 CHECKS.append(check("bl_voice marks CONTROL (a Ctrl-F for every mark on one word, must fail)", [PY, "voice_marks.py"],
                     env={"VOICE_MARKS_BREAK": "2"}, expect_fail=True,
                     fail_marks=[r"^FAIL same +three marks on one word: \[.3 Ctrl-F before 'two'", r"^voice marks: 2 FAILED$"]))

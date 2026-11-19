@@ -5,8 +5,8 @@ voice whose firmware is in the firmware folder.
            utterances: a unit is not steady from one utterance to the next, a fresh one from the same start is),
            nothing reported
   once     a mark before every word: each reported exactly once, in the caller's order, its sample inside its block
-  kind     exact on a Braille Lite whose release was measured for its own marks (blazie:blazie), estimated on every
-           other voice -- and on that Braille Lite too while it is run ahead of the listener
+  kind     exact on a Braille Lite whose release was measured for its own marks (blazie:blazie) and on the Speak-Out,
+           estimated on every other voice -- and on that Braille Lite too while it is run ahead of the listener
   audio    estimated marks send the unit nothing, and the audio rendered ahead comes back whole and in order: the
            samples are the unmarked utterance's, byte for byte (fresh units, as "none")
   place    estimated: no mark before its share of the utterance (to a block), none later than the unit takes to
@@ -44,7 +44,8 @@ LIB = args[0] if args else os.environ.get("SSI263_LIB") or (
     else os.path.join(ROOT, "build", "linux", "libssi263speech.so"))
 VOICES = ["blazie:blazie", "blazie:blazie_es", "blazie:blazie_de", "speakout:speakout", "accentmini:sa", "accentmini:mini",
           "mockingboard:mockingboard", "smartalk:smartalk"]
-OWN = {"blazie:blazie"}             # the voices whose unit's own marks are used (bl_languages.txt's marks column)
+OWN = {"blazie:blazie", "speakout:speakout"}    # the voices whose unit's own marks are used (the Braille Lite
+                                                # releases measured for them, bl_languages.txt; the Speak-Out)
 TEXT = "this is a plain line of words, and then it goes on some more, until it ends"
 MAX_BLOCKS = 1500
 AHEAD = 8                           # voices.c AHEAD
@@ -207,7 +208,7 @@ def main():
         check("cancel", after == 0 and first < len(ats) and done2 and [g[0] for g in got2] == [100, 101, 102],
               "cancelled after %d of %d marks, %d reported after it (0 wanted); the next utterance's: %s" % (
                   first, len(ats), after, [g[0] for g in got2]))
-        if own:
+        if vid == "blazie:blazie":
             s.run_ahead, s.pack = 1, 1
             r, y, got, sizes, done, _ = run(lib, v, s, TEXT, ats)
             s.run_ahead = 0

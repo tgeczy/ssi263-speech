@@ -105,6 +105,9 @@ class SpeakOut:
         self.rx_byte = None
         self.waiting = b""         # text said and not yet sent (_feed)
         self.port_log = {}
+        self.replies = []          # the last run()'s bytes from the box's serial line: (byte, the samples of the
+        self._made = None          # run made when it came) -- its replies to index marks (so_voice.h); and
+        self.tx_count = 0          # every byte it ever sent back
         self.chip_writes = []      # (chip time, reg, value)
         self.keep_writes = True    # an NVDA driver turns this off: the list would grow forever
         self.last_speech = -1.0    # chip time of the last non-idle phoneme load
@@ -143,6 +146,8 @@ class SpeakOut:
                 self.imr = value & 0xFF
         else:
             self.port_log[("out", port)] = self.port_log.get(("out", port), 0) + 1
+            if port == 0:                               # the serial unit's data register: a byte for the PC
+                self._sent_back(value & 0xFF)
 
     def _mem_write(self, uc, access, addr, size, value, _):
         reg = addr - CHIP_BASE
@@ -163,6 +168,11 @@ class SpeakOut:
             self.preparing = False
 
     # ---- CPU ---------------------------------------------------------------------
+    def _sent_back(self, byte):
+        self.tx_count += 1
+        if self._made is not None:
+            self.replies.append((byte, self._made))
+
     def _cpu(self, count):
         uc = self.uc
         cs = uc.reg_read(UC_X86_REG_CS)
@@ -326,14 +336,17 @@ class SpeakOut:
     def run(self, seconds, step=0.0005):
         self._feed()
         out, t = [], 0.0
+        self.replies, self._made = [], 0
         while t < seconds:
             self._offer()
             before = self.chip.time
             y = self.chip.run_until_request(step) if not self.chip.request else self.chip.run(step / 4)
             out.append(y)
+            self._made += len(y)
             dt = max(self.chip.time - before, 1e-5)
             self._cpu(max(200, int(self.cpu_ips * dt)))
             t += dt
+        self._made = None
         return self.chip.dsp.concat(out)
 
 
@@ -361,6 +374,7 @@ class SpeakOutV40(SpeakOut):
         self.uc = None
         self.waiting = b""         # text said and not yet sent (_feed)
         self.port_log = {}
+        self.replies, self._made, self.tx_count = [], None, 0
         self.chip_writes = []
         self.keep_writes = True
         self.last_speech = -1.0
@@ -377,6 +391,8 @@ class SpeakOutV40(SpeakOut):
             b.run_cycles(int(count * self.clock_hz / self.cpu_ips))
         for reg, v in b.take_writes():
             self._chip_write(reg, v)
+        for byte in b.take_tx():
+            self._sent_back(byte)
         self.insns += b.steps() - s0
 
     def _offer(self):

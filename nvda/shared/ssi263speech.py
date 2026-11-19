@@ -33,6 +33,14 @@ class _Write(ctypes.Structure):
     _fields_ = [("t", _D), ("reg", _I), ("val", _I)]
 
 
+class _Mark(ctypes.Structure):                         # src/csrc/marks.h's ssv_mark
+    _fields_ = [("at", _I), ("id", _I)]
+
+
+class _Reach(ctypes.Structure):                        # ... and its ssv_reach
+    _fields_ = [("id", _I), ("sample", _I), ("exact", _I)]
+
+
 def dll_path(engine_dir):
     """The library for this Python's bitness, in an add-on's engine folder: bin/x64 or bin/x86."""
     return os.path.join(engine_dir, "bin", ARCH, "ssi263speech.dll")
@@ -68,6 +76,10 @@ def load(path):
     _sig(lib, "sov_host", _P, [_P])
     _sig(lib, "sov_chip", _P, [_P])
     _sig(lib, "sov_fault", _I, [_P])
+    if hasattr(lib, "sov_expect"):                        # the box's own index marks (so_voice.h)
+        _sig(lib, "sov_marks_exact", _I, [_P])
+        _sig(lib, "sov_expect", _I, [_P, ctypes.POINTER(_Mark), _I])
+        _sig(lib, "sov_reached", _I, [_P, ctypes.POINTER(ctypes.POINTER(_Reach))])
     _sig(lib, "amv_create_mem", _P, [_S, ctypes.c_size_t, _D] + err)
     _sig(lib, "amv_set", None, [_P] + [_I] * 6)
     _sig(lib, "amv_say_bytes", _I, [_S, _I, _S, _I])
@@ -291,6 +303,29 @@ class SpeakOutC(_Unit):
         out = ctypes.create_string_buffer(n + 1)
         self._lib.sov_say_bytes(data, out, n + 1)
         return out.raw[:n].rstrip(b"\r").decode("latin-1")
+
+    # ---- the box's own index marks (so_voice.h): 05h 5Bh xx in the text comes back as xx when speech is there ------
+    MARK = "\x05["                         # then the byte, MARK_FIRST .. MARK_LAST (so_voice.c's)
+    MARK_FIRST, MARK_LAST = 0x30, 0x7A
+
+    def own_marks(self):
+        """True when this box's replies to its index marks are used: the Speak-Out (not the Sounding Board, whose
+        DOS driver reports them another way)"""
+        return hasattr(self._lib, "sov_expect") and bool(self._lib.sov_marks_exact(self._v))
+
+    def expect(self, pairs):
+        """the marks in the text about to be said, in its order: [(the byte each comes back as, the caller's
+        number for it)]; False when they are not used (the text is then said without them)"""
+        arr = (_Mark * len(pairs))()
+        for k, (value, number) in enumerate(pairs):
+            arr[k].at, arr[k].id = int(value), int(number)
+        return bool(self._call("expect", arr, len(pairs)))
+
+    def reached(self):
+        """the marks speech reached in the block render() just returned: [(the caller's number, its sample in
+        that block)]"""
+        p = ctypes.POINTER(_Reach)()
+        return [(p[k].id, p[k].sample) for k in range(self._lib.sov_reached(self._v, ctypes.byref(p)))]
 
 
 class SoundingBoardC(SpeakOutC):

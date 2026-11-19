@@ -52,6 +52,16 @@ SO_API void soh_say(so_host *h, const unsigned char *bytes, int n);
 /* run(): `seconds` of chip time in `step` slices (0.0005 s): the chip's audio at out_rate, in an internal buffer
    valid until the next call.  Returns the sample count (-1: out of memory). */
 SO_API int soh_run(so_host *h, double seconds, double step, const double **audio);
+/* The bytes the box sent back on its serial line during the last soh_run -- its replies to index marks (so_voice.h:
+   05h 5Bh xx in the text comes back as xx when speech reaches it) -- each with the samples of that run's audio made
+   when it came (to the host's slice, 0.5 ms).  At most SOH_REPLIES are kept a run; soh_get_int "tx_count" counts
+   every byte ever sent back, those outside a run too. */
+typedef struct {
+    int value;                             /* the byte */
+    int sample;                            /* samples of the run's audio made when it came */
+} soh_reply;
+#define SOH_REPLIES 64
+SO_API int soh_replies(const so_host *h, const soh_reply **out);
 /* skip(): the firmware runs with the chip keeping time but making no sound (step 0.002 s); returns the time run. */
 SO_API double soh_skip(so_host *h, double seconds, double step);
 /* input_pending(): text not yet taken in, or taken in and not yet spoken by the rules */
