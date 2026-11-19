@@ -1198,6 +1198,15 @@ if os.path.isfile(os.path.join(LIB, "x64", "bl.dll")):
                         fail_marks=[r"^FAIL state history, rate 14: run ahead 2 of 25 led by other phonemes; 0\.50 s: "
                                     r"\[10, 29, 10, .*; 0\.80 s: \[12, 56, 37, 8, 2, 54\]",
                                     r"^run ahead cancel \(English\): 1 FAILED$"]))
+    # ... and a text of many lines stopped part way, then a short one (issue 30; run_ahead_kept_line.py, through the
+    # voice as Android drives it): the unit kept one line of the stopped text, silent, and spoke it in front of the
+    # next; bl_host.c's cut_kept_line releases and cuts it.  Its control leaves the line kept
+    CHECKS.append(check("run ahead: no kept line of a stopped text leads the next", [PY, "run_ahead_kept_line.py"]))
+    CHECKS.append(check("run ahead kept line CONTROL (the line left kept, must fail)", [PY, "run_ahead_kept_line.py"],
+                        env={"RUN_AHEAD_KEPT_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL a text of many lines, rate 75: 13 of 31 stops led by other phonemes",
+                                    r"^ok   a kept line the host could not resolve: 0 of 31 stops",
+                                    r"^run ahead kept line: 1 FAILED$"]))
     # the lockstep's own cancel race (lockstep_cancel.py; Astra, Reply 112 item 3, Replies 114 and 124-129): the
     # shipping default (bl_host.c cancel_settle 3: settle, then A/R held over ^X) must respeak cleanly at all 8 MAME
     # leak times retained from Astra's sweep; its controls put the race back through the host's override

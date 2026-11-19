@@ -101,9 +101,11 @@ enum {
     RA_BRK_STICKY,                 /* Reply 112 item 2 (the Braille Lite host): held input masked an error (busy 1, not
                                       -1), and was delivered over it -- a held say started a new capture, the error
                                       lost; input taken over an error; ra_start over an error */
-    RA_BRK_DROP                    /* Reply 112 item 2 (the Braille Lite host): a chip write or serial byte the board
+    RA_BRK_DROP,                   /* Reply 112 item 2 (the Braille Lite host): a chip write or serial byte the board
                                       could not store, a transmitted byte or a logged write the host could not keep,
                                       lost silently */
+    RA_BRK_HELD                    /* 0.9.2 (the Braille Lite host): a cancel left the unit keeping a line of the
+                                      cancelled text, spoken in front of the next (bl_host.c cut_kept_line skipped) */
 };
 
 typedef struct {

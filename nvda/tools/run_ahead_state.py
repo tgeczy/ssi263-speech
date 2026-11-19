@@ -59,6 +59,7 @@ DLL = os.path.join(REPO, "nvda", "dist", "blazie-lib", "x64" if sys.maxsize > 2 
 SPANISH = "--es" in sys.argv
 BREAK = os.environ.get("RUN_AHEAD_STATE_BREAK", "")   # "1": one RAM byte changed; "settle": run_ahead.h's control
 RA_BRK_SETTLE = 6                                      # run_ahead.h's RA_BRK_* order (run_ahead_equiv.py likewise)
+RA_BRK_HELD = 10
 RATE = 22050
 BLOCK = 0.03
 RAM_LO = 0x40000
@@ -134,6 +135,15 @@ def session(ahead, step=0.0005, extra_idle=0.0):
     u.run_ahead = 1 if ahead else 0
     if ahead and BREAK == "settle":            # the control: the cancel meets the unit where the capture stopped it
         u.run_ahead_break = RA_BRK_SETTLE
+    elif ahead:
+        # The cancel's CR (bl_host.c cut_kept_line, issue 30) is left out HERE (RA_BRK_HELD): it gives the unit one
+        # byte the lockstep's never gets, and every checkpoint from 'cancelled' on then differs by that byte's
+        # footprint -- English: the receive buffer's two indices one further (41E15, 41E17), the last byte taken a CR
+        # for ^X (43479), the buffer's bytes one place on (41E19...); Spanish: its line buffers one place on
+        # (41659..., 4194C...).  Seen, read cell by cell, not classified here.  So this tool still compares the two
+        # units' cancels as it did; what the CR does is run_ahead_kept_line.py's, and that the next utterance is its
+        # own text with the CR in place is run_ahead_cancel.py's (English and Spanish)
+        u.run_ahead_break = RA_BRK_HELD
     tx0 = [0]
 
     def idle(seconds):

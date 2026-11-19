@@ -88,6 +88,9 @@ struct bl_host {
        RA_SETTLE_S of CPU time; ra_settle's rule for run ahead); bit 1: A/R not requesting over the first ^X slice */
     int cancel_settle;
     int settling, cancel_settled, cancel_dropped;
+    /* bh_cancel of a run-ahead utterance, its check for a line the unit kept (there): 0 not made, 1 none kept, 2 a
+       kept line released and cut, 3 the unit worked on past HELD_CAP_S without speaking -- unresolved, never a pass */
+    int cancel_held;
     /* The line-start lift (bh_set_int "line_lift"): note-taking mode's lift of a line read because the user moved
        to it, which speech-box lines never get.  The firmware opens every line's phonemes with a pitch marker -- in
        note-taking mode, on a moved-to line, a raise (the pitch byte + 1Bh), else a normal one -- and a normal
@@ -633,9 +636,57 @@ BL_API double bh_skip(bl_host *h, double seconds)
     return t;
 }
 
+/* A line of the cancelled text the unit kept (issue 30).  The unit speaks a line when the NEXT line's end has come:
+   until then it keeps it, as it keeps its flush line.  ^X empties its unread input -- and with it the line end that
+   would have released a line it had already taken, which then waits, silent, and is spoken in front of the next
+   text (measured, the English Braille Lite: a second ^X changes nothing; a lone CR has the unit work for 0.44-0.63 s,
+   echo ^F and speak the whole line).  The lockstep unit is seldom caught so (2 of 271 cancel times over a 300-
+   character text); the unit run ahead has read on while the listener is mid-line, and was at 50 of 268.  So, after
+   the cut, when the cancelled run-ahead utterance still owed lines: a lone CR; then the unit is watched.  With no
+   line kept its CPU never works for more than 22 ms without waiting for an interrupt; with one kept it starts on the
+   line within 102 ms and works without a break until it speaks, 0.45-0.77 s after the CR (measured over rates 25-100
+   and a text of short lines, 1421 cancel times, 256 of them with a line kept).  So HELD_BUSY_S of unbroken work
+   within HELD_WATCH_S says a line is kept, and the moment the unit loads a spoken phoneme the line is cut as any
+   speech is.  The CR's own empty line is then the one kept: it has no ^F, so nothing is owed for it.  The sound of
+   all this is skipped, never heard. */
+#define HELD_WATCH_S 0.18
+#define HELD_BUSY_S 0.05
+#define HELD_CAP_S 1.5
+#define HELD_SLICE_S 0.001
+
+static double cut_kept_line(bl_host *h, double quiet, double cut)
+{
+    static const unsigned char cr = 0x0D;
+    double t = 0.0, run = 0.0, longest = 0.0, mark = h->last_speech;
+    h->cancel_held = 1;
+    send_now(h, &cr, 1);
+    while (t < HELD_CAP_S) {
+        t += bh_skip(h, HELD_SLICE_S);
+        if (h->last_speech > mark) {                       /* the kept line, speaking: cut it */
+            double c = 0.0;
+            h->cancel_held = 2;
+            while (c < 1.0) {
+                bl_urgent(h->unit, 0x18);
+                events(h);
+                c += bh_skip(h, cut);
+                if (c >= 0.04 && ssi263_time(h->chip) - h->last_speech > quiet)
+                    break;
+            }
+            return t + c;
+        }
+        run = ra_cb_idle(h) ? 0.0 : run + HELD_SLICE_S;
+        if (run > longest)
+            longest = run;
+        if (t >= HELD_WATCH_S - 1e-9 && longest < HELD_BUSY_S - 1e-9 && run == 0.0)
+            return t;                                      /* never at work for long: no line was kept */
+    }
+    h->cancel_held = 3;
+    return t;
+}
+
 BL_API double bh_cancel(bl_host *h, double limit, double quiet, double cut)
 {
-    int holding;
+    int holding, ra_cut = 0;
     double t = 0.0;
     HTR("CANCEL t=%.6f cyc=%llu ra active=%d capturing=%d nw=%d ri=%d nack=%d seg=%d pending=%d end=%d req=%d "
         "sent=%d echo=%d stale=%d held=%d\n", ssi263_time(h->chip), (unsigned long long)bl_cycles(h->unit),
@@ -663,6 +714,9 @@ BL_API double bh_cancel(bl_host *h, double limit, double quiet, double cut)
         ra_abort(&h->ra);
         h->ar = -1;
         h->ar_hold = h->ra.brk != RA_BRK_SETTLE;           /* the control puts both back */
+        /* a line the unit kept is released and cut below (cut_kept_line); its control leaves it kept, and the
+           0.7 draft's cancel (RA_BRK_SETTLE) had no such step either */
+        ra_cut = h->ra.brk != RA_BRK_HELD && h->ra.brk != RA_BRK_SETTLE;
     } else if (h->cancel_settle) {                         /* lockstep cancellation (struct bl_host) */
         h->cancel_settled = -1;
         h->cancel_dropped = 0;
@@ -704,6 +758,9 @@ BL_API double bh_cancel(bl_host *h, double limit, double quiet, double cut)
             break;
     }
     h->ar_hold = 0;
+    h->cancel_held = 0;
+    if (ra_cut && bh_owed(h) > 0)                          /* lines it never began: one of them may be kept */
+        t += cut_kept_line(h, quiet, cut);
     HTR("CANCEL END t=%.6f cyc=%llu echo %d -> %d (holding %d) sent=%d\n", ssi263_time(h->chip),
         (unsigned long long)bl_cycles(h->unit), h->echo_f, holding ? h->sent_f - 1 : h->sent_f, holding, h->sent_f);
     h->echo_f = holding ? h->sent_f - 1 : h->sent_f;
@@ -930,6 +987,7 @@ BL_API int bh_get_int(const bl_host *h, const char *name)
     if (!strcmp(name, "cancel_settle")) return h->cancel_settle;
     if (!strcmp(name, "cancel_settled")) return h->cancel_settled;
     if (!strcmp(name, "cancel_dropped")) return h->cancel_dropped;
+    if (!strcmp(name, "cancel_held")) return h->cancel_held;
     if (!strcmp(name, "tx_lost")) return h->tx_lost;
     if (!strcmp(name, "writes_lost")) return h->wl_lost;
     if (!strcmp(name, "held")) return h->n_held;
