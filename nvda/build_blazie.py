@@ -34,7 +34,7 @@ def main():
     exe = os.path.join(native, "bl_live_mame.exe")
     check_native(exe, "x86")
     shutil.copy2(exe, os.path.join(eng, "bns_live.exe"))
-    for name in ("ssi263_numwords.py", "ssi263_rates.py"):
+    for name in ("ssi263_numwords.py", "ssi263_rates.py", "ssi263_flow.py"):
         shutil.copy2(os.path.join(HERE, "shared", name), eng)
     shutil.copy2(FIRMWARE, eng)
     shutil.copy2(STATE, eng)

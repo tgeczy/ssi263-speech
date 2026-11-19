@@ -33,6 +33,11 @@ try:
     from ._ssi263_speakout.ssi263speech import SoundingBoardC
 except ImportError:                       # an engine from before 0.8.5
     SoundingBoardC = None
+try:
+    from ._ssi263_speakout import ssi263_flow as _flow      # say all's lines as one line to the unit
+except ImportError:                       # an engine from before it: each text a line of its own
+    _flow = None
+FLOW = True                               # (the tests' control takes it away)
 
 FIRMWARE = os.path.join(_ENGINE_DIR, "SPEAKOUT.HEX")
 # GW Micro's Sounding Board (0.8.5): the card's DOS drivers beside the Speak-Out's HEX, the same front end -- a second
@@ -332,11 +337,23 @@ class SynthDriver(SynthDriver):
             box.end()
 
     def _speakItems(self, items, box):
-        for kind, value in items:
+        for kind, value in (_flow.lines(items) if _flow and FLOW and self._join else items):
             if self._cancelFlag.is_set():
                 return
             if kind == "index":
                 self._notifyIndex(value)
+                continue
+            if kind == "line":                   # say all's lines, as one line (ssi263_flow.py)
+                parts, marks, chars = _flow.line_text(value, box.prepare)
+                if parts:
+                    box.say(" ".join(parts) + "\r")
+                    _flow.play_line(box.render, marks, chars, self._player.feed, self._notifyIndex,
+                                    self._cancelFlag.is_set)
+                    if box.fault:
+                        raise RuntimeError("the emulated V40 faulted")
+                for _chars, index in marks:      # (nothing was said: the indexes alone)
+                    if not self._cancelFlag.is_set():
+                        self._notifyIndex(index)
                 continue
             if kind == "pitch":
                 self._apply(box)                 # the user's pitch now, the offset on it

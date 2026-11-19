@@ -1,0 +1,298 @@
+"""Say all's lines without a sentence end, through the REAL driver (the built add-on under stand-in NVDA modules).
+NVDA sends up to ten such lines as ONE utterance with an index before each.  Given to the unit as a line each, every
+line is spoken as a sentence of its own (a listener, 2026-11-19, the Sounding Board: "it pauses after every line.
+Most synths don't do that.  It's supposed to send indexes as indexes, not pause there").  So with "Join phrases" on
+the driver gives them to the unit as one line and reports each index when playback reaches its place.
+
+    python say_all_flow.py speakout|accent|mockingboard|smartalk [voice]
+    SAY_ALL_FLOW_BREAK=1          the driver's FLOW off: each text a line of its own again (must fail "flows")
+    SAY_ALL_FLOW_BREAK=estimate   the Braille Lite's own index marks unused, each index estimated (must fail "own")
+
+What is checked, on "1" to "5" as five lines of one utterance:
+  flows       the utterance is as long as the same five words given as one text (within SAME_MS): what each line
+              cost as a sentence of its own is saved (330 ms on the Sounding Board, 270 on the Accent-mini, 150 on
+              the Accent SA and the SmarTalk, 30 on the Mockingboard, which hardly ends its sentences)
+  indexes     all five are reached, in order: the first before any sound; each later one within WORD of its share
+              of the audio (its line's place is an estimate, by characters: good to a word or so), and before the
+              utterance's own end
+  alone       an utterance of one text is as long as without the flow
+  capital     a pitch command between two texts keeps them apart: as long as without the flow, every index reached
+  join off    with "Join phrases" off each line is a sentence of its own again: nothing is saved
+  cancel      a cancel in the line, then a text: it is spoken, whole
+  own         (the Braille Lite, whose unit has index marks of its own: a Ctrl-F, echoed when speech reaches it)
+              "w w w w" and "it is on this" as two lines: the second line's index comes where the unit says,
+              after the four long letter names -- past OWN_AT of the audio -- not at the line's share of the
+              characters (0.36)
+Two utterances of the same text are not the same to the sample on these units (the chip's phoneme timer runs on
+between them, in steps of about 4 ms): lengths are held to TICK_MS.
+"""
+import importlib
+import os
+import sys
+import threading
+import time
+import types
+
+import numpy as np
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, REPO)
+from tools import repo_paths             # noqa: E402
+
+WHICH = sys.argv[1] if len(sys.argv) > 1 else "speakout"
+VOICE = sys.argv[2] if len(sys.argv) > 2 else None
+BREAK = os.environ.get("SAY_ALL_FLOW_BREAK", "") == "1"
+ESTIMATE = os.environ.get("SAY_ALL_FLOW_BREAK", "") == "estimate"
+# SSI263_SYNTH_DRIVERS: another folder's drivers (the 0.8 add-on's units: synthDrivers/_ssi263_unified)
+BUILD = os.environ.get("SSI263_SYNTH_DRIVERS") or repo_paths.synth_drivers(WHICH)
+TICK_MS = 6.0
+SAME_MS = 15.0                    # two utterances of five words on these units: up to 13 ms apart (the SmarTalk)
+WORD = 0.15                       # of the utterance: how far an index may be from its share
+OWN_AT = 0.5                      # of the utterance: where "it is on this" starts after "w w w w", at the least
+END = 900000                      # this test's own index, after each utterance: its completion
+
+
+# ---- stand-ins ---------------------------------------------------------------------------------------------------
+class Player:
+    """every block kept; a callback runs at once, where the audio fed so far ends"""
+    current = None
+
+    def __init__(self, *a, **k):
+        self.chunks, self.lock = [], threading.Lock()
+        Player.current = self
+
+    def fed(self):
+        with self.lock:
+            return sum(len(c) for c in self.chunks)
+
+    def feed(self, data, onDone=None):
+        if data:
+            with self.lock:
+                self.chunks.append(np.frombuffer(data, dtype="<i2").astype(float) / 32767)
+        if onDone:
+            onDone()
+
+    def stop(self):
+        pass
+
+    def idle(self):
+        pass
+
+    def pause(self, s):
+        pass
+
+    def close(self):
+        pass
+
+
+def module(name, **attrs):
+    m = types.ModuleType(name)
+    for k, v in attrs.items():
+        setattr(m, k, v)
+    sys.modules[name] = m
+    return m
+
+
+notified = []                     # (name, index, the samples fed when it came)
+
+
+class Notifier:
+    def __init__(self, name):
+        self.name = name
+
+    def notify(self, **kw):
+        notified.append((self.name, kw.get("index"), Player.current.fed() if Player.current else 0))
+
+
+class _Setting:
+    def __init__(self, id, *a, **k):
+        self.id, self.defaultVal = id, k.get("defaultVal")
+
+
+class Base:
+    VoiceSetting = staticmethod(lambda: _Setting("voice"))
+    RateSetting = staticmethod(lambda: _Setting("rate"))
+    PitchSetting = staticmethod(lambda: _Setting("pitch"))
+    VolumeSetting = staticmethod(lambda: _Setting("volume"))
+    VariantSetting = staticmethod(lambda: _Setting("variant"))
+    InflectionSetting = staticmethod(lambda: _Setting("inflection"))
+
+    def __init__(self):
+        pass
+
+
+class _Log:
+    def isEnabledFor(self, level):
+        return False
+
+    def debug(self, msg):
+        pass
+
+    def debugWarning(self, msg, exc_info=False):
+        pass
+
+    def warning(self, msg):
+        print("LOG WARNING:", msg)
+
+    def error(self, msg, exc_info=False):
+        print("LOG ERROR:", msg)
+        if exc_info:
+            import traceback
+            traceback.print_exc()
+
+
+class IndexCommand:
+    def __init__(self, index):
+        self.index = index
+
+
+class PitchCommand:
+    def __init__(self, offset=0):
+        self.offset = offset
+
+
+class LangChangeCommand:
+    def __init__(self, lang=None):
+        self.lang = lang
+
+
+module("nvwave", WavePlayer=Player)
+module("config", conf={"audio": {"outputDevice": "default"}, "speech": {"outputDevice": "default"}})
+module("synthDriverHandler", SynthDriver=Base, VoiceInfo=lambda *a: a, synthIndexReached=Notifier("index"),
+       synthDoneSpeaking=Notifier("done"))
+module("autoSettingsUtils")
+module("autoSettingsUtils.utils", StringParameterInfo=lambda *a: a)
+module("autoSettingsUtils.driverSetting", BooleanDriverSetting=_Setting, DriverSetting=_Setting)
+module("logHandler", log=_Log())
+_cmds = module("speech.commands", IndexCommand=IndexCommand, PitchCommand=PitchCommand,
+               LangChangeCommand=LangChangeCommand)
+module("speech", commands=_cmds)
+
+# ---- the real driver ---------------------------------------------------------------------------------------------
+_sd = types.ModuleType("synthDrivers")          # NVDA's package, with the add-on's folder on it
+_sd.__path__ = [BUILD]
+sys.modules["synthDrivers"] = _sd
+drv_mod = importlib.import_module("synthDrivers." + {"accent": "accentmini"}.get(WHICH, WHICH))
+if ESTIMATE:
+    drv_mod.OWN_MARKS = False
+d = drv_mod.SynthDriver()
+failures = 0
+ends = [0]
+
+
+def check(name, ok, detail):
+    global failures
+    print("%-4s %-8s %s" % ("ok" if ok else "FAIL", name, detail))
+    failures += not ok
+
+
+def say(seq, timeout=30.0):
+    """the utterance's audio, and where in it each of its indexes was reached (samples)"""
+    player = d._player
+    start, first = player.fed(), len(notified)
+    ends[0] += 1
+    mine = END + ends[0]
+    d.speak(list(seq) + [IndexCommand(mine)])
+    t0 = time.monotonic()
+    while True:
+        since = notified[first:]
+        at = [k for k, n in enumerate(since) if n[0] == "index" and n[1] == mine]
+        if at and any(n[0] == "done" for n in since[at[0] + 1:]):
+            break
+        if time.monotonic() - t0 > timeout:
+            raise RuntimeError("the utterance did not complete in %.0f s: %s" % (timeout, since[-4:]))
+        time.sleep(0.005)
+    with player.lock:
+        audio = np.concatenate(player.chunks) if player.chunks else np.zeros(0)
+    reached = {n[1]: n[2] - start for n in notified[first:] if n[0] == "index" and n[1] < END}
+    return audio[start:], reached
+
+
+def flow(on):
+    """the driver with its lines joined, or without (each text a line of its own)"""
+    drv_mod.FLOW = bool(on) and not BREAK
+
+
+def main():
+    booted = getattr(d, "booted", None)
+    if booted is not None and (not booted.wait(60) or getattr(d, "bootError", None)):
+        print("FAIL the unit did not boot: %s" % getattr(d, "bootError", None))
+        return 1
+    if VOICE:
+        d._set_voice(VOICE)
+        if d._get_voice() != VOICE:
+            print("skip: the %s's files are not in the built add-on" % VOICE)
+            return 0
+    flow(True)
+    say(["ready"])                        # the unit warm (and the other voice booted): a first utterance has its own lead
+    rate = float(d._out_rate)
+    ms = lambda n: n * 1000.0 / rate      # noqa: E731
+    lines = ["1", "2", "3", "4", "5"]
+    seq = []
+    for k, t in enumerate(lines):
+        seq += [IndexCommand(k + 1), t]
+    audio, reached = say(seq)
+    one, _ = say([" ".join(lines)])
+    flow(False)
+    apart, _ = say(seq)
+    flow(True)
+    cost = ms(len(apart)) - ms(len(one))          # what the five lines cost as sentences of their own
+    check("flows", abs(ms(len(audio)) - ms(len(one))) <= SAME_MS and cost > 2 * SAME_MS,
+          "five lines %.0f ms, the same words as one text %.0f ms, each line a sentence of its own %.0f ms" % (
+              ms(len(audio)), ms(len(one)), ms(len(apart))))
+    total = float(len(audio)) or 1.0
+    order = [reached.get(k) for k in range(1, 6)]
+    far = [k for k in range(2, 6) if order[k - 1] is None or abs(order[k - 1] / total - (k - 1) / 5.0) > WORD]
+    rising = all(x is not None for x in order) and all(order[k] < order[k + 1] for k in range(4))
+    check("indexes", rising and order[0] == 0 and not far and order[4] < total,
+          "reached at %s ms of %.0f; in order %s; far from their share: %s" % (
+              " ".join("-" if x is None else "%.0f" % ms(x) for x in order), ms(total), rising, far or "none"))
+
+    a1, _ = say(["one two three"])
+    flow(False)
+    r1, _ = say(["one two three"])
+    flow(True)
+    check("alone", abs(ms(len(a1)) - ms(len(r1))) <= 3 * TICK_MS, "one text: %.0f ms, without the flow %.0f ms" % (
+        ms(len(a1)), ms(len(r1))))
+
+    cap = [IndexCommand(1), "see", PitchCommand(20), "B", PitchCommand(0), IndexCommand(2), "and so on"]
+    a2, reached2 = say(cap)
+    flow(False)
+    r2, _ = say(cap)
+    flow(True)
+    check("capital", abs(ms(len(a2)) - ms(len(r2))) <= 3 * TICK_MS and sorted(reached2) == [1, 2],
+          "a capital between two texts: %.0f ms, without the flow %.0f ms; indexes %s" % (
+              ms(len(a2)), ms(len(r2)), sorted(reached2)))
+
+    d._set_joinPhrases(False)
+    off, reached3 = say(seq)
+    d._set_joinPhrases(True)
+    check("join off", abs(ms(len(off)) - ms(len(apart))) <= SAME_MS and sorted(reached3) == [1, 2, 3, 4, 5],
+          "\"Join phrases\" off: %.0f ms (on: %.0f ms); indexes %s" % (ms(len(off)), ms(len(audio)), sorted(reached3)))
+
+    d.speak(seq + [IndexCommand(7)])
+    time.sleep(0.02)
+    d.cancel()
+    after, _ = say(["one two three"])
+    check("cancel", abs(ms(len(after)) - ms(len(a1))) <= 3 * TICK_MS or len(after) >= len(a1),
+          "after a cancel in the line: %.0f ms (the same text before: %.0f ms)" % (ms(len(after)), ms(len(a1))))
+    if WHICH == "blazie":
+        long_short = [IndexCommand(1), "w w w w", IndexCommand(2), "it is on this"]
+        a3, reached4 = say(long_short)
+        at = reached4.get(2, 0) / (float(len(a3)) or 1.0)
+        check("own", sorted(reached4) == [1, 2] and at >= OWN_AT and reached4.get(2, 0) < len(a3),
+              "\"w w w w\" then \"it is on this\": the second line's index at %.2f of the audio (its share of the "
+              "characters: 0.36)" % at)
+    print("say all flow: %s" % ("all ok" if not failures else "%d FAILED" % failures))
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    try:
+        code = main()
+    except Exception as e:
+        print("FAIL %s" % e)
+        code = 1
+    sys.stdout.flush()
+    os._exit(code)

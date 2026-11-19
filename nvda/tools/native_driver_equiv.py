@@ -133,6 +133,11 @@ def child(voice, side, out):
     native = not hasattr(g["drv_mod"], "numwords")
     if (side == "native") != native:
         sys.exit("%s side: the driver at %s is %s" % (side, g["BUILD"], "native" if native else "0.7.0's Python"))
+    # 0.7.0's drivers gave the unit every text as a line of its own.  Today's give texts with only indexes between
+    # them as ONE line (say all's lines; say_all_flow.py holds that): off here, so that everything else stays held
+    # to the old drivers byte for byte
+    if hasattr(g["drv_mod"], "FLOW"):
+        g["drv_mod"].FLOW = False
     feeds = []
     orig_feed = player.feed
 

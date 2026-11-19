@@ -127,7 +127,7 @@ def copy_native_binding(eng):
     copy_native_voices(eng)
     with open(os.path.join(eng, "__init__.py"), "w", encoding="utf-8") as f:
         f.write('"""Private native voice bindings for this add-on."""\n')
-    for name in ("ssi263speech.py", "ssi263_rates.py"):
+    for name in ("ssi263speech.py", "ssi263_rates.py", "ssi263_flow.py"):
         shutil.copy2(os.path.join(REPO, "nvda", "shared", name), eng)
 
 

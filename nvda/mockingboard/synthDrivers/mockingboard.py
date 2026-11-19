@@ -30,6 +30,11 @@ _ENGINE_DIR = os.path.join(_HERE, "_ssi263_mockingboard")
 # the engine is this add-on's own package, imported relatively and never through sys.path (speakout.py)
 from ._ssi263_mockingboard import ssi263_rates as rates
 from ._ssi263_mockingboard.ssi263speech import MockingboardC, dll_path
+try:
+    from ._ssi263_mockingboard import ssi263_flow as _flow      # say all's lines as one line to the unit
+except ImportError:                       # an engine from before it: each text a line of its own
+    _flow = None
+FLOW = True                               # (the tests' control takes it away)
 
 FIRMWARE = os.path.join(_ENGINE_DIR, "mockingboard-tts-1.1.bin")
 FIRMWARE_EARLY = os.path.join(_ENGINE_DIR, "mockingboard-tts-early.bin")   # Mockingboard disk 1's (0.8)
@@ -296,11 +301,23 @@ class SynthDriver(SynthDriver):
         box = self._box
         box.set(self._rate, self._pitch, self._volume, self._numbers)
         offset = 0
-        for kind, value in items:
+        for kind, value in (_flow.lines(items) if _flow and FLOW and self._join else items):
             if self._cancelFlag.is_set():
                 return
             if kind == "index":
                 self._notifyIndex(value)
+                continue
+            if kind == "line":                   # say all's lines, as one line (ssi263_flow.py); the voice
+                # prepares the text itself
+                parts, marks, chars = _flow.line_text(value, lambda t: " ".join(t.split()))
+                if parts and box.say(" ".join(parts), offset):
+                    _flow.play_line(box.render, marks, chars, self._player.feed, self._notifyIndex,
+                                    self._cancelFlag.is_set)
+                if box.fault:
+                    raise RuntimeError("the emulated 6502 did not come back")
+                for _chars, index in marks:      # (nothing was said: the indexes alone)
+                    if not self._cancelFlag.is_set():
+                        self._notifyIndex(index)
                 continue
             if kind == "pitch":
                 offset = value or 0

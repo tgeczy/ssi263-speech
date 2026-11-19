@@ -36,6 +36,11 @@ _ENGINE_DIR = os.path.join(_HERE, "_ssi263_accent")
 # the other add-ons ship modules of the same names.
 from ._ssi263_accent import ssi263_rates as rates
 from ._ssi263_accent.ssi263speech import AccentMiniC, AccentSAC, dll_path
+try:
+    from ._ssi263_accent import ssi263_flow as _flow      # say all's lines as one line to the unit
+except ImportError:                       # an engine from before it: each text a line of its own
+    _flow = None
+FLOW = True                               # (the tests' control takes it away)
 
 # Developer switch: True writes a step-by-step "Accent:" trace to NVDA's log (at debug level)
 # and starts a thread that reports a stuck worker.  Off for everyone else; not a setting.
@@ -412,11 +417,26 @@ class SynthDriver(SynthDriver):
             box.end()
 
     def _speakItems(self, items, box):
-        for kind, value in items:
+        for kind, value in (_flow.lines(items) if _flow and FLOW and self._join else items):
             if self._cancelFlag.is_set():
                 return
             if kind == "index":
                 self._notifyIndex(value)
+                continue
+            if kind == "line":                   # say all's lines, as one line (ssi263_flow.py)
+                parts, marks, chars = _flow.line_text(value, lambda t: box.prepare(t, self._numbers))
+                if parts:
+                    self._set_phase("sending text")
+                    box.say(" ".join(parts) + "\r")
+                    self._set_phase("running the card")
+                    _flow.play_line(box.render, marks, chars, self._player.feed, self._notifyIndex,
+                                    self._cancelFlag.is_set)
+                    if box.fault:
+                        log.warning("Accent: card stalled; restarting it. card: %s" % box.state())
+                        raise RuntimeError("card stalled")
+                for _chars, index in marks:      # (nothing was said: the indexes alone)
+                    if not self._cancelFlag.is_set():
+                        self._notifyIndex(index)
                 continue
             if kind == "pitch":
                 self._apply(box)                 # the user's pitch now, the offset on it

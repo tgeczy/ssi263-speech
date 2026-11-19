@@ -37,6 +37,12 @@ from ._ssi263_blazie import ssi263_rates as rates
 from ._ssi263_blazie import blazie_idle
 from ._ssi263_blazie.ssi263.native import SSI263C      # the chip in C
 from ._ssi263_blazie.native_blazie import NativeBlazie
+try:
+    from ._ssi263_blazie import ssi263_flow as _flow        # say all's lines as one line to the unit
+except ImportError:                       # an engine from before it: each text a line of its own
+    _flow = None
+FLOW = True                               # (the tests' control takes it away)
+OWN_MARKS = True                          # (... or has each index estimated, as for a unit without index marks)
 
 BLOCK_S = 0.03
 # After speech, with "keep the channel open" and the hiss or whine on, the unit keeps running in real time: its
@@ -410,6 +416,30 @@ def _lines(text, max_words=14, pack=True):
             out[-1] += " " + piece
         else:
             out.append(piece)
+    return out
+
+
+def _flowed(parts, marked=(), max_words=14):
+    """Say all's lines (ssi263_flow.py) as the unit's lines: each text's own pieces (_lines: its sentences, a long
+    one split at commas) packed together up to max_words -- onto the first line too, or a short first line ("1")
+    would stand alone before the unit's line break.  A text is not cut where it fits a line, so the unit's line
+    breaks fall between NVDA's lines.
+
+    marked: for each text, how many of NVDA's indexes stand right before it.  The unit has index marks of its own:
+    a Ctrl-F anywhere in a line is echoed when speech reaches it (MEASURED on the emulated unit, a mark after every
+    second word of an eight-word line: echoed after 7, 14 and 22 of its 29 phonemes, the speech itself unchanged).
+    So each such index is a Ctrl-F glued to the front of its text's first word, and the place of every index is the
+    unit's own, exact."""
+    out = []
+    for k, text in enumerate(parts):
+        pieces = _lines(text, max_words, pack=False)
+        if pieces and k < len(marked) and marked[k]:
+            pieces[0] = "\x06" * marked[k] + pieces[0]
+        for piece in pieces:
+            if out and len(out[-1].split()) + len(piece.split()) <= max_words:
+                out[-1] += " " + piece
+            else:
+                out.append(piece)
     return out
 
 
@@ -1001,8 +1031,48 @@ class SynthDriver(SynthDriver):
                 self._cur_pitch = settings[1]
                 self._pitch_dirty = True
 
+    def _prepared(self, value, unit):
+        """a text as the unit is to read it"""
+        # "£2.63": the firmware reads only "$" (and the English unit has no pound sign at all); first the letters
+        # its alphabet lacks, as their base letters (or a lone one's words)
+        text = _clean(numwords.currencies(_translit(value, unit.encoding), unit.lang), unit.encoding)
+        if self._numbers and unit.lang in NUMBER_LANGS:
+            # with the add-on's boot the firmware counts to 999,999,999,999 and says a
+            # trillion as "one billion" (measured); this is for those
+            text = _numbers(text, unit.lang)
+        elif self._numbers and getattr(unit, "folds", False):
+            # the other units read their own numbers, but past twelve digits most fold a trillion into billions
+            # (measured): such a number goes a digit at a time
+            text = _trillions(text)
+        return text
+
+    def _unitBlocks(self, unit, gain, t_start):
+        """The unit run until it has said what it was sent: each 30 ms block's PCM as it comes (none while the
+        utterance's head is silent).  Ends early on a cancel."""
+        tail = 0.0
+        while not self._cancelFlag.is_set():
+            y = unit.run(BLOCK_S)
+            if self._lead:
+                # the unit reads the whole line before it speaks (x4 CPU meanwhile); that
+                # silence is only delay: 360 -> 60 ms for a 24-word line, ~100 -> 20 ms
+                # for a short one (tools/latency_check.py)
+                y, found = _trim_lead(y)
+                self._lead = not found
+            if len(y) and not self._cancelFlag.is_set():
+                yield unit.chip.dsp.pcm16(y, gain)
+            if self._snap_until_speech and unit.last_speech >= t_start:
+                # the first phoneme is set up; a leftover snap would flatten a glide later
+                unit.chip.snap_pitch = False
+                self._snap_until_speech = False
+            if not unit.busy():
+                if tail < TAIL_MAX_S and any(abs(v) > LEAD_THRESHOLD for v in y):
+                    tail += BLOCK_S              # its last sound still decaying
+                    continue
+                self._pitch_dirty = False    # the unit has read everything sent so far
+                break
+
     def _speakItems(self, items, unit, gain):
-        for kind, value in items:
+        for kind, value in (_flow.lines(items) if _flow and FLOW and self._join else items):
             if self._cancelFlag.is_set():
                 return
             if kind == "index":
@@ -1016,19 +1086,24 @@ class SynthDriver(SynthDriver):
                     self._cur_pitch = want
                     self._pitch_dirty = True
                 continue
-            # "£2.63": the firmware reads only "$" (and the English unit has no pound sign at all); first the letters
-            # its alphabet lacks, as their base letters (or a lone one's words)
-            text = _clean(numwords.currencies(_translit(value, unit.encoding), unit.lang), unit.encoding)
-            if self._numbers and unit.lang in NUMBER_LANGS:
-                # with the add-on's boot the firmware counts to 999,999,999,999 and says a
-                # trillion as "one billion" (measured); this is for those
-                text = _numbers(text, unit.lang)
-            elif self._numbers and getattr(unit, "folds", False):
-                # the other units read their own numbers, but past twelve digits most fold a trillion into billions
-                # (measured): such a number goes a digit at a time
-                text = _trillions(text)
-            lines = _lines(text, pack=self._short)
+            marks, own = None, False
+            if kind == "line":                   # say all's lines, as one (ssi263_flow.py; _flowed)
+                parts, marks, chars = _flow.line_text(value, lambda t: " ".join(self._prepared(t, unit).split()))
+                # the unit's own index marks, when it echoes them and is not run ahead of the listener (its echoes
+                # then come at the capture's frontier, bl_host.h); else each index at its share of the line
+                own = (OWN_MARKS and hasattr(unit, "geti") and not getattr(unit, "no_echo", 0)
+                       and not getattr(unit, "run_ahead", 0))
+                starts, at = [], 0               # the characters of the line before each text
+                for part in parts:
+                    starts.append(at)
+                    at += len(part) + 1
+                # an index before the first text needs no mark: it is reported at once
+                lines = _flowed(parts, [sum(1 for c, _i in marks if c == st and c > 0) for st in starts] if own else ())
+            else:
+                lines = _lines(self._prepared(value, unit), pack=self._short)
             if not lines:
+                for _chars, index in marks or ():    # (nothing to say: the indexes alone)
+                    self._notifyIndex(index)
                 continue
             # all lines at once: the unit goes from one to the next itself, without a host
             # round trip per line (line breaks 280-360 ms -> 150-260 ms, measured)
@@ -1038,29 +1113,47 @@ class SynthDriver(SynthDriver):
                 if self._line_lift and hasattr(type(unit), "line_lift"):
                     unit.line_lift = 1
             t_start = unit.chip.time
+            sent = unit.geti("sent_f") if own else 0     # the Ctrl-Fs the unit has been sent before this text
             unit.say(lines)
-            tail = 0.0
-            while not self._cancelFlag.is_set():
-                y = unit.run(BLOCK_S)
-                if self._lead:
-                    # the unit reads the whole line before it speaks (x4 CPU meanwhile); that
-                    # silence is only delay: 360 -> 60 ms for a 24-word line, ~100 -> 20 ms
-                    # for a short one (tools/latency_check.py)
-                    y, found = _trim_lead(y)
-                    self._lead = not found
-                if len(y) and not self._cancelFlag.is_set():
-                    pcm = unit.chip.dsp.pcm16(y, gain)
+            blocks = self._unitBlocks(unit, gain, t_start)
+            if marks is None:
+                for pcm in blocks:
                     self._feed(pcm, unit.chip.out_rate)
-                if self._snap_until_speech and unit.last_speech >= t_start:
-                    # the first phoneme is set up; a leftover snap would flatten a glide later
-                    unit.chip.snap_pitch = False
-                    self._snap_until_speech = False
-                if not unit.busy():
-                    if tail < TAIL_MAX_S and any(abs(v) > LEAD_THRESHOLD for v in y):
-                        tail += BLOCK_S              # its last sound still decaying
-                        continue
-                    self._pitch_dirty = False    # the unit has read everything sent so far
-                    break
+                continue
+            if own:
+                # which echo is each index's: the unit echoes its Ctrl-Fs in the order it was sent them, a line's
+                # own (CR Ctrl-F, unit.say) among them
+                while marks and marks[0][0] == 0:
+                    self._notifyIndex(marks.pop(0)[1])
+                due, n = [], sent
+                for line in lines:
+                    for ch in line:
+                        if ch == "\x06":
+                            n += 1
+                            if len(due) < len(marks) and marks[len(due)][0] < chars:
+                                due.append((n, marks[len(due)][1]))
+                    n += 1                           # the line's own
+                tail = marks[len(due):]              # indexes after the last text: when its sound is over
+                for pcm in blocks:
+                    self._feed(pcm, unit.chip.out_rate)
+                    echoed = unit.geti("echo_f")
+                    while due and echoed >= due[0][0]:
+                        self._notifyIndex(due.pop(0)[1])
+                for _n, index in due + tail:
+                    if not self._cancelFlag.is_set():
+                        self._notifyIndex(index)
+                continue
+
+            def render(blocks=blocks):
+                for pcm in blocks:
+                    return pcm, False
+                return b"", True
+
+            _flow.play_line(render, marks, chars, lambda pcm, rate=unit.chip.out_rate: self._feed(pcm, rate),
+                            self._notifyIndex, self._cancelFlag.is_set)
+            for _chars, index in marks:          # (an index after the last sound)
+                if not self._cancelFlag.is_set():
+                    self._notifyIndex(index)
         if self._cancelFlag.is_set():
             return
         try:
