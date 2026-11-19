@@ -51,8 +51,11 @@ whether any source or later version survives.
 - **Still to do before it is a voice:** rate, pitch and volume through the program's own control codes, long text in
   parts, the voice on each platform, and a listener's verdict. Only its first clips have been heard so far.
 - **Not known:** the cartridge's clock. 894,886 Hz (the Color Computer's own) is inferred from the program's table of
-  musical notes, which is in tune at that clock and almost two semitones sharp at 1 MHz. A measurement or a
-  schematic of a real cartridge would settle it; so would a recording of one.
+  musical notes, which is in tune at that clock and almost two semitones sharp at 1 MHz. That clock was at hand
+  for a cartridge: Tandy's Color Computer Technical Reference Manual (1981), Table 5, has the E clock on pin 6 of
+  the cartridge connector ("Main CPU Clock (0.89 MHz)") and Q on pin 7. That shows what the cartridge could use,
+  not what its chip was wired to. A measurement or a schematic of a real cartridge would settle it; so would a
+  recording of one.
 
 When there is a voice, this page will say how to give it the file. Until its authors have answered, nothing of the
 disk is in our downloads.

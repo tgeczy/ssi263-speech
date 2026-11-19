@@ -22,7 +22,9 @@
  * The clocks.  SVH_E_HZ, 894,886.25 Hz, is the Color Computer's E clock (14.31818 MHz / 16), and the chip's clock is
  * taken to be the same.  INFERRED, not measured on a cartridge: the program's note table (72 pitch values at 5D09h
  * for its ^N command) is in tune, A = 55 Hz within 1.04 cents over its lowest octave, at that clock, and almost two
- * semitones sharp at 1 MHz.  Whether the cartridge feeds the chip E, or twice E with DIV2 high, the table cannot say;
+ * semitones sharp at 1 MHz.  E is on the cartridge connector (pin 6, "Main CPU Clock (0.89 MHz)"; Q on pin 7: Tandy's
+ * Color Computer Technical Reference Manual, 1981, Table 5): at hand for the cartridge, which is not yet its chip's
+ * wiring.  Whether the cartridge feeds the chip E, or twice E with DIV2 high, the table cannot say;
  * for the chip model both are this number.
  *
  * The lockstep: the 6809 runs instruction by instruction, each E cycle a cycle of the chip's time; the chip is

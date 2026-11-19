@@ -153,7 +153,8 @@ can't say yet:
   technical manual, and an owner's board photo for the chip's marking.
 - **The Super Voice's voice.** Speech Systems' text-to-speech for the Color Computer is at
   hand too, with its dictionary and songs. It runs here now, on a 6809 core, as a host and not yet as a voice.
-  Not known: the cartridge's clock (inferred from the program's note table, never measured), and how a real one
+  Not known: the cartridge's clock (inferred from the program's note table, and the Color Computer has exactly
+  that clock on its cartridge connector, but it was never measured on a cartridge), and how a real one
   sounded: no recording was found. Settled by: a cartridge's schematic or board photo, a measurement, or a recording.
   [super-voice.md](super-voice.md) says exactly where its disk is, and what its manual's notice allows.
 - **Reported, not yet shown.** RDI's Halcyon, the home system Thayer's Quest was made for: the

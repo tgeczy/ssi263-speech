@@ -35,7 +35,9 @@ goes there and why it is not here; `../../../docs/super-voice.md` says where the
   `^C` the defaults, `^P` phonemes by name, `^N` sung notes. The test checks three of them at the chip.
 - **The clock**, 894,886.25 Hz for the 6809's E and for the chip, is inferred, not measured: the program's own note
   table is in tune at that clock (A = 55 Hz within 1.04 cents over its lowest octave) and almost two semitones sharp
-  at 1 MHz. No schematic or measurement of a cartridge was found.
+  at 1 MHz. The cartridge connector carries that clock (E on pin 6, "0.89 MHz", Q on pin 7: Tandy's Color Computer
+  Technical Reference Manual, 1981, Table 5), which shows it was at hand, not that the chip was wired to it. No
+  schematic or measurement of a cartridge was found.
 - **D7 high is a request**: Steve Ciarcia's article on the chip (Byte, March 1984) says so, and the program's loop
   (`TST $FF80`, `BPL`) waits for exactly that.
 - **A cut text poisons the next one** on the machine: the program keeps the last phoneme it wrote and writes it
