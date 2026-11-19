@@ -20,7 +20,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-# a check's own output may carry characters the console lacks ("£", U+FFFD): never let the report crash the run
+# a check's own output may carry characters the console lacks ("Â£", U+FFFD): never let the report crash the run
 sys.stdout.reconfigure(errors="replace")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +30,12 @@ PY = sys.executable
 WIN7 = os.path.join(HERE, "win7")
 PY37 = os.path.join(WIN7, "py37", "python.exe")
 LIMIT = 240          # seconds, per check
+# numpy's OpenBLAS starts a thread for every core in every process and reserves memory for each, used or not: one
+# run of unified_driver_equiv.py (its units as child processes) reserved 17 GB of the machine's commit that way on
+# 32 cores, and 0.6 GB with one thread.  With that check and its two controls running side by side the machine ran
+# out (64 GB, a small page file): MemoryError while importing numpy, and two controls "crashed instead of failing"
+# (2026-11-19).  No check here needs a threaded BLAS.
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
 
 def check(name, argv, env=None, cwd=HERE, ok=None, expect_fail=False, fail_marks=(), fail_codes=(1,), alone=False):
@@ -1897,9 +1903,9 @@ CHECKS.append(check("bl_voice text = the driver's, 5000 random texts", [PY, "voi
 CHECKS.append(check("bl_voice text CONTROL (no currencies, must fail)", [PY, "voice_text_equiv.py", "2000", "1"],
                     env={"VOICE_TEXT_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^DIFF ", r"^(?!2000 )\d+ of 2000 texts give the unit the same bytes"]))
-# Accented letters (Tomi: typing á é ő ú ű ó ü ö said nothing, "tükör" was "t k r"): src/csrc/translit.h runs first
+# Accented letters (Tomi: typing Ã¡ Ã© Å‘ Ãº Å± Ã³ Ã¼ Ã¶ said nothing, "tÃ¼kÃ¶r" was "t k r"): src/csrc/translit.h runs first
 # on every voice's text -- a letter the firmware lacks becomes its base letters ("tukor"), alone its words ("a
-# acute"), decomposed input as composed ("a" U+0301 as á); the Spanish unit keeps cp850's own.  translit_test.py:
+# acute"), decomposed input as composed ("a" U+0301 as Ã¡); the Spanish unit keeps cp850's own.  translit_test.py:
 # the module (test_translit.c), every voice's bytes, the five voices speaking on fresh units (each accented text
 # sounds as its ASCII spelling, each utterance complete, ASCII text the same PCM with the pass on and off), and the
 # Braille Lite's NVDA driver.  Three layers (Astra, Reply 162): handwritten fixtures own the conversion; no-change
@@ -1958,7 +1964,7 @@ CHECKS.append(check("accented letters: driver CONTROL (the pass off, must fail)"
                                 r"^ok   blazie_es driver +'\\xf1': the unit was sent \['\\xf1'\]",
                                 r"^FAIL blazie_es driver +'\\u0151': the unit was sent \[\]",
                                 r"^translit driver: \d+ of 10 FAILED \(TRANSLIT_BREAK=1"]))
-# other currencies than the dollar reach every unit as words (a listener: "£2.63" was read "2.63")
+# other currencies than the dollar reach every unit as words (a listener: "Â£2.63" was read "2.63")
 CHECKS.append(check("currency rule", [PY, "currency_test.py", "rules"]))
 for w in ("blazie", "speakout", "accent"):
     CHECKS.append(check("currency %s: the unit is sent pounds and pence" % w, [PY, "currency_test.py", w]))
