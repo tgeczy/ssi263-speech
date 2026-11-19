@@ -228,5 +228,5 @@ controls build with gcc alone (`m6502_controls.py`).
 
 MAME's 6809 is built as the 8085: `test_m6809_contract.exe` by `build_board.py`, `test_m6809_contract` by
 `build_linux.sh`, both gated, and `m6809_controls.py` in `nvda/tools/run_tests.py` (a control: `--quick` leaves it
-out). No board uses it yet, and no library carries it: a build that does must ship
+out). The Super Voice host (`../supervoice/`) runs on it; no library carries it yet: a build that does must ship
 `mame_m6809/LICENSE-BSD-3-Clause.txt` with it, as the 8085's notice is shipped.

@@ -152,7 +152,9 @@ can't say yet:
   the robot's processors do the talking, and its clock). Settled by: the robot's schematics or
   technical manual, and an owner's board photo for the chip's marking.
 - **The Super Voice's voice.** Speech Systems' text-to-speech for the Color Computer is at
-  hand too, with its dictionary and songs. It is 6809 code, and this project has no 6809 yet.
+  hand too, with its dictionary and songs. It runs here now, on a 6809 core, as a host and not yet as a voice.
+  Not known: the cartridge's clock (inferred from the program's note table, never measured), and how a real one
+  sounded: no recording was found. Settled by: a cartridge's schematic or board photo, a measurement, or a recording.
   [super-voice.md](super-voice.md) says exactly where its disk is, and what its manual's notice allows.
 - **Reported, not yet shown.** RDI's Halcyon, the home system Thayer's Quest was made for: the
   SpeechChips.com museum's owner says it has a Votrax SC-02. We have the chip only on the

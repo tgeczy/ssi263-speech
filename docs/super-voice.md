@@ -41,13 +41,18 @@ repository or in its releases. We are trying to reach both authors to ask.
 We would like to ask who owns the software today, whether it may travel with a free program for blind users, and
 whether any source or later version survives.
 
-## What it needs before it can speak here
+## Where the work stands (19 November 2026)
 
-- **A 6809 processor.** The text-to-speech is 6809 code, and this project has no 6809 core yet.
-- **A host shaped like a Color Computer:** the programs are loaded at fixed addresses and called from BASIC, and they
-  write the chip at $FF80 to $FF84.
+- **It speaks, in the workshop.** `SUPERTOK.BIN` runs unchanged on a 6809 core (MAME's, added for it) with our chip
+  at $FF80 to $FF84: a text goes in, the chip's audio comes out. The code is in
+  [`src/csrc/supervoice`](../src/csrc/supervoice/README.md).
+- **No Color Computer is needed.** The program was run with everything outside it trapped. On the path that speaks a
+  line of text (the manual's `USR` call at $5805) it calls no BASIC routine and reads none of BASIC's variables.
+- **Still to do before it is a voice:** rate, pitch and volume through the program's own control codes, long text in
+  parts, the voice on each platform, and a listener's verdict. Only its first clips have been heard so far.
+- **Not known:** the cartridge's clock. 894,886 Hz (the Color Computer's own) is inferred from the program's table of
+  musical notes, which is in tune at that clock and almost two semitones sharp at 1 MHz. A measurement or a
+  schematic of a real cartridge would settle it; so would a recording of one.
 
-Nothing on the disk has been run here; it has only been read.
-
-When there is a voice, this page will say how to give it the disk. The plan: a button that fetches the file above and
-checks its sha256 where a program can do that, and by the usual import on a phone.
+When there is a voice, this page will say how to give it the file. Until its authors have answered, nothing of the
+disk is in our downloads.

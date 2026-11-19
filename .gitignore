@@ -39,6 +39,10 @@ firmware/blazie/*
 firmware/sweet-micro-mockingboard/*
 !firmware/sweet-micro-mockingboard/README.txt
 *.dsk
+# Speech Systems' Super Voice (1984): its disk's files, whatever their case (SUPERTOK.BIN; *.bin above is lower case)
+firmware/speech-systems-super-voice/*
+!firmware/speech-systems-super-voice/README.txt
+*.DSK
 
 # The exception: Aicom's software, kept in the tree with its notice (firmware/AICOM.txt).
 !firmware/aicom-accent-sa/*.BIN

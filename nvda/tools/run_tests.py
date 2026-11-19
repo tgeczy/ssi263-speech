@@ -2192,6 +2192,16 @@ if os.path.isfile(os.path.join(MB_FW, "mockingboard-tts-1.1.bin")):
                         + (MB_DSK if have_dsk else []),
                         ok=lambda out, d=have_dsk: bool(re.search(r"^controls: all as expected$", out, re.M))
                         and (not d or bool(re.search(r"^ok +dsk as it is -> 6 tests", out, re.M)))))
+# Speech Systems' Super Voice (1984; src/csrc/supervoice): its own text-to-speech, SUPERTOK, on MAME's 6809 -- the
+# host's tests with their must-fail controls (supervoice/sv_controls.py: the test as it is, then each rule undone must
+# fail exactly its tests).  The program file is a local copy (firmware/speech-systems-super-voice, never committed).
+SV_FW = os.path.join(REPO, "firmware", "speech-systems-super-voice")
+if os.path.isfile(os.path.join(SV_FW, "SUPERTOK.BIN")):
+    CHECKS.append(check("Speech Systems Super Voice (1984): host tests and their controls",
+                        [PY, os.path.join(REPO, "src", "csrc", "supervoice", "sv_controls.py"), SV_FW],
+                        ok=lambda out: bool(re.search(r"^ok +the host as it is -> 10 tests, failing: none$", out, re.M))
+                        and len(re.findall(r"^ok +undone: ", out, re.M)) == 11
+                        and bool(re.search(r"^controls: all as expected$", out, re.M))))
 GEN_DEFAULTS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "gen_chip_defaults.py")
 CHECKS.append(check("chip defaults header", [PY, GEN_DEFAULTS, "--check"]))
 # and on Python 3.7 (NVDA 2021-2023): the defaults must not depend on the Python version (3.12 changed float sum())
