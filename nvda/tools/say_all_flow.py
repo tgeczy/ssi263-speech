@@ -18,7 +18,17 @@ What is checked, on "1" to "5" as five lines of one utterance:
   alone       an utterance of one text is as long as without the flow
   capital     a pitch command between two texts keeps them apart: as long as without the flow, every index reached
   join off    with "Join phrases" off each line is a sentence of its own again: nothing is saved
-  cancel      a cancel in the line, then a text: it is spoken, whole
+  cancel      a cancel in the line, then the five lines again: all five indexes are reached, in order, each
+              within WORD of its share of that utterance, which is whole (within a tenth of its length before:
+              where the cancel lands depends on the machine's load, and the unit's next utterance is a few ms
+              shorter or longer for it)
+  long        ten lines of six words, NVDA's largest chunk (the unit's own lines and the voices' parts are
+              shorter than it): all ten indexes reached, in order, each within LINE of its line's start (the lines
+              are the same six words, so line k starts at (k - 1) / 10 of the audio), and no longer than the ten
+              lines as sentences of their own
+  blank       a blank line in say all: two indexes with no text between them.  Both are reached, at the same
+              place, in order, and the utterance is as long as without the second one (said twice first: some
+              units say a text a little differently straight after another one; the SmarTalk by 90 ms)
   own         (the Braille Lite, whose unit has index marks of its own: a Ctrl-F, echoed when speech reaches it)
               "w w w w" and "it is on this" as two lines: the second line's index comes where the unit says,
               after the four long letter names -- past OWN_AT of the audio -- not at the line's share of the
@@ -49,6 +59,7 @@ BUILD = os.environ.get("SSI263_SYNTH_DRIVERS") or repo_paths.synth_drivers(WHICH
 TICK_MS = 6.0
 SAME_MS = 15.0                    # two utterances of five words on these units: up to 13 ms apart (the SmarTalk)
 WORD = 0.15                       # of the utterance: how far an index may be from its share
+LINE = 0.06                       # of a ten-line utterance: how far an index may be from its line's start
 OWN_AT = 0.5                      # of the utterance: where "it is on this" starts after "w w w w", at the least
 END = 900000                      # this test's own index, after each utterance: its completion
 
@@ -274,9 +285,39 @@ def main():
     d.speak(seq + [IndexCommand(7)])
     time.sleep(0.02)
     d.cancel()
-    after, _ = say(["one two three"])
-    check("cancel", abs(ms(len(after)) - ms(len(a1))) <= 3 * TICK_MS or len(after) >= len(a1),
-          "after a cancel in the line: %.0f ms (the same text before: %.0f ms)" % (ms(len(after)), ms(len(a1))))
+    after, reached5 = say(seq)
+    again = [reached5.get(k) for k in range(1, 6)]
+    t5 = float(len(after)) or 1.0
+    far5 = [k + 1 for k in range(1, 5) if again[k] is None or abs(again[k] / t5 - k / 5.0) > WORD]
+    check("cancel", all(x is not None for x in again) and all(again[k] < again[k + 1] for k in range(4))
+          and not far5 and again[0] == 0 and abs(len(after) - len(audio)) <= 0.1 * len(audio),
+          "the five lines after a cancel in them: %.0f ms (before: %.0f ms), indexes at %s ms" % (
+              ms(len(after)), ms(len(audio)), " ".join("-" if x is None else "%.0f" % ms(x) for x in again)))
+
+    ten = []
+    for k in range(10):
+        ten += [IndexCommand(k + 1), "this is one more plain line"]
+    a10, r10 = say(ten, timeout=90.0)
+    flow(False)
+    apart10, _ = say(ten, timeout=90.0)
+    flow(True)
+    at10 = [r10.get(k) for k in range(1, 11)]
+    t10 = float(len(a10)) or 1.0
+    off = [k + 1 for k in range(1, 10) if at10[k] is None or abs(at10[k] / t10 - k / 10.0) > LINE]
+    ordered = all(x is not None for x in at10) and all(at10[k] <= at10[k + 1] for k in range(9))
+    check("long", ordered and not off and at10[0] == 0 and ms(len(a10)) <= ms(len(apart10)) + SAME_MS,
+          "ten lines %.0f ms (as sentences of their own %.0f ms); indexes in order %s; off their line's start: %s" % (
+              ms(len(a10)), ms(len(apart10)), ordered, off or "none"))
+
+    say([IndexCommand(1), "one two", IndexCommand(2), "three four"])
+    plain2, rp = say([IndexCommand(1), "one two", IndexCommand(2), "three four"])
+    blank, rb = say([IndexCommand(1), "one two", IndexCommand(2), IndexCommand(3), "three four"])
+    same_place = rb.get(2) is not None and rb.get(3) is not None and abs(ms(rb[3]) - ms(rb[2])) <= 35.0
+    check("blank", sorted(rb) == [1, 2, 3] and same_place and rb[2] <= rb[3]
+          and abs(ms(len(blank)) - ms(len(plain2))) <= SAME_MS,
+          "two indexes with no text between: reached at %s and %s ms; %.0f ms, with one index %.0f ms" % (
+              "-" if rb.get(2) is None else "%.0f" % ms(rb[2]), "-" if rb.get(3) is None else "%.0f" % ms(rb[3]),
+              ms(len(blank)), ms(len(plain2))))
     if WHICH == "blazie":
         long_short = [IndexCommand(1), "w w w w", IndexCommand(2), "it is on this"]
         a3, reached4 = say(long_short)

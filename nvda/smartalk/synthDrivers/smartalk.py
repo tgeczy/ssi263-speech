@@ -36,6 +36,7 @@ try:
 except ImportError:                       # an engine from before it: each text a line of its own
     _flow = None
 FLOW = True                               # (the tests' control takes it away)
+PART = 160                                # the characters the voice takes as one part (st_voice.h's STV_PART)
 
 FIRMWARE = os.path.join(_ENGINE_DIR, "S_TALK.EXE")
 DLL = dll_path(_ENGINE_DIR)
@@ -320,15 +321,16 @@ class SynthDriver(SynthDriver):
                 continue
             if kind == "line":                   # say all's lines, as one line (ssi263_flow.py); the voice
                 # prepares the text itself
-                parts, marks, chars = _flow.line_text(value, lambda t: " ".join(t.split()))
-                if parts and box.say(" ".join(parts), offset):
-                    _flow.play_line(box.render, marks, chars, self._player.feed, self._notifyIndex,
-                                    self._cancelFlag.is_set)
-                if box.fault:
-                    raise RuntimeError("the emulated SmarTalk failed")
-                for _chars, index in marks:      # (nothing was said: the indexes alone)
-                    if not self._cancelFlag.is_set():
-                        self._notifyIndex(index)
+                # (in groups of at most PART characters, cut between lines: the voice's own parts)
+                for parts, marks, chars in _flow.line_groups(value, lambda t: " ".join(t.split()), PART):
+                    if parts and box.say(" ".join(parts), offset):
+                        _flow.play_line(box.render, marks, chars, self._player.feed, self._notifyIndex,
+                                        self._cancelFlag.is_set)
+                    if box.fault:
+                        raise RuntimeError("the emulated SmarTalk failed")
+                    for _chars, index in marks:  # (nothing was said: the indexes alone)
+                        if not self._cancelFlag.is_set():
+                            self._notifyIndex(index)
                 continue
             if kind == "pitch":
                 offset = value or 0

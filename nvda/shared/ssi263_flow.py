@@ -76,6 +76,27 @@ def line_text(run, prepare):
     return parts, marks, chars
 
 
+def line_groups(run, prepare, limit):
+    """line_text for a voice that cuts long text into parts of its own (at most `limit` characters): the run in
+    groups, each a line_text result of no more than `limit` characters, cut only BETWEEN two texts -- so the
+    voice's parts end where NVDA's lines do, never inside one.  A text longer than `limit` is a group alone (the
+    voice cuts it as it always did).  MEASURED on the Mockingboard, ten lines of 27 characters given whole: the
+    voice cut them into three parts at 120 characters, inside lines, and the ten took 95 ms longer than ten
+    sentences of their own."""
+    group = []
+    size = 0
+    for kind, value in run:
+        if kind == "text":
+            n = len(prepare(value)) + 1
+            if size and size + n > limit + 1:
+                yield line_text(group, prepare)
+                group, size = [], 0
+            size += n
+        group.append((kind, value))
+    if group:
+        yield line_text(group, prepare)
+
+
 def play_line(render, marks, chars, feed, notify, cancelled):
     """The line has been said to the unit: its audio to the player, each index reported at its place.  render: the
     unit's next block, (PCM bytes, done); feed, notify: the driver's player and its index callback; cancelled():
