@@ -58,6 +58,15 @@ AS_API int ash_say(as_host *h, const unsigned char *bytes, int n, int speech);
 /* `seconds` of chip time in `step` slices (0.0005 s): the chip's audio at out_rate, in an internal buffer valid until
    the next call.  Returns the sample count (-1: out of memory). */
 AS_API int ash_run(as_host *h, double seconds, double step, const double **audio);
+/* The bytes the unit sent on its serial line during the last ash_run (and since the run before it), each with the
+   samples of that run's audio made when it came (to the host's slice): with the index marks on (as_voice.h) each
+   is a 06h, the unit's prompt for a mark speech has reached.  At most ASH_REPLIES a run. */
+typedef struct {
+    int value;                             /* the byte */
+    int sample;                            /* samples of the run's audio made when it came */
+} ash_reply;
+#define ASH_REPLIES 64
+AS_API int ash_replies(const as_host *h, const ash_reply **out);
 /* The firmware runs with the chip keeping time but making no sound (step 0.002 s); returns the time run. */
 AS_API double ash_skip(as_host *h, double seconds, double step);
 /* 1 while the Accent is still busy with what it was given (quiet 0.03 s, patience 1.5 s: accent_sa.py's) */

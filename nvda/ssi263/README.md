@@ -33,9 +33,9 @@ each line, and with "Join phrases" on they go to the unit as one line so that th
 (Ctrl-F, echoed when speech reaches it), exact, on the releases measured for them: the English, Danish, Norwegian
 and Swedish ones (the release table's `marks` column; on the Spanish and German units a mark inside a line changes the speech).
 The Speak-Out's and the Sounding Board's are their own too (Ctrl-E `[` and a byte, which the box sends back and
-the card's driver counts), exact, and the speech is the same with them. The other units' are estimated for now, by
-the index's share of the text, good to a word or so; the Accents and the SmarTalk have index marks of their own
-that the drivers do not use yet
+the card's driver counts), and the Accent SA's (Ctrl-F, which the unit answers): exact, and the speech is the same
+with them. The other units' are estimated for now, by the index's share of the text, good to a word or so; the
+Accent-mini and the SmarTalk have index marks of their own that the drivers do not use yet
 (`docs/index-marks.md`). With "Join phrases" off every text is a sentence of its own again, and every index exact.
 
 Tests (`nvda/tools`, run by `run_tests.py`), each with must-fail controls: `unified_driver_equiv.py` (every unit

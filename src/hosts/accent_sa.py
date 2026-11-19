@@ -187,15 +187,25 @@ class AccentSA:
 
     def run(self, seconds, step=0.0005):
         out, t = [], 0.0
-        while t < seconds:
+        # the bytes the unit sent during this run (and since the one before): (byte, the samples of this run made
+        # when it came) -- with the index marks on, each 06h is its prompt for a mark speech has reached (as_voice.h)
+        self.replies, made = [], 0
+        seen = getattr(self, "_tx_seen", 0)
+        while True:
+            self.replies += [(b, made) for b in self.tx[seen:]]
+            seen = len(self.tx)
+            if t >= seconds:
+                break
             self._serial()
             self._trap()
             before = self.chip.time
             y = self.chip.run_until_request(step) if not self.chip.request else self.chip.run(step / 4)
             out.append(y)
+            made += len(y)
             dt = max(self.chip.time - before, 1e-5)
             self._cpu(dt)
             t += dt
+        self._tx_seen = seen
         return self.chip.dsp.concat(out)
 
     def skip(self, seconds, step=0.002):

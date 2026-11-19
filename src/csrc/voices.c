@@ -220,6 +220,11 @@ static void eng_as_set(void *u, const ssv_settings *s)
     asv_set((as_voice *)u, s->rate, s->pitch, s->inflection, s->volume, s->numbers);
 }
 static int eng_as_speak(void *u, const char *utf8, int pitch_offset) { return asv_speak((as_voice *)u, utf8, pitch_offset) > 0; }
+static int eng_as_speak_marked(void *u, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
+{
+    return asv_speak_marked((as_voice *)u, utf8, pitch_offset, marks, n_marks) > 0;
+}
+static int eng_as_reached(void *u, const ssv_reach **out) { return asv_reached((as_voice *)u, out); }
 static int eng_as_render(void *u, const short **pcm, int *done) { return asv_render((as_voice *)u, pcm, done); }
 static void eng_as_cancel(void *u) { asv_cancel((as_voice *)u); }
 static void eng_as_destroy(void *u) { asv_destroy((as_voice *)u); }
@@ -351,7 +356,8 @@ static const ssv_engine *engine(int kind)
 {
     static const ssv_engine bl = {eng_bl_create, eng_bl_set, eng_bl_speak, eng_bl_render, eng_bl_cancel, eng_bl_destroy,
                                   eng_bl_speak_marked, eng_bl_reached};
-    static const ssv_engine as = {eng_as_create, eng_as_set, eng_as_speak, eng_as_render, eng_as_cancel, eng_as_destroy};
+    static const ssv_engine as = {eng_as_create, eng_as_set, eng_as_speak, eng_as_render, eng_as_cancel, eng_as_destroy,
+                                  eng_as_speak_marked, eng_as_reached};
 #ifdef SSV_HAVE_SPEAKOUT
     static const ssv_engine so = {eng_so_create, eng_so_set, eng_so_speak, eng_so_render, eng_so_cancel, eng_so_destroy,
                                   eng_so_speak_marked, eng_so_reached};

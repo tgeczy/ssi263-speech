@@ -32,7 +32,7 @@ a voice here uses it yet.
 | Braille Lite 2000 (Blazie) | Ctrl-F (06h) anywhere in a line | echoes 06h on its serial line when speech reaches it | yes, on the releases below |
 | Speak-Out (GW Micro) | Ctrl-E `[` and one byte (05h 5Bh xx) | sends that byte back on its serial line; on at power-up, Ctrl-E `]` 1 / 0 turns it on and off | yes |
 | Sounding Board (GW Micro) | the same command | INT 17h AH=02h on the driver's port: how many marks were passed since the last call, and the last one's value | yes |
-| Accent SA (Aicom) | Ctrl-F, after ESC Y X and ESC = Y | one 06h per mark on its serial line; off at power-up | not yet |
+| Accent SA (Aicom) | Ctrl-F, after ESC Y X and ESC = Y | one 06h per mark on its serial line; off at power-up | yes |
 | Accent-mini (Aicom) | Ctrl-F, after ESC Y X and ESC Y Z | INT 17h AH=02h: the count since the last read | not yet |
 | SmarTalk (Automated Functions) | Ctrl-F, always on | INT 17h AH=2: the count | not yet |
 | Mockingboard (Sweet Micro Systems) | none | the host can read which frame is being spoken | estimated |
@@ -101,6 +101,23 @@ to discard (`src/csrc/speakout/so_voice.h`).
   R1 to R4 the unmarked text's, the times between them the same to 0.1 ms; each mark in the pause before its
   word.
 
+## The Accent SA: measured
+
+A Ctrl-F at the front of the marked word, after the space before it; the unit is told to prompt (ESC Y X, ESC = Y)
+once, with the first marked text, since it powers up with marks off (`src/csrc/accentsa/as_voice.h`).
+
+- A mark before every word of two texts against none, at rates 0, 50 and 100 with the intonation full and flat
+  (12 marked utterances): every phoneme load with its R1 to R4 is the unmarked text's, in order. At rates 0 and
+  50 the times between them are the same (0.0 ms; the same text twice without marks: 0.7 ms).
+- At rate 100 a pause between sentences was up to 27 ms longer with marks, and in a 300-word text six of seven
+  such pauses were 28 to 66 ms longer: the unit is busy there. Every write was still the same.
+- The unit prompts when the word before the mark has ended. Against the audio: each mark in the pause before its
+  word, also after a cancel.
+- All prompts are the same byte, so the voice counts them. Marks on one word are sent as one: N marks with no
+  word between them speak as N-1 carriage returns.
+- The voice holds some blocks of audio back before it gives them out (a silence while the unit still works); a
+  mark reached in such a block comes out with that audio, at its sample in it.
+
 ## The estimate
 
 A mark is put at its share of the text's characters, as a share of the utterance's samples. The length must be
@@ -113,8 +130,9 @@ takes to finish ahead of the caller.
 
 - **NVDA add-on.** Say all's lines go to the unit as one line with their indexes
   (`nvda/shared/ssi263_flow.py`). The Braille Lite driver uses the unit's own marks on the releases above, and
-  the Speak-Out and Sounding Board driver the box's (the audio is fed up to a mark's sample, the index reported,
-  then the rest); the other drivers estimate. The drivers do not go through `voices.h` yet.
+  the Speak-Out and Sounding Board driver the box's and the Accent driver the Accent SA's (the audio is fed up to
+  a mark's sample, the index reported, then the rest); the Accent-mini, the SmarTalk and the Mockingboard are
+  estimated. The drivers do not go through `voices.h` yet.
 - **speech-dispatcher (Orca).** The module keeps the message's marks, the server's own after each sentence and
   the one Orca puts before every word, and reports each between the audio before it and the audio after it, cut
   at the mark's sample (`src/platforms/speechd/sd_ssi263.c`). The server holds a mark in its queue with the audio
@@ -137,6 +155,7 @@ takes to finish ahead of the caller.
   must-fail controls.
 - `nvda/tools/so_marks.py`: the Speak-Out voice, and with `--soundingboard` the Sounding Board, the same cases as
   the Braille Lite's. Four must-fail controls.
+- `nvda/tools/as_marks.py`: the Accent SA voice, the same cases. Four must-fail controls.
 - `tools/check_ssv_marks.py`: the voice table, on every voice whose firmware is present: no marks is `ssv_speak`,
   every mark once and in order, exact or estimated as it should be, the estimate never early. Two controls.
 - `nvda/tools/say_all_flow.py`: the NVDA drivers, say all's lines and their indexes.

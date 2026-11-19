@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include "as_host.h"
+#include "../marks.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,6 +75,30 @@ AS_API int asv_text(as_voice *v, const unsigned char *bytes, int n);
 AS_API int asv_end(as_voice *v);
 AS_API int asv_flush(as_voice *v);
 AS_API int asv_fault(const as_voice *v);
+
+/* Index marks (../marks.h).  The Accent has its own (its manual, 3.2.4): after ESC Y X a Ctrl-F (06h) in the text
+   is an index marker, and after ESC = Y the unit sends a 06h back on its serial line for each one when speech
+   reaches it ("to track exactly which word in a given text Accent has spoken to").  Both are off at power-up.
+   asv_speak_marked: as asv_speak, a Ctrl-F at the front of each word one of the caller's marks stands before,
+   after the space before it (accent_text.h at_say_marked); the unit is told to prompt once, with the first marked
+   text.  asv_reached: the marks the audio the last asv_render returned has reached, each with its sample in
+   it: a mark reached in a block the voice held back comes with that audio when it goes out.  One before the
+   first word comes with the first block, one after the last word and whatever else is left with the last, and
+   nothing after a cancel.  asv_expect: the same for a job (asv_begin ... asv_end): the caller put the Ctrl-Fs
+   in the text it gives asv_text and says here, for each of its marks, which Ctrl-F of that text is its own
+   (marks[i].at: 1 for the first, 2 for the second ...; marks[i].id: the caller's number).
+   MEASURED on the emulated unit (2026-11-19, docs/index-marks.md): each prompt comes when the word before the
+   mark has ended, with the pause frame after it; with one mark at a word boundary every register write is the
+   unmarked text's and the times agree to 0.3 ms; N marks with no word between them speak as N-1 carriage
+   returns there, so marks on one word are sent as one; a Ctrl-F sent while marks are off is dropped (and joins
+   two words if it stood in place of their space: the space is always kept). */
+AS_API int asv_marks_exact(const as_voice *v);
+AS_API int asv_speak_marked(as_voice *v, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks);
+AS_API int asv_reached(as_voice *v, const ssv_reach **out);
+AS_API int asv_expect(as_voice *v, const ssv_mark *marks, int n_marks);
+/* The line asv_speak_marked would send (as asv_say_bytes), for tests. */
+AS_API int asv_say_bytes_marked(const char *utf8, int with_numbers, const ssv_mark *marks, int n_marks, char *out, int cap);
+AS_API extern int asv_marks_break;          /* the tests' controls (as_voice.c) */
 
 /* The driver's _accent_pitch: NVDA's pitch 0-100 on the Accent's ESC P 0-9 (50 -> 5). */
 AS_API int asv_pitch_step(int pitch);

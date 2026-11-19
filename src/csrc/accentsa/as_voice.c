@@ -62,7 +62,24 @@ struct as_voice {
     int n_held, held_cap;
     int limit;                                         /* the last text was called done at SETTLE_S (asv_limit) */
     int test_break;                                    /* asv_set_test_break: the tests' must-fail controls only */
+    /* index marks (as_voice.h) */
+    struct { int id, seq; } *mk;                       /* the marks not yet reached: seq 0 at once, -1 at the
+                                                          utterance's end, else the number of its Ctrl-F among
+                                                          those sent since the job (or the utterance) began */
+    int n_mk, cap_mk;
+    int sent06, got06;                                 /* Ctrl-Fs sent since then, and the unit's prompts for them */
+    int index_on;                                      /* this unit has been told to prompt (ESC Y X, ESC = Y) */
+    ssv_reach *reached, *wait;                         /* what the last asv_render's audio reached; what the blocks
+                                                          held back have, each at its sample in them */
+    int n_reached, n_wait, cap_reached, cap_wait;
+    int blk_ran, blk_start, blk_count, blk_fate, held_before;   /* the block the last render made: the samples trimmed from
+                                                          its head, its length, where it went, and what was held
+                                                          before it */
 };
+#define FATE_OUT 0                      /* the block was given out as it is */
+#define FATE_HELD 1                     /* ... kept (a silence while the unit works), nothing given out */
+#define FATE_HELD_OUT 2                 /* ... given out with what was held before it */
+#define FATE_DROPPED 3                  /* ... dropped with what was held (the text is done) */
 
 /* ---- _boot ---------------------------------------------------------------------------------------------------- */
 static as_host *boot(const as_voice *v, char *err, int errlen)
@@ -224,6 +241,7 @@ static int restart(as_voice *v)                        /* self._box = self._boot
     v->chip = ash_chip(h);
     defaults_sent(v);
     v->fault = 0;
+    v->index_on = 0;                       /* a new unit: it powers up with the marks off */
     return 1;
 }
 
@@ -260,6 +278,8 @@ static void begin(as_voice *v)
     v->active = 0;
     forget(v);
     v->limit = 0;
+    v->n_mk = v->n_reached = v->n_wait = 0;
+    v->sent06 = v->got06 = 0;
     if (r != v->sent_rate) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bR%c", r);
     if (p != v->sent_pitch) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bP%d", p);
     if (v->voice != v->sent_voice) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bV%d", v->voice);
@@ -338,13 +358,16 @@ static void stop(as_voice *v)
         finish(v);
 }
 
-AS_API int asv_render(as_voice *v, const short **pcm, int *done)
+static int render_block(as_voice *v, const short **pcm, int *done)
 {
     const double *y;
     double now;
     int n, start = 0, count, working;
     *pcm = v->pcm;
     *done = 0;
+    v->blk_ran = v->blk_start = v->blk_count = 0;
+    v->blk_fate = FATE_OUT;
+    v->held_before = 0;
     if (!v->active) { *done = 1; return 0; }
     n = ash_run(v->h, BLOCK_S, STEP_S, &y);
     if (n < 0) { stop(v); *done = 1; return 0; }
@@ -374,9 +397,14 @@ AS_API int asv_render(as_voice *v, const short **pcm, int *done)
     }
     if (count < 0)
         count = 0;
+    v->blk_ran = 1;
+    v->blk_start = start;
+    v->blk_count = count;
     now = ash_get_double(v->h, "time");
     working = ash_get_int(v->h, "work") >= (v->test_break == 3 ? OLD_WORK_MIN : WORK_MIN);   /* not waiting */
     if (v->quiet_since >= 0.0) {                              /* a silence while it works: this block held too */
+        v->held_before = v->n_held;
+        v->blk_fate = FATE_HELD;
         if (!hold(v, v->pcm, count)) { stop(v); *done = 1; return 0; }
         if (ash_busy(v->h, QUIET, PATIENCE)) {                /* it was a pause: what was held goes out, unbroken */
             if (v->n_held > v->pcm_cap) {
@@ -388,16 +416,20 @@ AS_API int asv_render(as_voice *v, const short **pcm, int *done)
             memcpy(v->pcm, v->held, (size_t)v->n_held * sizeof(short));
             *pcm = v->pcm;
             count = v->n_held;
+            v->blk_fate = FATE_HELD_OUT;
             unsettle(v);
             return count;
         }
         if (!working) {                                       /* a whole block waiting: nothing more to say */
+            v->blk_fate = FATE_DROPPED;
             v->pitch_dirty = 0;                               /* the driver has taken everything sent so far */
             finish(v);                                        /* the held silence is dropped with the wait */
             *done = 1;
         } else if (now - v->quiet_since >= v->settle) {       /* the safety limit, still working: said so */
             count = 0;
+            v->blk_fate = FATE_DROPPED;
             if (v->test_break != 2) {                         /* (2: the control -- a plain done, the audio lost) */
+                v->blk_fate = FATE_HELD_OUT;
                 if (v->n_held > v->pcm_cap) {
                     short *q = (short *)realloc(v->pcm, (size_t)v->n_held * sizeof(short));
                     if (!q) { stop(v); *done = 1; return 0; }
@@ -439,6 +471,199 @@ AS_API int asv_render(as_voice *v, const short **pcm, int *done)
     return count;
 }
 
+/* ---- index marks (as_voice.h) -------------------------------------------------------------------------------------- */
+/* the tests' controls (nvda/tools/as_marks.py; an app never sets it): 1 reports every mark with the first block; 2
+   gives the unit a Ctrl-F for every one of the caller's marks; 3 leaves the marks after a cancel; 4 puts the Ctrl-F
+   inside its word, after the first letter */
+AS_API int asv_marks_break = 0;
+
+static int room(ssv_reach **p, int *cap, int need)
+{
+    if (need > *cap) {
+        ssv_reach *q = (ssv_reach *)realloc(*p, sizeof(ssv_reach) * (size_t)need);
+        if (!q) return 0;
+        *p = q;
+        *cap = need;
+    }
+    return 1;
+}
+
+/* What the audio asv_render is about to return has reached.  The unit prompts (a 06h on its serial line) for each
+   Ctrl-F when the word before it has ended; the k-th prompt is the k-th Ctrl-F sent.  A mark reached in a block the
+   voice holds back waits with it, at its sample in the held audio, and comes out when that audio does. */
+static void report_marks(as_voice *v, int returned, int done)
+{
+    const ash_reply *rp;
+    int nr = v->blk_ran ? ash_replies(v->h, &rp) : 0, i, j, kept = 0, base, last = 0;
+    v->n_reached = 0;
+    if (!v->n_mk && !v->n_wait)
+        return;
+    if (!room(&v->wait, &v->cap_wait, v->n_wait + v->n_mk) || !room(&v->reached, &v->cap_reached, v->n_wait + v->n_mk)) {
+        v->n_mk = v->n_wait = 0;
+        return;
+    }
+    base = v->blk_fate == FATE_OUT ? 0 : v->held_before;
+    /* the marks this block's prompts reach: appended to those waiting, at their sample in the audio held so far */
+    for (j = 0; j < nr; j++) {
+        if (rp[j].value != 0x06) continue;
+        v->got06++;
+        for (i = 0; i < v->n_mk; i++)
+            if (v->mk[i].seq > 0 && v->mk[i].seq <= v->got06) {
+                int s = rp[j].sample - v->blk_start;
+                s = s < 0 ? 0 : s > v->blk_count ? v->blk_count : s;
+                v->wait[v->n_wait].id = v->mk[i].id;
+                v->wait[v->n_wait].sample = base + s;
+                v->wait[v->n_wait].exact = 1;
+                v->n_wait++;
+                v->mk[i].seq = -2;                          /* (taken) */
+            }
+    }
+    for (i = 0; i < v->n_mk; i++) {
+        if (v->mk[i].seq == 0 || asv_marks_break == 1) {     /* before the first word: at once */
+            if (v->mk[i].seq != -2) {
+                v->wait[v->n_wait].id = v->mk[i].id;
+                v->wait[v->n_wait].sample = 0;
+                v->wait[v->n_wait].exact = v->mk[i].seq == 0;
+                v->n_wait++;
+            }
+        } else if (v->mk[i].seq != -2)
+            v->mk[kept++] = v->mk[i];
+    }
+    v->n_mk = kept;
+    if (done) {                                              /* the rest with the last block, after its last sample */
+        for (i = 0; i < v->n_mk; i++) {
+            v->wait[v->n_wait].id = v->mk[i].id;
+            v->wait[v->n_wait].sample = 0x3FFFFFFF;
+            v->wait[v->n_wait].exact = v->mk[i].seq == -1;
+            v->n_wait++;
+        }
+        v->n_mk = 0;
+    }
+    if (v->blk_fate == FATE_HELD && !done)                   /* nothing given out: they wait with the held audio */
+        return;
+    for (i = 0; i < v->n_wait; i++) {
+        int s = v->wait[i].sample;
+        if (s < last) s = last;
+        if (s > returned) s = returned;
+        last = s;
+        v->reached[v->n_reached] = v->wait[i];
+        v->reached[v->n_reached++].sample = s;
+    }
+    v->n_wait = 0;
+}
+
+AS_API int asv_render(as_voice *v, const short **pcm, int *done)
+{
+    int n = render_block(v, pcm, done);
+    if (v->fault) { v->n_mk = v->n_wait = v->n_reached = 0; return n; }
+    report_marks(v, n, *done);
+    return n;
+}
+
+AS_API int asv_say_bytes_marked(const char *utf8, int with_numbers, const ssv_mark *marks, int n_marks, char *out, int cap)
+{
+    int n, *seqs = (int *)malloc(sizeof(int) * (size_t)(n_marks > 0 ? n_marks : 1));
+    char *text;
+    if (!seqs) return 0;
+    text = at_say_marked(utf8, with_numbers, marks, n_marks, seqs, NULL, asv_marks_break);
+    free(seqs);
+    n = text ? (int)strlen(text) : 0;
+    if (text && out && n < cap)
+        memcpy(out, text, (size_t)n + 1);
+    free(text);
+    return n;
+}
+
+AS_API int asv_reached(as_voice *v, const ssv_reach **out)
+{
+    *out = v->reached;
+    return v->n_reached;
+}
+
+AS_API int asv_marks_exact(const as_voice *v)
+{
+    (void)v;
+    return 1;
+}
+
+/* the unit told to prompt for its marks: off at power-up, so once for every unit made (measured: the two commands may
+   go in one send with the line, and survive a flush) */
+static void marks_on(as_voice *v)
+{
+    if (!v->index_on) {
+        say_str(v, "\x1bYX\x1b=Y", 0);
+        v->index_on = 1;
+    }
+}
+
+static int take_marks(as_voice *v, const ssv_mark *marks, const int *seqs, int n_marks, int n06)
+{
+    int i;
+    if (v->n_mk + n_marks > v->cap_mk) {
+        void *q = realloc(v->mk, sizeof *v->mk * (size_t)(v->n_mk + n_marks));
+        if (!q) return 0;
+        v->mk = q;
+        v->cap_mk = v->n_mk + n_marks;
+    }
+    for (i = 0; i < n_marks; i++) {
+        v->mk[v->n_mk].id = marks[i].id;
+        v->mk[v->n_mk++].seq = seqs[i] > 0 ? v->sent06 + seqs[i] : seqs[i];
+    }
+    v->sent06 += n06;
+    return 1;
+}
+
+AS_API int asv_speak_marked(as_voice *v, const char *utf8, int pitch_offset, const ssv_mark *marks, int n_marks)
+{
+    char *text, *line;
+    size_t n;
+    int *seqs, n06 = 0;
+    if (!marks || n_marks <= 0)
+        return asv_speak(v, utf8, pitch_offset);
+    seqs = (int *)malloc(sizeof(int) * (size_t)n_marks);
+    if (!seqs)
+        return asv_speak(v, utf8, pitch_offset);
+    v->job = 0;
+    begin(v);
+    marks_on(v);
+    if (pitch_offset)
+        pitch_item(v, pitch_offset);
+    text = at_say_marked(utf8, v->numbers, marks, n_marks, seqs, &n06, asv_marks_break);
+    if (!take_marks(v, marks, seqs, n_marks, n06)) v->n_mk = 0;
+    free(seqs);
+    if (!text || !*text) {                                   /* nothing to say: its marks with the next render */
+        free(text);
+        restore_pitch(v);
+        return 0;
+    }
+    n = strlen(text);
+    line = (char *)malloc(n + 2);
+    if (!line) { free(text); restore_pitch(v); v->n_mk = 0; return 0; }
+    memcpy(line, text, n);
+    line[n] = '\r';
+    free(text);
+    text_item(v, (const unsigned char *)line, (int)n + 1);
+    free(line);
+    return 1;
+}
+
+AS_API int asv_expect(as_voice *v, const ssv_mark *marks, int n_marks)
+{
+    int i, n06 = 0, *seqs;
+    if (!marks || n_marks <= 0)
+        return 0;
+    seqs = (int *)malloc(sizeof(int) * (size_t)n_marks);
+    if (!seqs) return 0;
+    for (i = 0; i < n_marks; i++) {
+        seqs[i] = marks[i].at;
+        if (marks[i].at > n06) n06 = marks[i].at;
+    }
+    i = take_marks(v, marks, seqs, n_marks, n06);
+    free(seqs);
+    if (i) marks_on(v);
+    return i;
+}
+
 static void resend_pitch(as_voice *v)                         /* _resend_pitch */
 {
     say_pitch(v, v->sent_pitch);
@@ -449,6 +674,8 @@ static void resend_pitch(as_voice *v)                         /* _resend_pitch *
 /* cancel(), then _run's flush: box.cancel(), and _resend_pitch when a pitch command may have been dropped */
 AS_API void asv_cancel(as_voice *v)
 {
+    if (asv_marks_break != 3)
+        v->n_mk = v->n_wait = v->n_reached = 0;              /* no mark of a cancelled text is reported */
     if (v->active)
         finish(v);
     forget(v);

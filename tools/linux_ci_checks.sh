@@ -76,6 +76,19 @@ check "bl_voice: index marks, the bytes for the unit" python3 nvda/tools/voice_m
 control "bl_voice marks CONTROL (a Ctrl-F for every mark on one word, must fail)" \
     "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^voice marks: 2 FAILED$" \
     -- env VOICE_MARKS_BREAK=2 python3 nvda/tools/voice_marks.py
+# ... and the Accent SA's (as_voice.h): Ctrl-F at the front of each marked word, the unit's prompts on its serial
+# line, the marks following the audio the voice holds back (its ROMs are in the repository: it always runs)
+check "as_voice: index marks by the unit's own Ctrl-F" python3 nvda/tools/as_marks.py $B/libssi263_voices.so
+control "as_voice marks CONTROL (every mark with the first block, must fail)" "^FAIL place " "^FAIL twins " \
+    "^FAIL end " "^FAIL dense " "^FAIL cancel " "^ok +frames " "^as marks: 5 FAILED$" \
+    -- env AS_MARKS_BREAK=1 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
+control "as_voice marks CONTROL (a Ctrl-F for every mark on a word, must fail)" \
+    "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^as marks: 1 FAILED$" \
+    -- env AS_MARKS_BREAK=2 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
+control "as_voice marks CONTROL (the marks left after a cancel, must fail)" "^FAIL cancel .* [1-9] reported after it" \
+    "^as marks: 1 FAILED$" -- env AS_MARKS_BREAK=3 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
+control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
+    "^FAIL bytes " "^as marks: 5 FAILED$" -- env AS_MARKS_BREAK=4 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
 check "voice table: index marks, estimated, on the voices in the repository" python3 tools/check_ssv_marks.py \
     $B/libssi263_voices.so --firmware "$ROOT/firmware"
 control "voice table marks CONTROL (the estimate reports every mark at once, must fail)" \

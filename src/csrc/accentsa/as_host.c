@@ -22,6 +22,8 @@ struct as_host {
     int preparing;
     double last_speech, say_time;
     long work;                         /* instructions the firmware ran outside its waiting loops in the last ash_run */
+    ash_reply rp[ASH_REPLIES];         /* the last ash_run's (ash_replies) */
+    int n_rp, tx_seen;                 /* tx_seen: the bytes of as_board_tx already looked at */
     double *buf;
     int n_buf, cap_buf;
     int log_on;
@@ -258,12 +260,27 @@ static int reserve(as_host *h, long more)
     return 1;
 }
 
+/* the bytes the unit has sent since the last look: each where this run's audio is now */
+static void replies(as_host *h)
+{
+    const uint8_t *tx;
+    int n = as_board_tx(h->b, &tx);
+    for (; h->tx_seen < n; h->tx_seen++)
+        if (h->n_rp < ASH_REPLIES) {
+            h->rp[h->n_rp].value = tx[h->tx_seen];
+            h->rp[h->n_rp].sample = h->n_buf;
+            h->n_rp++;
+        }
+}
+
 AS_API int ash_run(as_host *h, double seconds, double step, const double **audio)
 {
     double t = 0.0;
     h->n_buf = 0;
     h->work = 0;
+    h->n_rp = 0;
     *audio = h->buf;
+    replies(h);                        /* (what came between two runs: at this one's start) */
     while (t < seconds) {
         double before, dt;
         long n, got;
@@ -286,11 +303,18 @@ AS_API int ash_run(as_host *h, double seconds, double step, const double **audio
         if (dt < 1e-5)
             dt = 1e-5;                                     /* max(..., 1e-5) */
         run_cpu(h, dt);
+        replies(h);
         h->work += (long)as_board_take_work(h->b);
         t += dt;
     }
     *audio = h->buf;
     return h->n_buf;
+}
+
+AS_API int ash_replies(const as_host *h, const ash_reply **out)
+{
+    *out = h->rp;
+    return h->n_rp;
 }
 
 AS_API double ash_skip(as_host *h, double seconds, double step)

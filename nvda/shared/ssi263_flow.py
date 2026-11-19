@@ -97,6 +97,41 @@ def line_groups(run, prepare, limit):
         yield line_text(group, prepare)
 
 
+def own_line(parts, marks, mark_text):
+    """The line for a unit that reports its own index marks: the texts joined by spaces, the unit's mark at the front
+    of each text an index stands before -- after the joining space, where every such unit takes it for nothing but a
+    word boundary (docs/index-marks.md).  parts, marks: line_text's; mark_text(k) -> (the k-th mark's characters,
+    what the unit will call it), k from 1.  Returns (the line, [(what the unit calls the mark, the index)]); indexes
+    on one text share one mark; an index before the first text or after the last has none (they are reported at
+    the line's start and end)."""
+    line, at, pairs, k = "", 0, [], 0
+    for n, part in enumerate(parts):
+        here = [i for c, i in marks if c == at and c > 0]
+        if here:
+            k += 1
+            text, name = mark_text(k)
+            line += text
+            pairs += [(name, i) for i in here]
+        line += part + (" " if n + 1 < len(parts) else "")
+        at += len(part) + 1
+    return line, pairs
+
+
+def say_own(box, parts, marks, feed, notify, cancelled):
+    """A line said to a unit with its own index marks (box.own_marks()): its audio to the player, each index where
+    the unit says speech is.  marks is emptied of the indexes reported; what is left stood after the last text.
+    False when the unit would not take the marks (nothing was said: the caller says the line without them)."""
+    line, pairs = own_line(parts, marks, box.mark_text)
+    if pairs and not box.expect(pairs):
+        return False
+    while marks and marks[0][0] == 0:            # an index before the first text: at once
+        notify(marks.pop(0)[1])
+    box.say(line + "\r")
+    told = play_own(box.render, box.reached, feed, notify, cancelled)
+    marks[:] = [m for m in marks if m[1] not in told]
+    return True
+
+
 def play_own(render, reached, feed, notify, cancelled):
     """The line has been said to a unit that reports its own index marks: its audio to the player, each index
     where the unit says speech is -- the block's audio up to the mark's sample, the index, then the rest.  render:

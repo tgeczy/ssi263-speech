@@ -187,6 +187,91 @@ char *at_say_text(const char *utf8, int with_numbers)
 /* ---- _ESC and say(speech=None) ----------------------------------------------------------------------------------- */
 
 /* Python's str.isalnum() on chr(0..255) */
+/* ---- index marks: the text with Ctrl-F at the front of the marked words (accent_text.h) ---------------------------- */
+static int words_of(const char *t, int n, int *ws, int *we)
+{
+    int nw = 0, i = 0;
+    while (i < n) {
+        if (t[i] == ' ') { i++; continue; }
+        ws[nw] = i;
+        while (i < n && t[i] != ' ') i++;
+        we[nw++] = i;
+    }
+    return nw;
+}
+
+/* the word of the whole prepared text a mark at byte `at` of the source stands before (0 to nw): the source up to the
+   mark -- from the start of the run of text it stands in -- prepared by itself, its words held against the whole's */
+static int mark_word(const char *utf8, int at, int with_numbers, const char *t, const int *ws, const int *we, int nw)
+{
+    int len = (int)strlen(utf8), pn, pnw, j = 0, *pws, *pwe;
+    char *prefix, *pt;
+    if (at <= 0) return 0;
+    if (at > len) at = len;
+    if (at < len)
+        while (at > 0 && (unsigned char)utf8[at] > ' ' && (unsigned char)utf8[at - 1] > ' ') at--;
+    while (at > 0 && at < len && ((unsigned char)utf8[at] & 0xC0) == 0x80) at--;
+    prefix = (char *)malloc((size_t)at + 1);
+    if (!prefix) return 0;
+    memcpy(prefix, utf8, (size_t)at);
+    prefix[at] = 0;
+    pt = at_say_text(prefix, with_numbers);
+    free(prefix);
+    if (!pt) return 0;
+    pn = (int)strlen(pt);
+    pws = (int *)malloc(sizeof(int) * (size_t)(pn + 1));
+    pwe = (int *)malloc(sizeof(int) * (size_t)(pn + 1));
+    if (pws && pwe) {
+        pnw = words_of(pt, pn, pws, pwe);
+        for (j = 0; j < pnw && j < nw; j++) {
+            int a = pwe[j] - pws[j];
+            if (a != we[j] - ws[j] || memcmp(pt + pws[j], t + ws[j], (size_t)a)) break;
+        }
+    }
+    free(pt); free(pws); free(pwe);
+    return j;
+}
+
+char *at_say_marked(const char *utf8, int with_numbers, const ssv_mark *marks, int n_marks, int *seqs, int *n06, int brk)
+{
+    char *t = at_say_text(utf8, with_numbers), *out = NULL;
+    int n, nw, i, w, m = 0, last = 0, count = 0, *ws = NULL, *we = NULL, *mk = NULL;
+    if (n06) *n06 = 0;
+    for (i = 0; i < n_marks; i++) seqs[i] = 0;
+    if (!t || !*t) return t;
+    n = (int)strlen(t);
+    ws = (int *)malloc(sizeof(int) * (size_t)(n + 1));
+    we = (int *)malloc(sizeof(int) * (size_t)(n + 1));
+    mk = (int *)calloc((size_t)(n + 2), sizeof(int));          /* per word: the Ctrl-Fs in front of it, then their number */
+    out = (char *)malloc((size_t)n + (size_t)n_marks + 1);
+    if (!ws || !we || !mk || !out) { free(ws); free(we); free(mk); free(out); return t; }
+    nw = words_of(t, n, ws, we);
+    for (i = 0; i < n_marks; i++) {
+        w = mark_word(utf8, marks[i].at, with_numbers, t, ws, we, nw);
+        if (w < last) w = last;                                /* in the caller's order, never back */
+        last = w;
+        seqs[i] = w;                                           /* (its word, until the text is laid out) */
+        if (w > 0 && w < nw && (!mk[w] || brk == 2)) mk[w]++;
+    }
+    for (w = 0, i = 0; i < n; i++) {
+        int at_word = w < nw && i == ws[w], k;
+        if (at_word && brk != 4) for (k = mk[w]; k > 0; k--) out[m++] = 0x06;
+        out[m++] = t[i];
+        if (at_word && brk == 4) for (k = mk[w]; k > 0; k--) out[m++] = 0x06;
+        if (at_word) {
+            count += mk[w];
+            if (mk[w]) mk[w] = count;                          /* now: the number of its (last) Ctrl-F */
+            w++;
+        }
+    }
+    out[m] = 0;
+    for (i = 0; i < n_marks; i++)
+        seqs[i] = seqs[i] <= 0 ? 0 : seqs[i] >= nw ? -1 : mk[seqs[i]];
+    if (n06) *n06 = count;
+    free(t); free(ws); free(we); free(mk);
+    return out;
+}
+
 static const unsigned char ALNUM[32] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x03, 0xFE, 0xFF, 0xFF, 0x07, 0xFE, 0xFF, 0xFF, 0x07,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x2C, 0x76, 0xFF, 0xFF, 0x7F, 0xFF, 0xFF, 0xFF, 0x7F, 0xFF};

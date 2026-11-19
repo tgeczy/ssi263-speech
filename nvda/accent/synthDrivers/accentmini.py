@@ -41,6 +41,7 @@ try:
 except ImportError:                       # an engine from before it: each text a line of its own
     _flow = None
 FLOW = True                               # (the tests' control takes it away)
+OWN_MARKS = True                          # (... or has each index estimated, as on a unit without index marks)
 
 # Developer switch: True writes a step-by-step "Accent:" trace to NVDA's log (at debug level)
 # and starts a thread that reports a stuck worker.  Off for everyone else; not a setting.
@@ -425,12 +426,21 @@ class SynthDriver(SynthDriver):
                 continue
             if kind == "line":                   # say all's lines, as one line (ssi263_flow.py)
                 parts, marks, chars = _flow.line_text(value, lambda t: box.prepare(t, self._numbers))
+                # the unit's own index marks where its voice has them (the Accent SA: a Ctrl-F in the text, which the
+                # unit answers when speech reaches it, as_voice.h; the Accent-mini's are not used yet): one at the
+                # front of each text an index stands before
                 if parts:
+                    self._set_phase("running the card")
+                own = (parts and OWN_MARKS and hasattr(box, "own_marks") and box.own_marks()
+                       and _flow.say_own(box, parts, marks, self._player.feed, self._notifyIndex,
+                                         self._cancelFlag.is_set))
+                if parts and not own:
                     self._set_phase("sending text")
                     box.say(" ".join(parts) + "\r")
                     self._set_phase("running the card")
                     _flow.play_line(box.render, marks, chars, self._player.feed, self._notifyIndex,
                                     self._cancelFlag.is_set)
+                if parts:
                     if box.fault:
                         log.warning("Accent: card stalled; restarting it. card: %s" % box.state())
                         raise RuntimeError("card stalled")

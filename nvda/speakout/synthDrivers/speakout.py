@@ -107,7 +107,6 @@ class SynthDriver(SynthDriver):
         self._cancelFlag = threading.Event()
         self._stopped = False
         self._box = None
-        self._mark = 0                    # the last index mark's byte given to the box (SpeakOutC.MARK_FIRST ...)
         # the worker's first boot, for a driver running this one inside (synthDrivers/ssi263.py): set once it
         # is up, with bootError when it failed -- the constructor returning says nothing about the firmware
         self.booted = threading.Event()
@@ -350,26 +349,9 @@ class SynthDriver(SynthDriver):
                 # the box's own index marks where it has them (the Speak-Out: Ctrl-E [ x in the text comes back as x
                 # when speech reaches it, so_voice.h; the Sounding Board's driver reports them another way, not used
                 # yet): one at the front of each text an index stands before, after the joining space
-                own = parts and OWN_MARKS and hasattr(box, "own_marks") and box.own_marks()
-                if own:
-                    line, at, pairs = "", 0, []
-                    for k, part in enumerate(parts):
-                        here = [i for c, i in marks if c == at and c > 0]
-                        if here:
-                            self._mark = self._mark + 1 if box.MARK_FIRST <= self._mark < box.MARK_LAST else box.MARK_FIRST
-                            line += box.MARK + chr(self._mark)
-                            pairs += [(self._mark, i) for i in here]
-                        line += part + (" " if k + 1 < len(parts) else "")
-                        at += len(part) + 1
-                    while marks and marks[0][0] == 0:        # an index before the first text: at once
-                        self._notifyIndex(marks.pop(0)[1])
-                    if pairs and not box.expect(pairs):
-                        own = False
-                    else:
-                        box.say(line + "\r")
-                        told = _flow.play_own(box.render, box.reached, self._player.feed, self._notifyIndex,
-                                              self._cancelFlag.is_set)
-                        marks[:] = [m for m in marks if m[1] not in told]    # (what is left: after the last text)
+                own = (parts and OWN_MARKS and hasattr(box, "own_marks") and box.own_marks()
+                       and _flow.say_own(box, parts, marks, self._player.feed, self._notifyIndex,
+                                         self._cancelFlag.is_set))
                 if parts and not own:
                     box.say(" ".join(parts) + "\r")
                     _flow.play_line(box.render, marks, chars, self._player.feed, self._notifyIndex,

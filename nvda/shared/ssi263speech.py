@@ -76,10 +76,11 @@ def load(path):
     _sig(lib, "sov_host", _P, [_P])
     _sig(lib, "sov_chip", _P, [_P])
     _sig(lib, "sov_fault", _I, [_P])
-    if hasattr(lib, "sov_expect"):                        # the box's own index marks (so_voice.h)
-        _sig(lib, "sov_marks_exact", _I, [_P])
-        _sig(lib, "sov_expect", _I, [_P, ctypes.POINTER(_Mark), _I])
-        _sig(lib, "sov_reached", _I, [_P, ctypes.POINTER(ctypes.POINTER(_Reach))])
+    for p in ("sov", "asv", "amv"):                       # the units' own index marks (so_voice.h, as_voice.h)
+        if hasattr(lib, p + "_expect"):
+            _sig(lib, p + "_marks_exact", _I, [_P])
+            _sig(lib, p + "_expect", _I, [_P, ctypes.POINTER(_Mark), _I])
+            _sig(lib, p + "_reached", _I, [_P, ctypes.POINTER(ctypes.POINTER(_Reach))])
     _sig(lib, "amv_create_mem", _P, [_S, ctypes.c_size_t, _D] + err)
     _sig(lib, "amv_set", None, [_P] + [_I] * 6)
     _sig(lib, "amv_say_bytes", _I, [_S, _I, _S, _I])
@@ -238,6 +239,28 @@ class _Unit:
         data = ctypes.string_at(self._pcm, 2 * n) if n > 0 else b""
         return data, bool(self._done.value)
 
+    # ---- the unit's own index marks (src/csrc/marks.h): a mark in the text, the unit saying when speech reaches it ---
+    def own_marks(self):
+        """True when this unit's own index marks are used: its voice has them (<api>_expect) and says they are
+        usable now (<api>_marks_exact)"""
+        return (hasattr(self._lib, self._api + "_expect") and hasattr(self, "mark_text")
+                and bool(getattr(self._lib, self._api + "_marks_exact")(self._v)))
+
+    def expect(self, pairs):
+        """the marks in the text about to be said, in its order: [(what the unit calls the mark -- mark_text's
+        second value --, the caller's number for it)]; False when they are not used (the text is then said
+        without them)"""
+        arr = (_Mark * len(pairs))()
+        for k, (name, number) in enumerate(pairs):
+            arr[k].at, arr[k].id = int(name), int(number)
+        return bool(self._call("expect", arr, len(pairs)))
+
+    def reached(self):
+        """the marks speech reached in the audio render() just returned: [(the caller's number, its sample in
+        that audio)]"""
+        p = ctypes.POINTER(_Reach)()
+        return [(p[k].id, p[k].sample) for k in range(getattr(self._lib, self._api + "_reached")(self._v, ctypes.byref(p)))]
+
     def end(self):
         """_speakJob's finally: the user's pitch again if a capital left it changed"""
         self._call("end")
@@ -305,27 +328,13 @@ class SpeakOutC(_Unit):
         return out.raw[:n].rstrip(b"\r").decode("latin-1")
 
     # ---- the box's own index marks (so_voice.h): 05h 5Bh xx in the text comes back as xx when speech is there ------
-    MARK = "\x05["                         # then the byte, MARK_FIRST .. MARK_LAST (so_voice.c's)
-    MARK_FIRST, MARK_LAST = 0x30, 0x7A
+    MARK_FIRST, MARK_LAST = 0x30, 0x7A      # the bytes used (so_voice.c's: thirteen others do not come back as sent)
+    _mark = 0
 
-    def own_marks(self):
-        """True when this box's replies to its index marks are used: the Speak-Out (not the Sounding Board, whose
-        DOS driver reports them another way)"""
-        return hasattr(self._lib, "sov_expect") and bool(self._lib.sov_marks_exact(self._v))
-
-    def expect(self, pairs):
-        """the marks in the text about to be said, in its order: [(the byte each comes back as, the caller's
-        number for it)]; False when they are not used (the text is then said without them)"""
-        arr = (_Mark * len(pairs))()
-        for k, (value, number) in enumerate(pairs):
-            arr[k].at, arr[k].id = int(value), int(number)
-        return bool(self._call("expect", arr, len(pairs)))
-
-    def reached(self):
-        """the marks speech reached in the block render() just returned: [(the caller's number, its sample in
-        that block)]"""
-        p = ctypes.POINTER(_Reach)()
-        return [(p[k].id, p[k].sample) for k in range(self._lib.sov_reached(self._v, ctypes.byref(p)))]
+    def mark_text(self, k):
+        """the k-th mark of a text: (its characters, the byte the box -- or the card's driver -- calls it)"""
+        self._mark = self._mark + 1 if self.MARK_FIRST <= self._mark < self.MARK_LAST else self.MARK_FIRST
+        return "\x05[" + chr(self._mark), self._mark
 
 
 class SoundingBoardC(SpeakOutC):
@@ -361,6 +370,14 @@ class _Accent(_Unit):
         return out.raw[:n].decode("latin-1")
 
 
+class _AccentMarks:
+    """the Accents' own index mark (as_voice.h): Ctrl-F, which the unit answers when the word before it has ended;
+    all alike, so the k-th of a text is called k"""
+
+    def mark_text(self, k):
+        return "\x06", k
+
+
 class AccentMiniC(_Accent):
     """Aicom's Accent-mini: its DOS driver SPKEMS.DVC on MAME's 8086 and the NVDA driver's front end (am_voice.h)."""
     _api, _host = "amv", "amh"
@@ -379,7 +396,7 @@ class AccentMiniC(_Accent):
                           int(voice))
 
 
-class AccentSAC(_Accent):
+class AccentSAC(_AccentMarks, _Accent):
     """Aicom's Accent SA: its 8085 firmware and ROMs on MAME's 8085 and the NVDA driver's front end (as_voice.h)."""
     _api, _host = "asv", "ash"
 
