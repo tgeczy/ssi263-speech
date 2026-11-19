@@ -47,6 +47,7 @@ check "CPU contract tests (MAME Z180 core)" ./build/linux/test_z180_contract
 check "white-box tests (MAME Z180 core)" ./build/linux/test_z180_whitebox
 check "CPU contract tests (MAME 8085 core)" ./build/linux/test_i8085_contract
 check "CPU contract tests (MAME 8086 core)" ./build/linux/test_i86_contract
+check "CPU contract tests (MAME 6809 core)" ./build/linux/test_m6809_contract
 check "golden, native host (en)" python3 nvda/tools/bns_equiv.py --native "$LIB" \
     --against=nvda/tools/golden/blazie_en.txt
 [ -f "$DATA/BL2SPA.BNS" ] && check "golden, native host (es)" python3 nvda/tools/bns_equiv.py --native --es "$LIB" \

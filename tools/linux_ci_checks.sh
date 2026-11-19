@@ -43,6 +43,7 @@ check "white-box tests (MAME Z180 core)" ./$B/test_z180_whitebox
 check "CPU contract tests (MAME 8085 core)" ./$B/test_i8085_contract
 check "CPU contract tests (MAME 8086 core)" ./$B/test_i86_contract
 check "CPU contract tests (MAME V40 core)" ./$B/test_v40_contract
+check "CPU contract tests (MAME 6809 core)" ./$B/test_m6809_contract
 check "chip defaults" python3 src/csrc/gen_chip_defaults.py --check
 # accented letters (src/csrc/translit.h): the module and every voice's bytes need no firmware (linux_tests.sh's)
 check "accented letters: translit.h (C), the table, alone and in a word, case" python3 nvda/tools/translit_test.py module

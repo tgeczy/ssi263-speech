@@ -1,0 +1,47 @@
+MAME's 6809 core: where it comes from.
+
+Upstream:  https://github.com/mamedev/mame
+Revision:  1c924ea79551fdfc3960bfa8ceb93fc1928c661b (the revision MAME's 8085 here is pinned to)
+Path:      src/devices/cpu/m6809/
+Licence:   BSD-3-Clause, per file (LICENSE-BSD-3-Clause.txt beside this file)
+Authors:   Nathan Woods (the copyright-holders line of m6809.cpp, m6809.h, m6809inl.h, m6809.lst and base6x09.lst;
+           m6809.cpp's header comment also reads "Copyright John Butler"); Olivier Galibert (m6809make.py's)
+
+sha256 of each file with LF line ends (as raw.githubusercontent.com serves it; a Windows checkout's CRLF is folded):
+  m6809.cpp     ba2e2a018b033d4301cc00b219c698c89d0957267d1e977e0b93e1ccfd63f199
+  m6809.h       a8581492454d4123fc2548725ad9e7fec0430c0b93e072e4e92a3761a4b72d59
+  m6809inl.h    416affb0e6593dd6544576f8f298e897f69d5de0fc736583346da945c472bf60
+  m6809.lst     f1395c6e7741903b86c0c4e003a649999e66f86b03fdd38eb565f635c77162ba
+  base6x09.lst  601f44e2b2b87177d276f90072f8b433c10007ae508ae83deab10f76605fda89
+  m6809make.py  4c64da3f52075a7cbe292d8fbf51ca04f29e02fece04fc24b68e75dd0d66e547
+each at https://raw.githubusercontent.com/mamedev/mame/1c924ea79551fdfc3960bfa8ceb93fc1928c661b/src/devices/cpu/m6809/<name>
+
+MAME's 6809 is GENERATED.  The instructions are not in a .cpp file: m6809.lst (which includes base6x09.lst) describes
+them cycle by cycle, and MAME's build runs m6809make.py on it to make m6809.hxx, a state machine that m6809.cpp's
+execute_one includes inside its switch.  m6809.hxx is in no MAME checkout; it is made here the same way:
+
+  python -I <folder>/m6809make.py <folder>/m6809.lst        (run from an empty folder; the .lst path with forward
+                                                              slashes: the generator finds base6x09.lst beside it by '/')
+
+  what it prints, with LF line ends:  sha256 e63650e1719efd8ffb50192051153d4cc358ba245db8253febfea7997cab270d
+                                      2389 lines, 248 states
+
+m6809make.py was read in full before it was first run: it opens the file named by its one argument and the file that
+one includes, and prints; nothing else.
+
+Nothing is copied unchanged.  ../extract_m6809_machine.py checks all six files' sha256, runs the pinned generator on
+the pinned .lst as above (the checked bytes themselves, copied to a scratch folder, so the generator that runs is the
+one that was hashed), checks the sha256 of what it printed, and writes ../m6809_mame_machine.cpp (generated): the
+class's members from exact line ranges of m6809.h, the inline functions of m6809inl.h, and from m6809.cpp the
+power-on values, reset, the input lines, TFR's and EXG's registers and execute_one -- with the generator's output in
+place of its #include.  It refuses to run unless every sha256 is the one above and every anchor line is in place;
+every change is named in the script and marked CHANGED in the output.  The class's head (the framework's bases and
+overrides, m6809.h lines 27-83) is the script's own.
+
+NOT taken: the constructors and device types (MC6809, MC6809E, M6809), the address-space configuration, the memory
+interface classes, the state table and save states, the disassembler (6x09dasm.*), the clock divider, execute_run
+(our step driver in ../m6809_mame.cpp follows it), and the HD6309 and Konami cores that share base6x09.lst
+(hd6309.*, konami.*).
+
+To update: point the script at the newer files, change REVISION, SHA256 and HXX_SHA256 in it, move any anchors, re-run
+it and the tests (test_m6809_contract.c, m6809_controls.py), and record the new revision here.

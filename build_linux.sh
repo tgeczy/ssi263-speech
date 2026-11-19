@@ -191,6 +191,11 @@ mkdir -p "$OUT/obj_i8085"
 $CXX $MAMET -Wno-sign-compare -c -o "$OUT/obj_i8085/i8085_mame.o" "$SRC/cpu/i8085_mame.cpp"
 $CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC -c -o "$OUT/obj_i8085/test_i8085_contract.o" "$SRC/cpu/test_i8085_contract.c"
 $CXX -o "$OUT/test_i8085_contract" "$OUT/obj_i8085/test_i8085_contract.o" "$OUT/obj_i8085/i8085_mame.o"
+# MAME's 6809 core (src/csrc/cpu/m6809_mame.cpp; no board yet): the CPU contract's tests.  Its own object folder.
+mkdir -p "$OUT/obj_m6809"
+$CXX $MAMET -c -o "$OUT/obj_m6809/m6809_mame.o" "$SRC/cpu/m6809_mame.cpp"
+$CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC -c -o "$OUT/obj_m6809/test_m6809_contract.o" "$SRC/cpu/test_m6809_contract.c"
+$CXX -o "$OUT/test_m6809_contract" "$OUT/obj_m6809/test_m6809_contract.o" "$OUT/obj_m6809/m6809_mame.o"
 # MAME's V40 core (src/csrc/cpu/v40_mame.cpp, the Speak-Out's): the CPU contract's tests, the Speak-Out board's tests
 # (src/csrc/speakout) and the board as a shared library for src/hosts/speakout_v40.py.
 rm -rf "$OUT/obj_v40"; mkdir -p "$OUT/obj_v40"

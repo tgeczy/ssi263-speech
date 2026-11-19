@@ -1565,6 +1565,18 @@ if os.path.isfile(IMPORT_TEST):
 # (src/csrc/cpu/test_i8085_contract.c; its must-fail controls: cpu/i8085_controls.py)
 if os.path.isfile(os.path.join(LIB, "test_i8085_contract.exe")):
     CHECKS.append(check("MAME 8085 core: CPU contract tests", [os.path.join(LIB, "test_i8085_contract.exe")]))
+# MAME's 6809 core (src/csrc/cpu/m6809_mame.cpp, its instructions generated from MAME's m6809.lst; no board yet):
+# CONTRACT.md 14's clauses (src/csrc/cpu/test_m6809_contract.c, hand-assembled bytes, no firmware), and its must-fail
+# controls (cpu/m6809_controls.py: each rule undone in a scratch copy must fail exactly its tests; some fifty small builds
+# of its own, a few seconds)
+if os.path.isfile(os.path.join(LIB, "test_m6809_contract.exe")):
+    CHECKS.append(check("MAME 6809 core: CPU contract tests", [os.path.join(LIB, "test_m6809_contract.exe")]))
+    CHECKS.append(check("MAME 6809 core: CPU contract CONTROLS (each rule undone, must fail its tests)",
+                        [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "cpu",
+                                          "m6809_controls.py")],
+                        ok=lambda out: bool(re.search(r"^ok +the core as it is -> 29 tests, failing: none$", out, re.M))
+                        and len(re.findall(r"^ok +undone: ", out, re.M)) == 53
+                        and bool(re.search(r"^controls: all as expected$", out, re.M))))
 # MAME's V40 core (the Speak-Out's, src/csrc/cpu/v40_mame.cpp) and the Speak-Out board on it (src/csrc/speakout): the
 # add-on's default since 0.7 (mame-steps).  The contract's clauses, the board's own rules, and, with the firmware,
 # the board against the old Unicorn host, selected explicitly as a development reference (speakout_core_compare.py:

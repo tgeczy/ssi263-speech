@@ -225,6 +225,51 @@ void m6502_regs_get(const m6502 *c, m6502_regs *out);
    in `in` are ignored. */
 void m6502_regs_set(m6502 *c, const m6502_regs *in);
 
+/* ---- 6809 (Motorola MC6809) ------------------------------------------------------------------------------------
+   MAME's 6809 (BSD-3-Clause, Nathan Woods; its instructions generated from m6809.lst) behind our step driver,
+   CONTRACT.md 14.  Memory-mapped I/O only: the bus's in and out are never called and may be NULL; irq_ack is not
+   called either (the vectors are plain reads of FFF2h-FFFFh).  Cycles are E-clock cycles, one per bus cycle (on an
+   MC6809 E is the crystal divided by 4).  A step is one whole instruction, its page prefix (10h, 11h) included; a
+   core inside SYNC or CWAI does one-cycle slots.  The opcodes Motorola leaves unused run as upstream runs them and
+   are counted (m6809_regs), so a board shows its program never reaches them. */
+typedef struct m6809 m6809;
+
+enum { M6809_IRQ, M6809_FIRQ, M6809_NMI };     /* IRQ and FIRQ: levels, masked by I and F; NMI: an edge, taken only
+                                                  once S has been loaded (m6809_regs.nmi_armed) */
+enum { M6809_RUNNING, M6809_IN_SYNC, M6809_IN_CWAI };          /* m6809_regs.waiting */
+
+typedef struct {
+    uint16_t pc, s, u, x, y;
+    uint8_t a, b, dp;
+    uint8_t cc;                      /* E F H I N Z V C, bit 7 to bit 0 */
+    uint8_t nmi_armed;               /* S has been loaded since reset (LDS, LEAS, TFR r,S): NMI edges are latched */
+    uint8_t waiting;                 /* M6809_IN_SYNC or M6809_IN_CWAI: the steps are one-cycle slots until a line ends it */
+    uint8_t free_run;                /* 14h, 15h or CDh was executed: upstream's model of the chip's test mode, every
+                                        step one read of the next address, until reset */
+    uint8_t fault;                   /* the state machine met a state it does not have (upstream's fatalerror; no
+                                        6809 code reaches it): one-cycle slots until reset */
+    uint32_t undefined;              /* opcodes Motorola's opcode map leaves unused, run since reset */
+    uint16_t undefined_at;           /* the last one's instruction address */
+} m6809_regs;
+
+m6809 *m6809_create(const cpu_bus *bus, double clock_hz);
+void m6809_destroy(m6809 *c);
+void m6809_reset(m6809 *c);                        /* DP = 0, I and F set, PC from FFFEh-FFFFh (read now), NMI disarmed */
+int m6809_step(m6809 *c);                          /* one step (CONTRACT.md 1, 14); returns its E cycles */
+uint64_t m6809_run(m6809 *c, uint64_t budget);     /* whole steps until >= budget cycles; returns those run */
+void m6809_set_irq(m6809 *c, int line, int asserted);
+uint64_t m6809_cycles(const m6809 *c);             /* E cycles since reset */
+uint64_t m6809_steps(const m6809 *c);
+uint32_t m6809_pc(const m6809 *c);                 /* the saved instruction-start PC */
+uint32_t m6809_next_pc(const m6809 *c);            /* PC now: where the next step starts unless an interrupt is
+                                                      accepted (a host's "run until" test, as i86_next_pc) */
+void m6809_regs_get(const m6809 *c, m6809_regs *out);
+/* A host that calls into its program (the entry point in PC, its own return address on the stack) sets the
+   registers between steps.  It leaves any wait: the next step starts a new instruction at `in->pc`.  nmi_armed is
+   set as given (the host's S stands in for the program's LDS); waiting, free_run, fault and the counts in `in` are
+   ignored. */
+void m6809_regs_set(m6809 *c, const m6809_regs *in);
+
 #ifdef __cplusplus
 }
 #endif

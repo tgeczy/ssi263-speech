@@ -47,6 +47,13 @@ The cores never know which board they are in.
 | `m6502.c` | **Our step driver** for the 6502 (CONTRACT.md 13: the poll after CLI/SEI/PLP, NMI an edge, IRQ a level) and the `cpu.h` functions; counts decimal-mode arithmetic and undocumented opcodes. It includes `m6502_fake_machine.c`. |
 | `test_m6502_contract.c` | CONTRACT.md 13's clauses on the 6502 core, one test each (17). |
 | `m6502_controls.py` | Its must-fail controls (10): each rule undone in a scratch copy, exactly its tests must fail. |
+| `mame_m6809/` | Where MAME's 6809 comes from: `PINNED.txt` (the upstream revision, each file's hash, how the instructions' state machine is generated and that output's hash) and the licence text (BSD-3-Clause; Nathan Woods, Olivier Galibert). Nothing of it is copied unchanged. |
+| `extract_m6809_machine.py` | Generates `m6809_mame_machine.cpp` from six files of MAME's `src/devices/cpu/m6809/` (pinned by revision and sha256). MAME's 6809 is itself generated, so the script runs MAME's own pinned generator (`m6809make.py`) on the pinned `m6809.lst`, checks the sha256 of what it prints, and adds exact line ranges of the other files, each anchored, every change named and marked `CHANGED`. |
+| `m6809_mame_machine.cpp` | **Generated; do not edit.** MAME's 6809: the class's members, the inline functions, reset, the input lines, and the instructions as a cycle-by-cycle state machine with the interrupt entries, SYNC and CWAI inside it. |
+| `m6809_mame.hpp` | The shim MAME's 6809 code compiles against: the bus (16-bit addresses, memory only), the unconnected outputs, and the step driver's state. |
+| `m6809_mame.cpp` | **Our step driver** (CONTRACT.md 14: a whole instruction a step, its page prefix included; one-cycle slots in SYNC and CWAI; the step limit) and the `cpu.h` functions (`m6809_*`, with `m6809_regs_set` and `m6809_next_pc` for a host that calls into its program); counts the opcodes Motorola leaves unused. It includes `m6809_mame_machine.cpp`. The header comment lists every deliberate difference from MAME. |
+| `test_m6809_contract.c` | CONTRACT.md 14's clauses on the 6809 core, one test each (29), every program hand-assembled in the test, the cycles Motorola's (the MC6809 data sheet). |
+| `m6809_controls.py` | Its must-fail controls (53): each rule undone in a scratch copy, exactly its tests must fail. |
 
 Built by `../blazie/build_board.py` (the Braille Lite board on the MAME core: `bl_live_mame.exe`,
 `test_bl_board_mame.exe`, beside the legacy ones) and `../../../build_linux.sh` (`test_bl_board_mame`). Gated in
@@ -218,3 +225,8 @@ counted with a scratch-instrumented build, not in the tree):
 
 The 6502 (the Apple II's, for the Mockingboard in `../mockingboard/`) is plain C: `test_m6502_contract` and its
 controls build with gcc alone (`m6502_controls.py`).
+
+MAME's 6809 is built as the 8085: `test_m6809_contract.exe` by `build_board.py`, `test_m6809_contract` by
+`build_linux.sh`, both gated, and `m6809_controls.py` in `nvda/tools/run_tests.py` (a control: `--quick` leaves it
+out). No board uses it yet, and no library carries it: a build that does must ship
+`mame_m6809/LICENSE-BSD-3-Clause.txt` with it, as the 8085's notice is shipped.

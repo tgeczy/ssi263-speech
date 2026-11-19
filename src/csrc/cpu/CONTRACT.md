@@ -469,11 +469,14 @@ The behavioural specification comes from the manufacturers' manuals. Observation
 **Written for the MAME V40 core** (`test_v40_contract.c`; its must-fail controls, each undoing one rule of the
 driver, the shim, a named change of the extraction or an upstream rule, are `v40_controls.py`): see 12.
 
+**Written for the MAME 6809 core** (`test_m6809_contract.c`, in run_tests and the Linux gate; its must-fail controls
+are `m6809_controls.py`, in run_tests): see 14.
+
 ## 11. Licences
 
 - `cpu.h` and this contract: MIT.
 - The z180emu adapter links a GPL-2.0-or-later core, so any build containing it is GPL.
-- MAME's Z180, 8085, NEC (V40) and 8086 files keep their BSD-3-Clause notices, each extracted dependency with its own actual notice
+- MAME's Z180, 8085, NEC (V40), 8086 and 6809 files keep their BSD-3-Clause notices, each extracted dependency with its own actual notice
   and the upstream revision pinned.
 - **Our dependency policy** for store builds (iOS): no GPL components, so neither z180emu nor Unicorn; MIT and BSD
   components with their notices kept; no firmware shipped (it is imported from Files). This is our policy. Apple's
@@ -586,3 +589,128 @@ Tests (`test_m6502_contract.c`, 17): `zero_budget`, `reset`, `two_cores`, `bound
 `decimal`, `undocumented`. `m6502_controls.py` undoes 10 rules, each failing exactly its tests: the poll's delay
 removed, RTI delayed, I not masking, NMI a level, B set on an interrupt's push, the boundary, the counts, the JMP
 ($xxFF) page wrap, and a branch across a page.
+
+## 14. The 6809 (Motorola MC6809)
+
+MAME's 6809 (pinned in `mame_m6809/PINNED.txt`) behind our step driver `m6809_mame.cpp`. Motorola's figures below are
+from the MC6809 data sheet DS9845-R2 (1983), cited by its printed page.
+
+This core is not built like the others. MAME generates its instructions: `m6809.lst` describes each one cycle by
+cycle, and `m6809make.py` turns that into one state machine (`execute_one`) that can stop after any cycle and resume
+there in a later time slice. The interrupt test is that machine's entry, and the SYNC and CWAI waits are loops inside
+it. So acceptance and suspension inside an instruction are upstream's generated code here, not something a driver
+puts round an instruction function, and the 8085's split does not carry over as it is. What marks an instruction's
+end is the machine's state stack being empty. The phases of 1 are applied to it this way:
+
+- **A step** **(model, on upstream's machine)**:
+  - **A**, unless an instruction is being continued (below): the lines are sampled once -- an NMI's latch, else FIRQ
+    unless F, else IRQ unless I -- and at most one is accepted: the stacking, the masks, the vector. `m6809_pc()` is
+    the interrupted address, where execution resumes: the PC that is pushed.
+  - **B**: its cycles, 19, or 10 for FIRQ **(chip:** Figures 9 and 10, pp.10-11; upstream's count is the same**)**.
+  - **D**: `steps` increments, then `boundary`. (The 6809 has no EI shadow: C is empty.)
+  - **E**: one whole instruction, from its first byte to its last cycle. A page prefix (10h, 11h) is part of it
+    **(chip:** Figure 18 sheet 1, p.22: the fetch loops while the byte is 10h or 11h**)**: no boundary and no
+    acceptance come between a prefix and its opcode. The machine does not sample the lines here: a line the board
+    raises at D is taken at the next step's A (1).
+  - **F**: its cycles.
+- **An instruction continued over steps.** A step never leaves the machine suspended inside an instruction for want
+  of a budget (MAME does, at a slice's end), with two exceptions. Both continue in the following steps, which skip A
+  -- the chip takes no interrupt inside an instruction -- and keep `m6809_pc()` on the instruction's first byte:
+  - a **wait** in SYNC or CWAI (below), one cycle a step. The wait's test for a line is the instruction's own and
+    runs at E, after the step's boundary **(model:** the chip tests after each wait cycle**)**. So a line the board
+    raises at a slot's boundary ends the wait in that same step -- SYNC's last cycle, CWAI's vector -- where 1's rule
+    for D would have it wait a step; and a CWAI finds, when its stacking is done, a line raised at its own boundary.
+    After a SYNC the acceptance is still the next step's A;
+  - a **run of page prefixes** past the step's limit of 64 cycles **(model)**. The longest instruction takes 20
+    (SWI2, SWI3, a CWAI that finds its interrupt), so only such a run gets there; without the limit a memory full of
+    10h would keep one step, and `m6809_run`, going for ever. The step ends at the limit and the next one goes on
+    from that cycle.
+- **One acceptance per step** **(model)**. Motorola's Figure 15 (p.15) returns to the interrupt test straight after a
+  vector fetch, before the next instruction, and upstream does the same. Here the handler's first instruction always
+  runs in the step that accepted. With steady lines the two agree: NMI and FIRQ set both masks, and an IRQ is only
+  reached when no unmasked FIRQ is waiting. They differ when a callback changes a line during the acceptance's own
+  bus cycles: that line waits for the next step's A.
+- **The interrupts** **(chip:** pp.6, 9, Figures 9, 10 and 15**)**:
+  - **NMI**: an edge, not maskable; the whole state is stacked with E set in the stacked CC, F and I are set, the
+    vector is FFFCh; 19 cycles. It is **armed only once S has been loaded**: "After reset, an NMI will not be
+    recognized until the first program load of the hardware stack pointer (S)" (p.9; Figure 15's "Arm NMI").
+    **(upstream)** What arms it is LDS, LEAS and TFR r,S, nothing else in the generated machine (EXG r,S does not);
+    and an edge that comes before that is dropped, not kept for later: the data sheet says only "not recognized".
+    `m6809_regs_set` arms or disarms as its `nmi_armed` says, the host's S standing in for the program's LDS.
+  - **FIRQ**: a level, masked by F; **only PC and CC are stacked, with E clear in the stacked CC**; F and I are set;
+    the vector is FFF6h; 10 cycles.
+  - **IRQ**: a level, masked by I; the whole state is stacked with E set; I is set and F is left, so a FIRQ can
+    interrupt its handler; the vector is FFF8h; 19 cycles.
+  - **Priority**: NMI, then FIRQ, then IRQ.
+  - **RTI** pulls CC and then what its E bit says: PC alone (6 cycles) or the whole state (15) (Table 9, p.29).
+  - Not modelled: the cycle the inputs take to be synchronised (a line is seen at the next step's A; a wait sees it
+    in the step before which, or at whose boundary, it was raised), and the acknowledge on BA and BS. `irq_ack` is never called: a vector is two reads of memory at
+    FFF2h-FFFFh.
+- **SYNC** **(chip:** p.20, Figure 17, p.21, and Figure 18 sheet 2, p.23**)**: the step that fetches it is 3 cycles --
+  the opcode, the don't-care cycle at the next byte and the first sync-acknowledge cycle -- and leaves the core
+  waiting (`m6809_regs.waiting`). Each further step is a slot of one cycle **(model:** a step a cycle, so the board's
+  boundary runs while the chip waits**)**. Any line ends it, masked or not -- FIRQ, IRQ, or an armed NMI's edge: the
+  slot that finds it is SYNC's last cycle, so SYNC is 4 cycles at least (Table 9: ">= 4"). **Changed from upstream**,
+  which tests before the first acknowledge cycle and takes 3 with a line already there; Figure 18 runs that cycle
+  first. The step after is an ordinary one: an unmasked interrupt is accepted at its A, the address after the SYNC
+  pushed; with its mask set "the processor will clear the sync state and continue processing by executing the next
+  in-line instruction" (p.20). Not modelled: the three cycles a level must last to be taken (Figure 17, note 2); the
+  slots make no bus access (the bus is three-state).
+- **CWAI** **(chip:** Figure 15 and Figure 18 sheet 2**)**: its step ANDs CC with the operand, sets E and stacks the
+  whole state: 16 cycles. If an interrupt the new CC does not mask is already there, the vector follows in the same
+  step, 20 cycles in all (Table 9: ">= 20"). Otherwise the step ends with the first wait cycle, 17 in all, and each
+  further step is a one-cycle slot **(model)** until one finds such an interrupt: that step is the vector alone, 4
+  cycles, with nothing more stacked; F and I are set, for an IRQ only I. So **a CWAI's acceptance happens at E**, the
+  one exception to A; the handler's first instruction is the next step. A FIRQ that ends a CWAI finds the whole
+  state on the stack with E set, so its RTI is the 15-cycle one. A masked line does not end a CWAI.
+- **Reset** **(chip:** Figure 15's RESET sequence; upstream**)**: DP = 0, F and I set, a latched NMI dropped and NMI
+  disarmed, the free run ended; the other registers keep their values. PC is read from FFFEh-FFFFh at once -- MAME
+  leaves that to its first slice, which would overwrite a PC the host set meanwhile -- so `m6809_create` and
+  `m6809_reset` read the bus. The reset sequence's own cycles are not counted. The lines are kept, as 9 says.
+- **Memory-mapped I/O only**: the bus's `in`, `out` and `irq_ack` are never called and may be NULL.
+- **The bus** **(upstream)**: every cycle but a wait's slot is one bus access, the instruction's own or one of the
+  chip's don't-care cycles, which upstream performs as real reads: at FFFFh (Motorola's VMA cycle, p.6) or at an
+  address of upstream's choice, not always Figure 18's (the sixth cycle of DEC extended reads the next program byte
+  where Example 2, p.20, shows FFFFh). A board must not count on those addresses. What Motorola does specify holds:
+  CLR, INC, DEC, the shifts and the like read their byte before they write it (Figure 18 sheet 5, p.26), and a store
+  does not. Only opcode bytes -- an instruction's first byte and the byte after a prefix -- come through `bus.fetch`.
+  `m6809_cycles()` in a callback is start-stamped as for every core (7, 8): the step's start during A, start +
+  acceptance during E.
+- **Cycle counts** **(upstream; the chip's where tested)**: E-clock cycles, one per bus cycle (on an MC6809 E is the
+  crystal divided by 4, p.12). The counts are upstream's, built cycle by cycle; the tests hold 103 instruction forms to
+  Table 9 (pp.29-30), Figure 19 (pp.31-33) and Table 2 (p.17), the interrupts to Figures 9 and 10, RTI, SYNC and CWAI
+  to Table 9. Every form tested was Motorola's. The forms not in those tests are upstream's, unchecked here.
+- **Undefined opcodes** **(upstream's own choices, NOT the chip's as far as Motorola says)**: Table 9 leaves 33 first
+  bytes unused, defines 38 opcodes after 10h and 9 after 11h, and says "All unused opcodes are both undefined and
+  illegal" (p.30). Upstream runs every one some way (its history says after a description of the chip's undocumented
+  behaviour; nothing here checked that), and never reports one: its page-1 switch has a case for all 256 bytes. So
+  the core counts them itself, by Table 9's map, in `m6809_regs.undefined` -- one for each unused byte fetched as an
+  opcode -- with the instruction's address. As tested: 01h runs as NEG; an unused byte after a prefix is dropped and
+  the byte after it runs as a page-1 opcode, in the same step; a second prefix is ignored (10h 10h 8Eh is LDY, the
+  loop of Figure 18) and counted, Table 9 having no such opcode. 14h, 15h and CDh start upstream's **free run**
+  (`m6809_regs.free_run`), its model of a test mode of the chip: every step from then on is one fetch of the next
+  address, nothing runs, until reset.
+- **A host's calls**: `m6809_regs_set` between steps writes every register and leaves any wait or cut instruction, so
+  the next step starts a new instruction at the PC given; `m6809_next_pc` is the PC now, for a run-until test. A host
+  calls a subroutine by setting PC and S with its own return address on the stack, and stepping until
+  `m6809_next_pc` is that address (`call_return`).
+- **`m6809_regs.fault`**: upstream's `fatalerror` and `assert` (a state or an operand mode its own machine never
+  sets) set it instead of throwing; the core then does one-cycle slots until reset. No opcode reaches it
+  (`every_opcode`).
+- **Not modelled**: the HALT, DMA/BREQ and MRDY inputs (no clock stretching, no bus grant), the LIC, BA and BS outputs,
+  and the MC6809E's pins.
+
+Tests (`test_m6809_contract.c`, 29, every program hand-assembled in the test): `zero_budget`, `reset`, `two_cores`,
+`boundary`, `call_return`, `regs_set_wait`, `page_prefix`, `irq_entry`, `firq_entry`, `rti`, `masks`, `priority`,
+`irq_level`, `nmi_edge`, `nmi_armed`, `boundary_irq`, `sync`, `cwai`, `cwai_firq`, `wait_nmi`, `wait_boundary`,
+`undefined`, `free_run`, `prefix_run`, `every_opcode` (every first byte, alone and after each prefix, with four
+operand patterns: each step returns having spent 1 to 64 cycles), `cycles`, `cycles_indexed`, `cycles_stack`,
+`bus_cycles`. `m6809_controls.py` undoes 53 rules, each failing exactly its tests: of the driver (acceptance at A and
+not inside an instruction, the step limit, the two PCs and `next_pc`, `regs_set`, reset's vector fetch, the counting
+and its map, the waiting state, a zero budget, the boundary, its place before E and the step count), of the shim
+(opcode bytes through `fetch`), of the extraction's named changes (the machine sampling at A only, SYNC's first
+acknowledge cycle, the one-cycle slot and its cost, the three fetch counts) and of upstream (NMI's arming by each of
+its three instructions and its edge, the levels, the masks, the priority, NMI's masks, FIRQ's short frame and its E,
+IRQ leaving F, RTI by E, CWAI's frame, its masks and its use of the NMI edge, reset's four effects, each core's own
+registers, every operand mode, CLR's read, and three cycle counts standing for the rest). No control: the other cycle
+counts one by one, and upstream's choices for the unused opcodes, which `undefined` pins as they are.
