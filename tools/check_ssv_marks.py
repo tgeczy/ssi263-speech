@@ -42,10 +42,12 @@ if "--firmware" in args:
 LIB = args[0] if args else os.environ.get("SSI263_LIB") or (
     os.path.join(ROOT, "build", "win", ARCH, "ssi263speech.dll") if WINDOWS
     else os.path.join(ROOT, "build", "linux", "libssi263speech.so"))
-VOICES = ["blazie:blazie", "blazie:blazie_es", "blazie:blazie_de", "speakout:speakout", "accentmini:sa", "accentmini:mini",
+VOICES = ["blazie:blazie", "blazie:blazie_es", "blazie:blazie_de", "speakout:speakout", "speakout:soundingboard",
+          "accentmini:sa", "accentmini:mini",
           "mockingboard:mockingboard", "smartalk:smartalk"]
-OWN = {"blazie:blazie", "speakout:speakout"}    # the voices whose unit's own marks are used (the Braille Lite
-                                                # releases measured for them, bl_languages.txt; the Speak-Out)
+# the voices whose unit's own marks are used: the Braille Lite releases measured for them (bl_languages.txt), the
+# Speak-Out and the Sounding Board
+OWN = {"blazie:blazie", "speakout:speakout", "speakout:soundingboard"}
 TEXT = "this is a plain line of words, and then it goes on some more, until it ends"
 MAX_BLOCKS = 1500
 AHEAD = 8                           # voices.c AHEAD

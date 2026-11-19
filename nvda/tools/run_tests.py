@@ -551,7 +551,8 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("blazie", "blaz
     _argv = [PY, "say_all_flow.py", _which] + ([_voice] if _voice else [])
     CHECKS.append(check("say all's lines flow: %s" % _name, _argv, env={"SSI263_SYNTH_DRIVERS": _UNITS},
                         ok=lambda out: bool(re.search(r"^say all flow: all ok$", out, re.M))))
-    if _name in ("Braille Lite", "Speak-Out"):   # its indexes are the unit's own marks: estimated instead, "own" must fail
+    if _name in ("Braille Lite", "Speak-Out", "Sounding Board"):   # its indexes are the unit's own marks: estimated
+        # instead, "own" must fail
         CHECKS.append(check("say all's lines CONTROL (%s: its own index marks unused, must fail)" % _name, _argv,
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "SAY_ALL_FLOW_BREAK": "estimate"},
                             expect_fail=True, fail_marks=[r"^FAIL own ", r"^ok +flows ", r"^ok +indexes ",
@@ -1741,6 +1742,19 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
                             env={"SO_MARKS_BREAK": "3"}, expect_fail=True,
                             fail_marks=[r"^FAIL cancel .* 5 reported after it", r"^so marks: 1 FAILED$"]))
         CHECKS.append(check("so_voice marks CONTROL (the box's mark inside its word, must fail)", [PY, "so_marks.py"],
+                            env={"SO_MARKS_BREAK": "4"}, expect_fail=True,
+                            fail_marks=[r"^FAIL frames .*phonemes DIFFER", r"^FAIL bytes ", r"^so marks: 7 FAILED$"]))
+    _SB_DIR = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "gw-micro-sounding-board")
+    if all(os.path.isfile(os.path.join(_SB_DIR, n)) for n in ("SBLOAD.COM", "SB.COM")):
+        # ... and the Sounding Board's, the same cases: its marks read from its DOS driver's own count of marks
+        # crossed and the last one's value (sb_host.h sbh_replies)
+        _SBM = [PY, "so_marks.py", "--soundingboard"]
+        CHECKS.append(check("so_voice: index marks, the Sounding Board (its driver's own count)", _SBM))
+        CHECKS.append(check("so_voice marks CONTROL (the Sounding Board: every mark with the first block, must fail)",
+                            _SBM, env={"SO_MARKS_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL place ", r"^FAIL lines ", r"^FAIL end ", r"^FAIL dense ",
+                                        r"^FAIL cancel ", r"^FAIL twins ", r"^ok +frames ", r"^so marks: 6 FAILED$"]))
+        CHECKS.append(check("so_voice marks CONTROL (the Sounding Board: the mark inside its word, must fail)", _SBM,
                             env={"SO_MARKS_BREAK": "4"}, expect_fail=True,
                             fail_marks=[r"^FAIL frames .*phonemes DIFFER", r"^FAIL bytes ", r"^so marks: 7 FAILED$"]))
     if os.path.isfile(SO_HEX) and os.path.isfile(os.path.join(SO_LIB, "so_render.exe")):

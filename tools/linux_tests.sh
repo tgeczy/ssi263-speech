@@ -749,6 +749,20 @@ if [ -f $SOFW/gw-micro-speakout/SPEAKOUT.HEX ]; then
 else
     echo "skip  so_voice index marks: no SPEAKOUT.HEX here"
 fi
+# ... and the Sounding Board's, the same cases: its marks read from its DOS driver's own count (sb_host.h)
+if [ -f $SOFW/gw-micro-sounding-board/SB.COM ]; then
+    SBM="env SSI263_SOUNDINGBOARD_DIR=$SOFW/gw-micro-sounding-board"
+    check "so_voice: index marks, the Sounding Board (its driver's own count)" $SBM python3 nvda/tools/so_marks.py \
+        build/linux/libssi263_voices.so --soundingboard
+    control "so_voice marks CONTROL (the Sounding Board: every mark with the first block, must fail)" "^FAIL place " \
+        "^FAIL lines " "^FAIL end " "^FAIL dense " "^FAIL cancel " "^FAIL twins " "^ok +frames " "^so marks: 6 FAILED$" \
+        -- $SBM SO_MARKS_BREAK=1 python3 nvda/tools/so_marks.py build/linux/libssi263_voices.so --soundingboard
+    control "so_voice marks CONTROL (the Sounding Board: the mark inside its word, must fail)" \
+        "^FAIL frames .*phonemes DIFFER" "^FAIL bytes " "^so marks: 7 FAILED$" \
+        -- $SBM SO_MARKS_BREAK=4 python3 nvda/tools/so_marks.py build/linux/libssi263_voices.so --soundingboard
+else
+    echo "skip  so_voice index marks, the Sounding Board: no SB.COM here"
+fi
 if [ -f $SOFW/gw-micro-speakout/SPEAKOUT.HEX ] && [ -f $SOFW/gw-micro-sounding-board/SB.COM ]; then
     check "Speak-Out and Sounding Board at rate 0: no letter starts with the last" python3 tools/check_so_tail.py \
         build/linux/libssi263_voices.so $SOFW

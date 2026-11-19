@@ -60,6 +60,8 @@ LPT = 2                      # LPT3, the driver's default port (/!L3), as INT 17
 TIMER_HZ = 1193182.0 / 65536
 RING_WRITE = 0x14C           # SB.COM 2.7's frame ring: where the rules write ...
 RING_READ = 0x14E            # ... and where the IRQ handler reads
+MARK_LAST = 0x2A6            # the value of the last index mark crossed (INT 17h AH=02h's DL) ...
+MARK_COUNT = 0x2A7           # ... and the marks crossed since its last status call (its DH): a byte
 RING_SIZE = 0xFF5            # the ring's bytes: 817 frames, about 40 s of speech; each pointer drops by it as it wraps
 FEED_BELOW = 0x800           # text is printed to the driver while the ring holds less than this (about 20 s)
 PIECE = 32                   # bytes printed at a time: a few words' frames, far from filling the ring
@@ -129,6 +131,10 @@ class SoundingBoard:
         self.preparing = False
         self.say_time = 0.0
         self.pending = []
+        self.replies = []                # the index marks crossed in the audio the last run() returned: (the
+        self._replies_read = False       # mark's byte, or -1 for one crossed with a later one in the same slice;
+        self._mark_seen = 0              # the samples of that audio made then) -- sb_host.h sbh_replies; and
+        self.marks = 0                   # every mark ever crossed
         self.queue = b""                 # text said and not yet printed to the driver (_feed)
         self.insns = 0
         self.stopped = None
@@ -389,6 +395,21 @@ class SoundingBoard:
         return False
 
     # ---- driving the drivers ----------------------------------------------------------------
+    def _marks_poll(self, sample):
+        """the driver's own count of marks crossed, read after a slice: those new since the last look"""
+        if not getattr(self, "sb_seg", 0):
+            return
+        count, last = self.uc.mem_read(self.sb_seg * 16 + MARK_COUNT, 1)[0], self.uc.mem_read(self.sb_seg * 16 + MARK_LAST, 1)[0]
+        fresh = (count - self._mark_seen) & 0xFF
+        self._mark_seen = count
+        if not fresh:
+            return
+        if self._replies_read:
+            self.replies, self._replies_read = [], False
+        for k in range(fresh):
+            self.marks += 1
+            self.replies.append((last if k == fresh - 1 else -1, sample))
+
     def _cpu(self, count):
         self.uc.emu_start(self.r("cs") * 16 + self.r("ip"), 0, count=count)
         self.insns += count
@@ -417,6 +438,7 @@ class SoundingBoard:
             self.pending.append(y)
             dt = max(self.chip.time - before, 1e-5)
             self.uc.emu_start(self.r("cs") * 16 + self.r("ip"), ret, count=max(100, int(self.cpu_ips * dt)))
+            self._marks_poll(sum(len(p) for p in self.pending))
             waited += dt
         if self.stopped:
             raise RuntimeError(self.stopped)
@@ -474,14 +496,20 @@ class SoundingBoard:
         self._feed()
         out, t = self.pending, 0.0
         self.pending = []
+        if self._replies_read:
+            self.replies, self._replies_read = [], False
+        made = sum(len(p) for p in out)
         while t < seconds:
             self._try_irq()
             before = self.chip.time
             y = self.chip.run_until_request(step) if not self.chip.request else self.chip.run(step / 4)
             out.append(y)
+            made += len(y)
             dt = max(self.chip.time - before, 1e-5)
             self._cpu(max(100, int(self.cpu_ips * dt)))
+            self._marks_poll(made)
             t += dt
+        self._replies_read = True
         return self.chip.dsp.concat(out)
 
     def skip(self, seconds, step=0.002):
@@ -495,6 +523,7 @@ class SoundingBoard:
             self.chip.skip(min(step, seconds - t))
             dt = max(self.chip.time - before, 1e-5)
             self._cpu(max(100, int(self.cpu_ips * dt)))
+            self._marks_poll(0)
             t += dt
         return t
 
@@ -521,6 +550,7 @@ class SoundingBoard:
         t = self.skip(0.01)
         while t < limit and self.busy():
             t += self.skip(0.01)
+        self.replies, self._replies_read = [], False      # the cancelled text's marks: none is reported
         return t
 
     def held(self):

@@ -20,7 +20,11 @@ serial line.
   cancel   a cancel at four places in a marked utterance: nothing of it is reported afterwards, and the next
            utterance reports its own two marks, the second in the pause before its word
 
-    python so_marks.py [ssi263speech library]
+    python so_marks.py [ssi263speech library] [--soundingboard]
+
+--soundingboard: the same cases on GW Micro's Sounding Board, the Speak-Out's front end behind its DOS drivers
+(SBLOAD.COM, SB.COM), whose marks the host reads from the driver's own count of marks crossed and the last one's
+value (sb_host.h sbh_replies) -- what its status call, INT 17h AH=02h, reports.
 
 Controls (SO_MARKS_BREAK, so_voice.c sov_marks_break): 1 reports every mark with the first block (fails place, lines,
 end, dense, cancel); 2 gives the box a mark for every one of the caller's (fails bytes and same); 3 leaves the marks
@@ -37,10 +41,14 @@ import voice_marks as vm  # noqa: E402  (the words in audio, the marks' structur
 
 ARCH = "x64" if sys.maxsize > 2 ** 32 else "x86"
 WINDOWS = sys.platform == "win32"
-LIB = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SSI263_VOICES_LIB") or (
+SB = "--soundingboard" in sys.argv[1:]
+_args = [a for a in sys.argv[1:] if not a.startswith("--")]
+LIB = (_args[0] if _args else os.environ.get("SSI263_VOICES_LIB") or (
     os.path.join(REPO, "build", "win", ARCH, "ssi263speech.dll") if WINDOWS
     else os.path.join(REPO, "build", "linux", "libssi263_voices.so")))
 HEX = os.environ.get("SSI263_SPEAKOUT_HEX") or os.path.join(REPO, "firmware", "gw-micro-speakout", "SPEAKOUT.HEX")
+SB_DIR = os.environ.get("SSI263_SOUNDINGBOARD_DIR") or os.path.join(REPO, "firmware", "gw-micro-sounding-board")
+HOST = "sbh" if SB else "soh"          # the host's calls: sb_host.h's or so_host.h's
 BREAK = int(os.environ.get("SO_MARKS_BREAK", "0") or 0)
 RATE = vm.RATE
 MAX_BLOCKS = 2000
@@ -66,9 +74,15 @@ def load():
     lib.sov_destroy.argtypes = [ctypes.c_void_p]
     lib.sov_host.restype = ctypes.c_void_p
     lib.sov_host.argtypes = [ctypes.c_void_p]
-    lib.soh_set_int.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-    lib.soh_writes.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.POINTER(Write))]
-    lib.soh_clear_writes.argtypes = [ctypes.c_void_p]
+    if SB:
+        lib.sov_create_sb.restype = ctypes.c_void_p
+        lib.sov_create_sb.argtypes = [ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_size_t,
+                                      ctypes.c_double, ctypes.c_char_p, ctypes.c_int]
+        lib.sov_sb_host.restype = ctypes.c_void_p
+        lib.sov_sb_host.argtypes = [ctypes.c_void_p]
+    getattr(lib, HOST + "_set_int").argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    getattr(lib, HOST + "_writes").argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.POINTER(Write))]
+    getattr(lib, HOST + "_clear_writes").argtypes = [ctypes.c_void_p]
     lib.sov_say_bytes.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
     lib.sov_say_bytes_marked.argtypes = [ctypes.c_char_p, ctypes.POINTER(Mark), ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     ctypes.c_int.in_dll(lib, "sov_marks_break").value = BREAK
@@ -185,15 +199,21 @@ def main():
     check("same", len(words) == 1 and words[0][2] == 1 and words[0][0] == "two",
           "three marks on one word: %s" % (["%d mark before %r" % (n, w) for w, _, n in words] or "none"))
 
-    if not os.path.isfile(HEX):
-        print("skip the box's cases: SPEAKOUT.HEX is not in the firmware folder")
+    files = [os.path.join(SB_DIR, n) for n in ("SBLOAD.COM", "SB.COM")] if SB else [HEX]
+    if not all(os.path.isfile(f) for f in files):
+        print("skip the box's cases: %s not in the firmware folder" % ", ".join(os.path.basename(f) for f in files))
         print("so marks: %s" % ("PASS (bytes only)" if not bad[0] else "%d FAILED" % bad[0]))
         sys.exit(1 if bad[0] else 0)
     err = ctypes.create_string_buffer(256)
-    v = lib.sov_create(os.fsencode(HEX), float(RATE), err, 256)
+    if SB:
+        a, b = (open(f, "rb").read() for f in files)
+        v = lib.sov_create_sb(a, len(a), b, len(b), float(RATE), err, 256)
+    else:
+        v = lib.sov_create(os.fsencode(HEX), float(RATE), err, 256)
     if not v:
         sys.exit("boot failed: %s" % err.value)
-    h = lib.sov_host(v)
+    h = lib.sov_sb_host(v) if SB else lib.sov_host(v)
+    set_int, writes, clear_writes = (getattr(lib, HOST + n) for n in ("_set_int", "_writes", "_clear_writes"))
     exact = lib.sov_marks_exact(v)
 
     def settings(rate=50, join=1, short=1):
@@ -231,17 +251,17 @@ def main():
     check("lines", ok, "the second sentence's first word and the next: " + what)
 
     def frames(text, ats):
-        lib.soh_clear_writes(h)
+        clear_writes(h)
         _, got, done, _ = run(lib, v, text, ats)
         p = ctypes.POINTER(Write)()
         regs, out = {}, []
-        for k in range(lib.soh_writes(h, ctypes.byref(p))):
+        for k in range(writes(h, ctypes.byref(p))):
             regs[p[k].reg] = p[k].val
             if p[k].reg == 0 and (p[k].val & 0x3F):                # a phoneme load that is not a pause
                 out.append((p[k].t, p[k].val, regs.get(1), regs.get(2), regs.get(3), regs.get(4)))
         return out, got, done
 
-    lib.soh_set_int(h, b"log_writes", 1)
+    set_int(h, b"log_writes", 1)
     wrong, worst_all, worst_plain, runs = [], 0.0, 0.0, 0
     for join, short in ((1, 1), (0, 1), (1, 0), (0, 0)):
         for rate in (0, 50, 100):
@@ -265,8 +285,8 @@ def main():
                     wrong.append("join %d short pauses %d rate %d %r: phonemes %s (%d/%d), worst interval %.1f ms, "
                                  "%d of %d marks" % (join, short, rate, text[:12], "the same" if same else "DIFFER",
                                                      len(a), len(b), worst, len(got), len(ats)))
-    lib.soh_set_int(h, b"log_writes", 0)
-    lib.soh_clear_writes(h)
+    set_int(h, b"log_writes", 0)
+    clear_writes(h)
     settings(short=0)                    # the box pauses audibly at a comma or a full stop only with its short
     run(lib, v, "Warm up.", None)        # pauses off: the cases that find the words in the audio need them
     check("frames", not wrong, "; ".join(wrong[:3]) if wrong else

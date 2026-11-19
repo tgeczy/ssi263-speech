@@ -56,6 +56,19 @@ SB_API void sbh_say(sb_host *h, const unsigned char *bytes, int n);
 /* run(): `seconds` of chip time in `step` slices: the chip's audio at out_rate, in an internal buffer valid until the
    next call (what a blocked say made first).  Returns the sample count (-1: a fault). */
 SB_API int sbh_run(sb_host *h, double seconds, double step, const double **audio);
+/* The index marks (05h 5Bh xx in the text, so_voice.h) the driver crossed in the audio the last sbh_run returned,
+   each with the samples of that audio made when it was crossed (to the host's slice).  SB.COM keeps what its
+   status call (INT 17h AH=02h on its port: DH, DL) reports in two bytes of its own, a count of marks crossed and
+   the value of the last; the host reads them after every slice instead of calling, which would reset them and
+   run the driver's code.  So `value` is the mark's byte for the newest of a slice and -1 for any crossed with
+   it in the same slice (the driver keeps only the last value).  At most SBH_REPLIES a run; sbh_get_int
+   "marks" counts every mark ever crossed.  After sbh_cancel the count starts again from where the driver is. */
+typedef struct {
+    int value;                             /* the mark's byte, or -1 (above) */
+    int sample;                            /* samples of the run's audio made when it was crossed */
+} sbh_reply;
+#define SBH_REPLIES 64
+SB_API int sbh_replies(const sb_host *h, const sbh_reply **out);
 /* skip(): the drivers run with the chip keeping time but making no sound; returns the time run */
 SB_API double sbh_skip(sb_host *h, double seconds, double step);
 /* input_pending(): text not yet printed, or frames the rules have made and the IRQ handler has not yet sent (SB.COM's

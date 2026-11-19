@@ -34,6 +34,8 @@
 #define TIMER_HZ (1193182.0 / 65536)
 #define RING_WRITE 0x14C           /* SB.COM 2.7's frame ring: where the rules write ... */
 #define RING_READ 0x14E            /* ... and where the IRQ handler reads */
+#define MARK_LAST 0x2A6            /* the value of the last index mark crossed (INT 17h AH=02h's DL) ... */
+#define MARK_COUNT 0x2A7           /* ... and the marks crossed since its last status call (its DH): a byte */
 #define RING_SIZE 0xFF5            /* the ring's bytes: 817 frames, about 40 s of speech; each pointer drops by it as it wraps */
 #define FEED_BELOW 0x800           /* text is printed to the driver while the ring holds less than this (about 20 s) */
 #define PIECE 32                   /* bytes printed at a time: a few words' frames, far from filling the ring */
@@ -68,6 +70,11 @@ struct sb_host {
     /* text said and not yet printed to the driver (feed) */
     unsigned char *queue;
     int q_len, q_pos, q_cap;
+    /* index marks (sbh_replies) */
+    sbh_reply rp[SBH_REPLIES];
+    int n_rp, rp_read;                                    /* rp_read: the list is a finished run's (the next mark
+                                                             starts a new one) */
+    int mark_seen, marks;                                 /* the driver's count as last read; every mark crossed */
     int pace_break;                                       /* SSI263_SB_PACE_BREAK=1, the tests' control: all in one call */
     int tail_break;                                       /* SSI263_SO_TAIL_BREAK=1, the tests' control: no held() */
 };
@@ -491,6 +498,30 @@ static int exec_com(sb_host *h, const unsigned char *data, size_t n, int psp, co
 
 /* ---- driving the drivers ------------------------------------------------------------------------------------------ */
 /* _cpu */
+/* the driver's own count of marks crossed, read after a slice: those new since the last look, at `sample` of the
+   audio being made (the pending audio's or the run's: one buffer follows the other) */
+static void marks_poll(sb_host *h, int sample)
+{
+    unsigned long base = (unsigned long)h->sb_seg * 16;
+    int count, k, fresh;
+    if (h->sb_seg <= 0)
+        return;
+    count = h->mem[(base + MARK_COUNT) & 0xFFFFF];
+    fresh = (count - h->mark_seen) & 0xFF;
+    h->mark_seen = count;
+    if (!fresh)
+        return;
+    if (h->rp_read) { h->n_rp = 0; h->rp_read = 0; }
+    for (k = 0; k < fresh; k++) {
+        h->marks++;
+        if (h->n_rp < SBH_REPLIES) {
+            h->rp[h->n_rp].value = k == fresh - 1 ? h->mem[(base + MARK_LAST) & 0xFFFFF] : -1;
+            h->rp[h->n_rp].sample = sample;
+            h->n_rp++;
+        }
+    }
+}
+
 static int cpu(sb_host *h, uint64_t count)
 {
     emu_start(h, 0, count);                             /* until 0: pc86.py passes the linear address 0 */
@@ -526,6 +557,7 @@ static int far_call(sb_host *h, int seg, int off, uint64_t budget, double wait_l
             return -1;
         dt = dt_since(h, before);
         emu_start(h, (uint32_t)RET_LINEAR, steps_for(h, dt));
+        marks_poll(h, h->n_pend);                       /* (a mark crossed while a printer call waits) */
         waited += dt;
     }
     if (h->stopped)
@@ -638,6 +670,7 @@ SB_API int sbh_run(sb_host *h, double seconds, double step, const double **audio
     if (h->fault)
         return -1;
     /* out = self.pending: the run's audio follows what the blocked calls made */
+    if (h->rp_read) { h->n_rp = 0; h->rp_read = 0; }    /* (what a blocked call crossed stays: its audio comes first) */
     swap = h->buf; h->buf = h->pend; h->pend = swap;
     cap = h->cap_buf; h->cap_buf = h->cap_pend; h->cap_pend = cap;
     h->n_buf = h->n_pend;
@@ -653,10 +686,18 @@ SB_API int sbh_run(sb_host *h, double seconds, double step, const double **audio
         dt = dt_since(h, before);
         if (cpu(h, steps_for(h, dt)) < 0)
             return -1;
+        marks_poll(h, h->n_buf);
         t += dt;
     }
+    h->rp_read = 1;
     *audio = h->buf;
     return h->n_buf;
+}
+
+SB_API int sbh_replies(const sb_host *h, const sbh_reply **out)
+{
+    *out = h->rp;
+    return h->rp_read ? h->n_rp : 0;
 }
 
 SB_API double sbh_skip(sb_host *h, double seconds, double step)
@@ -676,6 +717,7 @@ SB_API double sbh_skip(sb_host *h, double seconds, double step)
         dt = dt_since(h, before);
         if (cpu(h, steps_for(h, dt)) < 0)
             return -1.0;
+        marks_poll(h, 0);                               /* (no audio is made here: counted, at the next run's start) */
         t += dt;
     }
     return t;
@@ -724,6 +766,8 @@ SB_API void sbh_cancel(sb_host *h, double limit)
             return;
         t += s;
     }
+    h->n_rp = 0;                                /* the cancelled text's marks: none is reported */
+    h->rp_read = 0;
 }
 
 SB_API int sbh_fault(const sb_host *h) { return h->fault; }
@@ -865,6 +909,7 @@ SB_API int sbh_get_int(const sb_host *h, const char *name)
 {
     if (!strcmp(name, "preparing")) return h->preparing;
     if (!strcmp(name, "log_writes")) return h->log_on;
+    if (!strcmp(name, "marks")) return h->marks;
     if (!strcmp(name, "request")) return ssi263_request(h->chip) ? 1 : 0;
     return -1;
 }

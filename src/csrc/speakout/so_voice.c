@@ -492,17 +492,40 @@ SO_API int sov_say_bytes_marked(const char *utf8, const ssv_mark *marks, int n_m
 
 SO_API int sov_marks_exact(const so_voice *v)
 {
-    return v->h != NULL;                    /* the Speak-Out box; the Sounding Board's driver reports marks another
-                                               way (INT 17h), not used yet */
+#ifdef SO_HAVE_SOUNDINGBOARD
+    if (v->sb) return 1;                    /* the Sounding Board: its driver's own count of the marks crossed */
+#endif
+    return v->h != NULL;                    /* the Speak-Out: its replies on the serial line */
 }
 
-/* The marks speech has reached in the block just run: those whose byte the box has sent back, each at the sample its
-   reply came (less the `start` samples trimmed from the block's head); with `all` (the utterance is over) the rest
-   after the block's last sample. */
+/* what the box has reported in the block just run: each mark crossed, its byte (-1: not known, the Sounding Board's
+   driver keeps only the last of several crossed together) and the sample of the run it came at */
+typedef struct { int value, sample; } crossed;
+static int crossed_in_run(so_voice *v, crossed *out, int cap)
+{
+    int n = 0, k;
+    if (v->h) {
+        const soh_reply *rp;
+        int nr = soh_replies(v->h, &rp);
+        for (k = 0; k < nr && n < cap; k++, n++) { out[n].value = rp[k].value; out[n].sample = rp[k].sample; }
+    }
+#ifdef SO_HAVE_SOUNDINGBOARD
+    else if (v->sb) {
+        const sbh_reply *rp;
+        int nr = sbh_replies(v->sb, &rp);
+        for (k = 0; k < nr && n < cap; k++, n++) { out[n].value = rp[k].value; out[n].sample = rp[k].sample; }
+    }
+#endif
+    return n;
+}
+
+/* The marks speech has reached in the block just run: those the box has reported, each at the sample its report came
+   (less the `start` samples trimmed from the block's head); with `all` (the utterance is over) the rest after the
+   block's last sample. */
 static void report_marks(so_voice *v, int start, int count, int all)
 {
-    const soh_reply *rp = NULL;
-    int nr = v->h ? soh_replies(v->h, &rp) : 0, i, j, kept = 0, last = 0, upto = 0;
+    crossed cr[64];
+    int nc, i, j, kept = 0, last = 0, upto = 0, *at;
     v->n_reached = 0;
     if (!v->n_mk) return;
     if (v->n_mk > v->cap_reached) {
@@ -511,26 +534,36 @@ static void report_marks(so_voice *v, int start, int count, int all)
         v->reached = r;
         v->cap_reached = v->n_mk;
     }
-    /* how far the replies reach into the marks still waiting: a reply is a mark's when it is that mark's byte; the
-       marks before it then count as reached with it (a reply lost on the way) */
-    for (j = 0; j < nr; j++)
-        for (i = upto; i < v->n_mk; i++)
-            if (v->mk[i].value == rp[j].value) {
-                upto = i + 1;
-                while (upto < v->n_mk && v->mk[upto].value == rp[j].value)    /* the caller's marks on one word */
-                    upto++;
-                break;
-            }
+    at = (int *)malloc(sizeof(int) * 2 * (size_t)v->n_mk);     /* per waiting mark: its sample (-1: not yet), exact */
+    if (!at) { v->n_mk = 0; return; }
+    for (i = 0; i < v->n_mk; i++) { at[2 * i] = -1; at[2 * i + 1] = 0; }
+    nc = crossed_in_run(v, cr, (int)(sizeof cr / sizeof cr[0]));
+    /* each report is the next waiting mark's: by its byte where the box says it (the marks before that one then count
+       as reached with it: a report lost on the way), else the next in order.  The caller's marks on one word share
+       the box's mark and are reached together. */
+    for (j = 0; j < nc; j++) {
+        int k = -1, s = cr[j].sample - start;
+        while (upto < v->n_mk && v->mk[upto].value == MK_NOW) upto++;
+        if (cr[j].value < 0) {
+            if (upto < v->n_mk && v->mk[upto].value != MK_END) k = upto;
+        } else
+            for (i = upto; i < v->n_mk; i++)
+                if (v->mk[i].value == cr[j].value) { k = i; break; }
+        if (k < 0) continue;
+        for (i = upto; i <= k; i++) { at[2 * i] = s < 0 ? 0 : s; at[2 * i + 1] = i == k; }
+        upto = k + 1;
+        while (upto < v->n_mk && v->mk[upto].value == v->mk[k].value) {
+            at[2 * upto] = at[2 * k];
+            at[2 * upto + 1] = 1;
+            upto++;
+        }
+    }
     for (i = 0; i < v->n_mk; i++) {
         int val = v->mk[i].value, s = 0, exact = 0;
         if (sov_marks_break == 1 || val == MK_NOW) { s = 0; exact = val == MK_NOW; }
-        else if (i < upto) {
-            for (j = 0; j < nr; j++)
-                if (rp[j].value == val) { s = rp[j].sample - start; exact = 1; break; }
-            if (j == nr)                         /* (reached with a later mark's reply) */
-                for (j = 0; j < nr; j++) if (rp[j].sample - start >= last) { s = rp[j].sample - start; break; }
-        } else if (all) { s = count; exact = val == MK_END; }
-        else {                                   /* not yet: its reply is still to come */
+        else if (at[2 * i] >= 0) { s = at[2 * i]; exact = at[2 * i + 1]; }
+        else if (all) { s = count; exact = val == MK_END; }
+        else {                                   /* not yet: its report is still to come */
             v->mk[kept++] = v->mk[i];
             continue;
         }
@@ -542,6 +575,7 @@ static void report_marks(so_voice *v, int start, int count, int all)
         v->reached[v->n_reached].exact = exact;
         v->n_reached++;
     }
+    free(at);
     v->n_mk = kept;
 }
 
@@ -569,7 +603,7 @@ SO_API int sov_expect(so_voice *v, const ssv_mark *marks, int n_marks)
         v->mk[v->n_mk++].value = marks[i].at;
     }
     if (!v->index_on) {                     /* (as sov_speak_marked: the box told to send its replies) */
-        say_str(v, "\x05]1");
+        if (v->h) say_str(v, "\x05]1");
         v->index_on = 1;
     }
     return 1;
@@ -705,7 +739,7 @@ SO_API int sov_speak_marked(so_voice *v, const char *utf8, int pitch_offset, con
     }
     if (!v->index_on) {                                      /* the box told to send its replies: on at power-up as
                                                                 measured, said once so as not to depend on that */
-        say_str(v, "\x05]1");
+        if (v->h) say_str(v, "\x05]1");                      /* (the Sounding Board's driver needs nothing sent) */
         v->index_on = 1;
     }
     if (!v->next_value) v->next_value = MARK_FIRST;
