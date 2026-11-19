@@ -8,6 +8,10 @@ registers of SSI-263". [history.md](history.md) has the rest of what we read on 
 **It is not a voice in this project yet.** This page is here so that nobody has to hunt for the disk: searching for
 its name today finds a Windows voice changer, not this.
 
+**Other things share the name.** This is not SuperVoice, the fax and voicemail program that came with modems in the
+1990s, and not any of the Windows voice changers called Supervoice. If a file is not one of the two below, by its
+checksum, it is not this disk.
+
 ## The disk, exactly
 
 The Color Computer Archive keeps it. Both copies below hold the same disk image, byte for byte (checked 19 November
