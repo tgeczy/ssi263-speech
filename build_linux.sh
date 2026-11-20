@@ -196,6 +196,14 @@ mkdir -p "$OUT/obj_m6809"
 $CXX $MAMET -c -o "$OUT/obj_m6809/m6809_mame.o" "$SRC/cpu/m6809_mame.cpp"
 $CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC -c -o "$OUT/obj_m6809/test_m6809_contract.o" "$SRC/cpu/test_m6809_contract.c"
 $CXX -o "$OUT/test_m6809_contract" "$OUT/obj_m6809/test_m6809_contract.o" "$OUT/obj_m6809/m6809_mame.o"
+# MAME's Z80 core (src/csrc/cpu/z80_mame.cpp; no board yet): the CPU contract's tests, and the runner for the CP/M
+# instruction exercisers (zexdoc, zexall: not in the repository).  Its own object folder.
+mkdir -p "$OUT/obj_z80"
+$CXX $MAMET -c -o "$OUT/obj_z80/z80_mame.o" "$SRC/cpu/z80_mame.cpp"
+for t in test_z80_contract test_z80_zex; do
+    $CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC -c -o "$OUT/obj_z80/$t.o" "$SRC/cpu/$t.c"
+    $CXX -o "$OUT/$t" "$OUT/obj_z80/$t.o" "$OUT/obj_z80/z80_mame.o"
+done
 # MAME's V40 core (src/csrc/cpu/v40_mame.cpp, the Speak-Out's): the CPU contract's tests, the Speak-Out board's tests
 # (src/csrc/speakout) and the board as a shared library for src/hosts/speakout_v40.py.
 rm -rf "$OUT/obj_v40"; mkdir -p "$OUT/obj_v40"

@@ -48,6 +48,22 @@ check "white-box tests (MAME Z180 core)" ./build/linux/test_z180_whitebox
 check "CPU contract tests (MAME 8085 core)" ./build/linux/test_i8085_contract
 check "CPU contract tests (MAME 8086 core)" ./build/linux/test_i86_contract
 check "CPU contract tests (MAME 6809 core)" ./build/linux/test_m6809_contract
+check "CPU contract tests (MAME Z80 core)" ./build/linux/test_z80_contract
+# the CP/M instruction exercisers on the Z80 core (src/csrc/cpu/test_z80_zex.c: zexdoc the documented flags, zexall every
+# bit of F and the undocumented opcodes), every group OK, when paths.local's ZEX (or SSI263_ZEX) names the folder that
+# holds them (zexdoc.com, zexall.com: Frank Cringle's, GPL, never in the repo and never in the data folder, which is a
+# built add-on's; absent, named as a skip); their controls undo a documented result, which both must report, and
+# bits 3 and 5 of F, which zexall alone must (z80_controls.py --zex: four small builds)
+ZEX="${SSI263_ZEX:-$( [ -f "$ROOT/paths.local" ] && sed -n 's/^[[:space:]]*ZEX[[:space:]]*=[[:space:]]*//p' "$ROOT/paths.local" | tail -1)}"
+if [ -n "$ZEX" ] && [ -f "$ZEX/zexdoc.com" ] && [ -f "$ZEX/zexall.com" ]; then
+    for z in zexdoc zexall; do
+        check "MAME Z80 core: $z, every group" ./build/linux/test_z80_zex "$ZEX/$z.com"
+    done
+    check "MAME Z80 core: exerciser controls (a flag rule undone, must be reported)" \
+        python3 src/csrc/cpu/z80_controls.py --zex "$ZEX"
+else
+    echo "skip  MAME Z80 core: zexdoc, zexall and their controls: no ZEX folder with them (paths.local or SSI263_ZEX)"
+fi
 # Speech Systems' Super Voice (1984): the host's and the voice's tests and their must-fail controls, when its program file is in the
 # drop-in folder (it is in no checkout and no add-on)
 [ -f "$ROOT/firmware/speech-systems-super-voice/SUPERTOK.BIN" ] && check "Speech Systems Super Voice (1984): host and voice tests and their controls" \

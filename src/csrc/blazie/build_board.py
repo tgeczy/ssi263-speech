@@ -55,7 +55,10 @@ def build_mame(gcc, env):
             ("i86_mame", os.path.join(cpu, "i86_mame.cpp"), gxx, MAME_CXX + ["-Wno-sign-compare"]),
             ("test_i86_contract", os.path.join(cpu, "test_i86_contract.c"), gcc, ["-O2", "-std=gnu89"]),
             ("m6809_mame", os.path.join(cpu, "m6809_mame.cpp"), gxx, MAME_CXX),
-            ("test_m6809_contract", os.path.join(cpu, "test_m6809_contract.c"), gcc, ["-O2", "-std=gnu89"])):
+            ("test_m6809_contract", os.path.join(cpu, "test_m6809_contract.c"), gcc, ["-O2", "-std=gnu89"]),
+            ("z80_mame", os.path.join(cpu, "z80_mame.cpp"), gxx, MAME_CXX),
+            ("test_z80_contract", os.path.join(cpu, "test_z80_contract.c"), gcc, ["-O2", "-std=gnu89"]),
+            ("test_z80_zex", os.path.join(cpu, "test_z80_zex.c"), gcc, ["-O2", "-std=gnu89"])):
         objs[name] = os.path.join(obj, name + ".o")
         subprocess.run([cc] + flags + inc + ["-c", "-o", objs[name], src], env=env, check=True)
     core = [objs["bl_board"], objs["flash29"], objs["bl_clock"], objs["bl_rtc6242"], objs["bl_serial"], objs["z180_mame"], objs["z180_asci"]]
@@ -77,6 +80,11 @@ def build_mame(gcc, env):
     # MAME's 6809 core (no board yet): the CPU contract's tests, ../cpu/test_m6809_contract.c
     subprocess.run([gxx] + MAME_LINK + ["-o", os.path.join(OUT, "test_m6809_contract.exe"),
                                         objs["test_m6809_contract"], objs["m6809_mame"]], env=env, check=True)
+    # MAME's Z80 core (no board yet): the CPU contract's tests, ../cpu/test_z80_contract.c, and the runner for the
+    # CP/M instruction exercisers, ../cpu/test_z80_zex.c
+    for exe in ("test_z80_contract", "test_z80_zex"):
+        subprocess.run([gxx] + MAME_LINK + ["-o", os.path.join(OUT, exe + ".exe"), objs[exe], objs["z80_mame"]],
+                       env=env, check=True)
 
 
 def build_pc86(arch, bindir, env, extra):

@@ -260,6 +260,7 @@ A halted core does one **slot** per step, separate from the HLT instruction's ow
 - 8086: 2 T-states **(model)**; the HLT has completed, so `i86_pc()` and the address an acceptance pushes are both
   the byte after it. A WAIT that waits (TEST not asserted: the pin HIGH) is not a HALT slot: its entry is 3 T and
   each later step a 5-T recheck with IP held, Intel's 3 + 5n (4).
+- Z80: 4 T-states **(chip:** the HALT state repeats an M1 cycle with a NOP forced: Zilog's HALT Exit; 15**)**.
 
 Interrupt arrival is tested at both slot edges.
 
@@ -472,11 +473,15 @@ driver, the shim, a named change of the extraction or an upstream rule, are `v40
 **Written for the MAME 6809 core** (`test_m6809_contract.c`, in run_tests and the Linux gate; its must-fail controls
 are `m6809_controls.py`, in run_tests): see 14.
 
+**Written for the MAME Z80 core** (`test_z80_contract.c`, in run_tests and the Linux gate; its must-fail controls
+are `z80_controls.py`, in run_tests; zexdoc and zexall by `test_z80_zex.c`, with their controls, where the exercisers
+are at hand): see 15.
+
 ## 11. Licences
 
 - `cpu.h` and this contract: MIT.
 - The z180emu adapter links a GPL-2.0-or-later core, so any build containing it is GPL.
-- MAME's Z180, 8085, NEC (V40), 8086 and 6809 files keep their BSD-3-Clause notices, each extracted dependency with its own actual notice
+- MAME's Z180, 8085, NEC (V40), 8086, 6809 and Z80 files keep their BSD-3-Clause notices, each extracted dependency with its own actual notice
   and the upstream revision pinned.
 - **Our dependency policy** for store builds (iOS): no GPL components, so neither z180emu nor Unicorn; MIT and BSD
   components with their notices kept; no firmware shipped (it is imported from Files). This is our policy. Apple's
@@ -714,3 +719,147 @@ its three instructions and its edge, the levels, the masks, the priority, NMI's 
 IRQ leaving F, RTI by E, CWAI's frame, its masks and its use of the NMI edge, reset's four effects, each core's own
 registers, every operand mode, CLR's read, and three cycle counts standing for the rest). No control: the other cycle
 counts one by one, and upstream's choices for the unused opcodes, which `undefined` pins as they are.
+
+## 15. The Z80 (Zilog Z80)
+
+MAME's Z80 (pinned in `mame_z80/PINNED.txt`) behind our step driver `z80_mame.cpp`. Zilog's figures below are from
+the Z80 CPU User Manual UM008011-0816, cited by its sections, figures and tables.
+
+Like the 6809's, this core's instructions are generated: `z80.lst` describes each one step by step and `z80make.py`
+turns that into the whole body of `execute_run`, one loop. Its first state looks at the interrupt lines, takes one,
+fetches an opcode and dispatches; every instruction ends by jumping back there, and MAME stays in the loop for as
+long as its time slice lasts. A prefix jumps on to its opcode without passing that state. The extraction makes four
+named changes at that first state, each marked `CHANGED` where it is made (twice: the state is in the generated text
+once for the fast loop and once for resuming), so that the loop serves a step:
+
+1. **A pass ends when it comes back to the state.** The driver lets a pass in once (`m_drv_enter`); the second
+   arrival returns. Why: upstream runs on from one instruction to the next until its slice is spent, and a step must
+   be one instruction, with D between any two.
+2. **The lines are looked at in an acceptance pass only** (`m_drv_accept`). Why: an instruction's own pass comes
+   through the same state after D, and a line the board raised there belongs to the next step's A (1), not to this
+   instruction's start.
+3. **The acceptance pass returns after the look, taken or not, before the fetch.** Why: upstream goes from the
+   acceptance straight into the handler's first instruction, which leaves no place for B, C and D.
+4. **The acknowledge cycle's byte comes from `cpu_bus.irq_ack`.** Why: upstream asks its daisy chain or the
+   framework's callback, neither of which exists here.
+
+Two more named changes lie elsewhere: an NMI edge is latched before the first step too (the input line's code), and
+the four bus accessors are not virtual (no behaviour: the plain Z80 only). The driver itself adds one rule, reset's
+mode 0. The phases of 1 are applied this way:
+
+- **A step** **(model, on upstream's loop)**:
+  - **A**, unless an instruction is being continued (below): the lines are looked at once, by upstream's own test --
+    a latched NMI edge, else INT while IFF1 is set and the instruction before was not EI -- and at most one is
+    accepted: the return address pushed, the acknowledge byte read (INT only), the PC set. A halted core leaves
+    HALT. `z80_pc()` is the interrupted address, where execution resumes: the PC that is pushed; for a halted core,
+    the address after its HALT.
+  - **B**: its T-states (below).
+  - **C**: the EI delay ends. Upstream clears its flag at the head of the fetch, which here is the head of E's pass,
+    after D; no callback can tell, nothing in between reads it.
+  - **D**: `steps` increments, then `boundary`.
+  - **E**: one whole instruction from its first byte to its last T-state, every prefix part of it **(chip:** an
+    interrupt is accepted "at the end of any instruction", Interrupt Request/Acknowledge Cycle**)**: no boundary and
+    no acceptance come between a prefix and its opcode. Or one HALT slot (below). The loop does not look at the lines
+    here: a line the board raises at D is taken at the next step's A (1).
+  - **F**: its T-states.
+- **A block instruction is one repetition a step** **(chip; upstream)**: LDIR, LDDR, CPIR, CPDR, INIR, INDR, OTIR
+  and OTDR move PC back onto themselves while they go on (21 T a repetition, 16 the last: their descriptions), so
+  each repetition is an instruction of its own, `z80_pc()` on it each time, and an interrupt between two pushes the
+  instruction's own address.
+- **An instruction continued over steps** **(model)**: a run of prefixes that never reaches an opcode (DDh DDh
+  DDh ...: upstream fetches each, 4 T, and looks at the next) would keep one step, and `z80_run`, going for as long
+  as the bytes last. A step is given 64 T-states; the longest instruction takes 23 (EX (SP),IX; the shifts, INC and
+  DEC, SET and RES on (IX+d)), so only such a run gets there. It is cut at the limit as MAME cuts at a slice's end,
+  and the next step goes on from that T-state: it skips A -- the chip takes no interrupt after a prefix -- and keeps
+  `z80_pc()` on the instruction's first byte.
+- **INT** **(chip:** Interrupt Request/Acknowledge Cycle and Figure 9; Interrupt Response; Table 1**)**: a level,
+  taken while IFF1 is set; dropped before its acceptance, it is not taken. Acceptance clears IFF1 and IFF2, counts
+  in R (the acknowledge is an M1 cycle) and reads the data bus in every mode: `irq_ack(ctx, Z80_INT, 0)`, once,
+  FFh without an answer. The acknowledge cycle's two wait states are in every count.
+  - **Mode 1**: PC pushed, PC = 0038h, the byte ignored; 13 T ("two more than normal" for a restart: CPU Response,
+    Mode 1; RST is 11).
+  - **Mode 2**: PC pushed, then PC read from the table at I * 256 + the byte; 19 T ("seven to fetch the lower eight
+    bits from the interrupting device, six to save the program counter, and six to obtain the jump address": CPU
+    Response, Mode 2). **(upstream)** all eight bits of the byte are used; the manual wants bit 0 clear.
+  - **Mode 0** **(upstream, NOT the chip in full)**: the chip executes whatever instruction the device puts on the
+    bus, in two T-states more than its own. Upstream knows five and, unlike the Z180's (4), takes them in the
+    acceptance, at A, not as the step's instruction: RST (13 T), CALL nn (19 T, its address from acknowledge bytes 1
+    and 2, low byte first), JP nn (12 T, likewise), EI (6 T) and NOP -- for which it charges 2 T where the manual's
+    rule gives 6. Any other byte does nothing in 2 T: nothing pushed, IFF1 and IFF2 cleared. After any of them the
+    step still runs an instruction at E, so a step always spends at least 4 T-states and `z80_run` returns.
+- **NMI** **(chip:** Nonmaskable Interrupt Response and Figure 10; the NMI pin, "negative edge-triggered"; Table
+  1**)**: an edge -- one acceptance for each time the line goes from released to asserted; a held line gives no
+  second one -- taken whatever IFF1 is, before INT. PC pushed, PC = 0066h, IFF1 cleared and IFF2 left, so RETN (14
+  T), which copies IFF2 into IFF1, restores the enable; R counted; 11 T (as a restart's: CPU Response). No
+  acknowledge byte is read. **Changed from upstream**: an edge is latched whenever it comes, before the first step
+  too; MAME drops one that arrives at its machine's time 0.
+- **EI** **(chip:** Interrupt Enable/Disable: "any pending interrupt request is not accepted until after the
+  instruction following EI is executed"**)**: the step after an EI skips INT at its A; EI then DI takes none.
+  **(upstream)** NMI is not delayed: one that waits at EI's boundary is taken before the next instruction. The
+  manual's sentence does not say which interrupts it means; nothing here measured a chip.
+- **HALT** **(chip:** HALT Exit and Figure 11**)**: the HALT is 4 T and leaves PC after it. Each further step is a
+  slot of 4 T: the chip's forced NOP, an M1 fetch at the address after the HALT whose byte is ignored, R counted;
+  `z80_pc()` stays on the HALT during the slot. An NMI, or an INT while IFF1 is set, ends it at a step's A, the
+  address after the HALT pushed; with IFF1 clear an INT leaves the core halted. A line raised at a slot's boundary
+  is taken at the next step.
+- **R** **(chip:** Memory Refresh (R) Register**)**: seven bits count M1 cycles -- one an unprefixed instruction, two
+  with a prefix (the DD CB d xx forms two as well: their last byte is not fetched by an M1), one an acceptance, one
+  a HALT slot; bit 7 is what LD R,A put there.
+- **Reset** **(chip:** the RESET pin: it "resets the interrupt enable flip-flop, clears the Program Counter and
+  registers I and R, and sets the interrupt status to Mode 0"**)**: PC = 0, I = R = 0, IFF1 = IFF2 = 0, mode 0, out
+  of HALT, the EI delay and a latched NMI edge dropped, any cut instruction left; the other registers keep their
+  values. **Changed from upstream**, whose reset leaves the interrupt mode. The reset's own T-states are not
+  counted. The lines are kept, as 9 says: a held INT is sampled again, a held NMI line is no new edge. A new core's
+  registers are upstream's power-on values: IX = IY = FFFFh, F = 40h, the rest 0.
+- **Ports** **(chip:** the IN and OUT descriptions: the accumulator, or B, "on the top half (A8 through A15) of the
+  address bus"**)**: `in` and `out` get the 16 bits the chip drives -- BC for IN r,(C), OUT (C),r and the block
+  I/O, n with A above it for IN A,(n) and OUT (n),A. A board that decodes eight lines masks the port. There is no
+  on-chip I/O: every port reaches the bus.
+- **The bus** **(upstream)**: every M1 cycle's byte comes through `bus.fetch` -- an instruction's first byte, each
+  prefix and the opcode after it, a HALT slot's ignored byte; everything else through `read` and `write`, the fourth
+  byte of a DD CB d xx form included. The accesses are in the chip's order but not at their own T-states:
+  `z80_cycles()` in a callback is start-stamped as for every core (7, 8) -- the step's start during A, start +
+  acceptance during E. The refresh address and the cycles without MREQ are not put on the bus.
+- **T-states** **(upstream; the chip's where tested)**: built from bus cycles of 4 (M1), 3 (memory) and 4 (I/O)
+  T-states and the extra ones `z80.lst` adds. The tests hold 116 instruction forms to the manual's descriptions ("M
+  Cycles, T States"), conditions met and not met, and the acceptances to the figures above. Every form tested was
+  Zilog's. The forms not in those tests are upstream's, unchecked here.
+- **Undocumented opcodes and flags** **(upstream's)**: every opcode runs as upstream runs it -- the IX and IY
+  halves, SLL, the DD CB forms that also load a register, a DDh or FDh before an instruction that does not use HL
+  (the prefix is 4 T and the instruction runs unprefixed, one step), the EDh opcodes Zilog leaves undefined (8 T,
+  nothing done). Bits 3 and 5 of F, WZ and the SCF/CCF rule are upstream's. What holds them to a chip: zexdoc and
+  zexall, the CP/M instruction exercisers, each pass all 67 of their groups on this core (`test_z80_zex.c`; zexdoc
+  masks the undocumented flag bits, zexall compares every bit of F; each group's CRC is, in their source's words,
+  "an expected value that was found empirically on a real Z80"). **Which chip:** upstream says it models a
+  ZiLOG NMOS part: OUT (C),0 writes 00h (a CMOS Z80 writes FFh, by upstream's own note), bits 3 and 5 after SCF
+  and CCF follow its rule for that part, and the LD A,I / LD A,R parity glitch of the NMOS part is off. The
+  exercisers cannot tell an NMOS from a CMOS Z80 here: neither runs an I/O instruction, and no CMOS chip was
+  measured. A board with a CMOS Z80 (a Z84C00) should check whether its firmware runs OUT (C),0 or reads bits 3 and
+  5 after SCF or CCF; none has been checked yet.
+- **A host's calls**: `z80_regs_set` between steps writes every register of `z80_regs` and leaves HALT, the EI delay
+  and any cut instruction, so the next step starts a new instruction at the PC given; `z80_next_pc` is the PC now,
+  for a run-until test (`call_return`). WZ and the SCF/CCF latch are not in `z80_regs`: a host cannot set them.
+- **`z80_regs.fault`**: upstream's two `assert`s (a state number its own loop never sets) set it instead of
+  aborting; the core then does 4-T slots until reset. No opcode reaches it (`every_opcode`).
+- **Untested**: a bus whose `fetch` or `irq_ack` is NULL (the defaults of 9 are coded: `read`, and FFh), and the
+  fault's slots.
+- **Not modelled**: WAIT and BUSREQ (upstream's code for them is in the generated file, but `cpu.h` has no such
+  lines), the M1, RFSH, HALT and BUSACK outputs, the daisy chain (RETI tells no device), and the instant inside an
+  instruction at which the chip samples its lines: a line is seen at the next step's A.
+
+Tests (`test_z80_contract.c`, 27, every program hand-assembled in the test): `zero_budget`, `reset`, `two_cores`,
+`boundary`, `call_return`, `regs_set`, `prefix`, `int_im1`, `int_im2`, `int_im0`, `int_masked`, `int_level`,
+`ei_delay`, `ei_nmi`, `nmi_edge`, `nmi_first`, `priority`, `halt`, `halt_masked`, `boundary_irq`, `block`,
+`prefix_run`, `io`, `r_register`, `undocumented`, `every_opcode` (every first byte, alone and after CBh, DDh, EDh,
+FDh, DD CB d and FD CB d, with four operand patterns: each step returns having spent 4 to 64 T-states), `cycles`.
+`z80_controls.py` undoes 47 rules, each failing exactly its tests: of the driver (acceptance at A and not inside an
+instruction, the step limit, the two PCs and a HALT slot's, `next_pc`, `regs_set`'s four effects, F and R's bit 7 in
+`regs_get`, reset's mode and counts, a zero budget, the boundary, its place before E and the step count), of the
+shim (M1 bytes through `fetch`, the acknowledge byte and mode 0's two more, a port's 16 bits), of the extraction's
+named changes (a pass ending at the boundary, the lines sampled at A only, the acceptance ending before the fetch, an
+NMI edge before the first step) and of upstream (NMI's edge, its priority, its IFF1 and its 11 T, RETN, INT's level,
+its mask, its two flip-flops, EI's delay, the acknowledge's wait states and its count in R, reset's four effects,
+each core's own registers, and the three bus cycles' lengths standing for the T-states). With `--zex` it runs the
+exercisers' controls instead: a documented result undone (DAA), which zexdoc and zexall must both report, and bits
+3 and 5 of F after CP, which zexall alone must. No control: the T-states one by one, upstream's choices for the
+undocumented opcodes, which `undocumented` pins as they are, and `fault`.

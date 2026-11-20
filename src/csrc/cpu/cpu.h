@@ -270,6 +270,43 @@ void m6809_regs_get(const m6809 *c, m6809_regs *out);
    ignored. */
 void m6809_regs_set(m6809 *c, const m6809_regs *in);
 
+/* ---- Z80 (Zilog Z80) ---------------------------------------------------------------------------------------------
+   MAME's Z80 (BSD-3-Clause, Juergen Buchmueller; its instructions generated from z80.lst) behind our step driver,
+   CONTRACT.md 15.  A plain Z80: no on-chip I/O, so every port reaches the bus's in and out, with the 16 address
+   lines the chip drives during an I/O cycle (BC for IN r,(C) and OUT (C),r; A in the high byte for IN A,(n) and
+   OUT (n),A): a board that decodes 8 bits masks the port.  A step is one instruction, its prefixes (CBh, DDh, EDh,
+   FDh) included, one repetition of a block instruction (LDIR ...), or one 4-T HALT slot.  The undocumented opcodes
+   run as upstream runs them. */
+typedef struct z80 z80;
+
+enum { Z80_INT, Z80_NMI };           /* INT: a level, masked by IFF1; its acknowledge reads irq_ack byte 0 (modes 0
+                                        and 2 use it; mode 0 also bytes 1 and 2 after a CALL or JP opcode).  NMI: an
+                                        edge, one acceptance for each time the line goes from released to asserted */
+
+typedef struct {                     /* the programmer-visible state (z180_regs' fields, less the Z180's own) */
+    uint16_t af, bc, de, hl, af2, bc2, de2, hl2, ix, iy, sp, pc;
+    uint8_t i, r, im, iff1, iff2, halted;
+    uint8_t fault;                   /* the generated machine met a state it does not have (upstream's assert; no
+                                        Z80 code reaches it): 4-T slots until reset */
+} z80_regs;
+
+z80 *z80_create(const cpu_bus *bus, double clock_hz);
+void z80_destroy(z80 *c);
+void z80_reset(z80 *c);                            /* PC = 0, I = R = 0, IFF1 = IFF2 = 0, mode 0; the other registers
+                                                      kept; a pending NMI edge dropped */
+int z80_step(z80 *c);                              /* one step (CONTRACT.md 1, 15); returns its T-states */
+uint64_t z80_run(z80 *c, uint64_t budget);         /* whole steps until >= budget T-states; returns those run */
+void z80_set_irq(z80 *c, int line, int asserted);
+uint64_t z80_cycles(const z80 *c);                 /* T-states since reset */
+uint64_t z80_steps(const z80 *c);
+uint32_t z80_pc(const z80 *c);                     /* the saved instruction-start PC */
+uint32_t z80_next_pc(const z80 *c);                /* PC now: where the next step starts unless an interrupt is
+                                                      accepted (a host's "run until" test, as i86_next_pc) */
+void z80_regs_get(const z80 *c, z80_regs *out);
+/* A host that calls into its program sets the registers between steps.  It leaves HALT, the EI delay and any cut
+   instruction: the next step starts a new instruction at `in->pc`.  halted and fault in `in` are ignored. */
+void z80_regs_set(z80 *c, const z80_regs *in);
+
 #ifdef __cplusplus
 }
 #endif

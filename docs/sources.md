@@ -106,6 +106,10 @@
   revision, is extracted into the library's 6809 core (`src/csrc/cpu/`, see
   `mame_m6809/PINNED.txt`); its cycle counts are tested against Motorola's MC6809 data sheet
   (DS9845-R2, 1983).
+- **MAME's z80** (BSD-3-Clause; Juergen Buchmueller, Andrei I. Holub, and the latter's generator),
+  at the same revision, is extracted into the library's Z80 core (`src/csrc/cpu/`, see
+  `mame_z80/PINNED.txt`); its T-states are tested against Zilog's Z80 CPU User Manual
+  (UM008011-0816), its flags by the zexdoc and zexall exercisers.
 
 ## People
 

@@ -1655,6 +1655,36 @@ if os.path.isfile(os.path.join(LIB, "test_m6809_contract.exe")):
                         ok=lambda out: bool(re.search(r"^ok +the core as it is -> 29 tests, failing: none$", out, re.M))
                         and len(re.findall(r"^ok +undone: ", out, re.M)) == 53
                         and bool(re.search(r"^controls: all as expected$", out, re.M))))
+# MAME's Z80 core (src/csrc/cpu/z80_mame.cpp, its instructions generated from MAME's z80.lst; no board yet):
+# CONTRACT.md 15's clauses (src/csrc/cpu/test_z80_contract.c, hand-assembled bytes, no firmware), and its must-fail
+# controls (cpu/z80_controls.py: each rule undone in a scratch copy must fail exactly its tests; some fifty builds of its
+# own, half a minute).  And the CP/M instruction exercisers on it (test_z80_zex.c: zexdoc the documented flags, zexall
+# every bit of F and the undocumented opcodes; some 40 s each), every group OK, when paths.local's ZEX names the folder
+# that holds them (Frank Cringle's, GPL: test inputs, never in the repository); their controls (z80_controls.py --zex)
+# undo a documented result, which both must report, and bits 3 and 5 of F, which zexall alone must.
+if os.path.isfile(os.path.join(LIB, "test_z80_contract.exe")):
+    _CPU = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "cpu")
+    CHECKS.append(check("MAME Z80 core: CPU contract tests", [os.path.join(LIB, "test_z80_contract.exe")]))
+    CHECKS.append(check("MAME Z80 core: CPU contract CONTROLS (each rule undone, must fail its tests)",
+                        [PY, os.path.join(_CPU, "z80_controls.py")],
+                        ok=lambda out: bool(re.search(r"^ok +the core as it is -> 27 tests, failing: none$", out, re.M))
+                        and len(re.findall(r"^ok +undone: ", out, re.M)) == 47
+                        and bool(re.search(r"^controls: all as expected$", out, re.M))))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
+    from tools import repo_paths as _rp_zex      # noqa: E402
+    _ZEX = _rp_zex.lookup("ZEX") or ""
+    if _ZEX and all(os.path.isfile(os.path.join(_ZEX, z + ".com")) for z in ("zexdoc", "zexall")):
+        for z in ("zexdoc", "zexall"):
+            CHECKS.append(check("MAME Z80 core: %s, every group" % z,
+                                [os.path.join(LIB, "test_z80_zex.exe"), os.path.join(_ZEX, z + ".com")],
+                                ok=lambda out: bool(re.search(r"^zex: 67 of 67 groups OK, 0 ERROR; the warm boot at "
+                                                              r"0000: all passed$", out, re.M))))
+        CHECKS.append(check("MAME Z80 core: exerciser CONTROLS (a flag rule undone, must be reported)",
+                            [PY, os.path.join(_CPU, "z80_controls.py"), "--zex", _ZEX],
+                            ok=lambda out: len(re.findall(r"^ok +as it is: ", out, re.M)) == 2
+                            and bool(re.search(r"^ok +undone: DAA.*zexdoc ERROR, zexall ERROR$", out, re.M))
+                            and bool(re.search(r"^ok +undone: CP: bits 3 and 5.*zexdoc OK, zexall ERROR$", out, re.M))
+                            and bool(re.search(r"^zex controls: all as expected$", out, re.M))))
 # MAME's V40 core (the Speak-Out's, src/csrc/cpu/v40_mame.cpp) and the Speak-Out board on it (src/csrc/speakout): the
 # add-on's default since 0.7 (mame-steps).  The contract's clauses, the board's own rules, and, with the firmware,
 # the board against the old Unicorn host, selected explicitly as a development reference (speakout_core_compare.py:

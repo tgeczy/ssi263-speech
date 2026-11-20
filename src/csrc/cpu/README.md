@@ -54,6 +54,14 @@ The cores never know which board they are in.
 | `m6809_mame.cpp` | **Our step driver** (CONTRACT.md 14: a whole instruction a step, its page prefix included; one-cycle slots in SYNC and CWAI; the step limit) and the `cpu.h` functions (`m6809_*`, with `m6809_regs_set` and `m6809_next_pc` for a host that calls into its program); counts the opcodes Motorola leaves unused. It includes `m6809_mame_machine.cpp`. The header comment lists every deliberate difference from MAME. |
 | `test_m6809_contract.c` | CONTRACT.md 14's clauses on the 6809 core, one test each (29), every program hand-assembled in the test, the cycles Motorola's (the MC6809 data sheet). |
 | `m6809_controls.py` | Its must-fail controls (53): each rule undone in a scratch copy, exactly its tests must fail. |
+| `mame_z80/` | Where MAME's Z80 comes from: `PINNED.txt` (the two upstream revisions, each file's hash, how the instructions' loop is generated and that output's hash, and the one upstream file that is NOT taken, `z80.inc`, which has no licence header) and the licence text (BSD-3-Clause; Juergen Buchmueller, Andrei I. Holub). Nothing of it is copied unchanged. |
+| `extract_z80_machine.py` | Generates `z80_mame_machine.cpp` from four files of MAME's `src/devices/cpu/z80/` (pinned by revision and sha256) and, for the short register and flag names alone, the BSD-3-Clause `z80.cpp` of 2024 that last held them. MAME's Z80 is itself generated, so the script runs MAME's own pinned generator (`z80make.py`) on the pinned `z80.lst`, checks the sha256 of the file it writes, and adds exact line ranges of `z80.cpp` and `z80.h`, each anchored, every change named and marked `CHANGED`. It refuses a folder that holds `z80.inc`. |
+| `z80_mame_machine.cpp` | **Generated; do not edit.** MAME's Z80: the short names the instructions are written in, the class's members, the flag and ALU helpers, the power-on values, reset, the input lines, and `execute_run`'s loop -- the fetch, the interrupt acceptances and every instruction, step by step. |
+| `z80_mame.hpp` | The shim MAME's Z80 code compiles against: the bus (16-bit addresses; ports with their 16 bits), the interrupt acknowledge, the unconnected outputs and the step driver's state. |
+| `z80_mame.cpp` | **Our step driver** (CONTRACT.md 15: a whole instruction a step, its prefixes included; one acceptance, then the boundary, then the instruction; 4-T HALT slots; the step limit) and the `cpu.h` functions (`z80_*`, with `z80_regs_set` and `z80_next_pc` for a host that calls into its program). It includes `z80_mame_machine.cpp`. The header comment lists every deliberate difference from MAME. |
+| `test_z80_contract.c` | CONTRACT.md 15's clauses on the Z80 core, one test each (27), every program hand-assembled in the test, the T-states Zilog's (the Z80 CPU User Manual). |
+| `z80_controls.py` | Its must-fail controls (47): each rule undone in a scratch copy, exactly its tests must fail. With `--zex <folder>`: the exercisers' controls (a documented result undone, which zexdoc and zexall must both report; bits 3 and 5 of F, which zexall alone must). |
+| `test_z80_zex.c` | Runs a CP/M Z80 instruction exerciser (zexdoc/zexall, not in the repo) on the Z80 core and judges it: exit 0 only when every group printed OK and the program ended at the warm boot. `--only <text>` runs the groups so named. |
 
 Built by `../blazie/build_board.py` (the Braille Lite board on the MAME core: `bl_live_mame.exe`,
 `test_bl_board_mame.exe`, beside the legacy ones) and `../../../build_linux.sh` (`test_bl_board_mame`). Gated in
@@ -230,3 +238,28 @@ MAME's 6809 is built as the 8085: `test_m6809_contract.exe` by `build_board.py`,
 `build_linux.sh`, both gated, and `m6809_controls.py` in `nvda/tools/run_tests.py` (a control: `--quick` leaves it
 out). The Super Voice host (`../supervoice/`) runs on it; no library carries it yet: a build that does must ship
 `mame_m6809/LICENSE-BSD-3-Clause.txt` with it, as the 8085's notice is shipped.
+
+MAME's Z80 is built as the 6809: `test_z80_contract.exe` and `test_z80_zex.exe` by `build_board.py`,
+`test_z80_contract` and `test_z80_zex` by `build_linux.sh`; the contract tests gated on both, `z80_controls.py` in
+`nvda/tools/run_tests.py` (a control: `--quick` leaves it out). No board or library uses it yet: a build that does
+must ship `mame_z80/LICENSE-BSD-3-Clause.txt` with it.
+
+## The MAME Z80 on the instruction exercisers (2026-11-20)
+
+zexdoc.com and zexall.com (Frank Cringle's CP/M exercisers, GPL: test inputs, not in the repository; 8,704 bytes
+each, the same bytes from two public mirrors: sha256
+`34923a7ed82285d3038b2d54bd64899e12173eebb61f9d07b4fc72e78af2ae8f` and
+`6e2da55147a04f28d303d5da6a1e6b771557ac244653590a0f24a2d39c8537e8`) on `test_z80_zex.c`'s minimal CP/M:
+
+- zexdoc (the documented flags): 67 of 67 groups OK, ending at the warm boot; 46,735,197,020 T-states.
+- zexall (every bit of F, the undocumented opcodes' results): 67 of 67 groups OK, ending at the warm boot; the same
+  count of T-states.
+- Some 40 s each on the build machine (a 64-bit `-O3` build; the suite's 32-bit one likewise).
+- Gated where the exercisers are at hand: when `paths.local`'s `ZEX` (or `SSI263_ZEX`) names their folder, in
+  `nvda/tools/run_tests.py` and in `tools/linux_tests.sh` (which names a skip otherwise). Without them the contract
+  tests still run; the exercisers' result above is then not re-checked.
+- Their controls (`z80_controls.py --zex`): DAA's low-digit adjustment undone -- zexdoc and zexall both report
+  `<daa,cpl,scf,ccf>`; CP's bits 3 and 5 of F taken from the result, not the operand -- zexall reports `aluop a,nn`,
+  zexdoc passes it.
+- Upstream says it models a ZiLOG NMOS Z80 (OUT (C),0 writes 00h; a CMOS part writes FFh). The exercisers do not
+  tell the two apart (neither runs OUT (C),0), and no CMOS Z80 was measured here.

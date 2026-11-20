@@ -19,3 +19,4 @@
 # Test data (not in the repo)
 # MOCKINGBOARD_DISKS = <folder with "Sweet Micro Systems Mockingboard Developers toolkit 1984.dsk" and mockingboard1.dsk>
 # FIRMWARE_COLLECTION = <blazie-firmware-collection-<date>.zip: the Apple import's real-archive check>
+# ZEX = <folder with zexdoc.com and zexall.com (Frank Cringle's Z80 instruction exercisers): the Z80 core's checks>

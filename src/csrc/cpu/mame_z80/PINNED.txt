@@ -1,0 +1,82 @@
+MAME's Z80 core: where it comes from.
+
+Upstream:  https://github.com/mamedev/mame
+Path:      src/devices/cpu/z80/
+Licence:   BSD-3-Clause, per file (LICENSE-BSD-3-Clause.txt beside this file)
+
+Five files from two revisions.  sha256 of each with LF line ends (as raw.githubusercontent.com serves it; a Windows
+checkout's CRLF is folded).
+
+The core: revision 1c924ea79551fdfc3960bfa8ceb93fc1928c661b (the one MAME's 8085 and 6809 here are pinned to)
+  z80.cpp     138bd48f9f6cd12e3422383e28abe4f73e39610b4d5db54064e29f4bfaadbb73   copyright-holders: Juergen Buchmueller
+  z80.h       4e8d683130d3d55a8a605cdf2295a838d45de13144870884eb40266ecb5dbbbc   copyright-holders: Juergen Buchmueller
+  z80.lst     9df749e9fab1493334fb1460307556debfb20ed5f0f10311c914371267406828   copyright-holders: Juergen Buchmueller,
+                                                                                 Andrei I. Holub
+  z80make.py  78158bd3fef60263ca547eabd7a8a167e8e7464431b3e44f56b38d4e90b3ed54   copyright-holders: Andre I. Holub (as its
+                                                                                 header spells him)
+each at https://raw.githubusercontent.com/mamedev/mame/1c924ea79551fdfc3960bfa8ceb93fc1928c661b/src/devices/cpu/z80/<name>
+
+The short names only: revision 589e5219966d3303a9ea3116bd9c56707db559ef (2024-06-12)
+  z80.cpp     b534683ccb8a13e8970fc5a27ffcf766e404067d26326fd1b410315092a69343   copyright-holders: Juergen Buchmueller
+at https://raw.githubusercontent.com/mamedev/mame/589e5219966d3303a9ea3116bd9c56707db559ef/src/devices/cpu/z80/z80.cpp
+
+Every one of the five opens with "license:BSD-3-Clause" and the copyright-holders line given.
+
+WHY TWO REVISIONS: z80.inc is NOT taken.  z80.lst and z80.cpp are written in short macros for the registers and the
+flag bits (PC, A, HL, CF, TDAT8 ...).  At 1c924ea upstream keeps their definitions in a fifth file that z80.cpp
+includes, z80.inc (sha256 there cea41de7a1f0ecec465e43b335088c84a00da8186c016b8f7b7522510845963a): 45 one-line
+#defines and nothing else.  That file carries NO licence header, at the pin and on upstream's master as checked on
+2026-11-20, and MAME's COPYING makes a file less restrictive than the GPL only "as noted in their respective header
+comments".  So z80.inc was not taken: it is not in this repository, it is not among the extraction's inputs, and
+../extract_z80_machine.py refuses to run on a folder that holds a file of that name.
+Its content was last published under a BSD-3-Clause header in z80.cpp at 589e521, the parent of the commit that moved
+the definitions out (8e82c9f767c).  The block of short names at the head of ../z80_mame_machine.cpp is copied from
+THAT file, lines 128-206, under its header, with these named substitutions, each of which the script requires to match
+exactly once:
+  - PRVPC, PC, SP, AF, BC, DE, HL, IX, IY, WZ: the register's 16 bits are `.w` (m_pc.w), where the 2024 file has
+    `.w.l` (m_pc.w.l; PRVPC `.d`): the pinned z80.h declares the registers PAIR16, the 2024 one PAIR.  10 lines.
+  - Q, QT: m_f.q and m_f.qtemp, where the 2024 file has m_q and m_qtemp: the pinned z80.h keeps the SCF/CCF latch
+    inside its m_f.  2 lines.
+  - YXF added: `(YF | XF)`, the two bits of F that Zilog leaves unused (5 and 3: 28h), from the 2024 file's own YF and
+    XF.  It is the one name the pinned sources use that the 2024 file does not have; the line is ours.
+  - PCD, SPD, AFD, BCD, DED, HLD, IXD, IYD dropped (the 32-bit view of a register: a PAIR16 has none), and TADR,
+    TADR_H, TADR_L dropped (m_shared_addr is gone from the pinned z80.h).  Nothing at the pin uses them.  11 lines.
+Unchanged from the 2024 file: HAS_LDAIR_QUIRK (0), the flag bits CF NF PF VF HF ZF SF and XF YF, A F I R R2 and the
+8-bit halves, WZ_H WZ_L, TDAT TDAT2 TDAT_H TDAT_L TDAT8, and INT_IRQ and NMI_IRQ, which come with the lines and are
+not used.  The script then requires the block to define exactly the 47 names it lists, each once, with none of the
+2024 member spellings left.  The 43 of them that the pinned sources use have the values z80.inc gives them (it could
+not be otherwise: the compiled core has to be the same); no line of z80.inc was copied to get there.
+
+MAME's Z80 is GENERATED.  The instructions are not in a .cpp file: z80.lst describes them step by step, and MAME's
+build runs z80make.py on it to make z80.hxx, the whole body of z80.cpp's execute_run (scripts/src/cpu.lua at 1c924ea:
+`python z80make.py z80.lst z80.hxx`; the plain Z80 takes no type argument, its relatives -- nsc800, r800, t6a84, z80n
+-- do).  z80.hxx is in no MAME checkout; it is made here the same way:
+
+  python -I <folder>/z80make.py <folder>/z80.lst <out>/z80.hxx        (run from an empty folder)
+
+  the file it writes, with LF line ends:  sha256 3357bac2c54cc851c0d0c804e2008e26f7f71327ef08f4100dc400beca39fa89
+                                          54132 lines
+
+z80make.py was read in full before it was first run: it opens the file named by its first argument, writes the file
+named by its second, and prints nothing; nothing else.
+
+Nothing is copied unchanged.  ../extract_z80_machine.py takes two folders -- the four files of 1c924ea, and z80.cpp of
+589e521 -- neither of which may hold z80.inc.  It checks all five files' sha256, makes the block of short names as
+above, runs the pinned generator on the pinned .lst (the checked bytes themselves, copied to a scratch folder, so the
+generator that runs is the one that was hashed), checks the sha256 of the file it wrote, and writes
+../z80_mame_machine.cpp (generated): the short names, the class's members from exact line ranges of z80.h, and from
+z80.cpp the flag and ALU helpers, the power-on values, reset, the input lines and execute_run -- with the generator's
+output in place of its #include.  It refuses to run unless every sha256 is the one above and every anchor line is in
+place; every change is named in the script and marked CHANGED in the output.  The class's head (the framework's bases,
+configuration and overrides, z80.h lines 30-79) is the script's own.
+
+  python src/csrc/cpu/extract_z80_machine.py <folder with the four files of 1c924ea> <folder with z80.cpp of 589e521>
+
+NOT taken: z80.inc (above); the constructors and the device type, the address-space configuration, the state table
+and save states, the disassembler (z80dasm.*), the daisy chain (machine/z80daisy.*), and the CPUs that share z80.lst
+or derive from z80_device (nsc800, r800, t6a84, z80n, ez80, the Kawasaki and Toshiba parts, mc8123, z84c015 ...).
+
+To update: point the script at the newer files, change REVISION, SHA256 and HXX_SHA256 in it, move any anchors, see
+whether the newer z80.lst uses a short name the block does not define (the build fails on one) and whether z80.inc has
+a licence header by then, re-run it and the tests (test_z80_contract.c, z80_controls.py, test_z80_zex.c with zexdoc and
+zexall), and record the new revision here.
