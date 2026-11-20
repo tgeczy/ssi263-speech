@@ -67,8 +67,11 @@ BLOCK_MS = 30.0                   # a render block: the silence between two text
                                   # or less by where the unit is when the next text reaches it (the capital sequence
                                   # six times in a row on the Speak-Out: its sound ending at 1046-1058 ms, once 1079)
 SAME_MS = 15.0                    # two utterances of five words on these units: up to 13 ms apart (the SmarTalk)
-if VOICE == "blazie_de":            # the German Braille Lite says the same two lines 1,444 to 1,473 ms long from
-    SAME_MS = 35.0                # one run to the next, with no mark sent to it (four runs)
+if VOICE == "blazie_de":            # the German Braille Lite says the same two lines 1,443 to 1,484 ms long from
+    SAME_MS = 45.0                # one utterance to the next, with no mark sent to it (eight in a row after the
+                                  # cancel case, 2026-11-20: 1480 1483 1445 1443 1484 1446 1474 1447; four runs
+                                  # before that gave 1,444 to 1,473 and a limit of 35, which the cancel's landing,
+                                  # 20 or 30 ms after the speak, was enough to break: 1443 against 1482)
 WORD = 0.15                       # of the utterance: how far an index may be from its share
 LINE = 0.06                       # of a ten-line utterance: how far an index may be from its line's start
 OWN_AT = 0.5                      # of the utterance: where "it is on this" starts after "w w w w", at the least
