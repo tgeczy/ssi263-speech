@@ -143,6 +143,16 @@ BL_API extern int blv_break_fault;
 BL_API int blv_say_bytes(const char *utf8, int encoding, int pack, unsigned char *out, int cap);
 /* The same with the number words (fn as blv_set_numbers; NULL: as blv_say_bytes). */
 BL_API int blv_say_bytes_with(const char *utf8, int encoding, int pack, blv_numbers_fn fn, unsigned char *out, int cap);
+/* ... and as a release whose own reader repeats digits around commas is sent it (commas nonzero: bl_firmware.h
+   BLV_COMMAS_REPEAT, which blv_create reads for its firmware): after the number words, no comma touches a digit --
+   one between two digits is a space (the unit says "3,5" as "3 5": measured), one beside a digit gets a space
+   on that side, so that it keeps its pause.  MEASURED on the emulated Spanish unit (2026-11-19): every text
+   that set the fault off, said three times running, the same length each time with the guard; 300 random texts
+   of digits, letters, commas and other punctuation, each said twice, the same; "3 , 5" 1.01 s for the
+   unguarded "3, 5"'s 1.35 s (which said the 5 twice).  Not checked on a real unit, nor on another CPU core. */
+BL_API int blv_say_bytes_release(const char *utf8, int encoding, int pack, blv_numbers_fn fn, int commas,
+                                 unsigned char *out, int cap);
+BL_API extern int blv_commas_break;         /* a test's control: nonzero, the commas are left as they are */
 /* The unit's byte for one code point in that encoding (below 80h itself), or -1 when the unit has none: the NVDA
    driver's codec for BLV_CPHUN, which Python has no codec for. */
 BL_API int blv_text_byte(int encoding, unsigned code_point);

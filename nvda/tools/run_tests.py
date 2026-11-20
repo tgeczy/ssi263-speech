@@ -420,6 +420,15 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
     # a folding unit's numbers past twelve digits (bl_languages.txt's trillions = fold), on random texts: the
     # driver's _trillions against bl_trillions, and the driver's _folds read from its bl.dll (Hungarian folds,
     # Russian not)
+    # a unit whose own reader repeats digits around commas (bl_languages.txt's commas = repeat: the Spanish one): the
+    # driver's _commas against bl_voice.c's guard on random texts, the number words on and off, and the driver's
+    # _commas_fault read from its bl.dll
+    CHECKS.append(check("bl_voice comma guard = the driver's, 5000 random texts",
+                        [PY, "voice_text_equiv.py", "5000", "1", "--commas"]))
+    CHECKS.append(check("bl_voice comma guard CONTROL (the driver's _commas skipped, must fail)",
+                        [PY, "voice_text_equiv.py", "2000", "1", "--commas"], env={"VOICE_TEXT_BREAK": "commas"},
+                        expect_fail=True,
+                        fail_marks=[r"^DIFF ", r"^(?!2000 )\d+ of 2000 texts give the unit the same bytes"]))
     CHECKS.append(check("bl_voice trillions = the driver's, 5000 random texts",
                         [PY, "voice_text_equiv.py", "5000", "1", "--trillions"]))
     CHECKS.append(check("bl_voice trillions CONTROL (the driver's _trillions skipped, must fail)",
@@ -2190,6 +2199,17 @@ if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "blazie-lib", "x64
                                     r"^FAIL unit +the Hungarian unit's billion word .* said 2 times",
                                     r"^FAIL voice +bl2_hu_1999_07, number processing on: NOT as the digits",
                                     r"^ok +voice +bl2_ru_1998_12 \(reads trillions\)", r"^trillions: 8 FAILED$"]))
+    # the comma guard (bl_voice.c detach_commas; bl_languages.txt's commas = repeat): the Spanish unit, whose own
+    # reader says digits again and more each time around two commas at digits, says such texts the same length
+    # three times running, the number words off and on; the control leaves the commas as they are
+    CHECKS.append(check("commas: the Spanish unit's lists of numbers, the same every time",
+                        [PY, os.path.join(BL_SRC, "test_commas.py")]))
+    CHECKS.append(check("commas CONTROL (the commas left as they are, must fail)",
+                        [PY, os.path.join(BL_SRC, "test_commas.py")], env={"SSI263_COMMAS_BREAK": "1"},
+                        expect_fail=True,
+                        fail_marks=[r"^FAIL text +'1, 2, 3' -> '1, 2, 3'",
+                                    r"^FAIL unit +'1, 2, 3, 4, 5, 6' with the number words off: 6\.\d+, 10\.\d+ s",
+                                    r"^ok +table ", r"^commas: 2 FAILED$"]))
     CHECKS.append(check("unit letters: each unit says its accented letters",
                         [PY, os.path.join(BL_SRC, "test_unit_letters.py")]))
     CHECKS.append(check("unit letters CONTROL (the encodings before, must fail)",

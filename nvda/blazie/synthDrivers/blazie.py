@@ -337,6 +337,44 @@ def _trillions(text):
     return "".join(out)
 
 
+def _commas(text):
+    """The text for a unit whose own reader repeats digits around commas (the release table's commas = repeat,
+    measured: the Spanish unit, with two commas touching a digit in a sentence, says digits again, and more each
+    time it meets such a line -- "1, 2, 3, 4, 5, 6" 6.8 s, then 10.9 s, then 15.0 s): no comma reaches it touching
+    a digit.  One between two digits becomes a space (the unit says "3,5" as "3 5"), one beside a digit gets a
+    space on that side, so that it keeps its pause.  After the number words: only the digits they left ("MP3,
+    MP4"), or all of them when they are off.  bl_voice.c's detach_commas, the same walk (voice_text_equiv.py
+    --commas)."""
+    out, n = [], len(text)
+    for i, c in enumerate(text):
+        if c != ",":
+            out.append(c)
+            continue
+        before = i > 0 and _digit(text[i - 1])
+        after = i + 1 < n and _digit(text[i + 1])
+        out.append(" " if before and after else (" " if before else "") + "," + (" " if after else ""))
+    return "".join(out)
+
+
+_commas_cache = {}
+
+
+def _commas_fault(firmware):
+    """True when the firmware's release repeats digits around commas (bl_firmware.h blv_release_commas)."""
+    if firmware not in _commas_cache:
+        fault = False
+        try:
+            import ctypes
+            lib = ctypes.CDLL(DLL)
+            lib.blv_release_of.argtypes = [ctypes.c_char_p]
+            lib.blv_release_commas.argtypes = [ctypes.c_int]
+            fault = lib.blv_release_commas(lib.blv_release_of(os.fsencode(firmware))) == 2   # BLV_COMMAS_REPEAT
+        except (OSError, AttributeError) as e:
+            log.warning("Braille Lite: the release's commas not read (%s: %s)" % (DLL, e))
+        _commas_cache[firmware] = fault
+    return _commas_cache[firmware]
+
+
 _folds_cache = {}
 
 
@@ -827,6 +865,7 @@ class SynthDriver(SynthDriver):
         unit.run(0.05)
         unit.whine = None if self._whine == "off" else self._whine
         unit.folds = _folds(firmware)
+        unit.commas = _commas_fault(firmware)
         unit.own_marks = _own_marks(firmware)
         unit.encoding = encoding
         unit.lang = lang.split("-")[0]
@@ -1068,6 +1107,10 @@ class SynthDriver(SynthDriver):
             # the other units read their own numbers, but past twelve digits most fold a trillion into billions
             # (measured): such a number goes a digit at a time
             text = _trillions(text)
+        if getattr(unit, "commas", False):
+            # a unit whose own reader repeats digits around commas (measured: the Spanish one): none is sent it
+            # touching a digit -- whatever digits are left by now
+            text = _commas(text)
         return text
 
     def _unitBlocks(self, unit, gain, t_start):

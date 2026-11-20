@@ -64,6 +64,8 @@ struct bl_voice {
                                      number (the host's "echo_f") of the echo that reaches it */
     int n_mk, cap_mk;
     int own_marks;                /* the firmware's release was measured for its own marks (blv_release_marks) */
+    int commas;                   /* its own reader repeats digits around commas (blv_release_commas): none is sent
+                                     touching a digit */
     ssv_reach *reached;         /* those the last blv_render's block reached (blv_reached) */
     int n_reached, cap_reached;
 };
@@ -71,6 +73,7 @@ struct bl_voice {
 /* the tests' controls (test_release_voices.py; an app never sets it): 1 boots every firmware with the fast keys, 2
    ignores the release's echo -- each must fail its own case */
 BL_API int blv_voice_break = 0;
+BL_API int blv_commas_break = 0;
 
 /* ---- _boot ---------------------------------------------------------------------------------------------------- */
 BL_API bl_voice *blv_create(const char *firmware, const char *state, int encoding, double out_rate, int inflection,
@@ -109,6 +112,7 @@ BL_API bl_voice *blv_create(const char *firmware, const char *state, int encodin
                         start + (unsigned long long)n * gap, 0, err, errlen);
     if (!v->host) { ssi263_free(v->chip); free(v); return NULL; }
     v->own_marks = release >= 0 && blv_release_marks(release) == 1;
+    v->commas = release >= 0 && blv_release_commas(release) == BLV_COMMAS_REPEAT;
     if (release >= 0 && blv_release_echo(release) == 0 && blv_voice_break != 2) {
         bh_set_int(v->host, "no_echo", 1);
         if (blv_voice_break == 3)          /* the control: its own end left out (bl_host.c no_echo_finished) */
@@ -643,11 +647,37 @@ static int numbers(blv_numbers_fn fn, unsigned **t, int m, int encoding)
     return k;
 }
 
+/* ---- a release whose own reader repeats digits around commas (bl_languages.txt's commas = repeat; the Spanish unit:
+   two commas touching a digit in one sentence and it says digits again, more each time it meets such a line): no
+   comma reaches it touching a digit.  One between two digits becomes a space, one beside a digit gets a space on
+   that side.  After the number words, so only the digits they left ("MP3, MP4") or, with them off, all.  blazie.py
+   _commas, the same walk.  *t replaced (malloc'd); the count, -1 when out of memory (the text goes on as it was) */
+static int detach_commas(unsigned **t, int m)
+{
+    unsigned *r = (unsigned *)malloc(sizeof(unsigned) * (size_t)(3 * m + 1));
+    int i, k = 0;
+    if (!r) return -1;
+    for (i = 0; i < m; i++) {
+        unsigned c = (*t)[i];
+        int before, after;
+        if (c != ',') { r[k++] = c; continue; }
+        before = i > 0 && (*t)[i - 1] >= '0' && (*t)[i - 1] <= '9';
+        after = i + 1 < m && (*t)[i + 1] >= '0' && (*t)[i + 1] <= '9';
+        if (before && after) { r[k++] = ' '; continue; }
+        if (before) r[k++] = ' ';
+        r[k++] = ',';
+        if (after) r[k++] = ' ';
+    }
+    free(*t);
+    *t = r;
+    return k;
+}
+
 /* ---- the text the driver hands unit.say(): _translit (translit.h; the driver's ssv_translit), currencies, _clean,
    (_numbers), _lines, encoded, each line \r ^F, one more \r ^F.  malloc'd into *out (the caller frees it); returns the number of lines (0: nothing to say) -------------- */
 /* the text as the unit is to read it (_translit, currencies, _clean, _numbers): code points, malloc'd into *out (the
    caller frees it); their count, -1 when out of memory */
-static int prepared(const char *utf8, int encoding, blv_numbers_fn fn, unsigned **out)
+static int prepared(const char *utf8, int encoding, blv_numbers_fn fn, int commas, unsigned **out)
 {
     int n = (int)strlen(utf8), m;
     unsigned *cps, *cur, *t;
@@ -676,6 +706,10 @@ static int prepared(const char *utf8, int encoding, blv_numbers_fn fn, unsigned 
     m = clean(cur, m, encoding, t);
     if (fn) {
         int r = numbers(fn, &t, m, encoding);
+        if (r >= 0) m = r;
+    }
+    if (commas && !blv_commas_break) {
+        int r = detach_commas(&t, m);
         if (r >= 0) m = r;
     }
     free(cps); free(cur);
@@ -707,7 +741,8 @@ BL_API int blv_marks_break = 0;
    are held against the whole's.  Where they stop agreeing is the word the mark belongs to -- the next word when the
    mark stands between two, the START of the word when it stands inside one, the start of a number or an amount
    that the preparation rewrites as a whole (marks.h). */
-static int mark_word(const char *utf8, int at, int encoding, blv_numbers_fn fn, const unsigned *t, const int *ws,
+static int mark_word(const char *utf8, int at, int encoding, blv_numbers_fn fn, int commas, const unsigned *t,
+                     const int *ws,
                      const int *we, int nw)
 {
     int len = (int)strlen(utf8), pm, pnw, j = 0, *pws, *pwe;
@@ -724,7 +759,7 @@ static int mark_word(const char *utf8, int at, int encoding, blv_numbers_fn fn, 
     if (!prefix) return 0;
     memcpy(prefix, utf8, (size_t)at);
     prefix[at] = 0;
-    pm = prepared(prefix, encoding, fn, &pt);
+    pm = prepared(prefix, encoding, fn, commas, &pt);
     free(prefix);
     if (pm < 0) return 0;
     pws = (int *)malloc(sizeof(int) * (size_t)(pm + 1));
@@ -744,7 +779,8 @@ static int mark_word(const char *utf8, int at, int encoding, blv_numbers_fn fn, 
 /* marks: the caller's, in rising order of `at`; ords (n_marks of them), for each: 0 it stands before the first word
    (reached at once), > 0 the number of its Ctrl-F among the 06h bytes of the data, -1 after the last word.  *n06:
    the 06h bytes in the data, the flush line's included. */
-static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn, const ssv_mark *marks, int n_marks,
+static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn, int commas, const ssv_mark *marks,
+                     int n_marks,
                      int *ords, int *n06, unsigned char **out, int *out_len)
 {
     int m, nl, k, w, len = 0, nw, count = 0, i;
@@ -756,7 +792,7 @@ static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn
     *out_len = 0;
     if (n06) *n06 = 0;
     for (i = 0; i < n_marks; i++) ords[i] = 0;
-    m = prepared(utf8, encoding, fn, &t);
+    m = prepared(utf8, encoding, fn, commas, &t);
     if (m < 0) return 0;
     ws = (int *)malloc(sizeof(int) * (size_t)(m + 1));
     we = (int *)malloc(sizeof(int) * (size_t)(m + 1));
@@ -770,7 +806,7 @@ static int say_bytes(const char *utf8, int encoding, int pack, blv_numbers_fn fn
     nl = lines(t, m, pack, ws, we, ln);
     nw = nl ? ln[nl - 1].w1 : 0;
     for (i = 0; i < n_marks; i++) {
-        w = mark_word(utf8, marks[i].at, encoding, fn, t, ws, we, nw);
+        w = mark_word(utf8, marks[i].at, encoding, fn, commas, t, ws, we, nw);
         if (i && w < ords[i - 1]) w = ords[i - 1];             /* in the caller's order, never back */
         ords[i] = w;                                           /* (its word, until the data is laid out) */
         if (w > 0 && w < nw && (!mk[w] || blv_marks_break == 2)) mk[w]++;
@@ -826,8 +862,14 @@ BL_API int blv_say_bytes(const char *utf8, int encoding, int pack, unsigned char
 
 BL_API int blv_say_bytes_with(const char *utf8, int encoding, int pack, blv_numbers_fn fn, unsigned char *out, int cap)
 {
+    return blv_say_bytes_release(utf8, encoding, pack, fn, 0, out, cap);
+}
+
+BL_API int blv_say_bytes_release(const char *utf8, int encoding, int pack, blv_numbers_fn fn, int commas,
+                                 unsigned char *out, int cap)
+{
     unsigned char *data;
-    int len, nl = say_bytes(utf8, encoding, pack, fn, NULL, 0, NULL, NULL, &data, &len);
+    int len, nl = say_bytes(utf8, encoding, pack, fn, commas, NULL, 0, NULL, NULL, &data, &len);
     (void)nl;
     if (data && len <= cap)
         memcpy(out, data, (size_t)len);
@@ -902,7 +944,7 @@ BL_API int blv_say_bytes_marked(const char *utf8, int encoding, int pack, const 
     unsigned char *data;
     int len, *ords = (int *)malloc(sizeof(int) * (size_t)(n_marks > 0 ? n_marks : 1));
     if (!ords) return 0;
-    say_bytes(utf8, encoding, pack, NULL, marks, n_marks, ords, NULL, &data, &len);
+    say_bytes(utf8, encoding, pack, NULL, 0, marks, n_marks, ords, NULL, &data, &len);
     if (data && len <= cap)
         memcpy(out, data, (size_t)len);
     free(data);
@@ -952,7 +994,7 @@ BL_API int blv_speak_marked(bl_voice *v, const char *utf8, const ssv_mark *marks
         if (!ords || n_marks > v->cap_mk)
             n_marks = 0;
     }
-    nl = say_bytes(utf8, v->encoding, v->pack, v->numbers, marks, n_marks, ords, &n06, &data, &len);
+    nl = say_bytes(utf8, v->encoding, v->pack, v->numbers, v->commas, marks, n_marks, ords, &n06, &data, &len);
     /* each mark's echo, by its number: the unit echoes its Ctrl-Fs in the order it was sent them, the lines' own
        among them; one after the last word is reached at the utterance's end (ORD_END) */
     base = bh_get_int(v->host, "sent_f");

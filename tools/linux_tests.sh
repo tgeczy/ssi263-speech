@@ -179,6 +179,15 @@ control "trillions CONTROL (every number left as it is, must fail)" "^FAIL text 
     "^FAIL unit +the Hungarian unit's billion word .* said 2 times" "^skip voice +this library has no voice table" \
     "^trillions: 7 FAILED$" \
     -- env SSI263_TRILLIONS_BREAK=1 python3 src/csrc/blazie/test_trillions.py --lib "$LIB" --firmware "$DATA"
+# the comma guard (bl_voice.c detach_commas; bl_languages.txt's commas = repeat): the Spanish unit, whose own reader
+# says digits again and more each time around two commas at digits, says such texts the same length three times
+# running; the control leaves the commas as they are
+check "commas: the Spanish unit's lists of numbers, the same every time" python3 src/csrc/blazie/test_commas.py \
+    --lib "$LIB" --firmware "$DATA"
+control "commas CONTROL (the commas left as they are, must fail)" "^FAIL text +'1, 2, 3' -> '1, 2, 3'" \
+    "^FAIL unit +'1, 2, 3, 4, 5, 6' with the number words off: 6\.[0-9]+, 10\.[0-9]+ s" "^ok +table " \
+    "^commas: 2 FAILED$" \
+    -- env SSI263_COMMAS_BREAK=1 python3 src/csrc/blazie/test_commas.py --lib "$LIB" --firmware "$DATA"
 # issue #8: the Accent SA's text done only when said (as_voice's settle between clauses), on the module's own engine
 # objects (libsd_voices_ref.so: libssi263speech.so has no Accent SA); its control is the settle off (0.7.5's done)
 # and must name the dialog's early texts

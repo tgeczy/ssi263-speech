@@ -92,6 +92,14 @@ BL_API int blv_release_trillions(int release);
    is echoed where speech reaches it and the speech keeps its phonemes and their times; 0 otherwise (never echoed,
    disturbed by it, or not measured); -1 past the list.  bl_voice.h blv_marks_exact reads it. */
 BL_API int blv_release_marks(int release);
+/* How the release's own reader takes a comma that touches a digit (bl_languages.txt's commas, measured): OK the same
+   every time; REPEAT with two such commas in a sentence it says digits again, and more each time (the Spanish
+   unit: a list of six digits 6.8 s, then 10.9 s, then 15.0 s), so the voices let no comma reach it touching a digit
+   (bl_voice.h); UNKNOWN not measured.  -1 past the list. */
+#define BLV_COMMAS_UNKNOWN 0
+#define BLV_COMMAS_OK 1
+#define BLV_COMMAS_REPEAT 2
+BL_API int blv_release_commas(int release);
 BL_API const char *blv_release_tag(int release);
 BL_API int blv_release_model(int release);
 BL_API int blv_release_code_page(int release);

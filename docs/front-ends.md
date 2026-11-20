@@ -117,6 +117,19 @@ document labels.
   next line's settings until the harness sent an empty flush line after each one). ^X cuts
   only the current word. The firmware reads numbers in full up to 999,999,999,999, but has
   no "trillion".
+- **The Spanish release and commas at digits:** the Spanish Braille Lite 2000 (September 2000)
+  reads its own numbers a digit at a time, and its reader goes wrong when two commas touch a
+  digit in one sentence. It then says digits again that it had before, and more each time it
+  meets such a line: "1, 2, 3, 4, 5, 6" took 6.8 s, then 10.9 s, then 15.0 s; "12, 34, 56"
+  took 18.4 s, then said nothing, then 22.5 s. Two decimals in a sentence do it ("3,5 y 4,5"),
+  and so does "1,234,567". With the number words on, our words take most digits away, but a
+  digit after a letter is left to the unit, so "MP3, MP4, MP5" did it too. The other 21 units
+  with a voice read such lists the same every time. The voices therefore send that release
+  no comma that touches a digit: one between two digits becomes a space (the unit says "3,5"
+  as "tres cinco", never "coma"), one beside a digit gets a space on that side, which keeps
+  its pause (`bl_voice.c` `detach_commas`, `blazie.py` `_commas`, the release table's `commas`
+  column). This is the emulated unit's behaviour, the same through two hosts; it has not been
+  seen on a real Spanish unit.
 
 ## Aicom Accent-mini
 
