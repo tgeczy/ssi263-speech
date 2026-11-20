@@ -11,8 +11,12 @@
  *     --wav FILE     the audio too, 16-bit mono
  *     --rate HZ      its sample rate (default 44100)
  *
- * One line a write, "W <seconds, 6 places> R<register> <value, 2 hex digits>"; then "END <seconds> writes <n> tx <n>
- * unmapped <in> <out> nmi <edges>".  Times are the chip's own, from power-up: a write lands where the chip then is,
+ * First "T0 <seconds>": the chip time at which the trace, and the audio of --wav, begin (sample 0 of the WAV is the
+ * chip at T0; a write at time t is at sample (t - T0) x rate).  Then
+ * one line a write, "W <seconds, 6 places> R<register> <value, 2 hex digits>"; then "END <seconds> writes <n> tx <n>
+ * unmapped <in> <out> nmi <edges>".  Times are the chip's own, from power-up, and are the times of the WRITES: when
+ * the chip loads a phoneme it was sent, and when that is heard, are the chip's affair, not read here.  A write lands
+ * where the chip then is,
  * within the host's slice (0.5 ms, less while a phoneme is asking for the next).  Without --greeting the unit is
  * booted first as the voices do (ash_boot: the greeting flushed) and the trace starts with the text.  MIT.
  */
@@ -117,6 +121,7 @@ int main(int argc, char **argv)
     if (!greeting)
         ash_boot(h, 4.0);
     ash_set_int(h, "log_writes", 1);
+    printf("T0 %.6f\n", ash_get_double(h, "time"));
     if (text) {
         size_t len = strlen(text);
         unsigned char *line = (unsigned char *)malloc(len + 1);
