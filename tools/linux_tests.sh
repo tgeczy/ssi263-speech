@@ -93,6 +93,12 @@ else
     echo "skip  reference: the z180emu development build (LEGACY=1 ./build_linux.sh)"
 fi
 check "chip defaults" python3 src/csrc/gen_chip_defaults.py --check
+# the Braille Lite's text preparation on runs of 64 digits and more (tools/check_bl_digit_run.py: bl_voice.c built alone
+# with AddressSanitizer; amounts() wrote one int past a 64-entry stack array); its control puts the old bound back
+check "Braille Lite text preparation: long digit runs under AddressSanitizer" python3 tools/check_bl_digit_run.py
+control "Braille Lite digit runs CONTROL (the bound put back, must fail)" \
+    "^FAIL  Braille Lite digit runs: AddressSanitizer: stack-buffer-overflow" " in amounts .*bl_voice\.c:4[0-9][0-9]" \
+    -- env BL_DIGIT_RUN_BREAK=1 python3 tools/check_bl_digit_run.py
 # engine v0.21's F4 (tools/check_f4_law.py: the voice path's F4 tuned by the latched F3 code on its own bank, retuned
 # with F3 through a transition and through PA, Python and C); its control puts back v0.20's fixed F4
 check "F4: tuned by the F3 code on its own bank, retuned with F3 (Python, C)" python3 tools/check_f4_law.py

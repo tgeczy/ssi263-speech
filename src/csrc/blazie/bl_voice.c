@@ -406,7 +406,7 @@ static int amounts(const unsigned *t, int n, int i, amount *cand, int cap)
         }
     }
     for (j = i; j < n && isdig(t[j]); j++) ;
-    for (g = j; g > i && nw < 64; g--) wend[nw++] = g;
+    for (g = j; g > i && nw < 63; g--) wend[nw++] = g;     /* one slot left for the absent whole below */
     wend[nw++] = -1;                                       /* whole absent */
     for (g = 0; g < nw && k < cap; g++) {
         int w1 = wend[g], p = w1 < 0 ? i : w1, f;

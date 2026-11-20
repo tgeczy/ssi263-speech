@@ -49,6 +49,12 @@ check "CPU contract tests (MAME Z80 core)" ./$B/test_z80_contract
 check "Accent SA board (MAME Z80): its rules" ./$B/test_az_board
 check "Accent SA board CONTROLS (each rule undone, must fail its tests)" python3 src/csrc/accentz80/az_controls.py
 check "chip defaults" python3 src/csrc/gen_chip_defaults.py --check
+# the Braille Lite's text preparation on runs of 64 digits and more (tools/check_bl_digit_run.py: bl_voice.c built alone
+# with AddressSanitizer; amounts() wrote one int past a 64-entry stack array); its control puts the old bound back
+check "Braille Lite text preparation: long digit runs under AddressSanitizer" python3 tools/check_bl_digit_run.py
+control "Braille Lite digit runs CONTROL (the bound put back, must fail)" \
+    "^FAIL  Braille Lite digit runs: AddressSanitizer: stack-buffer-overflow" " in amounts .*bl_voice\.c:4[0-9][0-9]" \
+    -- env BL_DIGIT_RUN_BREAK=1 python3 tools/check_bl_digit_run.py
 # engine v0.21's F4, and its control (linux_tests.sh's)
 check "F4: tuned by the F3 code on its own bank, retuned with F3 (Python, C)" python3 tools/check_f4_law.py
 control "F4 CONTROL (v0.20's fixed F4, must fail)" "^FAIL  LAW py R " "^FAIL  FOLLOWS C through PA" \
