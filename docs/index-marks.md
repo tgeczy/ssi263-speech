@@ -202,8 +202,12 @@ takes to finish ahead of the caller.
   some units' pauses (above). Only a unit's own marks are used (`ssv_marks_exact`): the estimate renders the unit
   eight blocks ahead for each one returned, which a phone may not have the speed for, so the estimated voices
   speak as before and report no words. Not tried on a phone or with TalkBack yet.
-- **Apple.** Not on `ssv_speak_marked` yet: what
-  VoiceOver sends has to be captured on a device first.
+- **Apple.** Not done, and not needed for VoiceOver. A synthesis audio unit may send markers back to the system
+  (`speechSynthesisOutputMetadataBlock`: words, sentences, paragraphs, phonemes, and bookmarks for SSML mark
+  tags); Apple's documentation names word highlighting as what depends on them. Another third-party voice that
+  works with VoiceOver sends none (read in its source). So our extension sends none either: what is skipped is
+  the highlighting of the word being spoken in Speak Screen. What VoiceOver puts in a request's SSML was not
+  captured.
 
 ## Tests
 
