@@ -101,6 +101,11 @@ typedef struct ssi263_params {
     double noise_path_route_b02_w[2][2]; /* as noise_route_b02_w */
     double noise_path_gain;              /* the noise path's noise_gain */
     double amp_smooth;                   /* amp_steps: 1 "smooth" (amp / 15), 0 "code" (rint(amp) / 15) */
+    double f4_code;                      /* f4_tuning: 1 "code" (v0.21: F4 tuned by the F3 code), 0 "fixed" */
+    double f4_K;                         /* F4's bank, as f_K / f_C0 / f_w */
+    double f4_C0;
+    double f4_w[4];
+    double f4_bw;                        /* B/fc of the tuned F4 */
 } ssi263_params;
 
 #define SSI263_GLOTTAL_MAX 64

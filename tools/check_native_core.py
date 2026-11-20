@@ -86,6 +86,8 @@ SWITCHES = [
                             else 0.2 * v / sum(sc01_glottal_wave(4))
                             for i, v in enumerate(sc01_glottal_wave(4))]),
      "field_speed_mult": (2.25, 1.0, 1.0, 1.0, 1.0, 1.0)},
+    {"f4_tuning": "fixed"},                                           # v0.20's F4
+    {"f4_K": 0.06, "f4_C0": 6.5, "f4_w": (0.9, 2.1, 3.9, 8.3), "f4_bw": 0.02},
 ]
 
 
@@ -100,7 +102,7 @@ def py_state(c):
         s["latch_" + f] = c.latch[f]
     s.update(released=int(c.released), early_req=int(c.early_req), apply_due=int(c.apply_due),
              npending=len(c.pending), onto_silence=int(c.onto_silence), hold_ok=int(c.hold_ok),
-             hold_open=int(c.hold_open), last_real=c.last_real)
+             hold_open=int(c.hold_open), last_real=c.last_real, f4_a1=c.sec[3].a1, f4_a2=c.sec[3].a2)
     return s
 
 
@@ -110,6 +112,7 @@ def c_state(c):
              "pending_pulse", "noise_phase", "lfsr", "timer_done", "mode", "time"]
     names += ["cur_" + f for f in FIELDS] + ["latch_" + f for f in FIELDS]
     names += ["released", "early_req", "apply_due", "npending", "onto_silence", "hold_ok", "hold_open", "last_real"]
+    names += ["f4_a1", "f4_a2"]
     return dict(zip(names, v))
 
 

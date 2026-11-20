@@ -255,19 +255,24 @@ static void apply_pending(ssi263 *c)
         ssi263_write(c, a[i], v[i]);
 }
 
-static double theta(const ssi263 *c, int fi, int code)
+static double theta_bank(double K, double C0, const double *w, int code)
 {
     double sum = 0.0, cap, v, s;
     int i;
     for (i = 0; i < 4; i++)
         if ((code >> i) & 1)
-            sum += c->p.f_w[fi][i];
-    cap = c->p.f_C0[fi] + sum;
-    v = c->p.f_K[fi] * cap;
+            sum += w[i];
+    cap = C0 + sum;
+    v = K * cap;
     v = 0.0 > v ? 0.0 : v;                          /* max(K * cap, 0.0) */
     s = sqrt(v) / 2.0;
     s = s < 0.999 ? s : 0.999;                      /* min(0.999, ...) */
     return 2.0 * asin(s);
+}
+
+static double theta(const ssi263 *c, int fi, int code)
+{
+    return theta_bank(c->p.f_K[fi], c->p.f_C0[fi], c->p.f_w[fi], code);
 }
 
 static void set_fixed_sections(ssi263 *c)
@@ -332,6 +337,8 @@ static void latch_all(ssi263 *c, int force)
         set_theta(&c->sec[1], th2, b2);
         th3 = theta(c, 2, c->latch[F3]);
         set_theta(&c->sec[2], th3, c->p.bw_ratio[2]);
+        if (c->p.f4_code != 0.0)                    /* v0.21: F4 takes F3's code on its own bank (chip.py) */
+            set_theta(&c->sec[3], theta_bank(c->p.f4_K, c->p.f4_C0, c->p.f4_w, c->latch[F3]), c->p.f4_bw);
         /* the noise path's F2 and F3: the same tuning and damping as the voice's */
         set_theta(&c->nsec[0], th2, b2);
         set_theta(&c->nsec[1], th3, c->p.bw_ratio[2]);
@@ -1021,7 +1028,7 @@ SSI263_API void ssi263_skip(ssi263 *c, double seconds)
 
 /* elapsed duration trans trans_target amp_cur clo g2 g5 phase pending_pulse noise_phase
    lfsr timer_done mode time, then cur[6], latch[6], then released early_req apply_due
-   npending onto_silence, then hold_ok hold_open last_real */
+   npending onto_silence, then hold_ok hold_open last_real, then the voice path's F4 section a1 a2 */
 SSI263_API int ssi263_state(const ssi263 *c, double *out, int cap)
 {
     double s[40];
@@ -1053,6 +1060,8 @@ SSI263_API int ssi263_state(const ssi263 *c, double *out, int cap)
     s[n++] = c->hold_ok;
     s[n++] = c->hold_open;
     s[n++] = c->last_real;
+    s[n++] = c->sec[3].a1;
+    s[n++] = c->sec[3].a2;
     for (i = 0; i < n && i < cap; i++)
         out[i] = s[i];
     return n;

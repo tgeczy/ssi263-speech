@@ -127,8 +127,11 @@ agreed read in Astra's reviews of v0.2 and v0.9.
 - **Where is F4?** The paper describes five sections with four control bits each; one of
   its figures lists F1, F2, F2Q, F3, F4, VA and FA and leaves out F5, while another draws a
   control on F5. The ROM decode has six fields and no F4. Both reviewers agreed not to
-  relabel rows just to make the counts fit. The engine uses fixed placeholders at about
-  0.163 × fc and 0.24 × fc, where the recordings show clock-scaled features.
+  relabel rows just to make the counts fit. The engine used fixed placeholders at about
+  0.163 × fc and 0.24 × fc, where the recordings show clock-scaled features. The SC-02 prototype's schematic
+  answers it for the prototype: F3 and F4 latch the same 4-bit code in one scan slot, each on a capacitor bank
+  of its own (Henri Asseily, issue 31), so the ROM needs no F4 field. Engine v0.21 tunes F4 that way; F5 is
+  still a placeholder.
 - **The hertz scale.** Casso's hertz values are the SC-01's. With free bit weights, the
   recordings make F2 and F3 binary arrays (1:2:4:8) with candidate fixed-to-unit capacitor
   ratios of about 3.4, 1.75 and 4.1 for F1–F3, but none is measured on the die yet.

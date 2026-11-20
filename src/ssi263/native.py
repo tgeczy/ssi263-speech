@@ -59,6 +59,8 @@ class _Params(ctypes.Structure):
         ("noise_path_shaper_ratio", _c_double), ("noise_path_shaper_bw", _c_double),
         ("noise_path_route_b02_w", (_c_double * 2) * 2), ("noise_path_gain", _c_double),
         ("amp_smooth", _c_double),
+        ("f4_code", _c_double), ("f4_K", _c_double), ("f4_C0", _c_double), ("f4_w", _c_double * 4),
+        ("f4_bw", _c_double),
     ]
 
 
@@ -157,6 +159,13 @@ def params_struct(p):
             s.noise_path_route_b02_w[i][j] = p["noise_path_route_b02"][i][j]
     s.noise_path_gain = float(p["noise_path_gain"])
     s.amp_smooth = _choice(p, "amp_steps", "smooth", ("code", "smooth"))
+    # the voice path's F4 on its own bank (v0.21, chip.py f4_tuning)
+    s.f4_code = _choice(p, "f4_tuning", "code", ("fixed", "code"))
+    s.f4_K = float(p["f4_K"])
+    s.f4_C0 = float(p["f4_C0"])
+    for i, v in enumerate(p["f4_w"]):
+        s.f4_w[i] = v
+    s.f4_bw = float(p["f4_bw"])
     return s
 
 

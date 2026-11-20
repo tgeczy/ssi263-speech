@@ -8,6 +8,8 @@ Source tags (message-from-claude-2.md section 26.1):
          its capture path; silicon revision not established)
   REG    register programs played on Tomi's real SSI-263 (the regprog corpus, DEV sessions only)
   SC01   borrowed from MAME's SC-01 model -- a different chip; a baseline, never a fact
+  PROTO  the SC-02 prototype schematic, read and net-listed by Henri Asseily (issue 31): a prototype of this
+         chip, not our mask -- a value from it is a hypothesis until a recording of a real chip agrees
   GUESS  placeholder; nothing measured yet
 
 A parameter set is a plain dict, so a fit or an alternative reading is just a
@@ -139,8 +141,32 @@ DEFAULTS = {
     "f3_w": ((1.0, 2.0, 4.0, 8.0), "P+BL",
              "rows from the P decode; binary areas compatible with the BL fit, not measured"),
     "f4_ratio": (0.163, "BL",
-                 "fixed placeholder at the clock-scaled 4.3 kHz (tone 13) pole cluster; "
-                 "identity unproven, and ISSCC Fig. 3 lists an F4 control"),
+                 "f4_tuning 'fixed' (v0.20 and before): a placeholder at the clock-scaled 4.3 kHz (tone 13) "
+                 "pole cluster; ISSCC Fig. 3 lists an F4 control.  Also F4 before the first latch"),
+    "f4_tuning": ("code", "PROTO+REG",
+                  "v0.21: 'code' = the voice path's F4 is tuned by the F3 code, on a capacitor bank of its own "
+                  "(f4_K, f4_C0, f4_w), and retuned wherever F3 is.  The prototype latches one 4-bit code for both "
+                  "in the same scan slot (Henri Asseily, issue 31).  Predicted with nothing fitted on 24 held "
+                  "phonemes of the real chip against AH (the two long-hold sessions, R4 E7, three pitches, plan "
+                  "sealed before scoring): magnitude 23 of 25 better and 1 worse (:UH), pooled 4.51 -> 3.21 dB; "
+                  "phase 24 of 25, 0.438 -> 0.194 rad; three wrong code maps each worse than the fixed F4.  "
+                  "'fixed' = v0.20: f4_ratio and bw_ratio[3].  The noise path's own F4 (noise_path_f4_ratio) is "
+                  "not moved: unknown"),
+    "f4_K": (0.0495, "REG",
+             "as f1_K, for F4's bank.  From ONE controlled ROM pair on the real chip, LF/OU (they differ in the "
+             "F3 code alone; REG_claude195_pairs, 2026-10-14): the section that pair needed beyond F3, its two "
+             "centres given f4_C0 and f4_w.  Code 11 (AH) lands at 0.1633, v0.20's f4_ratio"),
+    "f4_C0": (1670.0 / 200.0, "PROTO",
+              "the F4 bank's fixed capacitance in units of its smallest switched capacitor (1670 pF / 200 pF): "
+              "about twice F3's, so the same code moves F4 over a smaller ratio.  The same reading of the F1, F2 "
+              "and F3 banks gives 1.56, 1.79 and 3.90 against our fitted f1_C0 1.55, f2_C0 1.75, f3_C0 4.07"),
+    "f4_w": ((1.0, 2.0, 820.0 / 200.0, 1620.0 / 200.0), "PROTO",
+             "the F4 bank's switched capacitors, low bit first (200, 400, 820, 1620 pF) in the same unit; the "
+             "LF/OU pair's capacitance ratio measured 1.1609 against this bank's 1.1594"),
+    "f4_bw": (0.0076, "REG",
+              "B/fc of the tuned F4, one value for every code: the LF/OU pair's (one pair; the least founded "
+              "number here).  v0.20's fixed F4 had bw_ratio[3] = 0.03, a GUESS five times F3's.  Heard by Tomi "
+              "on DEV words and sentences against 0.03: no colouring; the absolute width is not measured"),
     "f5_ratio": (0.24, "BL", "fixed placeholder at the ~0.24 fc cluster; identity unproven"),
     "section_numerator": ("bilinear", "GUESS",
                           "ISSCC: low-pass sections.  'bilinear' puts the null at fc/2, as "

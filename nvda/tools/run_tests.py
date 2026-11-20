@@ -2297,6 +2297,15 @@ CHECKS.append(check("glide law: one count per 16 (8 - G)(16 - R) XCK cycles, eve
 CHECKS.append(check("glide law CONTROL (v0.19's table, must fail)", [PY, GLIDE_LAW], env={"GLIDE_LAW_BREAK": "v019"},
                     expect_fail=True, fail_marks=[r"^ok    LAW py field 0 down", r"^FAIL  LAW C field 7 up ",
                                                   r"^glide law: 28 FAILED$"]))
+# F4 on its own capacitor bank (v0.21, params f4_tuning 'code'; the SC-02 prototype as Henri Asseily read it, issue 31;
+# predicted on 24 held phonemes of the real chip before scoring; Tomi's ear on DEV words and sentences): the voice
+# path's F4 is the law at the latched F3 code, retuned with F3 through a transition and through PA, Python and C.  The
+# control puts back v0.20's fixed F4: the law and the following fail in both engines
+F4_LAW = os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_f4_law.py")
+CHECKS.append(check("F4: tuned by the F3 code on its own bank, retuned with F3 (Python, C)", [PY, F4_LAW]))
+CHECKS.append(check("F4 CONTROL (v0.20's fixed F4, must fail)", [PY, F4_LAW], env={"F4_LAW_BREAK": "fixed"},
+                    expect_fail=True, fail_marks=[r"^FAIL  LAW py R ", r"^FAIL  FOLLOWS C through PA",
+                                                  r"^ok    PARITY: Python = C", r"^F4 law: 14 FAILED$"]))
 TONES = os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_tone_tract.py")
 CHECKS.append(check("BASIC tones: clean note starts and ends in mode 1 at rate 15 (chip state and sound; Python, C)",
                     [PY, TONES]))

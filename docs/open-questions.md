@@ -30,9 +30,11 @@ contributors, but it very much wants to know what exists.
   acoustic evidence for the F1 rule, not a trace of what PAR drives.) In particular: is PAR
   F1's lowest bit? Does NAS drive F2Q? Where do the flags b00–b04 go: a closure gate, noise routing, or the
   no-frication and no-voice gates an SC-01 patent shows? Is there a closure-delay counter?
-- **Where F4 comes from, and whether F5 is fixed.** No ROM field supplies F4, and the
-  design paper's two figures disagree about F5. What are the clock-scaled features at about
-  0.163 × fc and 0.24 × fc?
+- **F4's width and gain, and whether F5 is fixed.** No ROM field supplies F4. Since engine v0.21 its centre
+  follows the F3 code on a capacitor bank of its own, as in the SC-02 prototype's schematic (Henri Asseily,
+  issue 31), and that predicted held vowels of a real chip. Its width is one vowel pair's and its gain is not
+  measured; one phoneme (:UH) got worse. Does the noise path's F4 move too? The design paper's two figures
+  disagree about F5: what is the clock-scaled feature at about 0.24 × fc?
 - **Which block is which filter,** and the capacitor plates, switches and amplifier nodes
   of each. The agreed next target is the output chain: from the output pin through the
   buffer, the sample-and-hold and the high-pass with volume.

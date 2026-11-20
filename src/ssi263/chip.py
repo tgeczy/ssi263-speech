@@ -129,6 +129,8 @@ class SSI263:
         self.p = params if isinstance(params, Params) else Params(params)
         if self.p["mode1_rate15_formants"] not in ("slew", "immediate", "pa_wait", "pa_slew"):
             raise ValueError("mode1_rate15_formants = %r" % (self.p["mode1_rate15_formants"],))
+        if self.p["f4_tuning"] not in ("fixed", "code"):
+            raise ValueError("f4_tuning = %r" % (self.p["f4_tuning"],))
         self.rom = rom or Rom.load()
         self.out_rate = float(out_rate)
         self.dsp = _dsp.get(dsp)     # output stage: "numpy" (reference) or "c" (the add-ons)
@@ -546,6 +548,10 @@ class SSI263:
                 self.inj.set(z, self.p["noise_f2_inj_k"] * nu0 * nu0 + z)
             th3 = self._theta("F3", self.latch["F3"])
             self.sec[2].set_theta(th3, bw[2])
+            if self.p["f4_tuning"] == "code":
+                # v0.21: F4 takes F3's code on its own capacitor bank, latched with it (the SC-02 prototype;
+                # issue 31).  The voice path's only: the noise path's F4 (nsec[2]) stays where it was fitted
+                self.sec[3].set_theta(self._theta("F4", self.latch["F3"]), self.p["f4_bw"])
             # the noise path's F2 and F3: the same tuning and damping as the voice's
             self.nsec[0].set_theta(th2, b2)
             self.nsec[1].set_theta(th3, bw[2])
