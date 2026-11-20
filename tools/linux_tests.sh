@@ -89,6 +89,11 @@ else
     echo "skip  reference: the z180emu development build (LEGACY=1 ./build_linux.sh)"
 fi
 check "chip defaults" python3 src/csrc/gen_chip_defaults.py --check
+# engine v0.21's F4 (tools/check_f4_law.py: the voice path's F4 tuned by the latched F3 code on its own bank, retuned
+# with F3 through a transition and through PA, Python and C); its control puts back v0.20's fixed F4
+check "F4: tuned by the F3 code on its own bank, retuned with F3 (Python, C)" python3 tools/check_f4_law.py
+control "F4 CONTROL (v0.20's fixed F4, must fail)" "^FAIL  LAW py R " "^FAIL  FOLLOWS C through PA" \
+    "^ok    PARITY: Python = C" "^F4 law: 14 FAILED$" -- env F4_LAW_BREAK=fixed python3 tools/check_f4_law.py
 # the Braille Lite release table: the header current; the library's list the text file's, each release whose firmware
 # is here making its listed state by its row's recipe -- the same bytes as on Windows; the control answers n
 check "release table" python3 src/csrc/blazie/gen_languages.py --check
