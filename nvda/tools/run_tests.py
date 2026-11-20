@@ -1884,13 +1884,14 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
                                         r"^ok +cut after K HF UH UH UH S T HF: ", r"^cancel: FAILED$"]))
 
 # The Accent SA, the stand-alone box, in C (src/csrc/accentz80: its board on MAME's Z80, from Kevin Horton's drawing and
-# PLD equations, under the Accent-PC's host and voice; not a voice yet).  The board's rules on small programs, no
+# PLD equations, under the Accent-PC's host and voice; not a shipped voice).  The board's rules on small programs, no
 # firmware (test_az_board.c), and their must-fail controls (az_controls.py: each rule undone in a scratch copy must
 # fail exactly its tests; 23 small builds).  Then, with the two ROMs in firmware/aicom-accent-sa-z80: the firmware on
 # the board (test_az_firmware.py through az_trace: the greeting it says, the flush, the ports it reaches, the same
 # writes at any block size, the commands the voices send, 4.0 against 4.1 when both are there) with its three controls;
-# and issue #8's completion checks on this unit (test_as_complete.py, AS_COMPLETE_UNIT=sa, on the built add-on's
-# ssi263speech.dll) with the settle-off control.  Built by src/csrc/accentz80/build_board.py.
+# and issue #8's completion checks on this unit (test_as_complete.py, AS_COMPLETE_UNIT=sa, on the unit's own test
+# library: it is not a shipped voice, so ssi263speech.dll does not hold it) with the settle-off control.  Built by
+# src/csrc/accentz80/build_board.py.
 AZ_LIB = os.path.join(os.path.dirname(HERE), "dist", "accentz80-lib")
 AZ_DIR = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "accentz80")
 AZ_ROMS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "aicom-accent-sa-z80")
@@ -1922,14 +1923,14 @@ if os.path.isfile(os.path.join(AZ_LIB, "test_az_board.exe")):
                                         r"^FAIL marks +three Ctrl-Fs: 0 prompts", r"^ok +greeting ", r"^ok +blocks ",
                                         AZ_SUM]))
         AZ_COMPLETE = os.path.join(os.path.dirname(AZ_DIR), "accentsa", "test_as_complete.py")
-        if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "accent-build", "synthDrivers", "_ssi263_accent",
-                                       "bin", "x64", "ssi263speech.dll")):
+        AZ_DLL = os.path.join(AZ_LIB, "x64", "accent_sa_z80.dll")
+        if os.path.isfile(AZ_DLL):
             CHECKS.append(check("Accent SA: a text done only when said (issue #8's checks on this unit)",
-                                [PY, AZ_COMPLETE], env={"AS_COMPLETE_UNIT": "sa"},
+                                [PY, AZ_COMPLETE, AZ_DLL], env={"AS_COMPLETE_UNIT": "sa"},
                                 ok=lambda out: bool(re.search(
                                     r"^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace ok, limit "
                                     r"ok$", out, re.M)) and bool(re.search(r"^accent sa z80 completion: ok$", out, re.M))))
-            CHECKS.append(check("Accent SA completion CONTROL (the settle off, must fail)", [PY, AZ_COMPLETE],
+            CHECKS.append(check("Accent SA completion CONTROL (the settle off, must fail)", [PY, AZ_COMPLETE, AZ_DLL],
                                 env={"AS_COMPLETE_UNIT": "sa", "AS_COMPLETE_BREAK": "1"}, expect_fail=True,
                                 fail_marks=[r"^EARLY  rate +100 job +'Rate: slider 100 alt\+r'",
                                             r"^checks: done ok, complete \d+ FAILED, audio ok, latency ok, phase \d+ "

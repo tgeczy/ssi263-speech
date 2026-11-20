@@ -10,9 +10,30 @@ interrupt, the same dictionary ROM. So only the machine is new. The host (the lo
 cancel) and the voice (settings, numbers, a capital's pitch, index marks, the job API) are the Accent-PC's, given
 this board. That the stand-alone takes those commands the same way is checked on its own firmware, not assumed.
 
-**Not a voice yet.** Nothing in `../voices.c` names it, so no front end offers it. The library carries its code
-(`azv_create`) and the tests run it. The ROMs are not in the repository yet: `firmware/aicom-accent-sa-z80/README.txt`
-says which files go there.
+## Why it is not a shipped voice
+
+It runs, and it speaks as the Accent-PC does. Measured on our own two units, the same texts down both serial lines
+(2026-11-20):
+
+- **The same sounds.** Forty texts (sentences, numbers, money, abbreviations, odd spellings): the same phoneme
+  sequence on all forty, 26 of them identical write for write. The rest differ in a few writes that are not
+  phonemes: about ten of several hundred to the rate register, or five more pause frames.
+- **The same melody and pace.** Nine texts, with clauses and pauses: the phonemes' times agree to 2 ms, the pauses
+  between clauses to the millisecond, and of each text's 50 to 250 pitch values none to six differ.
+- **One difference: it starts sooner.** At each unit's own processor speed the first phoneme comes a median 182 ms
+  after the text here against 461 ms on the PC card; as the voices run their units (the host's `turbo`), 28 ms
+  against 61 ms. But the PC card's clock is a guess (`../accentsa/README.md`), and that lead is the host's to give
+  either unit.
+
+So a listener would get a second entry that sounds like the first (Tomi listened to both and heard none), with a
+second set of ROMs to carry. The project's other pairs earn their two entries by ear: the Sounding Board against
+the Speak-Out in pitch and in how a sentence is carried, the two Mockingboards in how long a forced vowel is held.
+This pair does not, so the Accent SA is not in `../voices.c`, not in `ssi263speech.dll`, the speech-dispatcher
+module or the phones' libraries, and its ROMs are not in the repository:
+`firmware/aicom-accent-sa-z80/README.txt` says which files go there. What is here is the machine, kept honest by
+its tests on a test library of its own (`azv_create`), and useful as it is: it is the unit a real Accent SA's
+recordings can be laid beside. A word that differs between the two firmwares may yet turn up; forty texts are not
+the dictionary. If one does, or someone wants the real box by name, a row in `../voices.c` makes it a voice.
 
 | File | What it is for |
 |---|---|
@@ -25,7 +46,7 @@ says which files go there.
 | `test_az_board.c` | The board's rules on small Z80 programs in a synthetic U5 (no firmware): 9 tests. |
 | `az_controls.py` | Their must-fail controls: each rule undone in a scratch copy, exactly its tests must fail (22). |
 | `test_az_firmware.py` | The firmware on the board, through `az_trace`: the greeting it says at power-up, the flush, the ports it reaches, the same writes at any block size, the rate, pitch, voice, monotone and index-mark commands, and 4.0 against 4.1. Three controls (`AZ_FW_BREAK`). Skips, and says so, without the ROMs. |
-| `build_board.py` | Windows build (w64devkit): `nvda/dist/accentz80-lib/` gets `test_az_board.exe`, `az_trace.exe`, `az_waiting.exe`. The voice is built into `ssi263speech.dll` by `../build_ssi263speech.py`. Linux: `../../../build_linux.sh`. |
+| `build_board.py` | Windows build (w64devkit): `nvda/dist/accentz80-lib/` gets `test_az_board.exe`, `az_trace.exe`, `az_waiting.exe` and `x64/accent_sa_z80.dll`, a test library that is never shipped (the unit under the Accent voice, with the chip). Linux: `../../../build_linux.sh`, where the unit goes into the test reference `libsd_voices_ref.so` only. |
 
 The CPU is `../cpu/z80_mame.cpp` (CONTRACT.md 15). The 8251 is the Accent-PC's (`../accentsa/as_usart.c`): this
 firmware programs it with the same mode word and the same two commands. Issue #8's completion checks run on this unit

@@ -119,7 +119,7 @@ def copy_native_voices(eng):
         dll = os.path.join(REPO, "build", "win", arch, "ssi263speech.dll")
         check_native(dll, arch)
         shutil.copy2(dll, dest)
-    copy_mame_notices(eng, "z180", "nec", "i86", "i8085", "z80")   # z80: the Accent SA's, in ssi263speech.dll
+    copy_mame_notices(eng, "z180", "nec", "i86", "i8085")
 
 
 def copy_native_binding(eng):

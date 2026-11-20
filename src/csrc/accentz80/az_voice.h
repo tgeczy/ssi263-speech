@@ -2,6 +2,7 @@
  * and currency processing, a capital's pitch, the speak loop, cancel, index marks and the job API) on the stand-alone
  * box's own unit (az_host.h).  What comes back is an as_voice; everything after creation is asv_*.
  *
+ * Not a shipped voice (README.md says why: it speaks as the Accent-PC does); built into test libraries only.
  * That the stand-alone's firmware takes the PC card's commands the same way is CHECKED, not assumed
  * (test_az_firmware.py: the settings, the flush, the index marks' prompts, a text done only when said).
  * The ROMs come from the caller: Aicom's U5 and U4, never built in.  Not thread-safe per voice.  MIT.

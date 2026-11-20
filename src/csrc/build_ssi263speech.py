@@ -60,9 +60,6 @@ def units():
     u += [(FRONT + inc("blazie"), "blazie/bl_numbers.c"), (FRONT, "numwords.c"), (FRONT, "numwords_es.c")]
     u += [(MAME, "cpu/i8085_mame.cpp")] + [(ACCENT, "accentsa/%s.c" % n) for n in ("as_board", "as_usart", "as_host")]
     u += [(FRONT + inc("accentsa"), "accentsa/as_voice.c"), (FRONT, "accent_text.c")]   # both Accents' text rules
-    # the Accent SA, the stand-alone box: its Z80 board under the Accent-PC's host and voice (no voices.c row yet)
-    u += [(MAME, "cpu/z80_mame.cpp")] + [(ACCENT + inc("accentz80"), "accentz80/%s.c" % n)
-                                         for n in ("az_board", "az_host", "az_voice")]
     have = []
     if os.path.isfile(os.path.join(SRC, "speakout", "so_voice.c")):          # so-voice's sources (so_voice.h)
         so = FRONT + inc("cpu", "speakout")

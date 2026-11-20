@@ -4,8 +4,11 @@
   az_trace.exe         the C API alone: the two ROMs from files, a text, every chip write with its time (az_trace.c;
                        the chip built in)
   az_waiting.exe       the tool that measures a firmware's waiting loops into az_waiting.inc (az_waiting.c)
+  x64/accent_sa_z80.dll   a TEST library, never shipped: the unit under the Accent voice (az_voice.c, with
+                       ../accentsa/as_voice.c, the Accents' text rules and the chip), for the completion checks on
+                       this unit (../accentsa/test_as_complete.py with AS_COMPLETE_UNIT=sa)
 
-The voice itself (az_voice.c) is built into ssi263speech.dll by ../build_ssi263speech.py, with the other voices.
+The Accent SA is not a shipped voice (README.md says why): ssi263speech.dll does not hold it.
 
 w64devkit gcc/g++ (paths.local W64DEVKIT); C++17 without exceptions or RTTI for the cores, libstdc++ and libgcc linked
 statically.  python src/csrc/accentz80/build_board.py
@@ -58,6 +61,15 @@ def main():
     for exe, objs in (("test_az_board", board), ("az_trace", shared), ("az_waiting", shared)):
         own, env = compile_all(bindir, obj, [(os.path.join(HERE, exe + ".c"), "gcc", CC)])
         subprocess.run([gxx] + LINK + ["-o", os.path.join(OUT, exe + ".exe")] + own + objs, env=env, check=True)
+    # the test library: the voice on this unit, everything it needs inside
+    front = ["-O2", "-std=c99", "-ffp-contract=off", "-Wall"]
+    own, env = compile_all(bindir, obj, [(os.path.join(HERE, "az_voice.c"), "gcc", CC),
+                                         (os.path.join(PC, "as_voice.c"), "gcc", front),
+                                         (os.path.join(CSRC, "accent_text.c"), "gcc", front),
+                                         (os.path.join(CSRC, "numwords.c"), "gcc", front)])
+    os.makedirs(os.path.join(OUT, "x64"), exist_ok=True)
+    subprocess.run([gxx, "-shared"] + LINK + ["-o", os.path.join(OUT, "x64", "accent_sa_z80.dll")] + own + shared,
+                   env=env, check=True)
     print("built %s" % OUT)
 
 

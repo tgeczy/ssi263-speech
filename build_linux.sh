@@ -260,7 +260,7 @@ done
 $CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC/accentz80 -c -o "$OUT/test_az_board.o" "$SRC/accentz80/test_az_board.c"
 $CXX -o "$OUT/test_az_board" "$OUT/test_az_board.o" "$OUT/obj_accentz80/az_board.o" "$OUT/obj_accentsa/as_usart.o" "$OUT/obj_accentz80/z80_mame.o"
 $CC -O2 -std=gnu89 -I$SRC/accentz80 -I$SRC/accentsa -I$SRC -c -o "$OUT/az_trace.o" "$SRC/accentz80/az_trace.c"
-$CXX -o "$OUT/az_trace" "$OUT/az_trace.o" "$OUT"/obj_accentz80/*.o "$OUT"/obj_accentsa/*.o $CHIP_OBJS -lm
+$CXX -o "$OUT/az_trace" "$OUT/az_trace.o" "$OUT"/obj_accentz80/*.o "$OUT"/obj_accentsa/*.o $CHIP_OBJS -lm   # (before az_voice.o is there)
 
 # The speech-dispatcher module (src/platforms/speechd): one program with every voice's engine inside (no .so to
 # install beside it) -- the Braille Lite (the library's objects), the Accent-PC (as_voice on the board above), and
@@ -271,11 +271,9 @@ $CXX -o "$OUT/az_trace" "$OUT/az_trace.o" "$OUT"/obj_accentz80/*.o "$OUT"/obj_ac
 rm -rf "$OUT/obj_voices"; mkdir -p "$OUT/obj_voices"
 VOICE="-O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC -I$SRC/cpu -I$SRC/accentsa -I$SRC/pc86 -I$SRC/speakout -I$SRC/mockingboard"
 VOICE_SRCS="$SRC/accentsa/as_voice.c"            # numwords.o: the library's ($NUM_OBJS)
-VOICE_SRCS="$VOICE_SRCS $SRC/accentz80/az_voice.c"   # the Accent SA's unit under that voice (no voices.c row yet)
 [ -f "$SRC/accent_text.c" ] && VOICE_SRCS="$VOICE_SRCS $SRC/accent_text.c"   # the Accents' shared text rules
 SD_DEFS=""
 ENGINE_OBJS="$OUT/obj_accentsa/i8085_mame.o $OUT/obj_accentsa/as_board.o $OUT/obj_accentsa/as_usart.o $OUT/obj_accentsa/as_host.o"
-ENGINE_OBJS="$ENGINE_OBJS $OUT/obj_accentz80/z80_mame.o $OUT/obj_accentz80/az_board.o $OUT/obj_accentz80/az_host.o"
 if [ -f "$SRC/accentmini/am_voice.c" ]; then
     VOICE_SRCS="$VOICE_SRCS $SRC/accentmini/am_voice.c $SRC/accentmini/am_host.c"
     ENGINE_OBJS="$ENGINE_OBJS $OUT/obj_i86/pc86.o $OUT/obj_i86/i86_mame.o"
@@ -314,7 +312,10 @@ $CC $BOARD -c -o "$OUT/sd_ssi263.o" "$ROOT/src/platforms/speechd/sd_ssi263.c"
 $CC $BOARD -c -o "$OUT/sd_voices.o" "$ROOT/src/platforms/speechd/sd_voices.c"
 $CC $VOICE $SD_DEFS -c -o "$OUT/sd_ssv.o" "$SRC/voices.c"
 $CXX $SHARED_CXX -o "$OUT/sd_ssi263" "$OUT/sd_ssi263.o" "$OUT/sd_voices.o" "$OUT/sd_ssv.o" $LIB_OBJS $ENGINE_OBJS -lm
-$CXX -shared $SHARED_CXX -o "$OUT/libsd_voices_ref.so" $CHIP_OBJS $NUM_OBJS $ENGINE_OBJS -lm
+# ... and, in the reference only, the Accent SA's unit under the Accent voice (src/csrc/accentz80): it is not in the
+# module, which ships; the completion checks on that unit run on this library
+$CC $VOICE -I$SRC/accentz80 -c -o "$OUT/obj_accentz80/az_voice.o" "$SRC/accentz80/az_voice.c"
+$CXX -shared $SHARED_CXX -o "$OUT/libsd_voices_ref.so" $CHIP_OBJS $NUM_OBJS $ENGINE_OBJS "$OUT"/obj_accentz80/*.o -lm
 # libssi263_voices.so: the module's voice table and engines as a library, as ssi263speech.dll is on Windows, for the
 # tests that drive the voice API (tools/check_st_voice.py); never shipped
 $CXX -shared $SHARED_CXX -o "$OUT/libssi263_voices.so" "$OUT/sd_ssv.o" $LIB_OBJS $ENGINE_OBJS -lm

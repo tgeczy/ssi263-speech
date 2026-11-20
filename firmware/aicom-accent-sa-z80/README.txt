@@ -1,9 +1,11 @@
-Accent SA firmware (the stand-alone box, Z80) -- not included yet
-===============================================================
+Accent SA firmware (the stand-alone box, Z80) -- not included, and not a shipped voice
+=====================================================================================
 
-The Accent SA voice runs the stand-alone Accent's own firmware: Aicom's two ROMs, read
-from a real Accent SA by Kevin Horton, who also traced the board it runs on here
-(src/csrc/accentz80).  They are not in this repository yet; put your own copies here:
+The stand-alone Accent's own firmware runs here on its own board (src/csrc/accentz80):
+Aicom's two ROMs, read from a real Accent SA by Kevin Horton, who also traced that board.
+It is not offered as a voice: on every text compared it says the same sounds at the same
+pace as the Accent-PC, which is (src/csrc/accentz80/README.md has the measurements).  The
+machine and its tests are kept; they run when your own copies of the ROMs are here:
 
   ACU5_V41.BIN   sha256 b6a5c493f5836114154c4877bb3b65959f12bf6ad9ce3fefd9d5f7d940e77bee
                  the program: "VERSION 4.1. OCT 2, 1996."  64 KB

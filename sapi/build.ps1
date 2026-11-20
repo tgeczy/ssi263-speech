@@ -120,7 +120,7 @@ $lic = Join-Path $Stage "licenses"
 New-Item -ItemType Directory -Force $lic | Out-Null
 Copy-Item (Join-Path $repo "LICENSE") (Join-Path $lic "LICENSE-MIT.txt")
 Copy-Item (Join-Path $repo "third_party\casso\LICENSE") (Join-Path $lic "LICENSE-Casso-MIT.txt")
-foreach ($core in "z180","i8085","nec","i86","z80") {
+foreach ($core in "z180","i8085","nec","i86") {
   $d = Join-Path $repo "src\csrc\cpu\mame_$core"
   Copy-Item (Join-Path $d "LICENSE-BSD-3-Clause.txt") (Join-Path $lic "LICENSE-$core-BSD-3-Clause.txt")
   Copy-Item (Join-Path $d "PINNED.txt") (Join-Path $lic "MAME-$core-provenance.txt")
