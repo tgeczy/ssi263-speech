@@ -27,6 +27,8 @@ way, and those withdrawals are part of the record too.
   click in "still".
 - **Rob Elmer's Casso** made the first read of the ROM, and **Visual6502.org** made the
   die photographs everything was read from.
+- **Kevin Horton** drew the schematic of the SC-02's discrete prototype, and **Henri Asseily** read it into a
+  net list: the chip's circuit as its designers first built it, which gave the engine its fourth formant.
 
 ## Before this project
 
@@ -63,6 +65,11 @@ way, and those withdrawals are part of the record too.
 - **Visual6502.org** photographs an SSI-263P die from chips an anonymous donor sent: Greg
   James shoots 203 images, Christian Sattler stitches them, and a 7000 × 5803 picture goes
   online with the data sheets.
+- **September 2020.** Kevin Horton, who has reverse engineered and cloned most of Votrax's speech hardware, draws
+  out the SC-02's discrete prototype, the board of some two hundred logic chips and an analog filter on which
+  Votrax built the chip before it was silicon: seven sheets, [sc-02_Final_Schematic_V1.00.pdf](http://blog.kevtris.org/blogfiles/sc-02_Final_Schematic_V1.00.pdf).
+  He builds a working clone of it that plugs in where an SC-02 goes, and later a smaller one with the logic in an
+  FPGA. He remembers the prototype's ROM data as the same as the chip's.
 - **August 2026.** Casso, Rob Elmer's Apple II emulator, reads the ROM's 1,856 cells off
   that picture for its Mockingboard speech, and on 2026-08-26 decodes them as
   significance-interleaved 4-bit fields (the layout the SC-01's decap had shown). Its
@@ -593,7 +600,7 @@ study the analog side on a real chip.
 | v0.18 | Tomi: a faint click at the ends of the Pinball lesson's right-side notes; Astra traced it to the tract retuning at once while the filters still rang, and Tomi heard both of Astra's fixes remove it | In the BASIC tones (mode 1, rate 15), PA's tract is slewed to once the sound has stopped, not retuned at once |
 | v0.19 | Tomi: the Accent voices tick and rattle as they talk, a different grain on every vowel, and the Speak-Out and Braille Lite don't; Claude rendered the Accent's own writes with one suspect removed per file, and Tomi heard the ticking go only when the volume stopped stepping; his chip on the same writes has none | The volume follows the amplitude's slew instead of jumping a whole code at a time |
 | v0.20 | Tomi recorded 426 pitch glides on his real chip through register programs; Claude measured the law and Astra (OpenAI Codex) confirmed it independently; Tomi heard it beside his chip on the Accent's sentences | The pitch glides one count per 16 (8 − G)(16 − R) clock cycles in every glide setting, replacing a table partly fitted, partly guessed |
-| v0.21 | Henri Asseily (Appletini) read the SC-02 prototype's schematic into a net list and showed in issue 31 that F3 and F4 share one code on two capacitor banks; Claude predicted held vowels of Tomi's chip from that bank before scoring them, and Astra (OpenAI Codex) reproduced it independently; Tomi heard it beside his unit, and caught a fault in the first listening clips that the numbers had missed | The fourth formant moves with the sound instead of standing still: it takes the third formant's code on a capacitor bank of its own |
+| v0.21 | Kevin Horton drew the SC-02 prototype's schematic; Henri Asseily (Appletini) read it into a net list and showed in issue 31 that F3 and F4 share one code on two capacitor banks; Claude predicted held vowels of Tomi's chip from that bank before scoring them, and Astra (OpenAI Codex) reproduced it independently; Tomi heard it beside his unit, and caught a fault in the first listening clips that the numbers had missed | The fourth formant moves with the sound instead of standing still: it takes the third formant's code on a capacitor bank of its own |
 
 ## Add-on releases at a glance
 

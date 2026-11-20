@@ -130,7 +130,7 @@ agreed read in Astra's reviews of v0.2 and v0.9.
   relabel rows just to make the counts fit. The engine used fixed placeholders at about
   0.163 × fc and 0.24 × fc, where the recordings show clock-scaled features. The SC-02 prototype's schematic
   answers it for the prototype: F3 and F4 latch the same 4-bit code in one scan slot, each on a capacitor bank
-  of its own (Henri Asseily, issue 31), so the ROM needs no F4 field. Engine v0.21 tunes F4 that way; F5 is
+  of its own (Kevin Horton's drawing, net-listed by Henri Asseily, issue 31), so the ROM needs no F4 field. Engine v0.21 tunes F4 that way; F5 is
   still a placeholder.
 - **The hertz scale.** Casso's hertz values are the SC-01's. With free bit weights, the
   recordings make F2 and F3 binary arrays (1:2:4:8) with candidate fixed-to-unit capacitor
