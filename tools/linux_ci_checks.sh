@@ -49,6 +49,10 @@ check "CPU contract tests (MAME Z80 core)" ./$B/test_z80_contract
 check "Accent SA board (MAME Z80): its rules" ./$B/test_az_board
 check "Accent SA board CONTROLS (each rule undone, must fail its tests)" python3 src/csrc/accentz80/az_controls.py
 check "chip defaults" python3 src/csrc/gen_chip_defaults.py --check
+# engine v0.21's F4, and its control (linux_tests.sh's)
+check "F4: tuned by the F3 code on its own bank, retuned with F3 (Python, C)" python3 tools/check_f4_law.py
+control "F4 CONTROL (v0.20's fixed F4, must fail)" "^FAIL  LAW py R " "^FAIL  FOLLOWS C through PA" \
+    "^ok    PARITY: Python = C" "^F4 law: 14 FAILED$" -- env F4_LAW_BREAK=fixed python3 tools/check_f4_law.py
 # accented letters (src/csrc/translit.h): the module and every voice's bytes need no firmware (linux_tests.sh's)
 check "accented letters: translit.h (C), the table, alone and in a word, case" python3 nvda/tools/translit_test.py module
 control "accented letters: translit.h CONTROL (the pass off, must fail)" \
