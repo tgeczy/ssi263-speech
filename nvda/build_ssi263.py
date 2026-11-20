@@ -142,7 +142,7 @@ def expected_files():
         out[U + "_ssi263_smartalk/S_TALK.EXE"] = ST_SHA256
         out[U + "_ssi263_smartalk/licenses/SmarTalk-software-notice.txt"] = None
     for unit in units:
-        for n in ("ssi263speech.py", "ssi263_rates.py", "ssi263_flow.py"):
+        for n in ("ssi263speech.py", "ssi263_rates.py", "ssi263_flow.py", "ssi263_feed.py"):
             out[U + "_ssi263_%s/%s" % (unit, n)] = os.path.join(HERE, "shared", n)
     for unit in ["blazie"] + units:
         for arch in ("x64", "x86"):

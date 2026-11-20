@@ -41,6 +41,10 @@ try:
     from ._ssi263_blazie import ssi263_flow as _flow        # say all's lines as one line to the unit
 except ImportError:                       # an engine from before it: each text a line of its own
     _flow = None
+try:
+    from ._ssi263_blazie import ssi263_feed as _first     # an utterance's first feed is never a sliver
+except ImportError:                       # an engine from before it
+    _first = None
 FLOW = True                               # (the tests' control takes it away)
 OWN_MARKS = True                          # (... or has each index estimated, as for a unit without index marks)
 
@@ -603,7 +607,7 @@ class SynthDriver(SynthDriver):
         self._line_lift = False
         self._lift_next = True           # the next utterance follows a cancel (or is the first): lift its start
         self._quiet_since = None         # _now() when the last utterance's audio ended; None while one runs
-        self._player = self._makePlayer()
+        self._player = self._whole(self._makePlayer())
         self._queue = queue.Queue()
         self._cancelFlag = threading.Event()
         self._wake = threading.Event()   # speak() / cancel() wake the idle tail
@@ -618,6 +622,11 @@ class SynthDriver(SynthDriver):
         self.bootError = None
         self._worker = threading.Thread(target=self._run, name="blazie-ssi263", daemon=True)
         self._worker.start()
+
+    def _whole(self, player):
+        """the player behind ssi263_feed.FirstFeed: after a stop or an idle its first feed is never a
+        sliver of sound, which NVDA's own silence trim would leave to pop (a listener, 2026-11-20)"""
+        return _first.FirstFeed(player, self._out_rate) if _first else player
 
     def _makePlayer(self):
         import config
@@ -1043,7 +1052,7 @@ class SynthDriver(SynthDriver):
         chip renders at the host rate).  The unit's boot is silent; its audio is never fed."""
         if self._want_rate != self._out_rate:
             self._out_rate = self._want_rate
-            old, self._player = self._player, self._makePlayer()
+            old, self._player = self._player, self._whole(self._makePlayer())
             try:
                 old.close()
             except Exception:

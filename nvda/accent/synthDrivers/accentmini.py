@@ -41,6 +41,10 @@ try:
     from ._ssi263_accent import ssi263_flow as _flow      # say all's lines as one line to the unit
 except ImportError:                       # an engine from before it: each text a line of its own
     _flow = None
+try:
+    from ._ssi263_accent import ssi263_feed as _first     # an utterance's first feed is never a sliver
+except ImportError:                       # an engine from before it
+    _first = None
 FLOW = True                               # (the tests' control takes it away)
 OWN_MARKS = True                          # (... or has each index estimated, as on a unit without index marks)
 
@@ -137,7 +141,7 @@ class SynthDriver(SynthDriver):
         # NVDA's own loadSettings fail ("setSynth failed ... KeyError: 'voiceInflection'", Tomi, 0.6.0 draft).
         # NVDA applies the saved values through the setters right after; the worker restarts once if needed.
         self._out_rate = self._want_rate = rates.DEFAULT   # the worker switches to _want_rate
-        self._player = self._makePlayer()
+        self._player = self._whole(self._makePlayer())
         self._queue = queue.Queue()
         self._cancelFlag = threading.Event()
         self._stopped = False
@@ -152,6 +156,11 @@ class SynthDriver(SynthDriver):
         if DEBUG_LOG:
             self._monitor = threading.Thread(target=self._watch, name="accent-ssi263-watch", daemon=True)
             self._monitor.start()
+
+    def _whole(self, player):
+        """the player behind ssi263_feed.FirstFeed: after a stop or an idle its first feed is never a
+        sliver of sound, which NVDA's own silence trim would leave to pop (a listener, 2026-11-20)"""
+        return _first.FirstFeed(player, self._out_rate) if _first else player
 
     def _makePlayer(self):
         import config
@@ -336,7 +345,7 @@ class SynthDriver(SynthDriver):
     def _switch_rate(self):
         """A new sample rate: the chip renders at the host rate, so a new player and a rebooted card."""
         self._out_rate = self._want_rate
-        old, self._player = self._player, self._makePlayer()
+        old, self._player = self._player, self._whole(self._makePlayer())
         try:
             old.close()
         except Exception:

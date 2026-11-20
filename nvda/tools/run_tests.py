@@ -591,6 +591,32 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("blazie", "blaz
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "SAY_ALL_FLOW_BREAK": "1"}, expect_fail=True,
                             fail_marks=[r"^FAIL flows ", r"^ok +indexes ", r"^ok +alone ",
                                         r"^say all flow: \d FAILED$"]))
+# An utterance's first feed (nvda/shared/ssi263_feed.py; a listener, 2026-11-20: "every so often, there's a pop at the
+# beginning"): a driver's first block of a word was its lead-in and what was left of the 30 ms block the sound began
+# in, often 0 to 3 ms; NVDA 2025 and later trim leading silence themselves, the stream started on that sliver and ran
+# dry until the next block -- a blip, a gap, the word.  first_feed.py, each driver through the stand-in NVDA: the first
+# feed with sound in it holds a block of it, after a cancel too, and a one-letter utterance still comes out whole.
+# The control takes the hold away: "starts" must fail.
+for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", None, "Speak-Out"),
+                              ("speakout", "soundingboard", "Sounding Board"), ("accent", "mini", "Accent-mini"),
+                              ("accent", "sa", "Accent-PC"), ("mockingboard", None, "Mockingboard"),
+                              ("smartalk", None, "SmarTalk")):
+    _file = {"accent": "accentmini"}.get(_which, _which) + ".py"
+    if not os.path.isfile(os.path.join(_UNITS, _file)) or not os.path.isfile(
+            os.path.join(_UNITS, "_ssi263_" + _which, "ssi263_feed.py")):
+        continue
+    if _voice == "soundingboard" and not os.path.isfile(os.path.join(_UNITS, "_ssi263_speakout", "SBLOAD.COM")):
+        continue
+    _argv = [PY, "first_feed.py", _which] + ([_voice] if _voice else [])
+    CHECKS.append(check("an utterance's first feed is never a sliver: %s" % _name, _argv,
+                        env={"SSI263_SYNTH_DRIVERS": _UNITS},
+                        ok=lambda out: len(re.findall(r"^ok +(starts|after cut|short) ", out, re.M)) == 3
+                        and bool(re.search(r"^first feed: all ok$", out, re.M))))
+    if _name in ("Braille Lite", "Sounding Board"):
+        CHECKS.append(check("first feed CONTROL (%s: the hold off, must fail)" % _name, _argv,
+                            env={"SSI263_SYNTH_DRIVERS": _UNITS, "FIRST_FEED_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL starts +24 utterances: .* under 25 ms: [1-9]", r"^ok +short ",
+                                        r"^first feed: \d FAILED$"]))
 # the Blazie emulator app (src/apps/blazie): its chord logic, and the unit headless (boot greeting heard, a chord
 # answered against the no-chord control, faster than real time)
 EMU = os.path.join(os.path.dirname(HERE), "dist", "blazie-emu")
