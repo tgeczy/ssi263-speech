@@ -21,7 +21,7 @@ device sound nicer at the others' expense.
 | Folder | What is there |
 |---|---|
 | `src/ssi263/` | the Python reference chip model; the C chip (`src/csrc/ssi263.c`) is held to it |
-| `src/csrc/` | the portable C core every platform builds: the chip, each device's board and host (`blazie/`, `speakout/`, `soundingboard/`, `accentsa/`, `accentmini/`, `mockingboard/`, `smartalk/`), the CPU cores (`cpu/`, `pc86/`), and the voice table (`voices.c`) |
+| `src/csrc/` | the portable C core every platform builds: the chip, each device's board and host (`blazie/`, `speakout/`, `soundingboard/`, `accentsa/`, `accentz80/`, `accentmini/`, `mockingboard/`, `smartalk/`), the CPU cores (`cpu/`, `pc86/`), and the voice table (`voices.c`) |
 | `src/hosts/` | the Python research hosts: each device's host as first written, the reference its C port is checked against |
 | `src/apps/` | the Blazie emulator apps (Windows, GTK, Linux terminal) and `blazie_files` |
 | `src/platforms/` | Android, Apple, BT Speak / BT Braille, speech-dispatcher |

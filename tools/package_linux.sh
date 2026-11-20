@@ -69,6 +69,8 @@ done
 VOICES="$("$ROOT/build/linux/sd_ssi263" --voices | cut -f1)"
 has() { echo "$VOICES" | grep -qx "$1"; }
 cp "$ROOT/src/csrc/cpu/mame_i8085/LICENSE-BSD-3-Clause.txt" "$STAGE/licenses/MAME-8085-core-BSD-3-Clause.txt"
+# the Z80 core is in the module too (the Accent SA's board, src/csrc/accentz80, under the Accent-PC's voice)
+cp "$ROOT/src/csrc/cpu/mame_z80/LICENSE-BSD-3-Clause.txt" "$STAGE/licenses/MAME-Z80-core-BSD-3-Clause.txt"
 cp "$ROOT/firmware/AICOM.txt" "$STAGE/licenses/Aicom-notice.txt"
 for v in accent-sa accent-mini; do
     has "$v" || continue

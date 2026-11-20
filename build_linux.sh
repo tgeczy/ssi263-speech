@@ -196,7 +196,7 @@ mkdir -p "$OUT/obj_m6809"
 $CXX $MAMET -c -o "$OUT/obj_m6809/m6809_mame.o" "$SRC/cpu/m6809_mame.cpp"
 $CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC -c -o "$OUT/obj_m6809/test_m6809_contract.o" "$SRC/cpu/test_m6809_contract.c"
 $CXX -o "$OUT/test_m6809_contract" "$OUT/obj_m6809/test_m6809_contract.o" "$OUT/obj_m6809/m6809_mame.o"
-# MAME's Z80 core (src/csrc/cpu/z80_mame.cpp; no board yet): the CPU contract's tests, and the runner for the CP/M
+# MAME's Z80 core (src/csrc/cpu/z80_mame.cpp, the Accent SA's; its board below): the CPU contract's tests, and the runner for the CP/M
 # instruction exercisers (zexdoc, zexall: not in the repository).  Its own object folder.
 mkdir -p "$OUT/obj_z80"
 $CXX $MAMET -c -o "$OUT/obj_z80/z80_mame.o" "$SRC/cpu/z80_mame.cpp"
@@ -250,6 +250,18 @@ $CC -O2 -std=gnu89 -I$SRC/accentsa -I$SRC -c -o "$OUT/as_render.o" "$SRC/accents
 $CXX -o "$OUT/as_render" "$OUT/as_render.o" "$OUT"/obj_accentsa/*.o $CHIP_OBJS -lm
 $CXX -shared $UNDEF -o "$OUT/libaccent_sa.so" "$OUT"/obj_accentsa/*.o -lm
 
+# The Accent SA, the stand-alone box (src/csrc/accentz80: its board on MAME's Z80, under the Accent-PC's host above):
+# the board's tests, and az_trace (the C API alone, the chip built in; test_az_firmware.py drives it).  Own folder.
+rm -rf "$OUT/obj_accentz80"; mkdir -p "$OUT/obj_accentz80"
+$CXX $MAMET -fPIC -c -o "$OUT/obj_accentz80/z80_mame.o" "$SRC/cpu/z80_mame.cpp"
+for f in az_board az_host; do
+    $CC -O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/accentsa -I$SRC/accentz80 -I$SRC -c -o "$OUT/obj_accentz80/$f.o" "$SRC/accentz80/$f.c"
+done
+$CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC/accentz80 -c -o "$OUT/test_az_board.o" "$SRC/accentz80/test_az_board.c"
+$CXX -o "$OUT/test_az_board" "$OUT/test_az_board.o" "$OUT/obj_accentz80/az_board.o" "$OUT/obj_accentsa/as_usart.o" "$OUT/obj_accentz80/z80_mame.o"
+$CC -O2 -std=gnu89 -I$SRC/accentz80 -I$SRC/accentsa -I$SRC -c -o "$OUT/az_trace.o" "$SRC/accentz80/az_trace.c"
+$CXX -o "$OUT/az_trace" "$OUT/az_trace.o" "$OUT"/obj_accentz80/*.o "$OUT"/obj_accentsa/*.o $CHIP_OBJS -lm
+
 # The speech-dispatcher module (src/platforms/speechd): one program with every voice's engine inside (no .so to
 # install beside it) -- the Braille Lite (the library's objects), the Accent-PC (as_voice on the board above), and
 # the Accent-mini (am_voice, MAME's 8086) and the Speak-Out (so_voice, MAME's V40) once their voices' sources are in
@@ -259,9 +271,11 @@ $CXX -shared $UNDEF -o "$OUT/libaccent_sa.so" "$OUT"/obj_accentsa/*.o -lm
 rm -rf "$OUT/obj_voices"; mkdir -p "$OUT/obj_voices"
 VOICE="-O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC -I$SRC/cpu -I$SRC/accentsa -I$SRC/pc86 -I$SRC/speakout -I$SRC/mockingboard"
 VOICE_SRCS="$SRC/accentsa/as_voice.c"            # numwords.o: the library's ($NUM_OBJS)
+VOICE_SRCS="$VOICE_SRCS $SRC/accentz80/az_voice.c"   # the Accent SA's unit under that voice (no voices.c row yet)
 [ -f "$SRC/accent_text.c" ] && VOICE_SRCS="$VOICE_SRCS $SRC/accent_text.c"   # the Accents' shared text rules
 SD_DEFS=""
 ENGINE_OBJS="$OUT/obj_accentsa/i8085_mame.o $OUT/obj_accentsa/as_board.o $OUT/obj_accentsa/as_usart.o $OUT/obj_accentsa/as_host.o"
+ENGINE_OBJS="$ENGINE_OBJS $OUT/obj_accentz80/z80_mame.o $OUT/obj_accentz80/az_board.o $OUT/obj_accentz80/az_host.o"
 if [ -f "$SRC/accentmini/am_voice.c" ]; then
     VOICE_SRCS="$VOICE_SRCS $SRC/accentmini/am_voice.c $SRC/accentmini/am_host.c"
     ENGINE_OBJS="$ENGINE_OBJS $OUT/obj_i86/pc86.o $OUT/obj_i86/i86_mame.o"

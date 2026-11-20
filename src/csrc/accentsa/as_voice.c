@@ -43,7 +43,8 @@
 struct as_voice {
     as_host *h;
     ssi263 *chip;
-    unsigned char *rom[3];                             /* u2, u3, u4, kept to restart the unit after a failure */
+    asv_unit make;                                     /* the unit this voice runs: the Accent-PC, or another's */
+    unsigned char *rom[3];                             /* its ROMs (u2, u3, u4), kept to restart it after a failure */
     size_t n_rom[3];
     double out_rate;
     int rate, pitch, inflection, volume, numbers;      /* NVDA's scales */
@@ -84,8 +85,7 @@ struct as_voice {
 /* ---- _boot ---------------------------------------------------------------------------------------------------- */
 static as_host *boot(const as_voice *v, char *err, int errlen)
 {
-    as_host *h = ash_create(v->rom[0], v->n_rom[0], v->rom[1], v->n_rom[1], v->rom[2], v->n_rom[2], NULL,
-                            v->out_rate, err, errlen);
+    as_host *h = v->make((const unsigned char *const *)v->rom, v->n_rom, v->out_rate, err, errlen);
     if (h)
         ash_boot(h, BOOT_LIMIT);
     return h;
@@ -103,15 +103,27 @@ static void free_roms(as_voice *v)
         free(v->rom[i]);
 }
 
+static as_host *pc_unit(const unsigned char *const *rom, const size_t *n, double out_rate, char *err, int errlen)
+{
+    return ash_create(rom[0], n[0], rom[1], n[1], rom[2], n[2], NULL, out_rate, err, errlen);
+}
+
 AS_API as_voice *asv_create(const unsigned char *u2, size_t n2, const unsigned char *u3, size_t n3,
                             const unsigned char *u4, size_t n4, double out_rate, char *err, int errlen)
 {
     const unsigned char *src[3] = {u2, u3, u4};
     size_t n[3] = {n2, n3, n4};
+    return asv_create_unit(pc_unit, src, n, 3, out_rate, err, errlen);
+}
+
+AS_API as_voice *asv_create_unit(asv_unit make, const unsigned char *const *src, const size_t *n, int n_roms,
+                                 double out_rate, char *err, int errlen)
+{
     int i;
     as_voice *v = (as_voice *)calloc(1, sizeof(as_voice));
     if (!v) { snprintf(err, (size_t)errlen, "out of memory"); return NULL; }
-    for (i = 0; i < 3; i++) {
+    v->make = make;
+    for (i = 0; i < n_roms && i < 3; i++) {
         v->rom[i] = (unsigned char *)malloc(n[i] ? n[i] : 1);
         if (!v->rom[i]) {
             free_roms(v);

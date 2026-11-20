@@ -14,7 +14,8 @@ static const unsigned char FLUSH_BOOT[] = {0x1B, '=', 'F', 0x1B, '=', 'M', 0x18}
 static const unsigned char CTRL_X[] = {0x18};
 
 struct as_host {
-    as_board *b;
+    void *b;                           /* the board, and what the host asks of it (as_host.h) */
+    const ash_board *ops;
     ssi263 *chip;
     int own_chip;
     double out_rate;
@@ -33,7 +34,7 @@ struct as_host {
 
 /* ---- the chip, as the board sees it ------------------------------------------------------------------------------ */
 
-static void chip_write(void *ctx, int reg, int val)
+AS_API void ash_chip_write(void *ctx, int reg, int val)
 {
     as_host *h = (as_host *)ctx;
     ssi263_write(h->chip, reg, val);
@@ -56,17 +57,15 @@ static void chip_write(void *ctx, int reg, int val)
     }
 }
 
-static int chip_request(void *ctx)
+AS_API int ash_chip_request(void *ctx)
 {
     return ssi263_request(((as_host *)ctx)->chip) ? 1 : 0;
 }
 
 /* ---- creation ---------------------------------------------------------------------------------------------------- */
 
-AS_API as_host *ash_create(const unsigned char *u2, size_t n2, const unsigned char *u3, size_t n3,
-                           const unsigned char *u4, size_t n4, ssi263 *chip, double out_rate, char *err, int errlen)
+AS_API as_host *ash_create_bare(ssi263 *chip, double out_rate, double cpu_hz, char *err, int errlen)
 {
-    as_chip ops;
     as_host *h = (as_host *)calloc(1, sizeof *h);
     if (!h) {
         if (err && errlen > 0)
@@ -87,19 +86,61 @@ AS_API as_host *ash_create(const unsigned char *u2, size_t n2, const unsigned ch
     }
     h->chip = chip;
     h->out_rate = out_rate;
-    h->cpu_hz = ASH_CPU_HZ;
+    h->cpu_hz = cpu_hz;
     h->turbo = ASH_TURBO;
     h->last_speech = -1.0;
+    return h;
+}
+
+AS_API void ash_attach(as_host *h, const ash_board *ops, void *board)
+{
+    h->ops = ops;
+    h->b = board;
+}
+
+AS_API void *ash_board_of(as_host *h)
+{
+    return h->b;
+}
+
+/* the Accent-PC's board (as_board.h) as the host asks for it */
+static void pc_destroy(void *b) { as_board_destroy((as_board *)b); }
+static void pc_serial(void *b) { as_board_serial((as_board *)b); }
+static void pc_trap(void *b) { as_board_trap((as_board *)b); }
+static void pc_rst75(void *b) { as_board_rst75((as_board *)b); }
+static unsigned long long pc_run(void *b, unsigned long long n) { return as_board_run((as_board *)b, n); }
+static int pc_send(void *b, const unsigned char *p, int n) { return as_board_send((as_board *)b, p, n); }
+static void pc_drop(void *b) { as_board_drop_input((as_board *)b); }
+static int pc_tx(const void *b, const unsigned char **p) { return as_board_tx((const as_board *)b, p); }
+static int pc_get(const void *b, const char *name)
+{
+    if (!strcmp(name, "speaking"))                        /* A/R gated onto TRAP: port 40h bit 4 */
+        return (as_board_get((const as_board *)b, "latch40") & 0x10) ? 1 : 0;
+    return as_board_get((const as_board *)b, name);
+}
+static void pc_set(void *b, const char *name, int v) { as_board_set((as_board *)b, name, v); }
+static unsigned pc_work(void *b) { return as_board_take_work((as_board *)b); }
+
+static const ash_board PC_BOARD = {pc_destroy, pc_serial, pc_trap, pc_rst75, pc_run, pc_send, pc_drop, pc_tx, pc_get,
+                                   pc_set, pc_work};
+
+AS_API as_host *ash_create(const unsigned char *u2, size_t n2, const unsigned char *u3, size_t n3,
+                           const unsigned char *u4, size_t n4, ssi263 *chip, double out_rate, char *err, int errlen)
+{
+    as_chip ops;
+    as_board *b;
+    as_host *h = ash_create_bare(chip, out_rate, ASH_CPU_HZ, err, errlen);
+    if (!h)
+        return NULL;
     ops.ctx = h;
-    ops.write = chip_write;
-    ops.request = chip_request;
-    h->b = as_board_create(u2, n2, u3, n3, u4, n4, &ops, err, errlen);
-    if (!h->b) {
-        if (h->own_chip)
-            ssi263_free(chip);
-        free(h);
+    ops.write = ash_chip_write;
+    ops.request = ash_chip_request;
+    b = as_board_create(u2, n2, u3, n3, u4, n4, &ops, err, errlen);
+    if (!b) {
+        ash_destroy(h);
         return NULL;
     }
+    ash_attach(h, &PC_BOARD, b);
     return h;
 }
 
@@ -157,7 +198,8 @@ AS_API void ash_destroy(as_host *h)
 {
     if (!h)
         return;
-    as_board_destroy(h->b);
+    if (h->ops)
+        h->ops->destroy(h->b);
     if (h->own_chip)
         ssi263_free(h->chip);
     free(h->buf);
@@ -220,7 +262,7 @@ AS_API int ash_say(as_host *h, const unsigned char *bytes, int n, int speech)
         return 1;
     if (speech < 0)
         speech = ash_is_speech(bytes, n);
-    if (!as_board_send(h->b, bytes, n))
+    if (!h->ops->send(h->b, bytes, n))
         return 0;
     if (speech) {
         h->preparing = 1;
@@ -234,12 +276,12 @@ static void run_cpu(as_host *h, double dt)
 {
     double hz = h->cpu_hz * (h->preparing ? h->turbo : 1.0);
     long long n = (long long)(hz * dt);            /* int(): truncation */
-    as_board_run(h->b, (uint64_t)(n > 20 ? n : 20));
-    if (h->tick_hz != 0.0) {
+    h->ops->run(h->b, (unsigned long long)(n > 20 ? n : 20));
+    if (h->tick_hz != 0.0 && h->ops->tick) {
         h->tick_acc += dt * h->tick_hz;
         while (h->tick_acc >= 1.0) {
             h->tick_acc -= 1.0;
-            as_board_rst75(h->b);
+            h->ops->tick(h->b);
         }
     }
 }
@@ -263,8 +305,8 @@ static int reserve(as_host *h, long more)
 /* the bytes the unit has sent since the last look: each where this run's audio is now */
 static void replies(as_host *h)
 {
-    const uint8_t *tx;
-    int n = as_board_tx(h->b, &tx);
+    const unsigned char *tx;
+    int n = h->ops->tx(h->b, &tx);
     for (; h->tx_seen < n; h->tx_seen++)
         if (h->n_rp < ASH_REPLIES) {
             h->rp[h->n_rp].value = tx[h->tx_seen];
@@ -284,8 +326,8 @@ AS_API int ash_run(as_host *h, double seconds, double step, const double **audio
     while (t < seconds) {
         double before, dt;
         long n, got;
-        as_board_serial(h->b);
-        as_board_trap(h->b);
+        h->ops->serial(h->b);
+        h->ops->request_line(h->b);
         before = ssi263_time(h->chip);
         if (!ssi263_request(h->chip)) {
             n = (long)(step * h->out_rate);                /* int(): truncation */
@@ -304,7 +346,7 @@ AS_API int ash_run(as_host *h, double seconds, double step, const double **audio
             dt = 1e-5;                                     /* max(..., 1e-5) */
         run_cpu(h, dt);
         replies(h);
-        h->work += (long)as_board_take_work(h->b);
+        h->work += (long)h->ops->take_work(h->b);
         t += dt;
     }
     *audio = h->buf;
@@ -322,15 +364,15 @@ AS_API double ash_skip(as_host *h, double seconds, double step)
     double t = 0.0;
     while (t < seconds - 1e-9) {
         double before, dt, s = seconds - t;
-        as_board_serial(h->b);
-        as_board_trap(h->b);
+        h->ops->serial(h->b);
+        h->ops->request_line(h->b);
         before = ssi263_time(h->chip);
         ssi263_skip(h->chip, step < s ? step : s);         /* min(step, seconds - t) */
         dt = ssi263_time(h->chip) - before;
         if (dt < 1e-5)
             dt = 1e-5;
         run_cpu(h, dt);
-        as_board_take_work(h->b);                          /* skipped time is no block's */
+        h->ops->take_work(h->b);                           /* skipped time is no block's */
         t += dt;
     }
     return t;
@@ -338,13 +380,14 @@ AS_API double ash_skip(as_host *h, double seconds, double step)
 
 AS_API int ash_speaking(const as_host *h)
 {
-    return (as_board_get(h->b, "latch40") & 0x10) ? 1 : 0;
+    return h->ops->get(h->b, "speaking");
 }
 
 AS_API int ash_busy(const as_host *h, double quiet, double patience)
 {
     double now = ssi263_time(h->chip);
-    if (as_board_get(h->b, "rx") || as_board_get(h->b, "rx_ready") || ash_speaking(h) || (now - h->last_speech) < quiet)
+    if (h->ops->get(h->b, "rx") || h->ops->get(h->b, "rx_ready") || ash_speaking(h)
+        || (now - h->last_speech) < quiet)
         return 1;
     return h->preparing && (now - h->say_time) < patience;
 }
@@ -363,7 +406,7 @@ AS_API double ash_cancel(as_host *h, double limit)
 {
     double t;
     h->preparing = 0;
-    as_board_drop_input(h->b);
+    h->ops->drop_input(h->b);
     ash_say(h, CTRL_X, 1, 0);
     t = ash_skip(h, 0.01, 0.002);
     while (t < limit && ash_busy(h, 0.03, 1.5))
@@ -399,7 +442,7 @@ AS_API int ash_get_int(const as_host *h, const char *name)
     if (!strcmp(name, "work")) return h->work > 0x7FFFFFFFL ? 0x7FFFFFFF : (int)h->work;
     if (!strcmp(name, "log_writes")) return h->log_on;
     if (!strcmp(name, "request")) return ssi263_request(h->chip) ? 1 : 0;
-    return as_board_get(h->b, name);
+    return h->ops->get(h->b, name);
 }
 
 AS_API void ash_set_int(as_host *h, const char *name, int v)
@@ -409,7 +452,7 @@ AS_API void ash_set_int(as_host *h, const char *name, int v)
     else if (!strcmp(name, "log_writes"))
         h->log_on = v != 0;
     else
-        as_board_set(h->b, name, v);
+        h->ops->set(h->b, name, v);
 }
 
 AS_API int ash_writes(const as_host *h, const ash_write **writes)
@@ -425,5 +468,5 @@ AS_API void ash_clear_writes(as_host *h)
 
 AS_API int ash_tx(const as_host *h, const unsigned char **bytes)
 {
-    return as_board_tx(h->b, (const uint8_t **)bytes);
+    return h->ops->tx(h->b, bytes);
 }

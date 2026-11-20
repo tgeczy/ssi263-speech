@@ -3,7 +3,8 @@
 **A name kept on purpose.** This folder, its files (`as_*`), the voice's id `accentmini:sa` and the firmware
 folder `aicom-accent-sa` date from when the voice was called the Accent SA. Its ROMs turned out to be the Accent-PC
 card's (`docs/history.md`, 2026-11-20), and the names people see were changed in 0.9.5. These stay, so that
-nobody's saved voice changes; the true stand-alone Accent SA is another machine, with a Z80.
+nobody's saved voice changes; the true stand-alone Accent SA is another machine, with a Z80: `../accentz80`, which
+runs under this folder's host and voice (`ash_create_bare` / `ash_attach`, `asv_create_unit`).
 
 **The 0.7 release default.** The Accent-PC voice uses this C board on MAME's 8085.
 The Python 8085 is retained only as a development reference. This folder provides

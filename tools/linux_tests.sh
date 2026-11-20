@@ -49,6 +49,10 @@ check "CPU contract tests (MAME 8085 core)" ./build/linux/test_i8085_contract
 check "CPU contract tests (MAME 8086 core)" ./build/linux/test_i86_contract
 check "CPU contract tests (MAME 6809 core)" ./build/linux/test_m6809_contract
 check "CPU contract tests (MAME Z80 core)" ./build/linux/test_z80_contract
+# the Accent SA's board on that core (src/csrc/accentz80/test_az_board.c: small programs, no firmware) and its must-fail
+# controls (az_controls.py: each rule undone in a scratch copy must fail exactly its tests)
+check "Accent SA board (MAME Z80): its rules" ./build/linux/test_az_board
+check "Accent SA board CONTROLS (each rule undone, must fail its tests)" python3 src/csrc/accentz80/az_controls.py
 # the CP/M instruction exercisers on the Z80 core (src/csrc/cpu/test_z80_zex.c: zexdoc the documented flags, zexall every
 # bit of F and the undocumented opcodes), every group OK, when paths.local's ZEX (or SSI263_ZEX) names the folder that
 # holds them (zexdoc.com, zexall.com: Frank Cringle's, GPL, never in the repo and never in the data folder, which is a
@@ -231,6 +235,30 @@ control "Accent-PC completion CONTROL (the cap as a plain done, must fail)" \
     "^RECOVERY  rate +60 job +'Pitch: slider 50 alt\+p': the next text after the limit had [0-9]+ phonemes" \
     "^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace ok, limit [0-9]+ FAILED$" \
     "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=limit python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+# the Accent SA, the stand-alone box (src/csrc/accentz80; not a voice yet): its firmware on its board, through az_trace,
+# and issue #8's completion checks on its unit -- when its two ROMs are in firmware/aicom-accent-sa-z80
+if [ -f firmware/aicom-accent-sa-z80/ACU5_V41.BIN ] && [ -f firmware/aicom-accent-sa-z80/ACU4_V40.BIN ]; then
+    check "Accent SA: its firmware on the board (greeting, commands, block sizes, versions)" \
+        python3 src/csrc/accentz80/test_az_firmware.py
+    control "Accent SA firmware CONTROL (the greeting flushed, must fail)" "^FAIL greeting +at power-up: nothing$" \
+        "^ok +flush " "^ok +marks " "^accent sa z80 firmware: FAILED$" \
+        -- env AZ_FW_BREAK=flushed python3 src/csrc/accentz80/test_az_firmware.py
+    control "Accent SA firmware CONTROL (a value flipped, must fail)" \
+        "^FAIL blocks +.*identical, DIFFERENT, identical$" "^ok +greeting " "^ok +marks " \
+        "^accent sa z80 firmware: FAILED$" -- env AZ_FW_BREAK=flip python3 src/csrc/accentz80/test_az_firmware.py
+    control "Accent SA firmware CONTROL (the commands left out, must fail)" "^FAIL rate " "^FAIL pitch " \
+        "^FAIL voice " "^FAIL monotone " "^FAIL marks +three Ctrl-Fs: 0 prompts" "^ok +greeting " "^ok +blocks " \
+        "^accent sa z80 firmware: FAILED$" -- env AZ_FW_BREAK=nocommands python3 src/csrc/accentz80/test_az_firmware.py
+    check "Accent SA: a text done only when said (issue #8's checks on this unit)" \
+        env AS_COMPLETE_UNIT=sa python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+    control "Accent SA completion CONTROL (the settle off, must fail)" \
+        "^EARLY  rate +100 job +'Rate: slider 100 alt\+r'" \
+        "^checks: done ok, complete [0-9]+ FAILED, audio ok, latency ok, phase [0-9]+ FAILED, replace ok, limit ok$" \
+        "^accent sa z80 completion: FAILED$" \
+        -- env AS_COMPLETE_UNIT=sa AS_COMPLETE_BREAK=1 python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+else
+    echo "skip  Accent SA: its firmware and completion checks: ACU5_V41.BIN and ACU4_V40.BIN are not in firmware/aicom-accent-sa-z80"
+fi
 # the module, once, keeping its total: how many checks it makes depends on the voices whose files the data folder has
 # under the module's own names (the German, Italian and Slovak units among them), so the controls below expect that
 # total less the checks each one breaks, not a number fixed for one machine's folder

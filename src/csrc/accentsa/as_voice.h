@@ -27,6 +27,13 @@ AS_API as_voice *asv_create(const unsigned char *u2, size_t n2, const unsigned c
                             const unsigned char *u4, size_t n4, double out_rate, char *err, int errlen);
 AS_API void asv_destroy(as_voice *v);
 
+/* The same voice on another unit that runs Aicom's firmware behind an as_host (../accentz80: the Accent SA): `make`
+   builds the unit, not yet run, from its ROMs (up to three, copied and kept: the voice calls it again to restart
+   the unit after a failure).  asv_create is this with the Accent-PC's card. */
+typedef as_host *(*asv_unit)(const unsigned char *const *rom, const size_t *n, double out_rate, char *err, int errlen);
+AS_API as_voice *asv_create_unit(asv_unit make, const unsigned char *const *rom, const size_t *n, int n_roms,
+                                 double out_rate, char *err, int errlen);
+
 /* The driver's settings, on NVDA's scales: rate and pitch 0-100 (50 = the Accent's 5), inflection 0-100 (100 = full
    intonation, ESC M0; 0 = monotone, M1), volume in percent (100 = the driver's full volume, the gain 1; above it is
    louder, clipped at full scale), numbers = the driver's custom number processing.  Sent before the next text, only

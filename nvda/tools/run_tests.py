@@ -1655,7 +1655,7 @@ if os.path.isfile(os.path.join(LIB, "test_m6809_contract.exe")):
                         ok=lambda out: bool(re.search(r"^ok +the core as it is -> 29 tests, failing: none$", out, re.M))
                         and len(re.findall(r"^ok +undone: ", out, re.M)) == 53
                         and bool(re.search(r"^controls: all as expected$", out, re.M))))
-# MAME's Z80 core (src/csrc/cpu/z80_mame.cpp, its instructions generated from MAME's z80.lst; no board yet):
+# MAME's Z80 core (src/csrc/cpu/z80_mame.cpp, its instructions generated from MAME's z80.lst; the Accent SA's):
 # CONTRACT.md 15's clauses (src/csrc/cpu/test_z80_contract.c, hand-assembled bytes, no firmware), and its must-fail
 # controls (cpu/z80_controls.py: each rule undone in a scratch copy must fail exactly its tests; some fifty builds of its
 # own, half a minute).  And the CP/M instruction exercisers on it (test_z80_zex.c: zexdoc the documented flags, zexall
@@ -1883,6 +1883,58 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
                                         r"^FAIL cut after K HF UH: HF EH EH LF LF UH O O U",
                                         r"^ok +cut after K HF UH UH UH S T HF: ", r"^cancel: FAILED$"]))
 
+# The Accent SA, the stand-alone box, in C (src/csrc/accentz80: its board on MAME's Z80, from Kevin Horton's drawing and
+# PLD equations, under the Accent-PC's host and voice; not a voice yet).  The board's rules on small programs, no
+# firmware (test_az_board.c), and their must-fail controls (az_controls.py: each rule undone in a scratch copy must
+# fail exactly its tests; 23 small builds).  Then, with the two ROMs in firmware/aicom-accent-sa-z80: the firmware on
+# the board (test_az_firmware.py through az_trace: the greeting it says, the flush, the ports it reaches, the same
+# writes at any block size, the commands the voices send, 4.0 against 4.1 when both are there) with its three controls;
+# and issue #8's completion checks on this unit (test_as_complete.py, AS_COMPLETE_UNIT=sa, on the built add-on's
+# ssi263speech.dll) with the settle-off control.  Built by src/csrc/accentz80/build_board.py.
+AZ_LIB = os.path.join(os.path.dirname(HERE), "dist", "accentz80-lib")
+AZ_DIR = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "accentz80")
+AZ_ROMS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "aicom-accent-sa-z80")
+if os.path.isfile(os.path.join(AZ_LIB, "test_az_board.exe")):
+    CHECKS.append(check("Accent SA board (MAME Z80): its rules", [os.path.join(AZ_LIB, "test_az_board.exe")]))
+    CHECKS.append(check("Accent SA board CONTROLS (each rule undone, must fail its tests)",
+                        [PY, os.path.join(AZ_DIR, "az_controls.py")],
+                        ok=lambda out: bool(re.search(r"^ok +the board as it is -> 9 tests, failing: none$", out, re.M))
+                        and len(re.findall(r"^ok +undone: ", out, re.M)) == 22
+                        and bool(re.search(r"^controls: all as expected$", out, re.M))))
+    if all(os.path.isfile(os.path.join(AZ_ROMS, n)) for n in ("ACU5_V41.BIN", "ACU4_V40.BIN")):
+        AZ_FW = os.path.join(AZ_DIR, "test_az_firmware.py")
+        AZ_SUM = r"^accent sa z80 firmware: FAILED$"
+        CHECKS.append(check("Accent SA: its firmware on the board (greeting, commands, block sizes, versions)",
+                            [PY, AZ_FW],
+                            ok=lambda out: len(re.findall(r"^ok +(greeting|flush|ports|blocks|rate|pitch|voice|monotone"
+                                                          r"|marks) ", out, re.M)) == 9
+                            and bool(re.search(r"^accent sa z80 firmware: ok$", out, re.M))))
+        CHECKS.append(check("Accent SA firmware CONTROL (the greeting flushed, must fail)", [PY, AZ_FW],
+                            env={"AZ_FW_BREAK": "flushed"}, expect_fail=True,
+                            fail_marks=[r"^FAIL greeting +at power-up: nothing$", r"^ok +flush ", r"^ok +marks ", AZ_SUM]))
+        CHECKS.append(check("Accent SA firmware CONTROL (a value flipped, must fail)", [PY, AZ_FW],
+                            env={"AZ_FW_BREAK": "flip"}, expect_fail=True,
+                            fail_marks=[r"^FAIL blocks +.*identical, DIFFERENT, identical$", r"^ok +greeting ",
+                                        r"^ok +marks ", AZ_SUM]))
+        CHECKS.append(check("Accent SA firmware CONTROL (the commands left out, must fail)", [PY, AZ_FW],
+                            env={"AZ_FW_BREAK": "nocommands"}, expect_fail=True,
+                            fail_marks=[r"^FAIL rate ", r"^FAIL pitch ", r"^FAIL voice ", r"^FAIL monotone ",
+                                        r"^FAIL marks +three Ctrl-Fs: 0 prompts", r"^ok +greeting ", r"^ok +blocks ",
+                                        AZ_SUM]))
+        AZ_COMPLETE = os.path.join(os.path.dirname(AZ_DIR), "accentsa", "test_as_complete.py")
+        if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "accent-build", "synthDrivers", "_ssi263_accent",
+                                       "bin", "x64", "ssi263speech.dll")):
+            CHECKS.append(check("Accent SA: a text done only when said (issue #8's checks on this unit)",
+                                [PY, AZ_COMPLETE], env={"AS_COMPLETE_UNIT": "sa"},
+                                ok=lambda out: bool(re.search(
+                                    r"^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace ok, limit "
+                                    r"ok$", out, re.M)) and bool(re.search(r"^accent sa z80 completion: ok$", out, re.M))))
+            CHECKS.append(check("Accent SA completion CONTROL (the settle off, must fail)", [PY, AZ_COMPLETE],
+                                env={"AS_COMPLETE_UNIT": "sa", "AS_COMPLETE_BREAK": "1"}, expect_fail=True,
+                                fail_marks=[r"^EARLY  rate +100 job +'Rate: slider 100 alt\+r'",
+                                            r"^checks: done ok, complete \d+ FAILED, audio ok, latency ok, phase \d+ "
+                                            r"FAILED, replace ok, limit ok$",
+                                            r"^accent sa z80 completion: FAILED$"]))
 # The Accent-PC in C (src/csrc/accentsa: its board on MAME's 8085 and accent_sa.py's host; the add-on's default since
 # 0.7, SSI263_ACCENT_SA_CORE=c; the Python 8085 is the development reference): the board's rules (test_as_board.c; their must-fail
 # controls, seventeen builds, are accentsa/as_controls.py's, run by hand as so_controls.py); the C host against the

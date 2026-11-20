@@ -118,5 +118,8 @@
 - **Astra:** the die, the controls, the reviews, the engine's plan, and the ARM fix.
 - **Claude:** the measurements, the firmware emulation, the engine and the add-ons.
 - **spacepup:** the Accent-PC's ROMs.
+- **Kevin Horton:** the stand-alone Accent SA: the drawing of its board, the equations of its PLD (read back from
+  the part) and its memory and I/O maps, sent by mail in November 2026, and its two ROMs, read from his own unit.
+  The board in `src/csrc/accentz80` is built from them.
 - **Listeners** on the fediverse, who heard what the metrics missed. They're thanked here
   without names, as they haven't asked to be named.

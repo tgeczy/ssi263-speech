@@ -29,6 +29,8 @@ says so (asv_limit).  The checks, each its own line of output:
     AS_COMPLETE_BREAK=never    a render budget too small to reach any done     -- must fail: NOT DONE
     AS_COMPLETE_BREAK=held     a cancel / new text keeps the wait (break 1)    -- must fail: HELD
     AS_COMPLETE_BREAK=limit    the cap: a plain done, no flush (break 2)       -- must fail: SILENT LIMIT, RECOVERY
+    AS_COMPLETE_UNIT=sa        the same checks on the stand-alone Accent SA's unit (../accentz80: azv_create, its
+                               two ROMs from firmware/aicom-accent-sa-z80); the breaks above apply there too
 Default library: $SSI263_LIB (Linux: libssi263speech.so), else the built NVDA add-on's ssi263speech.dll.
 """
 import ctypes
@@ -39,7 +41,9 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
-ROMS = os.path.join(REPO, "firmware", "aicom-accent-sa")
+UNIT = os.environ.get("AS_COMPLETE_UNIT", "pc")      # "sa": the stand-alone box (the Z80 board), not the PC card
+ROMS = os.path.join(REPO, "firmware", "aicom-accent-sa-z80" if UNIT == "sa" else "aicom-accent-sa")
+ROM_NAMES = ("ACU5_V41.BIN", "ACU4_V40.BIN") if UNIT == "sa" else ("u2.BIN", "u3.BIN", "u4.BIN")
 BREAK = os.environ.get("AS_COMPLETE_BREAK", "")
 RUN_ON_S = 4.0
 RATE = 22050                    # the add-ons' default sample rate
@@ -80,6 +84,9 @@ for name, res, args in (
         ("ash_writes", I, [P, ctypes.POINTER(ctypes.POINTER(Write))]), ("ash_clear_writes", None, [P])):
     f = getattr(lib, name)
     f.restype, f.argtypes = res, args
+if UNIT == "sa":
+    lib.azv_create.restype = P
+    lib.azv_create.argtypes = [ctypes.c_char_p, ctypes.c_size_t] * 2 + [D, ctypes.c_char_p, I]
 
 
 class Problem(Exception):
@@ -87,9 +94,13 @@ class Problem(Exception):
 
 
 def unit(settle=None, test_break=0):
-    roms = [open(os.path.join(ROMS, n), "rb").read() for n in ("u2.BIN", "u3.BIN", "u4.BIN")]
+    roms = [open(os.path.join(ROMS, n), "rb").read() for n in ROM_NAMES]
     err = ctypes.create_string_buffer(256)
-    v = lib.asv_create(roms[0], len(roms[0]), roms[1], len(roms[1]), roms[2], len(roms[2]), float(RATE), err, 256)
+    if UNIT == "sa":
+        v = lib.azv_create(roms[0], len(roms[0]), roms[1], len(roms[1]), float(RATE), err, 256)
+    else:
+        v = lib.asv_create(roms[0], len(roms[0]), roms[1], len(roms[1]), roms[2], len(roms[2]), float(RATE), err,
+                           256)
     if not v:
         sys.exit("asv_create: %s" % err.value.decode("latin-1"))
     if settle is not None:
@@ -403,5 +414,5 @@ print("limit: the longest wait the paused texts needed was %.2f s of the 6 s cap
 
 bad = sum(fails.values())
 print("checks: " + ", ".join("%s %s" % (k, "ok" if not n else "%d FAILED" % n) for k, n in fails.items()))
-print("accent sa completion: %s" % ("FAILED" if bad else "ok"))
+print("%s completion: %s" % ("accent sa z80" if UNIT == "sa" else "accent sa", "FAILED" if bad else "ok"))
 sys.exit(1 if bad else 0)

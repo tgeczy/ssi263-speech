@@ -93,6 +93,33 @@ AS_API int ash_tx(const as_host *h, const unsigned char **bytes);    /* every by
 /* accent_sa.py's rule for say(speech=None) on Latin-1 bytes: 1 if a letter or digit is left outside ESC commands */
 AS_API int ash_is_speech(const unsigned char *bytes, int n);
 
+/* ---- another board under this host ----------------------------------------------------------------------------
+   The lockstep, say, busy, boot and cancel above ask only this of a board; ash_create gives them the Accent-PC's
+   (as_board.h).  The Accent SA's Z80 board (../accentz80/az_host.h) is the other: the same firmware design on
+   another processor, behind the same serial line. */
+typedef struct {
+    void (*destroy)(void *board);
+    void (*serial)(void *board);           /* one byte into the 8251 when it is free and RTS is up */
+    void (*request_line)(void *board);     /* A/R to the CPU as the board gates it (the PC card: TRAP) */
+    void (*tick)(void *board);             /* the PC card's RST 7.5 clock ("tick_hz"); NULL: the board has none */
+    unsigned long long (*run)(void *board, unsigned long long t_states);
+    int (*send)(void *board, const unsigned char *bytes, int n);
+    void (*drop_input)(void *board);
+    int (*tx)(const void *board, const unsigned char **bytes);
+    int (*get)(const void *board, const char *name);   /* "rx", "rx_ready" and "speaking" at least */
+    void (*set)(void *board, const char *name, int v);
+    unsigned (*take_work)(void *board);    /* instructions outside the firmware's waiting loops, then 0 */
+} ash_board;
+/* The host with no board yet (cpu_hz: the board's clock; the chip as ash_create's), the chip as a board's callbacks
+   reach it (ctx = the host), and the board given: the host owns it from then on.  Nothing else may be called
+   between ash_create_bare and ash_attach but ash_destroy. */
+AS_API as_host *ash_create_bare(ssi263 *chip, double out_rate, double cpu_hz, char *err, int errlen);
+AS_API void ash_chip_write(void *host, int reg, int val);
+AS_API int ash_chip_request(void *host);
+AS_API void ash_attach(as_host *h, const ash_board *ops, void *board);
+/* The board under the host (ash_create's: an as_board *), for a board's own tools. */
+AS_API void *ash_board_of(as_host *h);
+
 #ifdef __cplusplus
 }
 #endif

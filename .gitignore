@@ -44,6 +44,10 @@ firmware/speech-systems-super-voice/*
 !firmware/speech-systems-super-voice/README.txt
 *.DSK
 
+# The stand-alone Accent SA's two ROMs (read by Kevin from his own unit): a drop-in folder until the voice ships
+firmware/aicom-accent-sa-z80/*
+!firmware/aicom-accent-sa-z80/README.txt
+
 # The exception: Aicom's software, kept in the tree with its notice (firmware/AICOM.txt).
 !firmware/aicom-accent-sa/*.BIN
 !firmware/aicom-accent-mini/SPKEMS.DVC
