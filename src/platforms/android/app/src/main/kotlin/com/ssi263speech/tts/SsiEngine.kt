@@ -1,6 +1,6 @@
 // The one engine in this process, shared by the TTS service and the settings screen's preview: opens the native
 // side on the imported unit files and the APK's Aicom ROMs, lists the voices -- every voice the NVDA add-ons have
-// (Tomi, 0.7.5): the Aicom Accent SA always, the default until a Braille Lite is imported (Tomi, 2026-09-30); the
+// (Tomi, 0.7.5): the Aicom Accent-PC always, the default until a Braille Lite is imported (Tomi, 2026-09-30); the
 // Accent-mini when this build carries it; the Braille Lite voices (English, Spanish, German, Italian), the Slovak
 // Braille 'n Speak 2000, the GW Micro Speak-Out and the Mockingboard once their firmware is imported; each voice's
 // language what SsiLanguages tells Android -- and owns the engine for one utterance at a time.  A stop from any thread reaches the render in progress
@@ -21,7 +21,7 @@ object SsiEngine {
     private val SOUNDINGBOARD_VOICE =
         VoiceInfo(SsiNative.SOUNDINGBOARD, "en-US-soundingboard", "GW Micro Sounding Board (English)", Locale("en", "US"))
     private val SHIPPED = listOf(
-        VoiceInfo(SsiNative.ACCENT_SA, "en-US-accentsa", "Aicom Accent SA (English)", Locale("en", "US")),
+        VoiceInfo(SsiNative.ACCENT_SA, "en-US-accentsa", "Aicom Accent-PC (English)", Locale("en", "US")),
         VoiceInfo(SsiNative.ACCENT_MINI, "en-US-accentmini", "Aicom Accent-mini (English)", Locale("en", "US")),
         VoiceInfo(SsiNative.ENGLISH, "en-US-braillelite", "Braille Lite 2000 (English)", Locale("en", "US")),
         VoiceInfo(SsiNative.SPANISH, "es-ES-braillelite", "Braille Lite 2000 (Spanish)", Locale("es", "ES")),
@@ -66,11 +66,11 @@ object SsiEngine {
         if (opened) return true
         synchronized(lock) {
             if (opened) return true
-            if (voices(ctx).isEmpty()) { Log.w("SsiEngine", "no voice: no Accent SA ROMs, no firmware imported"); return false }
+            if (voices(ctx).isEmpty()) { Log.w("SsiEngine", "no voice: no Accent-PC ROMs, no firmware imported"); return false }
             if (!SsiNative.nativeOpen(SsiData.dir(ctx).absolutePath)) return false
             val roms = SsiData.accentRoms(ctx)
             if (roms != null && !SsiNative.nativeAccentRoms(roms[0], roms[1], roms[2]))
-                Log.e("SsiEngine", "the Accent SA's ROMs were refused")
+                Log.e("SsiEngine", "the Accent-PC's ROMs were refused")
             SsiData.accentMini(ctx)?.let { dvc ->
                 if (!SsiNative.nativeAccentMini(dvc)) Log.e("SsiEngine", "the Accent-mini's SPKEMS.DVC was refused")
             }
@@ -99,12 +99,12 @@ object SsiEngine {
 
     fun voiceByName(ctx: Context, name: String?): VoiceInfo? = voices(ctx).firstOrNull { it.name == name }
 
-    /** That voice when it can speak; otherwise the first that can (the Accent SA). */
+    /** That voice when it can speak; otherwise the first that can (the Accent-PC). */
     fun voiceFor(ctx: Context, index: Int): VoiceInfo =
         voices(ctx).let { v -> v.firstOrNull { it.index == index } ?: v.firstOrNull() } ?: ALL[0]
 
     /** The voice when the user has chosen none: the Braille Lite once its English firmware is imported, else the
-     * Accent SA (Tomi: the Accent SA is the default while no Braille Lite firmware is here). */
+     * Accent-PC (Tomi: the Accent-PC is the default while no Braille Lite firmware is here). */
     fun defaultVoice(ctx: Context): Int =
         if (SsiData.has(ctx, SsiNative.ENGLISH)) SsiNative.ENGLISH else SsiNative.ACCENT_SA
 

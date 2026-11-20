@@ -1,4 +1,4 @@
-// Raw JNI binding to libssi263speech.so (cpp/ssa_jni.c): the Aicom Accent SA -- its own 8085 firmware on MAME's 8085
+// Raw JNI binding to libssi263speech.so (cpp/ssa_jni.c): the Aicom Accent-PC -- its own 8085 firmware on MAME's 8085
 // core -- the Braille Lite voices -- the unit's firmware on an emulated Z180 -- the GW Micro Speak-Out -- its firmware
 // on MAME's V40 -- the Mockingboard -- Sweet Micro Systems' text-to-speech on a 6502 (Fake6502's instructions) -- and,
 // in a build that has it, the Aicom Accent-mini, each driving the SSI-263 model; the same C the
@@ -26,7 +26,7 @@ object SsiNative {
 
     const val ENGLISH = 0                  // the Braille Lite, English (imported)
     const val SPANISH = 1                   // the Braille Lite, Spanish (imported)
-    const val ACCENT_SA = 2                 // the Aicom Accent SA (built in)
+    const val ACCENT_SA = 2                 // the Aicom Accent-PC (built in)
     const val SPEAKOUT = 3                  // the GW Micro Speak-Out (imported)
     const val ACCENT_MINI = 4               // the Aicom Accent-mini (built in, when the build carries it)
     const val MOCKINGBOARD = 5              // the Mockingboard, Sweet Micro Systems' (built in; an import replaces it)
@@ -45,7 +45,7 @@ object SsiNative {
     /** Open the engine on the folder holding the unit's files (once per process; later calls keep it). */
     external fun nativeOpen(dataDir: String): Boolean
 
-    /** The Accent SA's ROMs (u2 64 KB, u3 and u4 32 KB each), copied into the open engine.  False on the wrong sizes. */
+    /** The Accent-PC's ROMs (u2 64 KB, u3 and u4 32 KB each), copied into the open engine.  False on the wrong sizes. */
     external fun nativeAccentRoms(u2: ByteArray, u3: ByteArray, u4: ByteArray): Boolean
 
     /** The Accent-mini's SPKEMS.DVC, copied into the open engine.  False when this build has no Accent-mini. */

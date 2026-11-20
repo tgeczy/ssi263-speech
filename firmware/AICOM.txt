@@ -7,7 +7,10 @@ PCMCIA card).  The Accent's speech chip, which Aicom called the AI901, is the Si
 Systems SSI-263 that this project models.  This repository carries two pieces of Aicom's
 software, so that both can run again on that model:
 
-  aicom-accent-sa/    the Accent SA's own firmware, run on an emulated Intel 8085
+  aicom-accent-sa/    the Accent PC's own firmware, run on an emulated Intel 8085.  (The
+                      folder is named for what we first took it to be.  The ROMs are from
+                      the plug-in card: its firmware has a PC bus port beside the serial
+                      one, and the stand-alone Accent SA is a later design with a Z80.)
     u2.BIN  64 KB  8085 program ROM
                    "AICOM CORPORATION COPYRIGHT, WORLD, 1986, 1987, 1988, 1989."
                    sha256 8d6aa48880d1efd02f8dc759741c16b8902db33dcc2856d1f0db4776149992ad

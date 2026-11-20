@@ -111,7 +111,7 @@ class SettingsActivity : Activity() {
             intent.getStringExtra("text")?.let { sampleText.setText(it) }
             speak()
         }
-        // Test hook: `--ei setvoice <n>` chooses the voice (0 Braille Lite English, 1 Spanish, 2 Accent SA, 3 Speak-Out,
+        // Test hook: `--ei setvoice <n>` chooses the voice (0 Braille Lite English, 1 Spanish, 2 Accent-PC, 3 Speak-Out,
         // 4 Accent-mini, 5 Mockingboard, 6 Mockingboard early, 7 Braille Lite German, 8 Italian, 9 Braille 'n Speak
         // Slovak; -1 forgets the choice, so the default applies), as the Voice button would;
         // test_device_service.py puts it back after.
@@ -213,12 +213,12 @@ class SettingsActivity : Activity() {
             "inflection are its own, and nothing is recorded. They are the same voices as the NVDA add-ons, " +
             "byte for byte."))
         root.addView(ui.body(
-            "\nBuilt in: the Aicom Accent SA, a 1980s speech synthesizer, its own 8085 firmware and dictionary ROMs " +
+            "\nBuilt in: the Aicom Accent-PC, a 1980s speech synthesizer, its own 8085 firmware and dictionary ROMs " +
             "coming with this app; the Aicom Accent-mini, its DOS driver on an emulated PC, when this copy of the " +
             "app carries it; and the Sweet Micro Systems Mockingboard, the Apple II's speech card, its own " +
             "text-to-speech on an emulated 6502 -- version 1.1 from the Developers Toolkit, and the early one from " +
             "Mockingboard disk 1 -- when this copy carries them; and Automated Functions' SmarTalk, a parallel-port " +
-            "box, its own DOS text-to-speech on an emulated PC. They speak English, and the Accent SA is the voice " +
+            "box, its own DOS text-to-speech on an emulated PC. They speak English, and the Accent-PC is the voice " +
             "you hear until you import a Braille Lite."))
         root.addView(ui.body(
             "\nTo add: the Blazie Braille Lite 2000 in speech-box mode, its own firmware on an emulated Z180, " +
@@ -309,7 +309,7 @@ class SettingsActivity : Activity() {
             "This app is free software under the MIT License; its emulated processors are MAME's, under their " +
             "BSD-3-Clause licenses, and the Mockingboard's 6502 is Mike Chambers' Fake6502 (public domain), by way " +
             "of Jayson Smith's EchoTalk (BSD-3-Clause). Its source is at github.com/tgeczy/ssi263-speech. The " +
-            "Accent SA's firmware is Aicom's, carried with a notice, and is not covered by those licenses. The " +
+            "Accent-PC's firmware is Aicom's, carried with a notice, and is not covered by those licenses. The " +
             "Mockingboard's text-to-speech is Sweet Micro Systems': it is not ours, it is here so the card can " +
             "speak again, it will be removed if its rights holders ask, and it is not covered by the MIT license. " +
             "The app carries no Blazie or Speak-Out firmware: the copy you import is Blazie's or GW Micro's, " +
@@ -333,7 +333,7 @@ class SettingsActivity : Activity() {
         removeButton.isEnabled = labels.isNotEmpty() || units > 0
         refreshFirmwareList()
         val current = SsiEngine.voiceFor(this, SsiSettings.snapshot(this).voice)
-        status.text = if (voices.isEmpty()) "No voice can speak: this copy of the app is missing the Accent SA."
+        status.text = if (voices.isEmpty()) "No voice can speak: this copy of the app is missing the Accent-PC."
             else "Voices: " + voices.joinToString(", ") { it.label } + ". Speaking with: ${current.label}."
         speakButton.isEnabled = voices.isNotEmpty()
         exportButton.isEnabled = voices.isNotEmpty()
@@ -348,7 +348,7 @@ class SettingsActivity : Activity() {
         val releases = FirmwareImport.releases
         // the built-in voices too, so every voice has its line (Tomi): nothing to bring for them
         if (SsiData.has(this, SsiNative.ACCENT_SA))
-            firmwareList.addView(ui.body("Aicom Accent SA: its ROMs — built into this app"))
+            firmwareList.addView(ui.body("Aicom Accent-PC: its ROMs — built into this app"))
         if (SsiData.has(this, SsiNative.ACCENT_MINI))
             firmwareList.addView(ui.body("Aicom Accent-mini: SPKEMS.DVC — built into this app"))
         for (voice in FirmwareImport.imported()) {
@@ -549,7 +549,7 @@ class SettingsActivity : Activity() {
             SsiData.remove(this)
             refreshStatus()
             importStatus.text = "The imported firmware was removed. The Blazie and Speak-Out voices cannot " +
-                "speak until it is imported again; the Accent SA speaks meanwhile, and the Mockingboards with the " +
+                "speak until it is imported again; the Accent-PC speaks meanwhile, and the Mockingboards with the " +
                 "copies built into this app, when it has them."
             try { importStatus.announceForAccessibility(importStatus.text) } catch (e: Throwable) {}
         }
@@ -708,7 +708,7 @@ class SettingsActivity : Activity() {
             id = View.generateViewId()
             text = "Voice: " + SsiEngine.voiceFor(this@SettingsActivity, s.voice).label
             setOnClickListener {
-                val voices = SsiEngine.voices(this@SettingsActivity)     // the Accent SA, and what is imported now
+                val voices = SsiEngine.voices(this@SettingsActivity)     // the Accent-PC, and what is imported now
                 if (voices.isEmpty()) { toast("No voice can speak in this copy of the app."); return@setOnClickListener }
                 val at = voices.indexOfFirst {
                     it.index == SsiEngine.voiceFor(this@SettingsActivity, SsiSettings.snapshot(this@SettingsActivity).voice).index
@@ -766,7 +766,7 @@ class SettingsActivity : Activity() {
         root.addView(ui.heading("The unit"))
         ui.checkBox(root, "Voice inflection", s.inflection) { put(SsiSettings.INFLECTION, it) }
         root.addView(ui.body("The unit's own intonation. Off, questions stay flat: the Braille Lite's status-menu " +
-            "setting, and the Accent SA's monotone."))
+            "setting, and the Accent-PC's monotone."))
         ui.checkBox(root, "Short pauses", s.shortPauses) { put(SsiSettings.SHORT_PAUSES, it) }
         root.addView(ui.body("The Blazie units only: sentences packed onto one line from the second on, as the NVDA " +
             "add-on's default."))

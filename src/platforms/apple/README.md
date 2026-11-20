@@ -56,7 +56,7 @@ no file), where to choose the voice, the licences. On the Mac, `say` sees the vo
 -o hello.aiff "Hello there."` (or `--file-format=WAVE`) writes the same voice to a file. Voice settings:
 the voice and Lock language, rate, pitch, tone, engine volume (135 percent by default), the unit's settings (inflection,
 short pauses, numbers, run ahead, line lift, the idle sound, the sample rate), the Speak-Out's, and VoiceOver's pauses.
-Left out on purpose: Android's built-in Accent SA and Mockingboards (the app carries no firmware), its update check (the
+Left out on purpose: Android's built-in Accent-PC and Mockingboards (the app carries no firmware), its update check (the
 App Store's), and 44 kHz (the Audio Unit runs at 22050).
 
 ## The Blazie Engineering unit tab
@@ -139,7 +139,7 @@ carries no firmware at all (Android's checks, plus Aicom's files). The icon is d
 
 `test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's
 `libssi263core.a`, the library the apps link, and requires every case's samples and PCM hash to be the desktop
-program's, along with the Accent SA's front-end text. `test_android_native.py` holds that desktop program to the
+program's, along with the Accent-PC's front-end text. `test_android_native.py` holds that desktop program to the
 references, so the slices are held to them too. It runs macOS arm64 natively, x86_64 under Rosetta, and, with
 `--simulator`, the iOS Simulator's arm64 in a booted simulator (`xcrun simctl spawn`). The device slice is checked
 on the device by the app. Its control runs the slices with the request's rate dropped (`ssa_map_break`), so the run
@@ -169,7 +169,7 @@ another `S_TALK.EXE`. `test_installer.sh` imports the repository's `S_TALK.EXE` 
 with one byte changed, naming the file's own sha256 and size; it also judges a real Blazie firmware collection zip when `FIRMWARE_COLLECTION` (paths.local) names
 one: every Blazie voice and unit-tab release in it, each once, the programs left out.
 
-On the Mac, `test_android_native.py` runs every block but the Accent SA's, whose reference is the NVDA driver on the
+On the Mac, `test_android_native.py` runs every block but the Accent-PC's, whose reference is the NVDA driver on the
 Windows DLLs: `SSI263_ANDROID_TEST_ONLY=bl,ra,num,so,mini,st,import`.
 
 ## Files

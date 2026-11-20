@@ -1,20 +1,20 @@
 #!/bin/sh
 # Build the Android app's native library, libssi263speech.so: the SSI-263 chip, the Braille Lite board (on MAME's
-# Z180 core), the Braille Lite host and voice, the Aicom Accent SA's board, host and voice on MAME's 8085 core, the GW
+# Z180 core), the Braille Lite host and voice, the Aicom Accent-PC's board, host and voice on MAME's 8085 core, the GW
 # Micro Speak-Out's board, host and voice on MAME's V40 core, and -- when src/csrc/accentmini/am_voice.c is in the
 # tree -- the Aicom Accent-mini's (C++17 cores, with a static libc++ inside the one .so), and -- when
 # src/csrc/mockingboard/mb_voice.c is -- the Mockingboard's board, host and voice on the 6502 (Fake6502's
 # instructions, src/csrc/cpu/m6502.c) -- the same sources and flags
 # as build_linux.sh -- plus the app's front end
 # (src/platforms/android/app/src/main/cpp), cross-built with the NDK's clang and dropped where Gradle packages
-# prebuilt libraries.  Then it stages what the APK carries besides code: the Accent SA's ROMs (Aicom's: Tomi,
+# prebuilt libraries.  Then it stages what the APK carries besides code: the Accent-PC's ROMs (Aicom's: Tomi,
 # 2026-09-30), the two Mockingboard files (Sweet Micro's, from the local firmware/sweet-micro-mockingboard when they
 # are there: Tomi, 2026-10-10, the GitHub APK carries them until a store build exists) and the licences: the
 # project's MIT, and MAME's BSD-3-Clause notices for the Z180, 8085 and V40 cores (and the 8086's with the
 # Accent-mini; Fake6502's credit, EchoTalk's BSD-3-Clause and Sweet Micro's notice with the Mockingboard).  No GPL
 # code (src/platforms/android/test/check_apk_no_firmware.py audits the APK).  Not the Braille Lite's firmware nor
 # the Speak-Out's: the app's users import their own.  The Accent-mini's SPKEMS.DVC
-# (Aicom's, beside the Accent SA's ROMs) only in a build with the Accent-mini.
+# (Aicom's, beside the Accent-PC's ROMs) only in a build with the Accent-mini.
 #
 #   sh build_android.sh                  arm64-v8a, armeabi-v7a and x86_64
 #   sh build_android.sh arm64-v8a        one ABI
@@ -71,8 +71,8 @@ FRONT="-O2 -std=c99 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -Wextra -W
 # the Braille Lite unit screen's emulator (src/apps/blazie, as build_apple.sh's EMU)
 EMU_APP="$ROOT/src/apps/blazie"
 EMU="-O2 -std=gnu99 -ffp-contract=off -fPIC -fvisibility=hidden -w -I$EMU_APP -I$SRC"
-# MAME's cores (the Braille Lite's Z180, the Accent SA's 8085), as build_linux.sh builds them: C++17 without
-# exceptions or RTTI; the Accent SA's board and host in gnu89.  libc++ is linked statically into the one .so
+# MAME's cores (the Braille Lite's Z180, the Accent-PC's 8085), as build_linux.sh builds them: C++17 without
+# exceptions or RTTI; the Accent-PC's board and host in gnu89.  libc++ is linked statically into the one .so
 # (-static-libstdc++) and its symbols kept inside it.
 Z180CXX="-O3 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC"
 MAME="-O2 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fPIC -fvisibility=hidden -Wall -Wno-sign-compare -I$SRC/cpu -I$SRC"
@@ -86,7 +86,7 @@ AICOM_MINI="$ROOT/firmware/aicom-accent-mini"
 SWEET="$ROOT/firmware/sweet-micro-mockingboard"    # the Mockingboards' files: local copies, never committed
 # The voices' table (src/csrc/voices.c, the SAPI engine's too) gets the engines whose sources are in the tree, as
 # src/csrc/build_ssi263speech.py builds it: the Speak-Out (so_voice.h) and the Accent-mini (am_voice.h, Aicom's
-# SPKEMS.DVC on an emulated PC; its driver is then staged beside the Accent SA's ROMs) and the Mockingboard
+# SPKEMS.DVC on an emulated PC; its driver is then staged beside the Accent-PC's ROMs) and the Mockingboard
 # (mb_voice.h; its firmware imported by the user, never staged).
 MINI=0
 MB=0
@@ -232,7 +232,7 @@ stage_assets() {
     A="$OUT/assets"
     rm -rf "$A"
     mkdir -p "$A/licenses" "$A/aicom"
-    # The Accent SA's ROMs, the built-in voice: Aicom's, in the repository with their notice (firmware/AICOM.txt).
+    # The Accent-PC's ROMs, the built-in voice: Aicom's, in the repository with their notice (firmware/AICOM.txt).
     # check_apk_no_firmware.py lets exactly these three through, by their sha256.
     for f in u2.BIN u3.BIN u4.BIN; do
         [ -f "$AICOM/$f" ] || { echo "missing $AICOM/$f"; exit 1; }

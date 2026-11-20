@@ -1,10 +1,10 @@
-/* as_voice.h -- the Accent SA as a voice: nvda/accent/synthDrivers/accentmini.py's front end for its "sa" voice, in C
+/* as_voice.h -- the Accent-PC as a voice: nvda/accent/synthDrivers/accentmini.py's front end for its "sa" voice, in C
  * (its boot, its settings commands, currencies, _clean and _numbers, a capital's pitch with snap_pitch, the speak loop
  * with the lead trim and PCM, and cancel), around the C host (as_host.h) and a chip made from the built-in defaults
  * (ssi263_default_params) -- as bl_voice.h is the Braille Lite's.  For front ends without Python: Android first.
  *
  * src/platforms/android/test/test_android_native.py holds it to the NVDA driver itself (under the stand-in NVDA, on the
- * desktop's C host), byte for byte, on the texts and settings of its Accent SA cases.
+ * desktop's C host), byte for byte, on the texts and settings of its Accent-PC cases.
  *
  * The ROMs come from the caller (as ash_create): Aicom's u2/u3/u4, never built in.  Not thread-safe per voice.  MIT.
  */

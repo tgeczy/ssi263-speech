@@ -1,5 +1,5 @@
 /* accent_text.c -- see accent_text.h.  Moved here from accentsa/as_voice.c unchanged (and the _ESC rule from
- * accentsa/as_host.c's ash_is_speech), so the Accent SA and the Accent-mini voices read one copy.  MIT. */
+ * accentsa/as_host.c's ash_is_speech), so the Accent-PC and the Accent-mini voices read one copy.  MIT. */
 #include <stdlib.h>
 #include <string.h>
 

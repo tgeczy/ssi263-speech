@@ -9,7 +9,7 @@
  *     blazie:blazie_es    Braille Lite 2000 (Spanish)     bl_voice.h (BL2SPA.BNS + its fresh state)
  *     speakout:speakout   Speak-Out                       so_voice.h (SPEAKOUT.HEX)       with SSV_HAVE_SPEAKOUT
  *     accentmini:mini     Accent-mini                     am_voice.h (SPKEMS.DVC)         with SSV_HAVE_ACCENTMINI
- *     accentmini:sa       Accent SA                       as_voice.h (u2, u3, u4)
+ *     accentmini:sa       Accent-PC                       as_voice.h (u2, u3, u4)
  *     mockingboard:mockingboard  Mockingboard              mb_voice.h (mockingboard-tts-1.1.bin)  with SSV_HAVE_MOCKINGBOARD
  *     mockingboard:early  Mockingboard, early             mb_voice.h (mockingboard-tts-early.bin)  with SSV_HAVE_MOCKINGBOARD
  *     speakout:soundingboard  Sounding Board (GW Micro)   so_voice.h (SBLOAD.COM + SB.COM 2.7: sov_create_sb)  with
@@ -50,7 +50,7 @@ extern "C" {
 #define SSV_BLAZIE 0               /* the Braille Lite 2000 (bl_voice.h) */
 #define SSV_SPEAKOUT 1             /* GW Micro's Speak-Out (so_voice.h) */
 #define SSV_ACCENT_MINI 2          /* Aicom's Accent-mini (am_voice.h) */
-#define SSV_ACCENT_SA 3            /* Aicom's Accent SA (as_voice.h) */
+#define SSV_ACCENT_SA 3            /* Aicom's Accent-PC (as_voice.h) */
 #define SSV_MOCKINGBOARD 4         /* Sweet Micro Systems' Mockingboard (mockingboard/mb_voice.h) */
 #define SSV_SOUNDINGBOARD 5        /* GW Micro's Sounding Board: the Speak-Out's voice on its DOS drivers (so_voice.h) */
 #define SSV_SMARTALK 6             /* Automated Functions' SmarTalk: its DOS text-to-speech (smartalk/st_voice.h) */
@@ -88,7 +88,7 @@ typedef struct {
                                       takes a volume up to 200, louder and clipped at full scale: Android's slider) */
     int tone;                      /* the NVDA variant: the Braille Lite's tone 0-26 (7), the Speak-Out's A-Z as 0-25
                                       (8 = I), the Accent-mini's voice characteristic 0-9 (5), the SmarTalk's tone A-Z
-                                      as 0-25 (8 = I); unused by the Accent SA */
+                                      as 0-25 (8 = I); unused by the Accent-PC */
     int pack;                      /* "Shorten pauses between sentences": the Braille Lite, the Speak-Out (1) */
     int join;                      /* "Join phrases": the Speak-Out's word delay (1) */
     int inflection;                /* the Accents' intonation 0-100 (100 = full); the SmarTalk's inflection is on from
@@ -140,7 +140,7 @@ SSV_API void ssv_cancel(ssv_voice *v);
    that follows.
      own marks   a Braille Lite whose release was measured for them (bl_languages.txt's marks column; bl_voice.h),
                  not run ahead: each mark where the unit echoes its Ctrl-F, to the sample.  The Speak-Out and the
-                 Sounding Board (so_voice.h), the Accent SA (as_voice.h), the Accent-mini (am_voice.h) and the
+                 Sounding Board (so_voice.h), the Accent-PC (as_voice.h), the Accent-mini (am_voice.h) and the
                  SmarTalk (st_voice.h): where the unit or its driver says it passed its own mark.
      estimated   every other voice (the Mockingboard, the other Braille Lite releases, a Braille Lite run ahead): a
                  mark is put at its share of the text's characters, as a share of the

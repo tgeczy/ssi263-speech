@@ -18,7 +18,7 @@ HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
 DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dist")
 BUILDS = {w: os.path.join(DIST, "%s-build" % w, "synthDrivers") for w in ("speakout", "blazie", "accent")}
 MODULE = {"speakout": "speakout", "blazie": "blazie", "accent": "accentmini"}
-SA = WHICH == "accentsa"            # the Accent add-on with its "Accent SA" voice
+SA = WHICH == "accentsa"            # the Accent add-on with its "Accent-PC" voice
 if SA:
     WHICH = "accent"
 sys.path[:] = [os.path.join(NVDA_DIR, "library.zip"), NVDA_DIR]

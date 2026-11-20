@@ -1,5 +1,5 @@
 // The framework fires ACTION_CHECK_TTS_DATA to ask whether the engine's voice data is usable.  English is always
-// there: the Accent SA is built in.  Spanish, German, Italian and Slovak are there once the user has imported that
+// there: the Accent-PC is built in.  Spanish, German, Italian and Slovak are there once the user has imported that
 // Blazie unit's firmware (the settings screen, which also answers INSTALL_TTS_DATA); until then each is reported
 // unavailable, never available (SsiLanguages).  ISO-3 locales, not voice names, as TGSpeechBox's CheckVoiceData.
 package com.ssi263speech.tts

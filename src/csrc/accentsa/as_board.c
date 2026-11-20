@@ -1,4 +1,4 @@
-/* as_board.c -- the Accent SA board around an 8085 core (as_board.h).  MIT. */
+/* as_board.c -- the Accent-PC board around an 8085 core (as_board.h).  MIT. */
 #include "as_board.h"
 
 #include <stdio.h>
@@ -85,7 +85,7 @@ static void out(void *ctx, uint16_t p, uint8_t v)
 /* Where the firmware waits (issue #8): its loops while it has nothing to read or say -- after power-up or a Ctrl-X
    (02C9h, 16DAh, 17EEh) and after speech (035Bh, 0393h), polling the serial line and the queue (0F65h, 186Ah, 191Fh,
    198Eh, 61D6h) -- and the phoneme TRAP (its vector 24h, the handler 4E68h, queue refill 4DD3h, 0663h, 0EC4h, 0F6Ah,
-   the speaking flag's 4FD8h-502Bh).  Watched on u2 (Accent SA, 1986-1989): every instruction the 8085 ran in steady
+   the speaking flag's 4FD8h-502Bh).  Watched on u2 (Accent-PC, 1986-1989): every instruction the 8085 ran in steady
    idle, after a power-up, a cancel, settings commands and speech, and while the TRAP fed the last phonemes -- and the
    about 60 instructions, once, that close an utterance as its last phoneme goes (1699h, 4DEBh, 4F6Eh, 9495h in the
    window's bank 0).  Anything else is the firmware's own work: reading text and making phonemes, about 12,000

@@ -1,4 +1,4 @@
-/* as_board.h -- the Aicom Accent SA around an 8085 core (MAME's, ../cpu/i8085_mame.cpp, through ../cpu/cpu.h), as a
+/* as_board.h -- the Aicom Accent-PC around an 8085 core (MAME's, ../cpu/i8085_mame.cpp, through ../cpu/cpu.h), as a
  * library: one instance per unit.
  *
  * The machine is src/hosts/accent_sa.py's, exactly (read from Aicom's code and confirmed by it speaking):

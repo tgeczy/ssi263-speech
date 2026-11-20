@@ -1,7 +1,7 @@
 """An Intel 8085 in plain Python: the documented instruction set, T-state counts, and the
 8085's own interrupt system (TRAP, RST 7.5 / 6.5 / 5.5, RIM / SIM, SID / SOD).
 
-Written for the Aicom Accent SA's program ROM (hosts/accent_sa.py).  The undocumented 8085
+Written for the Aicom Accent-PC's program ROM (hosts/accent_sa.py).  The undocumented 8085
 opcodes (DSUB, ARHL, RDEL, RSTV, LDHI, LDSI, SHLX, LHLX, JNK, JK) are not implemented: they
 raise, so a ROM that needs one says so instead of running on wrong.
 

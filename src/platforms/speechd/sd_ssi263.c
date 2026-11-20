@@ -1,6 +1,6 @@
 /*
  * sd_ssi263 -- a speech-dispatcher output module: the NVDA add-ons' voices through the emulated SSI-263, one process,
- * no Python -- the Blazie Braille Lite 2000 (English, Spanish), the Aicom Accent SA, and the Accent-mini and GW Micro
+ * no Python -- the Blazie Braille Lite 2000 (English, Spanish), the Aicom Accent-PC, and the Accent-mini and GW Micro
  * Speak-Out when built with them.  Each runs its own firmware on its own emulated processor; sd_voices.h is the table
  * of voices and their engines, and this file speaks the protocol.
  *

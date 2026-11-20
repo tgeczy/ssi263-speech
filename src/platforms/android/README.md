@@ -5,7 +5,7 @@ SSI-263 hardware, with every voice the NVDA add-ons have (Tomi, 0.7.5: "all voic
 
 | Voice (Android name) | How it comes | Firmware, emulated |
 |---|---|---|
-| Aicom Accent SA (`en-US-accentsa`) | **built in** (Tomi, 2026-09-30); the default while no Braille Lite is imported | the box's 8085 firmware and dictionary ROMs (`u2`, `u3`, `u4`) on MAME's 8085 |
+| Aicom Accent-PC (`en-US-accentsa`) | **built in** (Tomi, 2026-09-30); the default while no Braille Lite is imported | the card's 8085 firmware and dictionary ROMs (`u2`, `u3`, `u4`) on MAME's 8085 |
 | Aicom Accent-mini (`en-US-accentmini`) | **built in** (0.7.5), when the build has `src/csrc/accentmini` | its DOS driver `SPKEMS.DVC` on an emulated PC, MAME's 8086 |
 | Braille Lite 2000, English (`en-US-braillelite`) | **imported** by the user | the unit's June 2003 firmware on MAME's Z180 |
 | Braille Lite 2000, Spanish (`es-ES-braillelite`) | **imported** by the user | ONCE's September 2000 firmware on MAME's Z180 |
@@ -46,7 +46,7 @@ also borrows TGSpeechBox's.
 
 ## The Accents: built in
 
-The Accent SA's ROMs (u2 64 KB, u3 and u4 32 KB) are read from the APK's assets once and handed to the native side in
+The Accent-PC's ROMs (u2 64 KB, u3 and u4 32 KB) are read from the APK's assets once and handed to the native side in
 memory (`ssa_set_accent_roms`). Each utterance gets a unit of its own, booted as the NVDA driver boots one (2.4 ms on the
 A024) and let go afterwards, so an utterance sounds the same whatever came before it: a capital's raised pitch cannot
 linger, and a stop needs no flush. The next unit is booted as one is let go. The front end is the NVDA driver's, in C
@@ -172,7 +172,7 @@ Files are known by content, never by name (`src/csrc/blazie/bl_firmware.c`): the
 | Braille 'n Speak 2000, Slovak (0.8) | `BS2SLL.BNS` | `445203a8…` |
 
 `bl_firmware.h` gives each release's language (`BLV_FW_*`); `ssa_import.c` turns it into the app's voice
-(`ssa_blazie_voice`: German 7, Italian 8, Slovak 9 -- the languages' own 2, 3, 4 are the Accent SA's, the Speak-Out's
+(`ssa_blazie_voice`: German 7, Italian 8, Slovak 9 -- the languages' own 2, 3, 4 are the Accent-PC's, the Speak-Out's
 and the Accent-mini's indexes) and back into the state recipe (`ssa_blazie_recipe`, `blv_firmware_recipe`: German's
 and Italian's the English runs with their own yes, the Slovak unit's the English one), which `nativeMakeState` takes.
 
@@ -246,7 +246,7 @@ and 8086 cores are C++17 (no exceptions, no RTTI),
 built with the NDK's clang++; libc++ is linked statically into the one `libssi263speech.so` and kept inside it (the
 build checks that the library needs nothing beyond libc, libm, libdl and liblog). It writes the libraries to
 `app/src/main/jniLibs/<abi>/` and everything else the APK carries to `build/android/assets/` at the repository root
--- the Accent SA's ROMs (from `firmware/aicom-accent-sa`), the Accent-mini's driver (`firmware/aicom-accent-mini`,
+-- the Accent-PC's ROMs (from `firmware/aicom-accent-sa`), the Accent-mini's driver (`firmware/aicom-accent-mini`,
 when its voice is in the tree), the two Mockingboard files (from the local `firmware/sweet-micro-mockingboard`, each
 when it is there), the licences (the project's MIT, Aicom's notice, MAME's BSD-3-Clause notices for the Z180, 8085,
 V40 and 8086 cores, and with the Mockingboard's sources in the tree its 6502's credits: Fake6502's `PINNED.txt` and
@@ -372,7 +372,7 @@ down, both disks in one zip; `-Pssi263ImportBreak=mockingboard` must fail those)
 
 The Braille Lite's reference in both is the desktop library the NVDA add-on and Linux ship (`bl.dll` + `ssi263.dll`
 from `build_board.py` / `build_native.py`, or `build/linux/libssi263speech.so`), driven the way `sd_ssi263.c` maps
-SSIP: the board on MAME's Z180, as the app's -- a library carrying z180emu is refused as a reference. The Accent SA's is the NVDA Accent add-on's driver itself (`accent_reference.py`: the built
+SSIP: the board on MAME's Z180, as the app's -- a library carrying z180emu is refused as a reference. The Accent-PC's is the NVDA Accent add-on's driver itself (`accent_reference.py`: the built
 `nvda/dist/accent-build` under the stand-in NVDA of `nvda/tools/fake_nvda_driver_test.py`, its "sa" voice on the
 desktop's C host, `accent_sa.dll`), a fresh unit per case, the request's rate and pitch mapped as the app maps them
 and the pitch said as a capital's PitchCommand; and its text (currencies, `_clean`, number words) on 22 texts. The
@@ -380,7 +380,7 @@ capitals: a request's 150 %, 120 % and 75 % must differ from 100 %, and 100 % ag
 first. The controls put one bug back each: the request's rate dropped (`1`); its pitch dropped (`accent-pitch`); the
 pitch sent as a setting, glided to without snap_pitch (`accent-glide`); one Accent unit kept across utterances
 (`accent-reuse`); the plain pitch mapping, 120 % on 100 %'s step (`accent-step`). `test_device_service.py` chooses
-each voice through SettingsActivity's `setvoice` hook (and puts the device's choice back) and checks the Accent SA's
+each voice through SettingsActivity's `setvoice` hook (and puts the device's choice back) and checks the Accent-PC's
 sentence and its capitals through the platform TTS against the NVDA driver, the Braille Lite's against bl_voice --
 lockstep, then with run ahead on through the `setrunahead` hook (put back afterwards) -- the Speak-Out's sentence
 and capitals against so_voice driven directly from the device's own imported HEX, and the Accent-mini's against
@@ -409,7 +409,7 @@ as in NVDA. An app's request carries rate and pitch as percentages (100 = normal
 per doubling, through `sd_ssi263.c`'s `to100`, and on top of the slider (`cpp/ssa_map.c`). Android applies the
 request's volume to its own audio track, so the engine's volume is the slider alone.
 
-The Accent SA then takes them as the NVDA Accent driver does: rate 0-100 onto ESC R 0-H, pitch onto ESC P 0-9,
+The Accent-PC then takes them as the NVDA Accent driver does: rate 0-100 onto ESC R 0-H, pitch onto ESC P 0-9,
 inflection on or off onto ESC M0 or M1, the volume as the gain (volume / 100, `SSA_ACCENT_LEVEL` 100: at the
 default it peaks at -2.5 dBFS on `test_volume_headroom.py`'s lines, within a decibel of the Braille Lite). Every
 pitch is said as the driver says a capital's -- snap_pitch, then ESC P -- so it jumps rather than glides from a
@@ -445,7 +445,7 @@ moves some units' pauses (`docs/index-marks.md`), and nobody has listened to it 
 | `app/src/main/res/values/strings.xml` | The app's and the engine's names |
 | `app/src/main/res/xml/tts_engine.xml` | Tells the framework which screen holds the engine's settings |
 | `app/src/main/cpp/ssa_map.h`, `ssa_map.c` | An Android request's rate and pitch onto the voice's scales, the way `sd_ssi263.c` maps SSIP; the test's control switch |
-| `app/src/main/cpp/ssa_engine.h`, `ssa_engine.c` | The front end in plain C over `src/csrc/voices.h` (the voices' engines and defaults, units made with `ssv_create_from`): the app's voices and where their files are (the imported ones by path, the Aicom ROMs and driver in memory; the Accent SA a unit per utterance), the settings and the request's rate and pitch, the boot settings, start, pull in chunks, stop (any thread) and cancel; `ssa_accent_pitch`, `ssa_speakout_pitch`; `ssa_probe`, the import's last check; the tests' controls |
+| `app/src/main/cpp/ssa_engine.h`, `ssa_engine.c` | The front end in plain C over `src/csrc/voices.h` (the voices' engines and defaults, units made with `ssv_create_from`): the app's voices and where their files are (the imported ones by path, the Aicom ROMs and driver in memory; the Accent-PC a unit per utterance), the settings and the request's rate and pitch, the boot settings, start, pull in chunks, stop (any thread) and cancel; `ssa_accent_pitch`, `ssa_speakout_pitch`; `ssa_probe`, the import's last check; the tests' controls |
 | `app/src/main/cpp/ssa_import.h`, `ssa_import.c` | The import's judgement by content: the Blazie units' (`bl_firmware.h`, each language as the app's voice and back to its state recipe), then the Speak-Out's `SPEAKOUT.HEX` (Intel HEX, the known sha256); the test's control |
 | `app/src/main/cpp/ssa_jni.c` | The thin JNI bridge to `ssa_engine` (the Aicom ROMs and driver handed over), and to the import's native part (`ssa_import.h`, `bl_state.h`) |
 | `app/src/main/cpp/ssa_unit.h`, `ssa_unit.c` | The unit screen's one running unit, portable C: `emu_unit` behind one lock (the sound thread and the keys), the catalog's units present, a release unit's first state, keys.h keys as Braille Lite chords or Type 'n Speak key events, the display, its memory saved (.new, then put in place); the test's control |
@@ -467,7 +467,7 @@ moves some units' pauses (`docs/index-marks.md`), and nobody has listened to it 
 | `.../PreviewPlayer.kt` | The preview: rendered through the engine, played on an AudioTrack, kept as `last-render.wav`; "Export to WAV…" is the same render written to the file chosen in the system's save dialog |
 | `.../WavExport.kt` | What the export writes (no Android in it, so the JVM tests run it): the suggested name, `speakout-20261018-164533.wav`, and the 16-bit mono WAV |
 | `.../TtsSelfTest.kt` | The service through Android's own client, bound by package name (the default engine untouched): a file render, or a stop |
-| `.../CheckVoiceDataActivity.kt` | Answers the framework's voice-data check: English always (the Accent SA), Spanish, German, Italian and Slovak once their firmware is imported |
+| `.../CheckVoiceDataActivity.kt` | Answers the framework's voice-data check: English always (the Accent-PC), Spanish, German, Italian and Slovak once their firmware is imported |
 | `app/src/test/kotlin/.../FirmwareImportTest.kt` | The JVM tests of `FirmwareImport`, with a fake native side |
 | `app/src/test/kotlin/.../UpdatesTest.kt` | The JVM tests of `Updates`: the version read after `ssi263-speech-` (never the 263), the newest APK not the newest tag, drafts and other projects' APKs passed over (org.json's real library for the JVM) |
 | `app/src/test/kotlin/.../WavExportTest.kt` | The JVM tests of `WavExport`: the suggested names (the unit, another language's tag, the time) and the file read back as a WAV |
@@ -475,9 +475,9 @@ moves some units' pauses (`docs/index-marks.md`), and nobody has listened to it 
 | `.../GetSampleTextActivity.kt` | The sample sentence the system's TTS settings speak |
 | `licenses/DISTRIBUTION.txt` | The distribution notice the licences dialog shows first (MIT, MAME's cores, the source, Aicom's ROMs and driver, no Braille Lite or Speak-Out firmware) |
 | `licenses/Kotlin-LICENSE.txt`, `Kotlin-NOTICE.txt` | The Kotlin runtime's licence (the project's and Casso's MIT licences and MAME's notices are added by `build_android.sh`) |
-| `test/test_android_native.c` | The host-side test program: the app's C on the same chip, boards, hosts and voices, each case's PCM hashed; `--texts` (the Accent SA's text), `--level` (the volume test's measure), `--so-direct` and `--am-direct` (so_voice and am_voice driven directly, the references), `--import` (the import's judgement) |
+| `test/test_android_native.c` | The host-side test program: the app's C on the same chip, boards, hosts and voices, each case's PCM hashed; `--texts` (the Accent-PC's text), `--level` (the volume test's measure), `--so-direct` and `--am-direct` (so_voice and am_voice driven directly, the references), `--import` (the import's judgement) |
 | `test/test_android_native.py` | Builds and runs it on the desktop (and over adb), and compares with `bl_voice` driven as `sd_ssi263` drives it (lockstep and run ahead), with the NVDA Accent driver, and with so_voice and am_voice driven directly; the capitals; the Speak-Out import; the controls |
-| `test/accent_reference.py` | The Accent SA's reference: the NVDA Accent add-on's driver under the stand-in NVDA, a fresh unit per case |
+| `test/accent_reference.py` | The Accent-PC's reference: the NVDA Accent add-on's driver under the stand-in NVDA, a fresh unit per case |
 | `test/test_volume_headroom.py` | The default engine volume keeps headroom, for every voice, with controls |
 | `test/test_import_native.py` | The import's native part: the list of releases, the refusals, and the states made on the device, against the listed ones, with their progress |
 | `test/test_unit_native.c`, `test_unit_native.py` | The unit screen's native part on real firmware, on the desktop (and the phone: `build_android.sh --unit-test`): keys to the chords and Type 'n Speak events `emu_unit` gets, sample for sample against the unit keyed directly; a chord answered; the others left to the screen; its memory saved and started again; files loaded into flash (an existing name asked, replaced on request, the memory before kept, the unit started from the new one); a release unit's first state; a release kept as units/<id>.BNS (the 640) listed and started; the controls (dots 1 and 4 swapped; the files never written) |

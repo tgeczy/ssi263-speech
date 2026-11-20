@@ -5,7 +5,7 @@
  *
  *     test_android_native <data folder> [<aicom folder> [<SPKEMS.DVC> [<the Mockingboards' built-in files' folder>]]]
  *                                           one line per case: "<name> <samples> <fnv-1a 64 of the PCM bytes>";
- *                                           with the Aicom folder (u2/u3/u4.BIN), the Accent SA's cases first; with
+ *                                           with the Aicom folder (u2/u3/u4.BIN), the Accent-PC's cases first; with
  *                                           the Accent-mini's driver ("-": none), its cases; the Speak-Out's when the
  *                                           data folder has SPEAKOUT.HEX, each Mockingboard's when it has its file
  *                                           (mockingboard-tts-1.1.bin, mockingboard-tts-early.bin), and with the last
@@ -13,7 +13,7 @@
  *                                           ahead, and its number words on and off (English, and Spanish when there);
  *                                           0.8's German, Italian and Slovak units' sentence and probe, each when
  *                                           its files are there
- *     test_android_native --texts           stdin's lines as the Accent SA's front end sends them
+ *     test_android_native --texts           stdin's lines as the Accent-PC's front end sends them
  *     test_android_native --so-direct <SPEAKOUT.HEX>
  *                                           the Speak-Out's reference: so_voice driven directly (sov_create, sov_set,
  *                                           sov_speak, sov_render, sov_cancel), one unit as the app keeps one; stdin:
@@ -42,7 +42,7 @@
  *                                           "import <code> <message>"
  *
  * test_android_native.py compares the hashes with bl_voice driven directly, the way the speech-dispatcher module
- * maps SSIP (the reference), and the Accent SA's with the NVDA Accent driver itself (accent_reference.py), on the
+ * maps SSIP (the reference), and the Accent-PC's with the NVDA Accent driver itself (accent_reference.py), on the
  * desktop and over adb.  SSI263_ANDROID_TEST_BREAK in the environment puts a bug back, the controls: 1 breaks the rate
  * mapping (ssa_map.h), so the "fast" cases must differ; accent-pitch, accent-glide, accent-reuse and accent-step are
  * ssa_engine.h's ssa_accent_break 1, 2, 3 and 4; speakout-pitch, speakout-settings, run-ahead, numbers,
@@ -136,7 +136,7 @@ static int speak(ssa_engine *e, int voice, const char *text, const ssa_settings 
     return 0;
 }
 
-/* ---- the Accent SA (the built-in voice): the ROMs in memory, as the app hands them over ------------------------- */
+/* ---- the Accent-PC (the built-in voice): the ROMs in memory, as the app hands them over ------------------------- */
 
 static unsigned char *slurp(const char *dir, const char *name, size_t *n)
 {
@@ -209,11 +209,11 @@ static int accent(const char *aicom)
     digest d;
     int n, i, rc = 0;
     if (!u2 || !u3 || !u4 || !e || !ssa_set_accent_roms(e, u2, n2, u3, n3, u4, n4)) {
-        fprintf(stderr, "the Accent SA's ROMs in %s: missing or the wrong size\n", aicom);
+        fprintf(stderr, "the Accent-PC's ROMs in %s: missing or the wrong size\n", aicom);
         return 1;
     }
     free(u2); free(u3); free(u4);                      /* the engine keeps its own copy */
-    if (!ssa_has_voice(e, SSA_ACCENT_SA)) { fprintf(stderr, "no Accent SA\n"); return 1; }
+    if (!ssa_has_voice(e, SSA_ACCENT_SA)) { fprintf(stderr, "no Accent-PC\n"); return 1; }
     c = accent_cases(&n);
     for (i = 0; i < n && !rc; i++) {
         ssa_settings s = {c[i].rate, c[i].pitch, 7, c[i].volume, 1};
@@ -228,7 +228,7 @@ static int accent(const char *aicom)
     return rc;
 }
 
-/* --texts: each line of stdin (a text's UTF-8, in hex) as the Accent SA's front end would send it, hex: "text <line>
+/* --texts: each line of stdin (a text's UTF-8, in hex) as the Accent-PC's front end would send it, hex: "text <line>
    <hex>" */
 static int texts(void)
 {
@@ -850,7 +850,7 @@ static int st_direct(const char *file)
 }
 
 /* ---- index marks (ssa_start_marked, ssa_reached) ----------------------------------------------------------------- */
-/* a new engine with the Accent SA's ROMs and, when there, the Accent-mini's driver: every run on a unit of its own,
+/* a new engine with the Accent-PC's ROMs and, when there, the Accent-mini's driver: every run on a unit of its own,
    so that two runs can be held to each other (a kept unit does not say a text twice with the same samples) */
 static ssa_engine *marks_engine(const char *aicom, const char *dvc_path)
 {
@@ -908,7 +908,7 @@ static void estimate_all(int on)                          /* voices.c's switch: 
 #endif
 }
 
-/* --marks <aicom folder> <SPKEMS.DVC or ->: a mark at every word's start, as the service sends them, on the Accent SA
+/* --marks <aicom folder> <SPKEMS.DVC or ->: a mark at every word's start, as the service sends them, on the Accent-PC
    and the Accent-mini (units with index marks of their own).  "marks <voice>": each comes back once and in order,
    the first at frame 0, the frames rising to past half of the utterance and never past its end, at as many places
    as there are words (two may share one) -- and the same frames, and the same audio, whether it is pulled 250

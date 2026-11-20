@@ -8,7 +8,7 @@ anything or open a pull request.
 A register-level emulation of the Silicon Systems **SSI-263** speech chip (also sold as the Votrax SC-02 and Aicom
 AI901), and around it the original software of the talking devices that drove it, running unchanged on emulated
 CPUs: the Blazie Braille Lite, Braille 'n Speak and Type 'n Speak, GW Micro's Speak-Out and Sounding Board, Aicom's
-Accent SA and Accent-mini, Sweet Micro Systems' Mockingboard, and Automated Functions' SmarTalk. Every sample comes
+Accent-PC and Accent-mini, Sweet Micro Systems' Mockingboard, and Automated Functions' SmarTalk. Every sample comes
 from the chip model; nothing is recorded or concatenated. The devices' own rules, numbers, intonation and timing do
 the talking.
 

@@ -1,7 +1,7 @@
 # The CPU contract, version 2 (draft for review)
 
 `cpu.h` declares the interface; this defines its behaviour. Every core in libssi263speech implements it: the Z180
-(the Braille Lite), the 8085 (the Accent SA), and later an x86 real-mode core. A board drives a core only through
+(the Braille Lite), the 8085 (the Accent-PC), and later an x86 real-mode core. A board drives a core only through
 `cpu.h`.
 
 Version 2 follows Astra's review (Reply 78). The main change: **two execution paths**, kept apart.
@@ -43,7 +43,7 @@ Consequences worth stating:
 with an overrun under one step. `*_run(0)` returns 0 and has no side effects. A halted core keeps stepping in slots:
 `*_run` never skips to the budget's end.
 
-The Accent SA board additionally uses `i8085_step_slice(c, remaining, &accepted_only)` for Python-host slice
+The Accent-PC board additionally uses `i8085_step_slice(c, remaining, &accepted_only)` for Python-host slice
 compatibility. It runs one step except that a vectored acceptance reaching the remaining budget returns after C,
 before D/E/F: no instruction, boundary callback or step increment has happened. The next call samples interrupts
 normally before executing anything. It carries no previously executed instruction or its cost. Zero budget has no
@@ -305,7 +305,7 @@ bus-cycle accurate: an access inside an instruction is not placed at its own T-s
 Start-stamped I/O (E: start + acceptance) is the one documented convention for every core **(model)**. Today's
 Python core charges before executing, so its timestamps sit later by an amount that **varies per instruction** (its
 opcode fetch already happens before the charge), not by a constant. Before migrating:
-- capture today's Accent SA ordered writes and timestamps as a reference;
+- capture today's Accent-PC ordered writes and timestamps as a reference;
 - compare architectural state and events at explicitly normalised phases;
 - check the host's speech and interrupt timing separately.
 
@@ -452,7 +452,7 @@ Acceptance per core:
   - then a listen.
 - **MAME's 8085 (corrected path)**: per-step traces against the Python core at normalised phases, each difference
   decided from Intel's documentation (4); the 8080/8085 exercisers; the interrupt, flag and timing tests; the
-  captured Accent SA reference (8).
+  captured Accent-PC reference (8).
 - **MAME's 8086 (corrected path)**: the phase tests above; then the Accent-mini's driver against Unicorn, every chip
   write's value AND time identical, the audio, registers, host log and INIT snapshots identical, FLAGS by its
   stated policy (bits 0-11 equal at every software interrupt, OUT and the end; bits 12-15 masked but required to be

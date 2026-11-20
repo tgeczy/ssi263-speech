@@ -32,7 +32,7 @@ a voice here uses it yet.
 | Braille Lite 2000 (Blazie) | Ctrl-F (06h) anywhere in a line | echoes 06h on its serial line when speech reaches it | yes, on the releases below |
 | Speak-Out (GW Micro) | Ctrl-E `[` and one byte (05h 5Bh xx) | sends that byte back on its serial line; on at power-up, Ctrl-E `]` 1 / 0 turns it on and off | yes |
 | Sounding Board (GW Micro) | the same command | INT 17h AH=02h on the driver's port: how many marks were passed since the last call, and the last one's value | yes |
-| Accent SA (Aicom) | Ctrl-F, after ESC Y X and ESC = Y | one 06h per mark on its serial line; off at power-up | yes |
+| Accent-PC (Aicom) | Ctrl-F, after ESC Y X and ESC = Y | one 06h per mark on its serial line; off at power-up | yes |
 | Accent-mini (Aicom) | Ctrl-F, after ESC Y X | its driver counts the marks passed (INT 17h AH=02h gives the count after ESC Y Z; the host reads it in the driver's memory) | yes |
 | SmarTalk (Automated Functions) | Ctrl-F, always on | INT 17h AH=2: the count | yes |
 | Mockingboard (Sweet Micro Systems) | none | the host can read which frame is being spoken | estimated |
@@ -101,7 +101,7 @@ to discard (`src/csrc/speakout/so_voice.h`).
   R1 to R4 the unmarked text's, the times between them the same to 0.1 ms; each mark in the pause before its
   word.
 
-## The Accent SA: measured
+## The Accent-PC: measured
 
 A Ctrl-F at the front of the marked word, after the space before it; the unit is told to prompt (ESC Y X, ESC = Y)
 once, with the first marked text, since it powers up with marks off (`src/csrc/accentsa/as_voice.h`).
@@ -179,7 +179,7 @@ takes to finish ahead of the caller.
 
 - **NVDA add-on.** Say all's lines go to the unit as one line with their indexes
   (`nvda/shared/ssi263_flow.py`). The Braille Lite driver uses the unit's own marks on the releases above, and
-  the Speak-Out and Sounding Board driver the box's and the Accent driver the Accent SA's (the audio is fed up to
+  the Speak-Out and Sounding Board driver the box's and the Accent driver the Accent-PC's (the audio is fed up to
   a mark's sample, the index reported, then the rest), and the Accent-mini's and the SmarTalk's as well; the
   Mockingboard is estimated. The drivers do not go through `voices.h` yet.
 - **speech-dispatcher (Orca).** The module keeps the message's marks, the server's own after each sentence and
@@ -216,7 +216,7 @@ takes to finish ahead of the caller.
   must-fail controls.
 - `nvda/tools/so_marks.py`: the Speak-Out voice, and with `--soundingboard` the Sounding Board, the same cases as
   the Braille Lite's. Four must-fail controls.
-- `nvda/tools/as_marks.py`: the Accent SA voice, the same cases. Four must-fail controls.
+- `nvda/tools/as_marks.py`: the Accent-PC voice, the same cases. Four must-fail controls.
 - `nvda/tools/am_marks.py`: the Accent-mini voice; inside a clause every chip write is held to the unmarked
   text's, after a clause end to the one pause frame. Four must-fail controls.
 - `nvda/tools/st_marks.py`: the SmarTalk voice; its marks are placed against the chip's writes, and its parts

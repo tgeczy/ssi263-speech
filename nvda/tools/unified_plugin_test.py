@@ -6,7 +6,7 @@ ring hook.
             prerelease not offered; the download refused without SHA256SUMS.txt, with no entry or two entries for the
             file, or with a wrong hash, and taken with the right one
   migrate   each 0.7 driver's section into its firmware types' own keys only (the Braille Lite's Spanish voice as es);
-            the synth switched with the type the profile EFFECTIVELY had (an Accent SA inherited from the base stays
+            the synth switched with the type the profile EFFECTIVELY had (an Accent-PC inherited from the base stays
             the SA: Reply 163, 3); a profile's own overrides only (a rate-only profile gets only that rate; nothing
             into one with no 0.7 section); a key already set kept; the old sections kept; a second run writing nothing
             (the ledger); NVDA switched live.  Failures (Reply 163, 5): a failed save rolled back in memory, the ledger
@@ -36,7 +36,7 @@ ring hook.
 
   upgrade   a preview's unversioned ledger, "done" over a profile still on blazie: looked at once more, switched,
             the ledger now versioned (Reply 165, 1); a profile added after the base was migrated still inherits the
-            base's Accent SA (Reply 165, 2)
+            base's Accent-PC (Reply 165, 2)
   removal+  NVDA on another synth (Eloquence), everything migrated: the 0.7 add-ons offered and removed (Tomi: the
             ROG); NVDA on a 0.7 driver: kept, with the reason; the status lines name each profile and the reason
 
@@ -411,7 +411,7 @@ def test_upgrade():
     plugin.run_migration()
     late = conf.stored["late"]["speech"].get("ssi263", {})
     check("late_profile", late.get("firmwareType") == "accentsa",
-          "the later profile: %r (want the base's Accent SA)" % late)
+          "the later profile: %r (want the base's Accent-PC)" % late)
     shutil.rmtree(tmp, ignore_errors=True)
 
 

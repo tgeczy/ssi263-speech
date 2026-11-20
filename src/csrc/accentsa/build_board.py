@@ -1,4 +1,4 @@
-"""Build the Accent SA board on MAME's 8085 core (not yet accepted; opt-in only), into nvda/dist/accentsa-lib/:
+"""Build the Accent-PC board on MAME's 8085 core (not yet accepted; opt-in only), into nvda/dist/accentsa-lib/:
 
   test_as_board.exe    the board's own rules on small programs (test_as_board.c); no firmware needed
   as_render.exe        the C API alone: the ROMs from a folder, a text into a WAV (as_render.c; the chip built in)

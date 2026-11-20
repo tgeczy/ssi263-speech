@@ -11,7 +11,7 @@ the driver gives them to the unit as one line and reports each index when playba
 What is checked, on "1" to "5" as five lines of one utterance:
   flows       the utterance is as long as the same five words given as one text (within SAME_MS): what each line
               cost as a sentence of its own is saved (330 ms on the Sounding Board, 270 on the Accent-mini, 150 on
-              the Accent SA and the SmarTalk, 30 on the Mockingboard, which hardly ends its sentences)
+              the Accent-PC and the SmarTalk, 30 on the Mockingboard, which hardly ends its sentences)
   indexes     all five are reached, in order: the first before any sound; each later one within WORD of its share
               of the audio (its line's place is an estimate, by characters: good to a word or so), and before the
               utterance's own end

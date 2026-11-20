@@ -76,7 +76,7 @@ check "bl_voice: index marks, the bytes for the unit" python3 nvda/tools/voice_m
 control "bl_voice marks CONTROL (a Ctrl-F for every mark on one word, must fail)" \
     "^FAIL same +three marks on one word: ..3 Ctrl-F before 'two'" "^voice marks: 2 FAILED$" \
     -- env VOICE_MARKS_BREAK=2 python3 nvda/tools/voice_marks.py
-# ... and the Accent SA's (as_voice.h): Ctrl-F at the front of each marked word, the unit's prompts on its serial
+# ... and the Accent-PC's (as_voice.h): Ctrl-F at the front of each marked word, the unit's prompts on its serial
 # line, the marks following the audio the voice holds back (its ROMs are in the repository: it always runs)
 check "as_voice: index marks by the unit's own Ctrl-F" python3 nvda/tools/as_marks.py $B/libssi263_voices.so
 control "as_voice marks CONTROL (every mark with the first block, must fail)" "^FAIL place " "^FAIL twins " \

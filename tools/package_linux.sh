@@ -227,9 +227,9 @@ if [ -f "$ROOT/build/linux/blazie_files" ]; then
     chmod +x "$STAGE/bin/blazie_files"
 fi
 cat > "$STAGE/share/ssi263-speech/speech-dispatcher/ssi263.conf" <<'EOF'
-# The SSI-263 voices (sd_ssi263): the Braille Lite 2000 (English, Spanish), the Accent SA, the Accent-mini and the
+# The SSI-263 voices (sd_ssi263): the Braille Lite 2000 (English, Spanish), the Accent-PC, the Accent-mini and the
 # Speak-Out -- each one's own firmware speaking through an emulated SSI-263, as in the NVDA add-ons.  Choose one in
-# Orca (Preferences, Speech, Voice) or with spd-say -o ssi263 -y "Accent SA".  Rate, pitch and volume come from
+# Orca (Preferences, Speech, Voice) or with spd-say -o ssi263 -y "Accent-PC".  Rate, pitch and volume come from
 # Orca or spd-say for every voice; the keys below are each voice's own.
 #
 # This file:      speech-dispatcher's modules folder (install.sh put it there and wrote SSI263DataDir below).
@@ -273,7 +273,7 @@ cat > "$STAGE/share/ssi263-speech/speech-dispatcher/ssi263.conf" <<'EOF'
 # unit's own firmware reads them (digit by digit above its limit).
 # SSI263BrailleLiteNumbers 1
 
-# ---- the Accent SA and the Accent-mini (the NVDA Accent add-on's settings) ----
+# ---- the Accent-PC and the Accent-mini (the NVDA Accent add-on's settings) ----
 
 # Inflection, 0-100 (default 100): 100 full intonation, 75, 50, 25, 0 monotone (the nearest of the five is taken).
 # SSI263AccentInflection 100

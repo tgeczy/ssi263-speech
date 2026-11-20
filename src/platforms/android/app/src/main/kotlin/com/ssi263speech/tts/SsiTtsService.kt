@@ -73,7 +73,7 @@ class SsiTtsService : TextToSpeechService() {
     override fun onSynthesizeText(request: SynthesisRequest, callback: SynthesisCallback) {
         android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO)
         val text = request.charSequenceText?.toString() ?: ""
-        // No voice at all (an APK without the Accent SA's ROMs, no firmware imported): the voice data is not installed.
+        // No voice at all (an APK without the Accent-PC's ROMs, no firmware imported): the voice data is not installed.
         if (!SsiEngine.open(this)) { callback.error(TextToSpeech.ERROR_NOT_INSTALLED_YET); return }
         val s = SsiSettings.snapshot(this)
 

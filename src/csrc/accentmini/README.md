@@ -5,7 +5,7 @@ with its rules in expanded memory, driving the card's AI901 (SSI-263 compatible)
 without Python, the same way the Python host does: on MAME's 8086 (`../pc86`, `../cpu/i86_mame.cpp`), under a
 host that stands in for DOS, the BIOS, the EMS manager and the PIC. The NVDA driver's front end runs around it.
 It is for front ends without Python: the Linux speech-dispatcher module and Android. It works the way
-`../blazie/bl_voice.c` does for the Braille Lite and `../accentsa/as_voice.c` does for the Accent SA. The driver is
+`../blazie/bl_voice.c` does for the Braille Lite and `../accentsa/as_voice.c` does for the Accent-PC. The driver is
 not built in. It is read from a file or given in memory (`firmware/aicom-accent-mini/SPKEMS.DVC`, in the repository
 with `firmware/AICOM.txt`).
 

@@ -15,11 +15,11 @@ static const struct {
     const char *sha256, *file, *label;
 } AICOM[] = {
     {SSP_FW_ACCENT_U2, "8d6aa48880d1efd02f8dc759741c16b8902db33dcc2856d1f0db4776149992ad", "u2.BIN",
-     "Aicom Accent SA: u2.BIN, the 8085 program ROM"},
+     "Aicom Accent-PC: u2.BIN, the 8085 program ROM"},
     {SSP_FW_ACCENT_U3, "248dd6fb6d08f6b4316ce38f83fd330e55dde80ead4b26a652ba228e6b46859a", "u3.BIN",
-     "Aicom Accent SA: u3.BIN, the dictionary ROM, part 1"},
+     "Aicom Accent-PC: u3.BIN, the dictionary ROM, part 1"},
     {SSP_FW_ACCENT_U4, "7c12a8cf56a573cd83c928d61cd49e90b3afc810279e8ee54852d7b90042d155", "u4.BIN",
-     "Aicom Accent SA: u4.BIN, the dictionary ROM, part 2"},
+     "Aicom Accent-PC: u4.BIN, the dictionary ROM, part 2"},
     {SSP_FW_ACCENT_MINI, "6b99fea4cc5534ee1f693b141df9d734057f116d0a36972e3949d86db00cbe79", "SPKEMS.DVC",
      "Aicom Accent-mini: SPKEMS.DVC, its DOS driver"},
 };

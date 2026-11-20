@@ -1,4 +1,4 @@
-/* as_render.c -- the Accent SA reads a text into a WAV file, with no Python: the ROMs from a folder, the chip from the
+/* as_render.c -- the Accent-PC reads a text into a WAV file, with no Python: the ROMs from a folder, the chip from the
  * built-in defaults (as_host.h).  A demonstration of the C API and a smoke test.
  *
  *   as_render <folder with u2.BIN u3.BIN u4.BIN> "text" out.wav [sample rate, default 44100]

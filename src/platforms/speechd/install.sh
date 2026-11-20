@@ -1,6 +1,6 @@
 #!/bin/sh
 # Install the SSI-263 voices for speech-dispatcher (Orca, spd-say): the Braille Lite 2000 (English, Spanish), the
-# Accent SA, and the Accent-mini and Speak-Out when the package has them.  Run from the unpacked package:
+# Accent-PC, and the Accent-mini and Speak-Out when the package has them.  Run from the unpacked package:
 #
 #   sudo ./install.sh              # add the voices; your default synthesizer stays as it is
 #   sudo ./install.sh --default    # and make it the default
@@ -141,7 +141,7 @@ Done.  Restart speech-dispatcher so it sees the new voice (Orca reconnects by it
     killall speech-dispatcher
 Try it:
     spd-say -o ssi263 "Hello from the Braille Lite"
-    spd-say -o ssi263 -y "Accent SA" "Hello from the Accent"
+    spd-say -o ssi263 -y "Accent-PC" "Hello from the Accent"
     spd-say -o ssi263 -L          (the voices)
 In Orca: Preferences, Speech, Speech synthesizer: ssi263, then the voice.
 Settings (sample rate; the Braille Lite's inflection, hiss, tone, number words, run ahead; the Accents' inflection;

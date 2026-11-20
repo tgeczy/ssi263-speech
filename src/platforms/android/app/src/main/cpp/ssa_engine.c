@@ -2,12 +2,12 @@
  * speaks through: each voice's API, its NVDA driver's defaults), units made with ssv_create_from -- the imported
  * firmware (the Braille Lite's, the Speak-Out's, the Mockingboard's) by path under the app's own names, the Aicom
  * ROMs and driver in memory.  What is Android's own stays here:
- * the request's rate and pitch on the sliders (a capital's pitch moved at least one step), the Accent SA's fresh unit
+ * the request's rate and pitch on the sliders (a capital's pitch moved at least one step), the Accent-PC's fresh unit
  * per utterance, and the pull with a stop between blocks.  The bank (ssv_bank) is not used: it keeps one card for
- * both Accents, and the Accent SA here is a fresh unit per utterance.
+ * both Accents, and the Accent-PC here is a fresh unit per utterance.
  *
  * The kept units' flow is sd_ssi263.c's speak(): set, speak, render until done, a stop between blocks and a cancel
- * after it.  The Accent SA's is the NVDA driver's _speakJob (as_voice.h) on a unit of the utterance's own. */
+ * after it.  The Accent-PC's is the NVDA driver's _speakJob (as_voice.h) on a unit of the utterance's own. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +27,7 @@
 #include "ssa_engine.h"
 #include "ssa_map.h"
 
-#define ACCENT_PITCH 50                /* the settings' pitch the Accent SA's units keep: the rest goes as a capital's */
+#define ACCENT_PITCH 50                /* the settings' pitch the Accent-PC's units keep: the rest goes as a capital's */
 
 int ssa_accent_break = 0;
 int ssa_voice_break = 0;
@@ -116,15 +116,15 @@ static int ssv_of(int voice)
 struct ssa_engine {
     char *datadir;
     int sample_rate, inflection, whine;
-    ssv_voice *units[SSA_ALL_VOICES];  /* the kept units (every voice but the Accent SA) */
-    unsigned char *rom[3];             /* the Accent SA's u2, u3, u4 */
+    ssv_voice *units[SSA_ALL_VOICES];  /* the kept units (every voice but the Accent-PC) */
+    unsigned char *rom[3];             /* the Accent-PC's u2, u3, u4 */
     unsigned char *mini;               /* the Accent-mini's SPKEMS.DVC */
     size_t mini_n;
     unsigned char *mb[2];              /* the Mockingboards' built-in files (1.1, early), from ssa_set_mockingboard */
     size_t mb_n[2];
     unsigned char *st;                 /* the SmarTalk's built-in S_TALK.EXE, from ssa_set_smartalk */
     size_t st_n;
-    ssv_voice *spare;                 /* the Accent SA's next unit: booted, not yet spoken on */
+    ssv_voice *spare;                 /* the Accent-PC's next unit: booted, not yet spoken on */
     ssv_voice *accent;                 /* the unit speaking the current utterance */
     int cur;                           /* the utterance's voice; -1 when none is running */
     const short *block;                /* the last block rendered, valid until the next render */
@@ -273,7 +273,7 @@ static void settings_for(const ssa_engine *e, int voice, const ssa_settings *s, 
         }
         break;
     case SSA_ACCENT_SA:
-    case SSA_ACCENT_MINI: {            /* the Accents: as the Accent SA has always been spoken here */
+    case SSA_ACCENT_MINI: {            /* the Accents: as the Accent-PC has always been spoken here */
         int pitch = ssa_accent_pitch(s->pitch, ssa_accent_break == 1 ? 100 : request_pitch);
         o->inflection = e->inflection ? 100 : 0;
         o->volume = s->volume * SSA_ACCENT_LEVEL / 100;
@@ -493,7 +493,7 @@ int ssa_load(ssa_engine *e, int voice, char *err, int errlen)
 {
     if (voice == SSA_ACCENT_SA) {
         if (e->spare) return 0;
-        if (!ssa_has_voice(e, voice)) { snprintf(err, (size_t)errlen, "the Accent SA's ROMs are not set"); return -1; }
+        if (!ssa_has_voice(e, voice)) { snprintf(err, (size_t)errlen, "the Accent-PC's ROMs are not set"); return -1; }
         e->spare = make_unit(e, voice, err, errlen);
         return e->spare ? 0 : -1;
     }
@@ -516,7 +516,7 @@ int ssa_load(ssa_engine *e, int voice, char *err, int errlen)
     return e->units[voice] ? 0 : -1;
 }
 
-/* The Accent SA's unit is done with: let go, and the next one booted now, so the next utterance need not wait for
+/* The Accent-PC's unit is done with: let go, and the next one booted now, so the next utterance need not wait for
    it (under the test's control 3, kept instead: its state carries into the next utterance). */
 static void accent_release(ssa_engine *e)
 {

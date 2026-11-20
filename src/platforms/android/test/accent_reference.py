@@ -1,4 +1,4 @@
-"""The Accent SA's reference for test_android_native.py: the NVDA Accent add-on's driver as 0.7.0 shipped it, in Python
+"""The Accent-PC's reference for test_android_native.py: the NVDA Accent add-on's driver as 0.7.0 shipped it, in Python
 (nvda/tools/legacy_drivers.py; its "sa" voice on the desktop's C host: accent_sa.dll, SSI263_ACCENT_SA_CORE=c), under the
 stand-in NVDA of nvda/tools/fake_nvda_driver_test.py, speaks each case on a freshly booted unit -- as the Android
 engine gives each utterance a unit of its own -- and every PCM byte it feeds its player is hashed.
@@ -53,7 +53,7 @@ def main():
         return feed(self, data, onDone)
     player.feed = hooked
     if "sa" not in d._present():
-        sys.exit("the built Accent add-on has no Accent SA ROMs")
+        sys.exit("the built Accent add-on has no Accent-PC ROMs")
     d._set_voice("sa")
     for c in cases["speech"]:
         d._want_rate = c["sample_rate"]

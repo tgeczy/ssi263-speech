@@ -807,7 +807,7 @@ test("theWordsNameEveryUnit") {
     check(FirmwareImport.whatToChoose.contains("your own copy of Mockingboard disk 1"), "")
     check(FirmwareImport.whatToChoose.contains("your own copy of the Mockingboard Developers Toolkit disk"), "")
     check(FirmwareImport.whatToChoose.contains("GW Micro's SPEAKOUT.HEX, or the speakout.zip holding it"), "")
-    check(FirmwareImport.whatToChoose.contains("u2.BIN, u3.BIN and u4.BIN for the Accent SA and SPKEMS.DVC"), "")
+    check(FirmwareImport.whatToChoose.contains("u2.BIN, u3.BIN and u4.BIN for the Accent-PC and SPKEMS.DVC"), "")
     // a store app's words name no source: the package types, but never which package carries the firmware
     for w in ["NVDA add-on", "carries"] {
         check(!FirmwareImport.whatToChoose.contains(w), "whatToChoose says \"\(w)\"")

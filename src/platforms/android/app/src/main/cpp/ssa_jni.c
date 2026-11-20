@@ -37,7 +37,7 @@ JNIEXPORT jboolean JNICALL FN(nativeOpen)(JNIEnv *env, jclass cls, jstring jdir)
     return g_engine ? JNI_TRUE : JNI_FALSE;
 }
 
-/* The Accent SA's ROMs (the APK's assets/aicom), copied into the engine. */
+/* The Accent-PC's ROMs (the APK's assets/aicom), copied into the engine. */
 JNIEXPORT jboolean JNICALL FN(nativeAccentRoms)(JNIEnv *env, jclass cls, jbyteArray ju2, jbyteArray ju3,
                                                 jbyteArray ju4)
 {

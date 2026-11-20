@@ -1,6 +1,6 @@
 /* mb_voice.h -- the Mockingboard as a voice: Sweet Micro Systems' text-to-speech (mb_host.h) with NVDA's settings,
  * the shared text path and the firmware's limits taken care of, for the voice table (../voices.h) -- as as_voice.h is
- * the Accent SA's.
+ * the Accent-PC's.
  *
  * Settings, on NVDA's scales, onto the firmware's own four bytes:
  *   rate 0-100     the firmware's rate 0-13 (50 = 8, the toolkit demo's; 14 and 15 wrap in INFLECTION: never sent)

@@ -1,4 +1,4 @@
-"""Must-fail controls for test_as_board.c: each variant undoes one rule of the Accent SA board (as_board.c,
+"""Must-fail controls for test_as_board.c: each variant undoes one rule of the Accent-PC board (as_board.c,
 as_usart.c) in a temporary copy, and exactly that rule's tests must then fail.  The runner guard (exit code, summary
 line, the full test inventory) is ../cpu/contract_controls.py's.  Not in run_tests: seventeen builds.
 

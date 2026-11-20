@@ -6,7 +6,7 @@ plugins {
 }
 
 // Everything the APK carries besides code is staged by build_android.sh at the repository root into
-// build/android/assets: the Accent SA's ROMs (Aicom's, the built-in voice), the Mockingboards' files when they were
+// build/android/assets: the Accent-PC's ROMs (Aicom's, the built-in voice), the Mockingboards' files when they were
 // there to stage (Sweet Micro's, assets/sweet-micro), and the licences (MIT, MAME's BSD notices, Sweet Micro's notice).
 // No Braille Lite or Speak-Out firmware: the app's users import their own (FirmwareImport.kt); only a
 // developer build asked for with SSI263_ANDROID_BUNDLE_FIRMWARE=1 carries it.  The native library, from the same

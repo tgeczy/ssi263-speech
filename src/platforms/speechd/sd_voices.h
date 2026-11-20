@@ -5,7 +5,7 @@
  * table the SAPI engine and Android speak through: each voice's engine and its NVDA driver's defaults:
  *   Braille Lite 2000            en-US  bl_voice.h  <data>/BL2ENG.BNS + bl2_2003_warm.state
  *   Braille Lite 2000 (Spanish)  es-ES  bl_voice.h  <data>/BL2SPA.BNS + bl2spa_fresh.state
- *   Accent SA                    en-US  as_voice.h  <data>/aicom-accent-sa/u2.BIN, u3.BIN, u4.BIN
+ *   Accent-PC                    en-US  as_voice.h  <data>/aicom-accent-sa/u2.BIN, u3.BIN, u4.BIN
  *   Accent-mini                  en-US  am_voice.h  <data>/aicom-accent-mini/SPKEMS.DVC     (built with its engine)
  *   Speak-Out                    en-US  so_voice.h  <data>/gw-micro-speakout/SPEAKOUT.HEX   (built with its engine)
  *   Mockingboard                 en-US  mb_voice.h  <data>/sweet-micro-mockingboard/mockingboard-tts-1.1.bin

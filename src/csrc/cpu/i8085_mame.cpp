@@ -133,7 +133,7 @@ int i8085_step_slice(i8085 *c, uint64_t budget, int *accepted_only)
     c->cycles += (uint64_t)acc;           // B
     d.m_after_ei = 0;                     // C
 
-    // A board may end a slice at acceptance, as the Python Accent SA host does. Do not execute the vector's
+    // A board may end a slice at acceptance, as the Python Accent-PC host does. Do not execute the vector's
     // instruction and carry only its cost: that sends I/O and changes registers/memory one slice too early.
     // There is no pending instruction to replay; the next call samples its then-current interrupt lines at A.
     if (acc && (uint64_t)acc >= budget) {

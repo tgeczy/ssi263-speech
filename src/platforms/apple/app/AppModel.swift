@@ -135,7 +135,7 @@ final class AppModel: ObservableObject {
                     if !plan.notes.isEmpty { words += " " + plan.notes.joined(separator: " ") }
                     if self.voices.contains(where: { $0.voice.key == "accentsa" && $0.label == nil })
                         && plan.found.contains(where: { FirmwareImport.accentRoms.contains($0.kind) }) {
-                        words += " The Accent SA needs all three of u2.BIN, u3.BIN and u4.BIN; import the others " +
+                        words += " The Accent-PC needs all three of u2.BIN, u3.BIN and u4.BIN; import the others " +
                             "to hear it."
                     }
                     self.finish(words)

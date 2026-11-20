@@ -1,4 +1,4 @@
-/* as_host.h -- the Accent SA host in C: src/hosts/accent_sa.py's AccentSA, line for line (its chip-time lockstep, say,
+/* as_host.h -- the Accent-PC host in C: src/hosts/accent_sa.py's AccentSA, line for line (its chip-time lockstep, say,
  * busy, boot and cancel), around the board (as_board.h) and an SSI-263 (../ssi263.h).
  *
  * The lockstep, as accent_sa.py: each slice, one byte into the 8251 if it is free, the TRAP gate, then the chip runs
@@ -6,7 +6,7 @@
  * chip time holds.  Every rounding and order of operations is Python's: run_until_request's sample count is int()
  * (truncation), run's is round() (half to even: nearbyint), T-states are int() of cpu_hz x dt [x turbo], at least 20.
  *
- * Two of its numbers are not the Accent SA's, and are labelled so:
+ * Two of its numbers are not the Accent-PC's, and are labelled so:
  *   cpu_hz  3,072,000: a GUESS (a 6.144 MHz crystal, halved by the 8085); the unit's clock has not been measured.
  *   turbo   8: a HOST feature, not the unit's: while the firmware reads a sentence, before its first phoneme, the 8085
  *           runs that many times faster.  Speech itself is paced by A/R, so it is unchanged.

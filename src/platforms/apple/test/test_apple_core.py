@@ -3,7 +3,7 @@
 Android's host-side program (src/platforms/android/test/test_android_native.c: the front end ssa_engine, ssa_map and
 ssa_import over every voice) is linked against each runnable slice's libssi263core.a, the library the apps link, and
 run on the same firmware as test_android_native.py's desktop program; every case's samples and PCM hash must be the
-desktop's, and so must the Accent SA's front-end text.  test_android_native.py holds that desktop program to the
+desktop's, and so must the Accent-PC's front-end text.  test_android_native.py holds that desktop program to the
 references (bl_voice as sd_ssi263 drives it, so_voice, am_voice, mb_voice, the NVDA Accent driver), so the slices are
 held to them too.
 
@@ -151,7 +151,7 @@ def main():
                 for k in differ:
                     print("FAIL  %-13s %s: %s, desktop %s" % (name, k, got.get(k), want.get(k)))
                 if want_texts is not None and run(prefix, exe, ["--texts"], env, texts_in) != want_texts:
-                    print("FAIL  %-13s the Accent SA's front-end text differs" % name)
+                    print("FAIL  %-13s the Accent-PC's front-end text differs" % name)
                     differ.append("texts")
                 print("%-5s %-13s %d of %d cases as the desktop, byte for byte%s" % (
                     "ok" if not differ else "FAIL", name, len(want) - len([k for k in differ if k in want]),

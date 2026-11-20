@@ -1,4 +1,4 @@
-/* as_usart.h -- the Accent SA's 8251 USART as its firmware uses it, reduced exactly as src/hosts/accent_sa.py reduces
+/* as_usart.h -- the Accent-PC's 8251 USART as its firmware uses it, reduced exactly as src/hosts/accent_sa.py reduces
  * it: whole bytes, no baud rate, no framing.
  *
  *   port 20h  in: the received byte (reading it drops RxRDY, and with it RST 6.5); out: a byte sent to the host

@@ -13,7 +13,7 @@ rest, and NVDA's next speech (a Tab's cancel, landing while the driver is idle, 
 
     python dialog_stall.py accent|accentsa|speakout [runs per rate]          exit 1 on a stall
     DIALOG_STALL_RATES=50,55,60,75,100 (NVDA's rates);  FAKE_PLAYER=wasapi: on wasapi_player.py
-    DIALOG_STALL_BREAK=1: the Accent SA's settle off (asv_set_settle 0, 0.7.5's done) -- the must-fail control
+    DIALOG_STALL_BREAK=1: the Accent-PC's settle off (asv_set_settle 0, 0.7.5's done) -- the must-fail control
     SSI263_SYNTH_DRIVERS=<0.7.0's synthDrivers> (legacy_drivers.py): 0.7.0's Python drivers; they stall the same
 """
 import ctypes
@@ -120,7 +120,7 @@ _hook(unit())
 CONTROLS = [["Rate:", "slider", "%d", "alt+r"], ["Pitch:", "slider", "50", "alt+p"],
             ["Inflection:", "slider", "100", "alt+i"], ["Volume:", "slider", "100", "alt+o"],
             ["Variant:", "combo box", "Voice 5 (default)", "alt+a"],
-            ["Synthesizer:", "Accent SA and Mini (SSI-263 emulation)", "Change...", "button", "alt+c"],
+            ["Synthesizer:", "Accent-PC and Mini (SSI-263 emulation)", "Change...", "button", "alt+c"],
             ["Punctuation/symbol level:", "combo box", "some", "alt+y"],
             ["Capital pitch change percentage:", "spin button", "30", "alt+h"]]
 

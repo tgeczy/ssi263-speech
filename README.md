@@ -14,7 +14,7 @@ talking devices that drove it, running unchanged and driving the emulated chip, 
 | **Speak-Out** talking box (GW Micro, 1995) | its NEC V40 firmware | MAME's V40, inside NVDA |
 | **Blazie Braille Lite 2000** in speech-box mode | the June 2003 firmware | MAME's Z180 |
 | **Aicom Accent-mini** | Aicom's DOS device driver `SPKEMS.DVC` (Accent-EMS V4.5) | MAME's 8086, with emulated expanded memory |
-| **Aicom Accent SA** | the box's own 8085 firmware and dictionary ROMs (1986–1989) | MAME's 8085 |
+| **Aicom Accent-PC** | the card's own 8085 firmware and dictionary ROMs (1986–1989), driven through its serial port | MAME's 8085 |
 | **Automated Functions SmarTalk** (1995), a small box on the parallel port | its DOS text-to-speech program `S_TALK.EXE` (version 1.21) | MAME's 8086 |
 
 The pronunciation rules, the number reading, the intonation and the timing are all the
@@ -44,7 +44,7 @@ There are three NVDA add-ons, and they can all be installed together:
 |---|---|---|
 | `speakout-ssi263` | Speak-Out | rate 0–9, pitch 0–9, tone A–Z as the variant |
 | `blazie-ssi263` | Braille Lite / Braille 'n Speak | rate 1–16, pitch 1–63, tone 1–25 as the variant |
-| `accent-ssi263` | two voices, **Accent-mini** and **Accent SA** | the Accent's own commands: rate R0–H, pitch P0–9, voice V0–9 as the variant, inflection from monotone to full |
+| `accent-ssi263` | two voices, **Accent-mini** and **Accent-PC** | the Accent's own commands: rate R0–H, pitch P0–9, voice V0–9 as the variant, inflection from monotone to full |
 
 They run on NVDA 2021.1 through 2026.1, 32- or 64-bit, on Windows 7 and later, and now on
 Windows on ARM too. You don't need numpy or a Visual C++ runtime. All three support capital
@@ -164,7 +164,7 @@ they are not runtime payloads and no environment switch is needed for MAME.
   under `src/csrc/cpu/mame_*`. Their license notices accompany the add-ons.
 - **Unicorn 2.1.4 and z180emu:** GPL development references for migration comparisons,
   outside the 0.7 release payloads.
-- **The Accent SA ROMs** were shared by spacepup.
+- **The Accent-PC ROMs** were shared by spacepup.
 - **The firmware belongs to its makers:** the Speak-Out to GW Micro (hardware by Daniel
   Weirich, software by Douglas Geoffray), the Accent to Aicom Corporation, the SmarTalk
   to Automated Functions, Inc., who invited everyone to share its software. The Braille

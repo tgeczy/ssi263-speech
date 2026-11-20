@@ -8,7 +8,7 @@ rules, number reading and inflection are the firmware's own, live. Nothing is re
 |---|---|---|
 | Braille Lite 2000 | English | Blazie's notetaker in speech-box mode, its June 2003 firmware on a Z180 |
 | Braille Lite 2000 (Spanish) | Spanish | the same, its Spanish firmware (when included) |
-| Accent SA | English | Aicom's serial speech box, its own 8085 firmware and dictionary ROMs |
+| Accent-PC | English | Aicom's plug-in speech card, driven through its serial port: its own 8085 firmware and dictionary ROMs. Called "Accent SA" until 0.9.5; that name still selects it |
 | Accent-mini | English | Aicom's Accent-mini, its DOS driver on an emulated PC (when the package has it) |
 | Speak-Out | English | GW Micro's 1995 talking box, its V40 firmware (when the package has it) |
 | Mockingboard | English | Sweet Micro Systems' Apple II speech card, its text-to-speech version 1.1 on an emulated 6502 (when the package has it) |
@@ -25,7 +25,7 @@ Each voice is the same voice as in its NVDA add-on.
     sudo ./install.sh
     killall speech-dispatcher
     spd-say -o ssi263 "Hello from the Braille Lite"
-    spd-say -o ssi263 -y "Accent SA" "Hello from the Accent"
+    spd-say -o ssi263 -y "Accent-PC" "Hello from the Accent"
 
 `install.sh` adds the voices and leaves your default synthesizer alone: speech-dispatcher finds the module by itself, so `speechd.conf` isn't changed (an `AddModule` line there would turn that off and leave this the only synthesizer; thanks, Garrett). Only if your `speechd.conf` already lists its modules with `AddModule` lines, as Raspberry Pi OS does, is this one added to the list. Installing over 0.7.6 or earlier removes the line those added. `sudo ./install.sh --default` also makes it
 the default. In Orca: Preferences, Speech, Speech synthesizer: ssi263, then the voice (`spd-say -o ssi263 -L` lists them).
@@ -63,7 +63,7 @@ This package carries the Braille Lite's own firmware (and the Type 'n Speak's, f
 permission. It is not ours; it is here so the
 unit can speak again, and it will be removed if its rights holders ask.
 
-It carries Aicom's software for the Accents: the Accent SA's firmware and dictionary ROMs, and the Accent-mini's
+It carries Aicom's software for the Accents: the Accent-PC's firmware and dictionary ROMs, and the Accent-mini's
 driver when the package has that voice. They are Aicom Corporation's work, not ours, and not covered by the licences
 below; `licenses/Aicom-notice.txt` says where they come from and why they are here.
 

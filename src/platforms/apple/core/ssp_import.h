@@ -1,6 +1,6 @@
 /* ssp_import.h -- every firmware the Apple apps import, judged by content: the Braille Lite's and the Speak-Out's as
  * Android judges them (ssa_import.h: bl_firmware.h's list of releases, then GW Micro's SPEAKOUT.HEX), and Aicom's
- * files, which Android carries built in but the Apple apps never do (they ship hollow): the Accent SA's three ROMs and
+ * files, which Android carries built in but the Apple apps never do (they ship hollow): the Accent-PC's three ROMs and
  * the Accent-mini's DOS driver, each known by its sha256 alone (firmware/AICOM.txt's files, the hashes
  * check_apk_no_firmware.py lets into an APK).
  *
@@ -15,7 +15,7 @@ extern "C" {
 
 /* What ssp_import_firmware found: ssa_import_firmware's (BLV_FW_ENGLISH 0, BLV_FW_SPANISH 1, SSA_HEX_SPEAKOUT 3,
    SSA_SMARTALK 28 ..., or a negative refusal) or one of Aicom's files. */
-#define SSP_FW_ACCENT_U2 10                /* the Accent SA's 8085 program ROM, 64 KB */
+#define SSP_FW_ACCENT_U2 10                /* the Accent-PC's 8085 program ROM, 64 KB */
 #define SSP_FW_ACCENT_U3 11                /* its dictionary, part 1, 32 KB */
 #define SSP_FW_ACCENT_U4 12                /* its dictionary, part 2, 32 KB */
 #define SSP_FW_ACCENT_MINI 13              /* the Accent-mini's SPKEMS.DVC */

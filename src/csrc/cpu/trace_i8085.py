@@ -1,9 +1,9 @@
-"""The MAME 8085 core (cpu.h, i8085_mame.cpp) against the Python core (src/hosts/i8085.py) on the Accent SA firmware:
+"""The MAME 8085 core (cpu.h, i8085_mame.cpp) against the Python core (src/hosts/i8085.py) on the Accent-PC firmware:
 per-instruction registers and T-states at normalised phases, and the FIRST differences, by class, each with what
 Intel's documentation says about it.  It decides nothing and changes nothing: it lists.  (CONTRACT.md 4 and 10:
 "per-step traces against the Python core at normalised phases, each difference decided from Intel's documentation".)
 
-    python src/csrc/cpu/trace_i8085.py <Accent SA ROM folder: u2.BIN u3.BIN u4.BIN> [--ticks N] [--dll i8085.dll]
+    python src/csrc/cpu/trace_i8085.py <Accent-PC ROM folder: u2.BIN u3.BIN u4.BIN> [--ticks N] [--dll i8085.dll]
 
 Both cores run on the same stub machine, driven tick by tick in lockstep, so a difference is the cores', never the
 host's timing: one tick is one i8085_step() on the C core (an instruction with any acceptance before it, or one HALT
@@ -97,7 +97,7 @@ def build_dll(out_dir, control=False):
 
 
 class Board:
-    """The stub Accent SA both cores run on; `line(n, level)` sets a CPU input for the core it serves."""
+    """The stub Accent-PC both cores run on; `line(n, level)` sets a CPU input for the core it serves."""
 
     def __init__(self, rom_dir):
         u2 = open(os.path.join(rom_dir, "u2.BIN"), "rb").read()

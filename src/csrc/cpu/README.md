@@ -1,6 +1,6 @@
 # src/csrc/cpu: the CPU cores behind the emulated boards
 
-A board (the Braille Lite's `../blazie/bl_board.c`, later the Accent SA's) runs its processor only through `cpu.h`.
+A board (the Braille Lite's `../blazie/bl_board.c`, later the Accent-PC's) runs its processor only through `cpu.h`.
 The cores never know which board they are in.
 
 | File | What it is for |
@@ -31,7 +31,7 @@ The cores never know which board they are in.
 | `v40_mame.cpp` | **Our step driver** (the contract's phases for the V40: one REP iteration per step, NEC's interrupt deferrals and HALT release, the undefined-opcode count) and the `cpu.h` functions. It includes `v40_mame_machine.cpp`. The header comment lists every deliberate difference from MAME. |
 | `test_v40_contract.c` | CONTRACT.md 12's clauses on the V40 core, one test each (28). |
 | `v40_controls.py` | Its must-fail controls: each rule undone in a scratch copy, exactly its tests must fail (28). |
-| `trace_i8085.py` | The 8085 core against the Python one (`src/hosts/i8085.py`) on the Accent SA firmware's boot: per-step registers at the boundary, the first differences by class. |
+| `trace_i8085.py` | The 8085 core against the Python one (`src/hosts/i8085.py`) on the Accent-PC firmware's boot: per-step registers at the boundary, the first differences by class. |
 | `mame_i86/` | Where MAME's 8086 comes from: `PINNED.txt` (the upstream revision, the files' hashes) and the licence text (BSD-3-Clause; Carl). Nothing of it is copied unchanged. |
 | `extract_i86_machine.py` | Generates `i86_mame_machine.cpp` from MAME's `i86.cpp` and `i86inline.h` (pinned by revision and sha256): exact line ranges, each anchored, every change named and marked `CHANGED`. |
 | `i86_mame_machine.cpp` | **Generated; do not edit.** MAME's 8086: the inline helpers, the cycle tables, reset, an interrupt's entry (with the INT seam), the input lines, execute_run's own opcodes and every other instruction. |
@@ -61,8 +61,8 @@ Built by `../blazie/build_board.py` (the Braille Lite board on the MAME core: `b
 compared, they legitimately differ), a must-fail control with one value flipped, and two units in one process.
 The 0.7 shipping libraries use MAME. Legacy outputs are development references only.
 
-MAME's 8085 (the Accent SA's CPU, to replace `src/hosts/i8085.py`) is built the same way: `test_i8085_contract.exe`
-by `build_board.py`, `test_i8085_contract` by `build_linux.sh`, both gated. The Accent SA
+MAME's 8085 (the Accent-PC's CPU, to replace `src/hosts/i8085.py`) is built the same way: `test_i8085_contract.exe`
+by `build_board.py`, `test_i8085_contract` by `build_linux.sh`, both gated. The Accent-PC
 board in `../accentsa/` uses it by default.
 
 MAME's 8086 (the Accent-mini's PC, to replace Unicorn under `src/hosts/accent.py`) likewise: `test_i86_contract.exe`
@@ -104,7 +104,7 @@ build using only the MAME core is MIT plus MAME's BSD-3 notice.
   holds at 1, 0, 0; MAME keeps its undocumented V and K flags there. A scratch run with PUSH PSW forced to the
   8080's bits (not a change to the core): 8080EXM 23 of 25, the two left being `aluop` (the 8085's ANA sets AC,
   Intel's ANA listing), and CPUTEST reports no error before it waits for console input.
-- The Accent SA firmware (`trace_i8085.py`, both cores in lockstep on a stub board, 400,000 instructions of boot
+- The Accent-PC firmware (`trace_i8085.py`, both cores in lockstep on a stub board, 400,000 instructions of boot
   and "Hello."): the same 312 SSI-263 writes at the same instructions, the same interrupts (TRAP 55, RST 6.5 14),
   the same T-states for every instruction and acceptance (12), and the same registers except PSW bits 1/3/5 from
   the reset value on. `--control` (an 11-T acceptance) must be reported, and is. With `--trap-after-ei 1` (a

@@ -1,7 +1,8 @@
-"""The Aicom Accent SA: its own 8085 firmware (u2, with the u3/u4 dictionary ROMs) on an
+"""The Aicom Accent-PC: its own 8085 firmware (u2, with the u3/u4 dictionary ROMs) on an
 emulated 8085, driving the engine's SSI-263.
 
-The stand-alone Accent SA is a serial box: text arrives on an 8251 USART, its 8085 runs
+The Accent-PC is Aicom's plug-in card, with a serial port beside its PC bus port for
+stand-alone use; here it is driven as a serial box: text arrives on an 8251 USART, its 8085 runs
 Aicom's rules and dictionaries, and an AI901 (the SSI-263) speaks.  This host gives the
 firmware the machine it was written for, as read from u2 and confirmed by running it (the
 one host liberty is `turbo`, see _cpu):
@@ -15,7 +16,8 @@ one host liberty is `turbo`, see _cpu):
                of 07 has A/R in bit 7
   ports 20/21  the 8251: data, and mode / command / status.  RxRDY is RST 6.5.
   port 40      out: bank (bits 0-1) and bit 4, which gates A/R onto TRAP; in: option switches
-  port 80      a parallel input (RST 5.5), unused here
+  port 80      a parallel input (RST 5.5), unused here: the card's PC bus side (the firmware
+               reads and writes it; the stand-alone Accent SA, a later Z80 design, has no such port)
   TRAP         A/R AND port 40 bit 4.  The firmware sets bit 4 (4FFDh) once it has queued
                phonemes and clears it (5014h) when its queue runs dry; its TRAP handler
                (4E68h) writes the next five registers and refills the queue.  Ungated, an

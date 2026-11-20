@@ -1,6 +1,6 @@
 // The app's settings, in device-protected storage so the service can read them before the phone is unlocked.
 // The scales are the NVDA drivers' (and the speech-dispatcher module's): rate and pitch 0-100 with 50 the unit's
-// factory rate and pitch (the Braille Lite's 11 and 16, the Accent SA's 5 and 5, the Speak-Out's 5 and 3), volume
+// factory rate and pitch (the Braille Lite's 11 and 16, the Accent-PC's 5 and 5, the Speak-Out's 5 and 3), volume
 // 0-200 (100 = the desktop voices' level, for every voice), the Braille Lite's tone 0-26 (factory 7), short pauses,
 // numbers read as words (on, as its NVDA driver's "Custom number processing"), run ahead (experimental, off) and the
 // line-start lift (off), the

@@ -164,7 +164,7 @@ enum FirmwareInstaller {
 
     /// The units heard once before they are taken: the Blazie units, the Speak-Out, the Sounding Board, the SmarTalk
     /// and the Mockingboards (the
-    /// Accents' files are known by their sha256 alone, and the Accent SA needs all three).
+    /// Accents' files are known by their sha256 alone, and the Accent-PC needs all three).
     private static let probed: Set<Int> = FirmwareImport.blazie.union([FirmwareImport.speakout,
                                                                       FirmwareImport.soundingboard,
                                                                       FirmwareImport.smartalk,

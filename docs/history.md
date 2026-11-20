@@ -576,6 +576,23 @@ study the analog side on a real chip.
   they doubt they could tell them apart blind. Their precise notes are nearly all about stops
   (B, G, final T and D), which is the next thing being measured.
 
+## 2026-11-20: the "Accent SA" was the Accent-PC
+
+From 0.5.0 through 0.9.2 one of the two Accent voices was called the Accent SA, and the entries above call it
+that. It runs the Accent-PC's firmware. What that rests on:
+
+- The ROMs (`u2`, `u3`, `u4`) are the ones Scott Baker published from his own card, and his notes describe a
+  plug-in PC card: an I/O port at 2A8h and DIP switches beside the address comparator.
+- Aicom's manual (4.0, February 1991) gives the Accent-PC a serial port and a power connector "for stand-alone
+  operation" beside its PC bus, and the Accent-SA a 2 KB text buffer. Our firmware's machine has 2 KB of RAM in
+  all, and its code reads and writes a second, parallel host port that our serial host never needed.
+- Kevin Horton owns a real Accent SA and sent its picture: a Z80, two ROMs, firmware 4.0 of 1991 and 4.1 of 1996.
+  Ours is 8085 code, copyright through 1989.
+
+So the names people see say Accent-PC from 0.9.5. Nothing about the sound changed. The voice's internal names
+(`accentmini:sa`, the `accentsa` folder, the firmware folder) stay as they were, so that no saved choice is lost, and
+speech-dispatcher still takes the old name. The true Accent SA is a different machine and would be a voice of its own.
+
 ## Engine versions at a glance
 
 | Version | Heard by | Change |

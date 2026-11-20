@@ -1,4 +1,4 @@
-"""Index marks in the Accent SA voice (src/csrc/marks.h, accentsa/as_voice.h asv_speak_marked): the unit's own
+"""Index marks in the Accent-PC voice (src/csrc/marks.h, accentsa/as_voice.h asv_speak_marked): the unit's own
 Ctrl-F at the front of the word a mark stands before, and each mark reported where the unit's prompt for it comes on
 its serial line -- in the audio the voice gives out, which holds some blocks back before it does.
 
@@ -190,7 +190,7 @@ def main():
 
     files = [os.path.join(ROMS, n) for n in ("u2.BIN", "u3.BIN", "u4.BIN")]
     if not all(os.path.isfile(f) for f in files):
-        print("skip the unit's cases: the Accent SA's ROMs are not in the firmware folder")
+        print("skip the unit's cases: the Accent-PC's ROMs are not in the firmware folder")
         print("as marks: %s" % ("PASS (bytes only)" if not bad[0] else "%d FAILED" % bad[0]))
         sys.exit(1 if bad[0] else 0)
     roms = [open(f, "rb").read() for f in files]

@@ -6,7 +6,7 @@ was written for, with the emulated chip in place of the real one. The chip's A/R
 drives each program back, so each one paces itself exactly as it did on the hardware.
 
 **Which CPUs run them.** This page describes the first hosts: Unicorn for the Speak-Out and
-the Accent-mini, z180emu for the Braille Lite, and a plain-Python 8085 for the Accent SA.
+the Accent-mini, z180emu for the Braille Lite, and a plain-Python 8085 for the Accent-PC.
 Since 0.7, every shipping front end runs instead on MAME's extracted CPU cores
 (BSD-3-Clause), in portable C, with no GPL runtime in any package:
 
@@ -15,7 +15,7 @@ Since 0.7, every shipping front end runs instead on MAME's extracted CPU cores
 | Speak-Out | MAME's NEC V40 | `speakout/` |
 | Braille Lite 2000 and the other Blazie units | MAME's Z180 | `blazie/` |
 | Accent-mini | MAME's 8086, under a small PC (`pc86/`) | `accentmini/` |
-| Accent SA | MAME's 8085 | `accentsa/` |
+| Accent-PC | MAME's 8085 | `accentsa/` |
 | Sounding Board | MAME's 8086, under the same small PC | `soundingboard/` |
 | SmarTalk | MAME's 8086, under the same small PC | `smartalk/` |
 | Mockingboard | Fake6502 (public domain, from Jayson Smith's EchoTalk) | `mockingboard/` (see [mockingboard-firmware.md](mockingboard-firmware.md)) |
@@ -155,9 +155,12 @@ document labels.
   and glide. The Accent reads 100 as "one zero zero", which its manual confirms is the
   Accent's own behaviour.
 
-## Aicom Accent SA
+## Aicom Accent-PC
 
-- **The box:** the stand-alone, serial Accent. Unlike the mini, it thinks for itself: an
+- **The card:** Aicom's plug-in Accent for the PC, which also has a serial port and a power connector for
+  stand-alone use; the serial port is how it is driven here. Through 0.9.2 this voice was called "Accent SA":
+  the ROMs were taken for the stand-alone box's. They are the card's ([history.md](history.md), 2026-11-20).
+  Unlike the mini, it thinks for itself: an
   Intel 8085 runs Aicom's rules from a 64 KB program ROM ("AICOM CORPORATION COPYRIGHT,
   WORLD, 1986, 1987, 1988, 1989"), with two 32 KB exception dictionaries ("AICOM
   COPYRIGHT1" and "2"; letters stored as ASCII minus 21h).

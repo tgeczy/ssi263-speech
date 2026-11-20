@@ -113,6 +113,6 @@
   direction, and the ears.
 - **Astra:** the die, the controls, the reviews, the engine's plan, and the ARM fix.
 - **Claude:** the measurements, the firmware emulation, the engine and the add-ons.
-- **spacepup:** the Accent SA's ROMs.
+- **spacepup:** the Accent-PC's ROMs.
 - **Listeners** on the fediverse, who heard what the metrics missed. They're thanked here
   without names, as they haven't asked to be named.

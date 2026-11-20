@@ -48,13 +48,13 @@ The other voices (0.7.1, "every voice on Linux"), each against its own voice dri
 (libsd_voices_ref.so, beside the module: the module's own engine objects, ctypes), in a session of their own:
 
   voices   LIST VOICES: every voice built in whose files are there, by the add-ons' names, with its language and an
-           empty variant -- the Accent SA always (Aicom's ROMs are in the repository)
+           empty variant -- the Accent-PC always (Aicom's ROMs are in the repository)
   <v>_speak, <v>_stop, <v>_after, <v>_set   as above, on that voice (SET synthesis_voice), its unit one for the session
   <v>_bl   the Braille Lite again in the same session (SET synthesis_voice), and <v>_back: that voice once more,
            its unit as it was left; <v>_lang: SET language=en keeps that voice (it speaks English)
   <v>_44k  SSI263SampleRate 44100 reaches it
-  as_infl  SSI263AccentInflection 0 reaches the Accent SA (the reference at 0 must differ from the default's)
-where <v> is as (the Accent SA), am (the Accent-mini) and so (the Speak-Out) -- the last two when built in
+  as_infl  SSI263AccentInflection 0 reaches the Accent-PC (the reference at 0 must differ from the default's)
+where <v> is as (the Accent-PC), am (the Accent-mini) and so (the Speak-Out) -- the last two when built in
 (build_linux.sh: their sources in the tree) and their files are there.  The data folder the module gets is a fresh
 one: the Braille Lite's files from <data folder>, and aicom-accent-sa/, aicom-accent-mini/ and gw-micro-speakout/ from
 <data folder> when they are there, else from the repository's firmware/ (SPEAKOUT.HEX also from
@@ -71,7 +71,7 @@ before every word), in a session of their own, counted apart ("index marks: n of
   m_empty  a message of marks alone: its marks, then 702, no audio
   m_stop   STOP in a marked message: no 700 after the 703, and m_after: the next message reports its own marks
            only, all of them
-  m_as     the Accent SA (its own index marks, as_voice.h): as "marks", against a reference Accent SA given the
+  m_as     the Accent-PC (its own index marks, as_voice.h): as "marks", against a reference Accent-PC given the
            same marks
 
     python3 test_sd_ssi263.py <sd_ssi263> <libssi263speech.so> <data folder>
@@ -277,7 +277,7 @@ def _api(prefix, create_args, set_args):
 
 # Each voice: its name, its engine's prefix, how its unit is made, and its settings from the config's defaults (or
 # the keys given) -- the calls sd_voices.c makes.
-ENGINES = {"as": ("Accent SA",), "am": ("Accent-mini",), "so": ("Speak-Out",), "mb": ("Mockingboard",),
+ENGINES = {"as": ("Accent-PC",), "am": ("Accent-mini",), "so": ("Speak-Out",), "mb": ("Mockingboard",),
            "mbe": ("Mockingboard, early",), "st": ("SmarTalk (Automated Functions)",)}
 
 
@@ -349,7 +349,7 @@ class EngineRef:
         return b"".join(out)
 
     def say_marked(self, text, ats):
-        """(PCM of the message, [(mark's index, samples before it)]): the Accent SA with a mark at each offset"""
+        """(PCM of the message, [(mark's index, samples before it)]): the Accent-PC with a mark at each offset"""
         assert self.key == "as"
         ref_lib.asv_speak_marked.argtypes = [_P, _S, _I, ctypes.POINTER(Mark), _I]
         ref_lib.asv_reached.argtypes = [_P, ctypes.POINTER(ctypes.POINTER(Reach))]
@@ -492,7 +492,7 @@ EXPECTED = [("Braille Lite 2000", "en-US", ("BL2ENG.BNS", "bl2_2003_warm.state")
             ("Braille Lite 2000 (German)", "de-DE", ("Lite2000_de.BNS", "lite2000_de_fresh.state")),
             ("Braille Lite 2000 (Italian)", "it-IT", ("Lite2000_it.BNS", "lite2000_it_fresh.state")),
             ("Braille 'n Speak 2000 (Slovak)", "sk-SK", ("BS2SLL.BNS", "bs2sll_fresh.state")),
-            ("Accent SA", "en-US", tuple("aicom-accent-sa/" + f for f in FW_DIRS["aicom-accent-sa"])),
+            ("Accent-PC", "en-US", tuple("aicom-accent-sa/" + f for f in FW_DIRS["aicom-accent-sa"])),
             ("Accent-mini", "en-US", ("aicom-accent-mini/SPKEMS.DVC",)),
             ("Speak-Out", "en-US", ("gw-micro-speakout/SPEAKOUT.HEX",)),
             # 0.8.5's GW Micro Sounding Board, right under the Speak-Out (sd_voices.c), its two drivers in the data folder
@@ -510,7 +510,7 @@ EXPECTED += [(r["vname"], r["tag"], ("bl2000/" + r["file"], "bl2000/%s.state" % 
 EXPECTED += [("SmarTalk (Automated Functions)", "en-US", ("automated-functions-smartalk/S_TALK.EXE",))]
 want = ["200-%s\t%s\t" % (n, lang) for n, lang, files in EXPECTED       # the variant empty: no "MALE1" (PR 29)
         if n in BUILT_NAMES and all(os.path.isfile(os.path.join(VDATA, f)) for f in files)] + ["249 OK VOICES LISTED"]
-ok = voices == want and "Accent SA" in listed and set(BUILT_NAMES) <= {e[0] for e in EXPECTED}
+ok = voices == want and "Accent-PC" in listed and set(BUILT_NAMES) <= {e[0] for e in EXPECTED}
 print("voices   %d listed, built in: %s: %s" % (len(listed), ", ".join(BUILT_NAMES),
                                                 "as expected" if ok else "NOT as expected: %r" % want))
 ref = Ref()
@@ -798,13 +798,27 @@ for key in ("as", "am", "so", "mb", "mbe", "st"):
 a = Module(user_conf="SSI263AccentInflection 0\n")
 a.send("INIT")
 assert a.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
-a.set(synthesis_voice="Accent SA")
+a.set(synthesis_voice="Accent-PC")
 pcm, _ev, _n = a.speak("Is it ready? It is.")
 a.send("QUIT")
 a.p.wait(timeout=10)
 flat, full = EngineRef("as", accent_inflection=0).say("Is it ready? It is."), EngineRef("as").say("Is it ready? It is.")
 print("as_infl  the reference at inflection 0 %s the default's" % ("differs from" if flat != full else "is IDENTICAL to"))
 results.append(same("as_infl", pcm, flat) and flat != full)
+# the name this voice had through 0.9.2, "Accent SA", as Orca or another client saved it (sd_voices.c FORMER): still
+# this voice.  From another voice first, where one is listed, so that a name ignored would leave that one speaking
+f = Module()
+f.send("INIT")
+assert f.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
+other = next((n for n in listed if n != ENGINES["as"][0]), None)
+if other:
+    f.set(synthesis_voice=other)
+f.set(synthesis_voice="Accent SA")
+pcm, _ev, _n = f.speak("Is it ready? It is.")
+f.send("QUIT")
+f.p.wait(timeout=10)
+print("as_former chosen by its former name after %s" % (other or "no other voice: the default alone, not telling"))
+results.append(same("as_former", pcm, full))
 
 # ---- index marks ----------------------------------------------------------------------------------------------------
 def marked(text, end=None):
@@ -854,7 +868,7 @@ marks.append(said("m_stop", ev == "703 STOP" and before < len(names), "a STOP in
                   "%d of %d marks" % (ev, before, len(names))))
 marks.append(said("m_after", [m[0] for m in k.marks] == names2 and ev2 == "702 END",
                   "the next message: its own %d marks, %d reported" % (len(names2), len(k.marks))))
-k.set(synthesis_voice="Accent SA")
+k.set(synthesis_voice="Accent-PC")
 asr = EngineRef("as")
 TEXT_AS = "this is a plain line of words, and then it goes on some more, until it ends"
 ssml, ats, names = marked(TEXT_AS)
@@ -864,7 +878,7 @@ ok = same("m_as", pcm, want)
 where = [(names[i], at) for i, at in reached]
 marks.append(said("m_as", ok and k.marks == where and [m[0] for m in k.marks] == names
                   and len(set(at for _, at in where)) >= len(names) - 2,
-                  "the Accent SA: %d of %d marks, in the text's order %s, each with the reference's audio before it %s" % (
+                  "the Accent-PC: %d of %d marks, in the text's order %s, each with the reference's audio before it %s" % (
                       len(k.marks), len(names), [m[0] for m in k.marks] == names, k.marks == where)))
 k.send("QUIT")
 k.p.wait(timeout=10)

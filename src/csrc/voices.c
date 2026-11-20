@@ -38,7 +38,7 @@ static const ssv_info VOICES[] = {
      {"blazie/spanish/BL2SPA.BNS", "blazie/spanish/bl2spa_fresh.state", NULL}},
     {"speakout:speakout", "Speak-Out", "en", SSV_SPEAKOUT, 2, {"gw-micro-speakout/SPEAKOUT.HEX", NULL}},
     {"accentmini:mini", "Accent-mini", "en", SSV_ACCENT_MINI, 3, {"aicom-accent-mini/SPKEMS.DVC", NULL}},
-    {"accentmini:sa", "Accent SA", "en", SSV_ACCENT_SA, 3,
+    {"accentmini:sa", "Accent-PC", "en", SSV_ACCENT_SA, 3,
      {"aicom-accent-sa/u2.BIN", "aicom-accent-sa/u3.BIN", "aicom-accent-sa/u4.BIN", NULL}},
     {"mockingboard:mockingboard", "Mockingboard (Sweet Micro Systems)", "en", SSV_MOCKINGBOARD, 4,
      {"sweet-micro-mockingboard/mockingboard-tts-1.1.bin", NULL}},
@@ -198,7 +198,7 @@ static int eng_bl_render(void *u, const short **pcm, int *done) { return blv_ren
 static void eng_bl_cancel(void *u) { blv_cancel((bl_voice *)u); }
 static void eng_bl_destroy(void *u) { blv_destroy((bl_voice *)u); }
 
-/* the Accent SA: accentmini.py's "sa" voice (rate, pitch, inflection, volume, number words) */
+/* the Accent-PC: accentmini.py's "sa" voice (rate, pitch, inflection, volume, number words) */
 static void *eng_as_create(const ssv_info *info, const ssv_source *src, const ssv_boot *b, char *err, int errlen)
 {
     size_t n[3];
@@ -212,7 +212,7 @@ static void *eng_as_create(const ssv_info *info, const ssv_source *src, const ss
     if (rom[0] && rom[1] && rom[2])
         v = asv_create(rom[0], n[0], rom[1], n[1], rom[2], n[2], (double)b->sample_rate, err, errlen);
     else
-        snprintf(err, errlen, "could not read the Accent SA's ROMs");
+        snprintf(err, errlen, "could not read the Accent-PC's ROMs");
     for (k = 0; k < 3; k++)
         free(owned[k]);
     return v;

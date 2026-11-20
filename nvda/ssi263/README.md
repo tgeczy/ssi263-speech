@@ -20,7 +20,7 @@ The units are the 0.7 add-ons' drivers, unchanged, moved whole by the build into
 |---|---|---|
 | Braille Lite 2000 (en, es) | `nvda/blazie/synthDrivers/blazie.py` | `_ssi263_blazie` (`build_blazie.py`) |
 | Speak-Out | `nvda/speakout/synthDrivers/speakout.py` | `_ssi263_speakout` (`build_speakout.py`) |
-| Accent SA, Accent-mini | `nvda/accent/synthDrivers/accentmini.py` | `_ssi263_accent` (`build_accent.py`) |
+| Accent-PC, Accent-mini | `nvda/accent/synthDrivers/accentmini.py` | `_ssi263_accent` (`build_accent.py`) |
 | Mockingboard | `nvda/mockingboard/synthDrivers/mockingboard.py` | `_ssi263_mockingboard` (`build_ssi263.py`; only with its firmware file) |
 | SmarTalk | `nvda/smartalk/synthDrivers/smartalk.py` | `_ssi263_smartalk` (`build_ssi263.py`; only with its S_TALK.EXE) |
 
@@ -33,7 +33,7 @@ each line, and with "Join phrases" on they go to the unit as one line so that th
 (Ctrl-F, echoed when speech reaches it), exact, on the releases measured for them: the English, Danish, Norwegian
 and Swedish ones (the release table's `marks` column; on the Spanish and German units a mark inside a line changes the speech).
 The Speak-Out's and the Sounding Board's are their own too (Ctrl-E `[` and a byte, which the box sends back and
-the card's driver counts), the Accent SA's (Ctrl-F, which the unit answers), the Accent-mini's and the SmarTalk's
+the card's driver counts), the Accent-PC's (Ctrl-F, which the unit answers), the Accent-mini's and the SmarTalk's
 (Ctrl-F, which their programs count): exact, and the speech is the same with them, but for one pause frame of 8 ms
 the Accent-mini puts in front of a sentence whose first word is marked. The Mockingboard's are estimated, by the
 index's share of the text, good to a word or so

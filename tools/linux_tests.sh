@@ -15,7 +15,7 @@
 # English's spoken values still match them write for write; Spanish's do not, by the two writes the protection adds
 # after the 3.9 s cancel (R1=40, R0=C0), so it is not compared; the times legitimately differ.  The module
 # harness checks speech-dispatcher's protocol and every message's audio (run ahead too) on every voice it offers (the
-# Braille Lite, the Accent SA, and the Accent-mini and Speak-Out when built in) and the Braille Lite's number words,
+# Braille Lite, the Accent-PC, and the Accent-mini and Speak-Out when built in) and the Braille Lite's number words,
 # and its controls (the unit never cancelled; DEBUG and QUIT answered as up to 0.9.1; a PAUSE answered 704;
 # SSI263RunAhead, SSI263BrailleLiteNumbers, SSI263LineLift and SSI263AccentInflection each ignored) must fail, and
 # where speech-dispatcher and a sound server are there the module is run under a real server too; the no-GPL audit
@@ -188,24 +188,24 @@ control "commas CONTROL (the commas left as they are, must fail)" "^FAIL text +'
     "^FAIL unit +'1, 2, 3, 4, 5, 6' with the number words off: 6\.[0-9]+, 10\.[0-9]+ s" "^ok +table " \
     "^commas: 2 FAILED$" \
     -- env SSI263_COMMAS_BREAK=1 python3 src/csrc/blazie/test_commas.py --lib "$LIB" --firmware "$DATA"
-# issue #8: the Accent SA's text done only when said (as_voice's settle between clauses), on the module's own engine
-# objects (libsd_voices_ref.so: libssi263speech.so has no Accent SA); its control is the settle off (0.7.5's done)
+# issue #8: the Accent-PC's text done only when said (as_voice's settle between clauses), on the module's own engine
+# objects (libsd_voices_ref.so: libssi263speech.so has no Accent-PC); its control is the settle off (0.7.5's done)
 # and must name the dialog's early texts
 VOICES_REF="$ROOT/build/linux/libsd_voices_ref.so"
-check "Accent SA: a text done only when said (issue #8)" python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
-control "Accent SA completion CONTROL (the settle off, must fail)" "^EARLY  rate +60 job +'Pitch: slider 50 alt\+p'" \
+check "Accent-PC: a text done only when said (issue #8)" python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+control "Accent-PC completion CONTROL (the settle off, must fail)" "^EARLY  rate +60 job +'Pitch: slider 50 alt\+p'" \
     "^EARLY  rate +75 say +'Rate: slider 75 alt\+r'" \
     "^checks: done ok, complete [0-9]+ FAILED, audio ok, latency ok, phase [0-9]+ FAILED, replace ok, limit ok$" \
     "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=1 python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
-control "Accent SA completion CONTROL (never done, must fail)" \
+control "Accent-PC completion CONTROL (never done, must fail)" \
     "^NOT DONE after 3 render calls  rate +50 job +'Rate: slider 50 alt\+r'" \
     "^checks: done [0-9]+ FAILED, complete ok, audio ok, latency ok, phase ok, replace ok, limit ok$" \
     "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=never python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
-control "Accent SA completion CONTROL (a wait kept across a cancel, must fail)" \
+control "Accent-PC completion CONTROL (a wait kept across a cancel, must fail)" \
     "^HELD   rate +60 job +'Pitch: slider 50 alt\+p', cancel while held" \
     "^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace [0-9]+ FAILED, limit ok$" \
     "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=held python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
-control "Accent SA completion CONTROL (the cap as a plain done, must fail)" \
+control "Accent-PC completion CONTROL (the cap as a plain done, must fail)" \
     "^SILENT LIMIT  rate +60 job +'Pitch: slider 50 alt\+p': done with [0-9]+ of its [0-9]+ samples, and no limit" \
     "^RECOVERY  rate +60 job +'Pitch: slider 50 alt\+p': the next text after the limit had [0-9]+ phonemes" \
     "^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace ok, limit [0-9]+ FAILED$" \
@@ -247,6 +247,11 @@ control "module CONTROL (DEBUG and QUIT answered, the voices listed, as before, 
     "^dbg_mid +module .*DIFFER" "^dbg_mid .*703 STOP.*: NOT as expected" "^quit .*answered nothing.*: NOT as expected" \
     "^$((N - 4)) of $N checks passed" -- env SD_SSI263_TEST_OLD_REPLIES=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
+# a former name unknown (sd_voices.c FORMER dropped): "Accent SA", as a client saved it before 0.9.5, no longer
+# selects the Accent-PC -- as_former must fail, the voice's own checks still pass
+control "module CONTROL (a voice's former name unknown, must fail)" "^speak +module .*identical" \
+    "^as_infl +module .*identical" "^as_former +module .*DIFFER" -- env SD_SSI263_TEST_NO_FORMER=1 \
+    python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # a PAUSE answered 704, the protocol's word for it, which a real server cannot resume from without index marks
 # (below): only pause_ev fails
 control "module CONTROL (a PAUSE answered 704, must fail)" "^pause +module .*identical" \
@@ -287,7 +292,7 @@ control "module CONTROL (SSI263BrailleLiteNumbers ignored, must fail)" "^num_dfl
 control "module CONTROL (SSI263LineLift ignored, must fail)" "^ra_sys +module .*identical" \
     "^lift +module .*DIFFER" "^$((N - 1)) of $N checks passed" -- env SD_SSI263_TEST_IGNORE_LINE_LIFT=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
-# the Accent's own key (SSI263AccentInflection) dropped on its way to the Accent SA: only as_infl fails
+# the Accent's own key (SSI263AccentInflection) dropped on its way to the Accent-PC: only as_infl fails
 control "module CONTROL (SSI263AccentInflection ignored, must fail)" "^as_speak +module .*identical" \
     "^as_infl +module .*DIFFER" "^$((N - 1)) of $N checks passed" -- env SD_SSI263_TEST_IGNORE_ACCENT_INFLECTION=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
@@ -692,9 +697,9 @@ check "licences in the package and the wheel" sh -c "tar -tzf build/ssi263-speec
     python3 -c 'import sys, zipfile; n = zipfile.ZipFile(sys.argv[1]).namelist(); sys.exit(sum(x.endswith(( \
     \".dist-info/LICENSE\", \".dist-info/Casso-MIT.txt\", \".dist-info/MAME-Z180-core-BSD-3-Clause.txt\")) \
     for x in n) != 3)' build/audit/ssi263speech-*.whl && echo 'MIT, Casso MIT, MAME Z180 BSD-3-Clause: in both'"
-# the Accent SA in the package (0.7.1, every voice on Linux): Aicom's three ROMs where the module looks for them, with
+# the Accent-PC in the package (0.7.1, every voice on Linux): Aicom's three ROMs where the module looks for them, with
 # Aicom's notice and MAME's 8085 notice; the Accent-mini and Speak-Out, when the module has them, are checked the same
-check "the Accent SA in the package, with its notices" sh -c "tar -tzf build/ssi263-speech-*-linux-$(uname -m).tar.gz | \
+check "the Accent-PC in the package, with its notices" sh -c "tar -tzf build/ssi263-speech-*-linux-$(uname -m).tar.gz | \
     grep -c -E '/(share/ssi263-speech/aicom-accent-sa/u[234]\.BIN|licenses/Aicom-notice\.txt|licenses/MAME-8085-core-BSD-3-Clause\.txt)\$' | \
     grep -qx 5 && echo 'u2, u3, u4, the Aicom notice, MAME 8085 BSD-3-Clause: in the package'"
 if ./build/linux/sd_ssi263 --voices | grep -q '^accent-mini'; then
@@ -762,7 +767,7 @@ if [ -f $SOFW/gw-micro-speakout/SPEAKOUT.HEX ]; then
 else
     echo "skip  so_voice index marks: no SPEAKOUT.HEX here"
 fi
-# ... and the Accent SA's (as_voice.h): Ctrl-F at the front of each marked word, the unit's prompts on its serial
+# ... and the Accent-PC's (as_voice.h): Ctrl-F at the front of each marked word, the unit's prompts on its serial
 # line, the marks following the audio the voice holds back (its ROMs are in the repository: it always runs)
 check "as_voice: index marks by the unit's own Ctrl-F" python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
 control "as_voice marks CONTROL (every mark with the first block, must fail)" "^FAIL place " "^FAIL twins " \

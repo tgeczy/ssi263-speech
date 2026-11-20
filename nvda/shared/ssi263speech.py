@@ -375,7 +375,7 @@ class _Accent(_Unit):
 
 
 class _AccentMarks:
-    """the Accents' own index mark (as_voice.h, am_voice.h): Ctrl-F, which the unit answers (the Accent SA) or its
+    """the Accents' own index mark (as_voice.h, am_voice.h): Ctrl-F, which the unit answers (the Accent-PC) or its
     driver counts (the Accent-mini) when the word before it has ended; all alike, so the k-th of a text is called k"""
 
     def mark_text(self, k):
@@ -402,7 +402,7 @@ class AccentMiniC(_AccentMarks, _Accent):
 
 
 class AccentSAC(_AccentMarks, _Accent):
-    """Aicom's Accent SA: its 8085 firmware and ROMs on MAME's 8085 and the NVDA driver's front end (as_voice.h)."""
+    """Aicom's Accent-PC: its 8085 firmware and ROMs on MAME's 8085 and the NVDA driver's front end (as_voice.h)."""
     _api, _host = "asv", "ash"
 
     def __init__(self, lib_path, rom_dir, out_rate):

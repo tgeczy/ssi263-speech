@@ -1,4 +1,4 @@
-/* as_usart.c -- the Accent SA's 8251 as its firmware uses it (as_usart.h).  MIT. */
+/* as_usart.c -- the Accent-PC's 8251 as its firmware uses it (as_usart.h).  MIT. */
 #include "as_usart.h"
 
 #include <stdlib.h>

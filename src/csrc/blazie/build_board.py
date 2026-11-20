@@ -68,7 +68,7 @@ def build_mame(gcc, env):
     subprocess.run([gxx] + MAME_CXX + MAME_LINK + inc + ["-o", os.path.join(OUT, "test_z180_whitebox.exe"),
                                                          os.path.join(cpu, "test_z180_whitebox.cpp"), objs["z180_asci"]],
                    env=env, check=True)
-    # MAME's 8085 core (the Accent SA's; no board yet): the CPU contract's tests, ../cpu/test_i8085_contract.c
+    # MAME's 8085 core (the Accent-PC's; no board yet): the CPU contract's tests, ../cpu/test_i8085_contract.c
     subprocess.run([gxx] + MAME_LINK + ["-o", os.path.join(OUT, "test_i8085_contract.exe"),
                                         objs["test_i8085_contract"], objs["i8085_mame"]], env=env, check=True)
     # MAME's 8086 core (the Accent-mini's PC): the CPU contract's tests, ../cpu/test_i86_contract.c

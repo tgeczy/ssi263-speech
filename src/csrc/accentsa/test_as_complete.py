@@ -1,4 +1,4 @@
-"""Issue #8: is an Accent SA text done when as_voice says so?  Through the library every front end shares
+"""Issue #8: is an Accent-PC text done when as_voice says so?  Through the library every front end shares
 (ssi263speech.dll / libssi263speech.so: the NVDA add-on's job API, and asv_speak, which the SAPI engine, the
 speech-dispatcher module and Android reach through voices.c).
 
@@ -194,7 +194,7 @@ def name(text, rate, job):
 
 
 DIALOG = ["Rate: slider %d alt+r", "Pitch: slider 50 alt+p", "Volume: slider 100 alt+o",
-          "Inflection: slider 100 alt+i", "Variant: combo box Voice 5 (default) alt+a", "Voice: combo box Accent SA alt+v"]
+          "Inflection: slider 100 alt+i", "Variant: combo box Voice 5 (default) alt+a", "Voice: combo box Accent-PC alt+v"]
 WORDS = ("the quick brown fox jumps over a lazy dog extraordinary international communication representative "
          "1234 567 89 2026 $30.50 3.14 NVDA synthesizer settings dialog check box checked button OK").split()
 rng = random.Random(8)

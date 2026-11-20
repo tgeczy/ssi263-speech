@@ -5,7 +5,7 @@
   the 30 ms floor, the 2 s cap, the end-of-request pause, a break-only spacer), the entities, the prosody: VoiceOver's
   rate="249.99995%", the volume rotor's decibels (volume="-6.0206003dB" is 50 %), pitch changes.
 - A request spoken (ssp_speech), for every voice whose files are there (the Braille Lite, English and Spanish; the
-  Speak-Out; the Accent SA; the Accent-mini): byte for byte the segments through ssa_start/ssa_pull directly with the
+  Speak-Out; the Accent-PC; the Accent-mini): byte for byte the segments through ssa_start/ssa_pull directly with the
   pauses' zeros between them -- the voice's own PCM, which test_android_native.py and test_apple_core.py hold to the
   desktop -- and a stop: nothing after it (-2, and again -2), and the next request clean.
 - Aicom's files (ssp_import): each known by its sha256 under any name, one changed byte not, and the Braille Lite's,

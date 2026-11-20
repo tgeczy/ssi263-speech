@@ -38,7 +38,7 @@ typedef struct {
     const char *id;                    /* voices.h's */
     const char *name, *language, *engine;
     const char *files[4];              /* in the data folder, ssv_info.files' order, NULL-terminated */
-    long size[4];                      /* each one's size when it must be exactly that (the Accent SA's ROMs), else 0 */
+    long size[4];                      /* each one's size when it must be exactly that (the Accent-PC's ROMs), else 0 */
 } voice_def;
 
 static const voice_def ALL[] = {
@@ -53,7 +53,7 @@ static const voice_def ALL[] = {
      {"Lite2000_it.BNS", "lite2000_it_fresh.state", NULL}},
     {"blazie:blazie_sk", "Braille 'n Speak 2000 (Slovak)", "sk-SK", "braille-n-speak",
      {"BS2SLL.BNS", "bs2sll_fresh.state", NULL}},
-    {"accentmini:sa", "Accent SA", "en-US", "accent-sa",
+    {"accentmini:sa", "Accent-PC", "en-US", "accent-sa",
      {"aicom-accent-sa/u2.BIN", "aicom-accent-sa/u3.BIN", "aicom-accent-sa/u4.BIN", NULL}, {0x10000, 0x8000, 0x8000}},
     {"accentmini:mini", "Accent-mini", "en-US", "accent-mini", {"aicom-accent-mini/SPKEMS.DVC", NULL}},
     {"speakout:speakout", "Speak-Out", "en-US", "speakout", {"gw-micro-speakout/SPEAKOUT.HEX", NULL}},
@@ -101,12 +101,15 @@ static const char *const FORMER[][2] = {
     {"Braille Lite 2000 (Deutsch)", "Braille Lite 2000 (German)"},
     {"Braille Lite 2000 (italiano)", "Braille Lite 2000 (Italian)"},
     {"Braille 'n Speak 2000 (sloven\xc4\x8dina)", "Braille 'n Speak 2000 (Slovak)"},
+    /* 0.9.5: the voice called "Accent SA" since 0.7.1 runs the Accent-PC card's ROMs, and is named so */
+    {"Accent SA", "Accent-PC"},
 };
 
 int sdv_find(const char *name)
 {
     int i;
-    for (i = 0; i < (int)(sizeof FORMER / sizeof FORMER[0]); i++)
+    /* (SD_SSI263_TEST_NO_FORMER: the tests' control, a former name unknown) */
+    for (i = 0; i < (int)(sizeof FORMER / sizeof FORMER[0]) && !getenv("SD_SSI263_TEST_NO_FORMER"); i++)
         if (!strcmp(name, FORMER[i][0])) name = FORMER[i][1];
     for (i = 0; i < sdv_count(); i++)
         if (!strcmp(name, def(i)->name)) return i;

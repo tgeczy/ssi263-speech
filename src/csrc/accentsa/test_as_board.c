@@ -1,4 +1,4 @@
-/* test_as_board.c -- the Accent SA board's own rules (as_board.h), on small programs in a synthetic u2: no firmware.
+/* test_as_board.c -- the Accent-PC board's own rules (as_board.h), on small programs in a synthetic u2: no firmware.
  *   rom_sizes     u2 64 KB, u3 and u4 32 KB exactly, or no board (and the reason)
  *   memory_map    u2 below 7800h, RAM 7800-7FFF, ROM writes ignored; port 40h bits 0-1 bank the window: u2's upper
  *                 half, u3, u4, nothing (FFh)

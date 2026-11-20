@@ -1,6 +1,6 @@
 /* cpu.h -- the contract every CPU core in libssi263speech implements (DRAFT for review: Astra, Reply 73/76).
  *
- * One small C interface per core, the same shape for each: the Z180 (the Braille Lite), the 8085 (the Accent SA)
+ * One small C interface per core, the same shape for each: the Z180 (the Braille Lite), the 8085 (the Accent-PC)
  * and, later, an x86 real-mode core (Speak-Out, Accent-mini).  A board drives a core through it and never reaches
  * into a core's internals; a core never knows which board it is in.  CONTRACT.md defines the timing: what a step
  * is, when interrupts are sampled, what HALT, SLP and EI do, and what cycle count a callback sees.
@@ -98,7 +98,7 @@ void z180_asci_get(const z180 *c, int channel, z180_asci_regs *out);
 int z180_csio_clock(z180 *c, uint8_t in, uint8_t *sent);
 uint8_t z180_csio_cntr(const z180 *c);
 
-/* ---- 8085 (Intel 8085A: the Accent SA) ------------------------------------------------------------------------- */
+/* ---- 8085 (Intel 8085A: the Accent-PC) ------------------------------------------------------------------------- */
 typedef struct i8085 i8085;
 
 enum { I8085_INTR, I8085_RST55, I8085_RST65, I8085_RST75, I8085_TRAP };   /* RST7.5 and TRAP edge-sensitive */

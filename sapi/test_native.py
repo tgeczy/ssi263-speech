@@ -237,7 +237,7 @@ def compare(session, arch, requests, ref, nat, rate):
                 # every voice is its device's firmware running, and it runs on until the cancel reaches it, so the
                 # same cut audio does not mean the same unit after it: under a loaded machine the reference server
                 # (Python) takes its cancel a little later in the unit's time (seen in the suite: the Braille Lite
-                # 20202 vs 19862 samples, the Accent SA 20608 vs 20542).  The rule test_serve uses for a cancel: the
+                # 20202 vs 19862 samples, the Accent-PC 20608 vs 20542).  The rule test_serve uses for a cancel: the
                 # next utterance whole and voiced, within 10 %.
                 ok = sb == 0 and voiced(b) and abs(len(a) - len(b)) <= 0.1 * len(a)
                 note = "after a cancel at another point: %.2f s against %.2f s, voiced" % (len(b) / 2 / rate,

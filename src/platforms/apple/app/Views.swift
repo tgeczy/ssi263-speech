@@ -61,7 +61,7 @@ struct SetupView: View {
                      "(the list below); the Blazie Braille 'n Speak 2000 the same way, in Slovak; the GW Micro " +
                      "Speak-Out, its own firmware on an emulated V40, and GW Micro's Sounding Board, the same voice " +
                      "on the card's own DOS drivers; Automated Functions' SmarTalk, its own DOS text-to-speech on " +
-                     "an emulated PC, in English; the Aicom Accent SA and Accent-mini; and the " +
+                     "an emulated PC, in English; the Aicom Accent-PC and Accent-mini; and the " +
                      "Sweet Micro Systems Mockingboard, the Apple II's speech card, on an emulated 6502. Each " +
                      "language is offered to VoiceOver and the system once its unit is imported.")
             }
@@ -106,7 +106,7 @@ struct SetupView: View {
                      "the Sounding Board (or its SBLOAD.COM and SB.COM together: the voice needs both), the " +
                      "SmarTalk's S_TALK.EXE 1.21, from Automated Functions' SmarTalk V1.21 disk (36,882 bytes), " +
                      "Aicom's " +
-                     "for the Accent SA and Accent-mini, and " +
+                     "for the Accent-PC and Accent-mini, and " +
                      "for the Mockingboard, your own copy of the Mockingboard Developers Toolkit disk.")
             }
 
@@ -367,7 +367,7 @@ struct VoiceSettingsView: View {
             Section {
                 Toggle("Voice inflection", isOn: $inflection)
                 Text("The unit's own intonation. Off, questions stay flat: the Braille Lite's status-menu setting, " +
-                     "and the Accent SA's and the SmarTalk's monotone.").font(.footnote)
+                     "and the Accent-PC's and the SmarTalk's monotone.").font(.footnote)
                 Toggle("Short pauses", isOn: $shortPauses)
                 Text("The Blazie units only: sentences packed onto one line from the second on, as the NVDA " +
                      "add-on's default.").font(.footnote)

@@ -2,7 +2,7 @@
  * the box's settings commands, currencies and _clean, a capital's pitch with snap_pitch, the speak loop with the lead
  * trim and PCM, cancel with the pitch said again, the sample-rate switch), around the C host (so_host.h) and a chip
  * made from the built-in defaults (ssi263_default_params) -- as bl_voice.h is the Braille Lite's and as_voice.h the
- * Accent SA's.  For front ends without Python: the Linux speech-dispatcher module, Android.
+ * Accent-PC's.  For front ends without Python: the Linux speech-dispatcher module, Android.
  *
  * nvda/tools/so_voice_equiv.py gates it: the real NVDA driver (under the stand-in NVDA) and this voice speak the same
  * texts with the same settings, and every PCM byte must be equal.

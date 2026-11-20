@@ -25,7 +25,7 @@ enum FirmwareImport {
     static let german = 7                   // the Braille Lite, German (0.8)
     static let italian = 8                  // the Braille Lite, Italian
     static let slovak = 9                   // the Braille 'n Speak 2000, Slovak
-    static let accentU2 = 10                // the Accent SA's program ROM
+    static let accentU2 = 10                // the Accent-PC's program ROM
     static let accentU3 = 11                // its dictionary, part 1
     static let accentU4 = 12                // its dictionary, part 2
     static let accentMini = 13              // the Accent-mini's SPKEMS.DVC
@@ -95,7 +95,7 @@ enum FirmwareImport {
         "holding it. For the Mockingboard: your own copy of the Mockingboard Developers Toolkit disk, as its image " +
         "(.dsk, .do or .po), or the mockingboard-tts-1.1.bin made from it; for the early Mockingboard, your own copy " +
         "of Mockingboard disk 1, or the mockingboard-tts-early.bin made from it. For the Accents: Aicom's u2.BIN, " +
-        "u3.BIN and u4.BIN for the Accent SA and SPKEMS.DVC for the Accent-mini. A .zip or .nvda-addon package " +
+        "u3.BIN and u4.BIN for the Accent-PC and SPKEMS.DVC for the Accent-mini. A .zip or .nvda-addon package " +
         "containing them works too, with them in any of its folders."
     /// A zip inside a zip in the source: the import opens one level of zips, so its firmware is not looked at.
     static func unopened(_ what: String) -> String {
@@ -168,7 +168,7 @@ enum FirmwareImport {
         case speakout: return "Speak-Out"
         case mockingboard: return "Mockingboard"
         case mockingboardEarly: return "early Mockingboard"
-        case accentU2, accentU3, accentU4: return "Accent SA"
+        case accentU2, accentU3, accentU4: return "Accent-PC"
         case accentMini: return "Accent-mini"
         case soundingboard: return "Sounding Board"
         case smartalk: return "SmarTalk"

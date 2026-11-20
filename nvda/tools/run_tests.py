@@ -101,7 +101,7 @@ if NATIVE_BUILT:
                         fail_marks=[r"^same  speakout plain ", r"^DIFF  speakout cancel in a sequence .*cut after",
                                     r"^DIFF  mini cancel in a sequence .*cut after",
                                     r"^DIFF  sa cancel in a sequence .*cut after", NATIVE_EQ_SUM]))
-    # Issue #8: the Accent SA called a text done in the firmware's quiet between two clauses ("Rate:" | "slider 55
+    # Issue #8: the Accent-PC called a text done in the firmware's quiet between two clauses ("Rate:" | "slider 55
     # alt+r"), and the rest came out with the next speech.  as_voice now waits while the 8085 still runs its rules.
     # test_as_complete.py: the library every front end shares (the job API and asv_speak), the host run on after each
     # done -- no phoneme may come, and a text that never paused keeps its audio and its done's chip time; blocks shifted
@@ -111,25 +111,25 @@ if NATIVE_BUILT:
     # a cancel or new text; the cap as a plain done -- each must fail its own check and only that.
     AS_COMPLETE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "accentsa", "test_as_complete.py")
     AS_CHECKS = r"^checks: done %s, complete %s, audio ok, latency ok, phase %s, replace %s, limit %s$"
-    CHECKS.append(check("Accent SA: a text done only when said (issue #8)", [PY, AS_COMPLETE]))
-    CHECKS.append(check("Accent SA completion CONTROL (the settle off, must fail)", [PY, AS_COMPLETE],
+    CHECKS.append(check("Accent-PC: a text done only when said (issue #8)", [PY, AS_COMPLETE]))
+    CHECKS.append(check("Accent-PC completion CONTROL (the settle off, must fail)", [PY, AS_COMPLETE],
                         env={"AS_COMPLETE_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^EARLY  rate +60 job +'Pitch: slider 50 alt\+p'",
                                     r"^EARLY  rate +75 say +'Rate: slider 75 alt\+r'",
                                     AS_CHECKS % ("ok", r"\d+ FAILED", r"\d+ FAILED", "ok", "ok"),
                                     r"^accent sa completion: FAILED$"]))
-    CHECKS.append(check("Accent SA completion CONTROL (never done, must fail)", [PY, AS_COMPLETE],
+    CHECKS.append(check("Accent-PC completion CONTROL (never done, must fail)", [PY, AS_COMPLETE],
                         env={"AS_COMPLETE_BREAK": "never"}, expect_fail=True,
                         fail_marks=[r"^NOT DONE after 3 render calls  rate +50 job +'Rate: slider 50 alt\+r'",
                                     AS_CHECKS % (r"\d+ FAILED", "ok", "ok", "ok", "ok"),
                                     r"^accent sa completion: FAILED$"]))
-    CHECKS.append(check("Accent SA completion CONTROL (a wait kept across a cancel, must fail)", [PY, AS_COMPLETE],
+    CHECKS.append(check("Accent-PC completion CONTROL (a wait kept across a cancel, must fail)", [PY, AS_COMPLETE],
                         env={"AS_COMPLETE_BREAK": "held"}, expect_fail=True,
                         fail_marks=[r"^HELD   rate +60 job +'Pitch: slider 50 alt\+p', cancel while held",
                                     r"^HELD   rate +60 say +'Pitch: slider 50 alt\+p', new text while held",
                                     AS_CHECKS % ("ok", "ok", "ok", r"\d+ FAILED", "ok"),
                                     r"^accent sa completion: FAILED$"]))
-    CHECKS.append(check("Accent SA completion CONTROL (the cap as a plain done, must fail)", [PY, AS_COMPLETE],
+    CHECKS.append(check("Accent-PC completion CONTROL (the cap as a plain done, must fail)", [PY, AS_COMPLETE],
                         env={"AS_COMPLETE_BREAK": "limit"}, expect_fail=True,
                         fail_marks=[r"^SILENT LIMIT  rate +60 job +'Pitch: slider 50 alt\+p': done with \d+ of its \d+ "
                                     r"samples, and no limit reported",
@@ -558,7 +558,7 @@ _UNITS = os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "synthDrive
 for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("blazie", "blazie_es", "Braille Lite (Spanish)"),
                               ("blazie", "blazie_de", "Braille Lite (German)"), ("speakout", None, "Speak-Out"),
                               ("speakout", "soundingboard", "Sounding Board"), ("accent", "mini", "Accent-mini"),
-                              ("accent", "sa", "Accent SA"), ("mockingboard", None, "Mockingboard"),
+                              ("accent", "sa", "Accent-PC"), ("mockingboard", None, "Mockingboard"),
                               ("smartalk", None, "SmarTalk")):
     _file = {"accent": "accentmini"}.get(_which, _which) + ".py"
     if not os.path.isfile(os.path.join(_UNITS, _file)) or not os.path.isfile(
@@ -569,7 +569,7 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("blazie", "blaz
     _argv = [PY, "say_all_flow.py", _which] + ([_voice] if _voice else [])
     CHECKS.append(check("say all's lines flow: %s" % _name, _argv, env={"SSI263_SYNTH_DRIVERS": _UNITS},
                         ok=lambda out: bool(re.search(r"^say all flow: all ok$", out, re.M))))
-    if _name in ("Braille Lite", "Speak-Out", "Sounding Board", "Accent SA", "Accent-mini", "SmarTalk"):   # its indexes are the unit's own
+    if _name in ("Braille Lite", "Speak-Out", "Sounding Board", "Accent-PC", "Accent-mini", "SmarTalk"):   # its indexes are the unit's own
         # marks: estimated
         # instead, "own" must fail
         CHECKS.append(check("say all's lines CONTROL (%s: its own index marks unused, must fail)" % _name, _argv,
@@ -1344,7 +1344,7 @@ if os.path.isfile(MAME_LIVE):
     CHECKS.append(check("MAME Z180 core: white-box tests", [os.path.join(LIB, "test_z180_whitebox.exe")]))
 # ---- the Android engine (src/platforms/android), one block --------------------------------------------------------
 # Its native part, built for the desktop: the Braille Lite as bl.dll speaks (lockstep, and with the experimental run
-# ahead on), the Aicom Accent SA (the built-in default voice, Tomi 2026-09-30) as the NVDA Accent driver itself speaks
+# ahead on), the Aicom Accent-PC (the built-in default voice, Tomi 2026-09-30) as the NVDA Accent driver itself speaks
 # it on the desktop's C host (accent_reference.py), the GW Micro Speak-Out (imported; with the firmware) as so_voice
 # driven directly speaks it, and the Aicom Accent-mini (built in) as am_voice driven directly does, byte for byte; a capital's 150/120/75 % differ from 100 % (the Accent's 100 %
 # again is byte-identical); GW Micro's SPEAKOUT.HEX recognised by content, a damaged or other HEX refused (Tomi,
@@ -1412,13 +1412,13 @@ if os.path.isfile(ANDROID_TEST):
              [r"^FAIL +desktop +a-pitch-150 sounds different from a-pitch-100$",
               r"^ok +desktop +a-pitch-100-again = a-pitch-100, byte for byte",
               r"^FAILED: %d case\(s\) differ$" % (8 + 4 * ANDROID_MINI)]),
-            ("accent-glide", "Accent SA: the pitch glided to, no snap",
+            ("accent-glide", "Accent-PC: the pitch glided to, no snap",
              [r"^FAIL +desktop +a-pitch-150 +got ", r"^ok +desktop +a-pitch-150 sounds different from a-pitch-100$",
               r"^FAILED: 5 case\(s\) differ$"]),
-            ("accent-reuse", "Accent SA: one unit kept across utterances",
+            ("accent-reuse", "Accent-PC: one unit kept across utterances",
              [r"^FAIL +desktop +a-pitch-100-again = a-pitch-100, byte for byte", r"^ok +desktop +a-default ",
               r"^FAILED: 15 case\(s\) differ$"]),
-            ("accent-step", "Accent SA: 120 % on the 100 % step",
+            ("accent-step", "Accent-PC: 120 % on the 100 % step",
              [r"^FAIL +desktop +a-pitch-120 sounds different from a-pitch-100$", r"^ok +desktop +a-pitch-150 ",
               r"^FAILED: 2 case\(s\) differ$"]),
             ("run-ahead", "Braille Lite: run ahead dropped",
@@ -1523,7 +1523,7 @@ if os.path.isfile(ANDROID_TEST):
                         env={"SSI263_VOLUME_TEST_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^braille lite volume 250: .* clipped samples -- FAILED",
                                     r"^accent sa volume 250: .* clipped samples -- FAILED", r"^volume headroom: FAILED$"]))
-    CHECKS.append(check("Android engine: volume CONTROL (the Accent SA at 250 percent, must fail)", [PY, VOLUME_TEST],
+    CHECKS.append(check("Android engine: volume CONTROL (the Accent-PC at 250 percent, must fail)", [PY, VOLUME_TEST],
                         env={"SSI263_VOLUME_TEST_BREAK": "accent"}, expect_fail=True,
                         fail_marks=[r"^braille lite volume \d+: .* -- ok$",
                                     r"^accent sa volume 250: .* clipped samples -- FAILED", r"^volume headroom: FAILED$"]))
@@ -1639,7 +1639,7 @@ if os.path.isfile(IMPORT_TEST):
     CHECKS.append(check("Android import CONTROL (the list dropped, must fail)", [PY, IMPORT_TEST],
                         env={"SSI263_IMPORT_TEST_BREAK": "hash"}, expect_fail=True,
                         fail_marks=[r"^FAIL a release not on the list", r"^import: 2 FAILED$"]))
-# MAME's 8085 core (the Accent SA's, src/csrc/cpu/i8085_mame.cpp; not yet in a board): CONTRACT.md's clauses
+# MAME's 8085 core (the Accent-PC's, src/csrc/cpu/i8085_mame.cpp; not yet in a board): CONTRACT.md's clauses
 # (src/csrc/cpu/test_i8085_contract.c; its must-fail controls: cpu/i8085_controls.py)
 if os.path.isfile(os.path.join(LIB, "test_i8085_contract.exe")):
     CHECKS.append(check("MAME 8085 core: CPU contract tests", [os.path.join(LIB, "test_i8085_contract.exe")]))
@@ -1772,7 +1772,7 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
         CHECKS.append(check("so_voice marks CONTROL (the box's mark inside its word, must fail)", [PY, "so_marks.py"],
                             env={"SO_MARKS_BREAK": "4"}, expect_fail=True,
                             fail_marks=[r"^FAIL frames .*phonemes DIFFER", r"^FAIL bytes ", r"^so marks: 7 FAILED$"]))
-    # ... and the Accent SA's (as_voice.h): Ctrl-F at the front of each marked word, the unit's prompts on its serial
+    # ... and the Accent-PC's (as_voice.h): Ctrl-F at the front of each marked word, the unit's prompts on its serial
     # line, the marks following the audio the voice holds back
     CHECKS.append(check("as_voice: index marks by the unit's own Ctrl-F", [PY, "as_marks.py"]))
     CHECKS.append(check("as_voice marks CONTROL (every mark with the first block, must fail)", [PY, "as_marks.py"],
@@ -1853,31 +1853,31 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
                                         r"^FAIL cut after K HF UH: HF EH EH LF LF UH O O U",
                                         r"^ok +cut after K HF UH UH UH S T HF: ", r"^cancel: FAILED$"]))
 
-# The Accent SA in C (src/csrc/accentsa: its board on MAME's 8085 and accent_sa.py's host; the add-on's default since
+# The Accent-PC in C (src/csrc/accentsa: its board on MAME's 8085 and accent_sa.py's host; the add-on's default since
 # 0.7, SSI263_ACCENT_SA_CORE=c; the Python 8085 is the development reference): the board's rules (test_as_board.c; their must-fail
 # controls, seventeen builds, are accentsa/as_controls.py's, run by hand as so_controls.py); the C host against the
 # Python host (compare_accent_sa.py --quick: every write's value and chip time, the audio and the counting events
 # identical) with two controls, one value flipped and the core's own counting (writes identical, the counting
 # predicate must catch it); the C API alone (as_render: the ROMs from their folder, a text into a WAV, no Python); and
-# the built add-on's Accent SA voice on it, 64- and 32-bit.  Built by src/csrc/accentsa/build_board.py.
+# the built add-on's Accent-PC voice on it, 64- and 32-bit.  Built by src/csrc/accentsa/build_board.py.
 ASA_LIB = os.path.join(os.path.dirname(HERE), "dist", "accentsa-lib")
 ASA_DIR = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "accentsa")
 ASA_ROMS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "aicom-accent-sa")
 if os.path.isfile(os.path.join(ASA_LIB, "test_as_board.exe")):
-    CHECKS.append(check("Accent SA board (MAME 8085): its rules", [os.path.join(ASA_LIB, "test_as_board.exe")]))
-    CHECKS.append(check("Accent SA: the C API alone (as_render)",
+    CHECKS.append(check("Accent-PC board (MAME 8085): its rules", [os.path.join(ASA_LIB, "test_as_board.exe")]))
+    CHECKS.append(check("Accent-PC: the C API alone (as_render)",
                         [os.path.join(ASA_LIB, "as_render.exe"), ASA_ROMS, "Testing one two three.",
                          os.path.join(HERE, "out", "as_render_test.wav")],
                         ok=lambda out: bool(re.search(r"^[1-9]\d*\.\d\d s of audio in ", out, re.M))))
     if os.path.isfile(os.path.join(ASA_LIB, "x64", "accent_sa.dll")):
         CMP_ASA = os.path.join(ASA_DIR, "compare_accent_sa.py")
-        CHECKS.append(check("Accent SA: C host = Python host (writes, times, audio, counting)", [PY, CMP_ASA, "--quick"]))
-        CHECKS.append(check("Accent SA: C host CONTROL (a value flipped, must fail)",
+        CHECKS.append(check("Accent-PC: C host = Python host (writes, times, audio, counting)", [PY, CMP_ASA, "--quick"]))
+        CHECKS.append(check("Accent-PC: C host CONTROL (a value flipped, must fail)",
                             [PY, CMP_ASA, "--quick", "--only", "commands"],
                             env={"ACCENTSA_COMPARE_FLIP": "1"}, expect_fail=True,
                             fail_marks=[r"^FAIL values +write values DIFFER at write 100 of \d+/\d+",
                                         r"^ok +times +every write's chip time identical", r"^accent_sa cores: FAILED$"]))
-        CHECKS.append(check("Accent SA: C host CONTROL (the core's own counting, must fail)",
+        CHECKS.append(check("Accent-PC: C host CONTROL (the core's own counting, must fail)",
                             [PY, CMP_ASA, "--quick", "--only", "commands"],
                             env={"ACCENTSA_COMPARE_SLICES": "chip"}, expect_fail=True,
                             fail_marks=[r"^FAIL counting +the Python host: [1-9]\d* acceptance\(s\) ended a slice, "

@@ -125,7 +125,7 @@ can't say yet:
   fits an Artic-263 and Artic's text-to-speech inside, but doesn't prove either: another maker
   could have adopted PortTalk, as ASAP says several did. No board photograph, ROM or update disk
   has turned up. Telesensory's Screen Power Speech 2.0A has six builds, one per synthesizer; the
-  BrailleMate's is most likely `SPS.002`, the only one besides the Accent SA's that opens a
+  BrailleMate's is most likely `SPS.002`, the only one besides the Accent-PC's that opens a
   serial port (an inference, not a trace); its serial writes should be PortTalk. Settled by: a
   board photo, a ROM dump or an update disk; tracing `SPS.002`'s serial writes.
 - **The VoTalker.** The chip of two of them is settled: Votrax's advertisements of 1985 and 1986
@@ -189,7 +189,7 @@ can't say yet:
   tied high, which the data sheet gives for clocks of 1.5 to 2 MHz: the same as 1 MHz with DIV2
   low, though no recording of that card has confirmed it. Not known: the SynPhonix (a 74HCT161
   divider, probably from the PC's bus clock), the HX-20 module (a 3.579545 MHz crystal, maybe
-  divided), the CPC's Sprechi board, and the Accent SA's own CPU clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
+  divided), the CPC's Sprechi board, and the Accent-PC's own CPU clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
   against the register values that made it.
 - **Sweet Micro's foreign-language rule tables.** Chip Talk (1987) says Sweet Micro sold
   "Foreign Language Rule Tables", German among them, for the Mockingboard's SSI-263. We haven't
@@ -208,7 +208,7 @@ can't say yet:
 ## On the front ends
 
 - **Volume above 7** compresses on the unit; where is unknown.
-- **The Accent SA's clock** (3.072 MHz is a guess) and its first-word delay.
+- **The Accent-PC's clock** (3.072 MHz is a guess) and its first-word delay.
 - **The SmarTalk's BUSY and PAPER-OUT lines** read as a powered box's levels, but what drives
   them is not known. Two short real SmarTalk recordings exist (11 kHz, line in); they confirm
   its power-up speed but are too narrow for its fricatives. A wider recording of a real box

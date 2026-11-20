@@ -2,9 +2,9 @@
 this engine by package name (the system's default engine is left alone), synthesizes a sentence to a file at the
 rate and pitch asked for (TtsSelfTest.kt); the file's PCM must equal the desktop's for the same text and the app's
 default settings (its engine volume included).  That covers what the host-side test cannot: the Kotlin service, the
-JNI bridge, the APK's Accent SA ROMs and the framework's hand-over.
+JNI bridge, the APK's Accent-PC ROMs and the framework's hand-over.
 
-- The Aicom Accent SA (the built-in voice): against the NVDA Accent driver itself (accent_reference.py), the request's
+- The Aicom Accent-PC (the built-in voice): against the NVDA Accent driver itself (accent_reference.py), the request's
   rate and pitch mapped as ssa_engine.c maps them.  Then a capital, as TalkBack asks for one -- the same letter at
   pitch 1.0, 1.5, 1.2, 0.75 and 1.0 again, each its own request: the raised and lowered ones must differ from 1.0,
   each must equal the driver's (which jumps to the pitch with snap_pitch), and the last must be byte-identical to the
@@ -14,7 +14,7 @@ JNI bridge, the APK's Accent SA ROMs and the framework's hand-over.
   on (SettingsActivity's setrunahead hook, as its check box), against bl_voice running ahead, and not the lockstep's.
 - The GW Micro Speak-Out (when its SPEAKOUT.HEX is imported on the device): against so_voice driven directly on the
   desktop (test_android_native --so-direct) from the device's own HEX, at the app's defaults, the request's rate and
-  pitch mapped as ssa_engine.c maps them; and the capital's pitches as the Accent SA's.
+  pitch mapped as ssa_engine.c maps them; and the capital's pitches as the Accent-PC's.
 - The Aicom Accent-mini (built in, when this build carries it): against am_voice driven directly (--am-direct), the
   same way.
 - The two Mockingboards (built in, or imported): against mb_voice driven directly (--mb-direct) from the file the
@@ -26,7 +26,7 @@ the device had before (or none) is put back afterwards, as is run ahead.
 
     python test_device_service.py [--rate 2.0] [--aloud]
                                   [--voice accent|braillelite|speakout|accentmini|mockingboard|both|all]
-                                  (a debug build installed; ANDROID_SERIAL picks the device; both = the Accent SA and
+                                  (a debug build installed; ANDROID_SERIAL picks the device; both = the Accent-PC and
                                   the Braille Lite, as before 0.7.5)
 
 --aloud also speaks the sentence through the service on the device's speaker.  Options as test_android_native.py:
@@ -149,18 +149,18 @@ def accent(a):
     set_voice(VOICE["accent"])
     bad = 0
     got = render(TEXT["accent"], a.rate, 1.0, a.aloud)
-    bad += line(got == want["sentence"], "Accent SA through the platform TTS, rate %.2f" % a.rate, got,
+    bad += line(got == want["sentence"], "Accent-PC through the platform TTS, rate %.2f" % a.rate, got,
                 want["sentence"])
     caps = {}
     for name, pitch in (("cap-100", 1.0), ("cap-150", 1.5), ("cap-120", 1.2), ("cap-75", 0.75), ("cap-100-again", 1.0)):
         caps[name] = render(CAPITAL, 1.0, pitch)
         ref = want[name if name != "cap-100-again" else "cap-100"]
-        bad += line(caps[name] == ref, "Accent SA, %r at pitch %.2f (%s)" % (CAPITAL, pitch, name), caps[name], ref)
+        bad += line(caps[name] == ref, "Accent-PC, %r at pitch %.2f (%s)" % (CAPITAL, pitch, name), caps[name], ref)
     bad += line(caps["cap-150"] != caps["cap-100"] and caps["cap-120"] != caps["cap-100"]
                 and caps["cap-75"] != caps["cap-100"],
-                "Accent SA: the capital's raised and lowered pitch sound different from 1.0", caps["cap-150"])
+                "Accent-PC: the capital's raised and lowered pitch sound different from 1.0", caps["cap-150"])
     bad += line(caps["cap-100-again"] == caps["cap-100"],
-                "Accent SA: 1.0 again is byte-identical to the first (the pitch came back)", caps["cap-100-again"])
+                "Accent-PC: 1.0 again is byte-identical to the first (the pitch came back)", caps["cap-100-again"])
     return bad
 
 

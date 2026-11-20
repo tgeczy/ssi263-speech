@@ -6,12 +6,12 @@ MAKEUP x 1) the voice peaks near -5 dBFS at most with its voiced RMS near -22.5 
 runs 0-200 with a default of SsiSettings.DEFAULT_VOLUME (read from the app's source, one place): louder, still short
 of clipping on these English and Spanish lines (some of them the loudest found in a 67-line sweep).
 
-The Aicom Accent SA (the built-in voice, 2026-09-30) shares that slider: at the NVDA driver's full volume (the gain 1,
+The Aicom Accent-PC (the built-in voice, 2026-09-30) shares that slider: at the NVDA driver's full volume (the gain 1,
 ssa_engine.h's SSA_ACCENT_LEVEL 100) it peaks at -6.0 dBFS on these lines with its speech RMS at -21.5 dBFS, within a
 decibel of the Braille Lite's (-5.5, -22.5), so the default puts both beside TalkBack at the same level.  It is
 measured through the app's own path (test_android_native.c --level: ssa_engine, the fresh unit, the gain).
 
-The Aicom Accent-mini (built in, 0.7.5) takes the Accent SA's level (SSA_ACCENT_LEVEL), measured as it.  The GW Micro
+The Aicom Accent-mini (built in, 0.7.5) takes the Accent-PC's level (SSA_ACCENT_LEVEL), measured as it.  The GW Micro
 Speak-Out (imported, 0.7.5; measured when firmware/gw-micro-speakout/SPEAKOUT.HEX is there) shares it too:
 at the driver's full volume (so_voice's gain 1) it peaks at -5.6 dBFS on these lines with its speech RMS near
 -21 dBFS, the others' level; so_voice takes the app's 0-200 as as_voice does, and the default keeps its headroom.
@@ -21,10 +21,10 @@ others, unclipped; the early one (mockingboard-tts-early.bin, 0.8) at -1.1 dBFS,
 
 Engine v0.16 (0.8: F1's code law and bandwidth) lifted every voice's peaks about 2 dB, and at 150 the Speak-Out clipped
 (the Braille Lite -0.28 dBFS); the default is 135 since.  At 135: the Speak-Out -0.86, the Accent-mini -0.97, the early
-Mockingboard -1.06, the Braille Lite -1.20, the Accent SA -1.43, the Mockingboard -1.59 dBFS, none clipped.
+Mockingboard -1.06, the Braille Lite -1.20, the Accent-PC -1.43, the Mockingboard -1.59 dBFS, none clipped.
 
     python test_volume_headroom.py        SSI263_VOLUME_TEST_BREAK=1: volume 250 for every voice -- must fail (all clip)
-                                          SSI263_VOLUME_TEST_BREAK=accent: 250 for the Accent SA alone -- must fail
+                                          SSI263_VOLUME_TEST_BREAK=accent: 250 for the Accent-PC alone -- must fail
 """
 import math
 import os
@@ -47,7 +47,7 @@ EN = ["Hello there. This is the Braille Lite, speaking on a phone.",
       "The quick brown fox jumps over the lazy dog, again and again."]
 ES = ["La lluvia en Sevilla es una maravilla.", "Hola, ¿qué tal? Él está aquí, mañana a las tres y media.",
       "¡Atención! El número es 1.234.567.", "Buenos días, señoras y señores."]
-# the Accent SA: the English lines, and what TalkBack says most
+# the Accent-PC: the English lines, and what TalkBack says most
 ACCENT = EN + ["Battery 85 percent. 3 notifications.", "Double-tap to activate. Button.", "Capital B.",
                "Settings. Network and internet. Wi-Fi, connected to Home."]
 

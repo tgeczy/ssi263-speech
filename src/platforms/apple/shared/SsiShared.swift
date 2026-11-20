@@ -96,7 +96,7 @@ enum SsiShared {
         Voice(index: 6, key: "mockingboard-early", name: "Mockingboard, early (Sweet Micro Systems)",
               short: "Mockingboard, early", locales: english, files: ["mockingboard-tts-early.bin"],
               bring: "Mockingboard disk 1"),
-        Voice(index: 2, key: "accentsa", name: "Accent SA", short: "Accent SA", locales: english,
+        Voice(index: 2, key: "accentsa", name: "Accent-PC", short: "Accent-PC", locales: english,
               files: ["u2.BIN", "u3.BIN", "u4.BIN"], bring: "u2.BIN, u3.BIN and u4.BIN"),
         Voice(index: 4, key: "accentmini", name: "Accent-mini", short: "Accent-mini", locales: english,
               files: ["SPKEMS.DVC"], bring: "SPKEMS.DVC"),

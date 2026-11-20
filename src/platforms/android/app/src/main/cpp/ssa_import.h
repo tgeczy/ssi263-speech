@@ -96,7 +96,7 @@ int ssa_blazie_recipe(int voice);
    well-formed Intel HEX is taken as the Speak-Out's -- the "another HEX" cases must then fail; and any file of a
    Mockingboard file's size as that one -- its "one byte changed" cases must then fail.  2 never tries a disk image,
    so the .dsk cases must fail.  3 returns a Blazie release's raw firmware language (bl_firmware.h) instead of the
-   app's voice, as before 0.8's table -- German's 2 is the Accent SA's index -- so the German, Italian and Slovak
+   app's voice, as before 0.8's table -- German's 2 is the Accent-PC's index -- so the German, Italian and Slovak
    imports must fail.  4: ssa_import_voice never tries the release table, so the release voices' imports (Hungarian
    ...) must fail.  5: a release no voice speaks is dropped, as before 0.8.5 (BLV_FW_UNKNOWN, out removed), so the
    unit screen's imports (the 640, Japanese) must fail.  6: the Sounding Board's drivers are never known, so its

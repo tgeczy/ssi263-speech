@@ -6,7 +6,7 @@
  *
  *   SSA_ENGLISH      Braille Lite 2000          bl_voice.h  <data>/BL2ENG.BNS + bl2_2003_warm.state   (imported)
  *   SSA_SPANISH      Braille Lite 2000 (es)     bl_voice.h  <data>/BL2SPA.BNS + bl2spa_fresh.state    (imported)
- *   SSA_ACCENT_SA    Aicom Accent SA            as_voice.h  u2, u3, u4 in memory (the APK's assets/aicom)
+ *   SSA_ACCENT_SA    Aicom Accent-PC            as_voice.h  u2, u3, u4 in memory (the APK's assets/aicom)
  *   SSA_SPEAKOUT     GW Micro Speak-Out         so_voice.h  <data>/SPEAKOUT.HEX                       (imported)
  *   SSA_ACCENT_MINI  Aicom Accent-mini          am_voice.h  SPKEMS.DVC in memory (assets/aicom)       (when
  *                                                           voices.c has it: SSV_HAVE_ACCENTMINI, build_android.sh)
@@ -24,7 +24,7 @@
  * the Italian and Slovak units end without ^F echoes, and drops the number words and run ahead for all three (they
  * read their own numbers; run ahead is tested on English and Spanish alone).
  *
- * The Aicom Accent SA (the built-in voice, Tomi 2026-09-30: Aicom's ROMs ship in the APK, handed over in memory) runs
+ * The Aicom Accent-PC (the built-in voice, Tomi 2026-09-30: Aicom's ROMs ship in the APK, handed over in memory) runs
  * through as_voice.h, the NVDA Accent driver's front end in C.  Each utterance gets a unit of its own, booted as the
  * driver boots one and let go afterwards: so an utterance sounds the same whatever came before it (a capital's raised
  * pitch cannot linger, and a stop needs no flush), and every pitch -- the app's slider and the request's together --
@@ -35,7 +35,7 @@
  * sent before each utterance, the audio pulled block by block, a stop between blocks, and a cancel so the next
  * utterance starts clean.  The Speak-Out and the Accent-mini take a request's pitch as the NVDA driver takes a
  * capital's -- the slider's pitch as the setting, the difference as PitchCommand's offset (snapped to, and restored
- * after the utterance by the voice itself) -- moved at least one of the box's pitch steps, as the Accent SA's is.
+ * after the utterance by the voice itself) -- moved at least one of the box's pitch steps, as the Accent-PC's is.
  * The Mockingboard takes it the same way (its inflection's steps, mbv_pitch_step), and from the settings its number
  * words, as the Braille Lite does.
  * The Braille Lite takes it as its pitch setting (bl_voice's own scale has 32 steps), and from the settings its
@@ -127,7 +127,7 @@ void ssa_default_settings(ssa_settings *s);
 ssa_engine *ssa_new(const char *datadir);
 void ssa_free(ssa_engine *e);
 
-/* The Accent SA's ROMs (u2 64 KB, u3 and u4 32 KB each), copied.  1, or 0 (wrong sizes, out of memory). */
+/* The Accent-PC's ROMs (u2 64 KB, u3 and u4 32 KB each), copied.  1, or 0 (wrong sizes, out of memory). */
 int ssa_set_accent_roms(ssa_engine *e, const unsigned char *u2, size_t n2, const unsigned char *u3, size_t n3,
                         const unsigned char *u4, size_t n4);
 
@@ -212,7 +212,7 @@ long ssa_probe(const char *datadir, int voice, const char *utf8, unsigned long l
    reader's) would otherwise land on the slider's own step and go unheard.  step: the voice's own (asv_pitch_step,
    sov_pitch_step). */
 int ssa_step_pitch(int slider, int request, int (*step)(int));
-int ssa_accent_pitch(int slider, int request);         /* ssa_step_pitch with the Accent SA's steps */
+int ssa_accent_pitch(int slider, int request);         /* ssa_step_pitch with the Accent-PC's steps */
 int ssa_speakout_pitch(int slider, int request);       /* ... with the Speak-Out's */
 int ssa_mockingboard_pitch(int slider, int request);   /* ... with the Mockingboard's inflection (0-26), in a build
                                                           that has it; else the plain mapping */
@@ -223,7 +223,7 @@ int ssa_smartalk_pitch(int slider, int request);       /* ... with the SmarTalk'
    catch.  ssa_accent_break -- 1: the request's pitch dropped; 2: the pitch sent as a setting, so it glides instead of
    jumping (no snap_pitch); 3: one unit kept from utterance to utterance, so what came before is heard in what
    follows; 4: the plain mapping for the pitch (ssa_step_pitch's step rule gone), so a 120 % request sounds like
-   100 % -- the Accent SA's and the Speak-Out's alike.  ssa_voice_break -- 1: the Speak-Out's request pitch dropped
+   100 % -- the Accent-PC's and the Speak-Out's alike.  ssa_voice_break -- 1: the Speak-Out's request pitch dropped
    (no capital offset); 2: the Speak-Out's own settings (tone, join, short pauses) dropped, the defaults sent; 3: the
    Braille Lite's run ahead dropped; 4: the Braille Lite's number words dropped (always off, as before 0.7.5); 5: the
    Mockingboard's request pitch dropped (no capital offset); 6: the Mockingboard's number words dropped (always off);

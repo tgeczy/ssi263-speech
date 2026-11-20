@@ -72,7 +72,7 @@ object SsiData {
         }
     }
 
-    // ---- the Accent SA's ROMs: Aicom's, the one firmware the APK carries (firmware/AICOM.txt; Tomi, 2026-09-30) ----
+    // ---- the Accent-PC's ROMs: Aicom's, the one firmware the APK carries (firmware/AICOM.txt; Tomi, 2026-09-30) ----
 
     private const val AICOM = "aicom"
     private val AICOM_ROMS = listOf("u2.BIN" to 0x10000, "u3.BIN" to 0x8000, "u4.BIN" to 0x8000)
@@ -90,7 +90,7 @@ object SsiData {
                             check(it.size == size) { "$name is ${it.size} bytes, not $size" }
                         }
                     }
-                } catch (e: Exception) { Log.e("SsiData", "the Accent SA's ROMs are not in this APK", e); null }
+                } catch (e: Exception) { Log.e("SsiData", "the Accent-PC's ROMs are not in this APK", e); null }
                 romsChecked = true
             }
             return roms

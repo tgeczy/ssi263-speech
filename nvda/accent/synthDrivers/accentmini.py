@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
-"""NVDA synthesizer driver: the Aicom Accent SA and Accent-mini, talking through an emulated SSI-263.
+"""NVDA synthesizer driver: the Aicom Accent-PC and Accent-mini, talking through an emulated SSI-263.
 
 Two voices, two of Aicom's own programs, both in ssi263speech.dll (since 0.7.5 with this driver's front end in C
 too -- no Python host):
 - Accent-mini: Aicom's DOS device driver (SPKEMS.DVC, "Accent-EMS", V4.5, 1986-1993) runs on MAME's 8086 inside
   NVDA's process, loaded as DOS would load it, with its rules in emulated expanded memory; the model's A/R request
   is the card's IRQ (src/csrc/accentmini).
-- Accent SA: the stand-alone box's own 8085 firmware (1986-1989) and dictionary ROMs run on MAME's 8085, with text
-  arriving on its serial port and A/R on its TRAP (src/csrc/accentsa).
+- Accent-PC: the plug-in card's own 8085 firmware (1986-1989) and dictionary ROMs run on MAME's 8085, with text
+  arriving on its serial port and A/R on its TRAP (src/csrc/accentsa).  Its voice key is still "sa": until 0.9.5
+  it was called the Accent SA, and a saved choice must keep its voice.
 Both drive a register-level model of the SSI-263 (Aicom's AI901), so the rules, intonation and timing are Aicom's
 own.  Nothing is recorded or concatenated.  This file keeps NVDA's side: the worker thread, the player, index and
 done callbacks, cancel; nvda/tools/native_driver_equiv.py holds it to 0.7.0's Python driver byte for byte.
@@ -50,7 +51,7 @@ DEBUG_LOG = False
 DRIVER = os.path.join(_ENGINE_DIR, "SPKEMS.DVC")
 SA_ROMS = os.path.join(_ENGINE_DIR, "accent-sa")      # u2.BIN u3.BIN u4.BIN
 DLL = dll_path(_ENGINE_DIR)
-VOICES = (("mini", "Accent-mini"), ("sa", "Accent SA"))
+VOICES = (("mini", "Accent-mini"), ("sa", "Accent-PC"))
 
 
 def _nothing():
@@ -88,7 +89,7 @@ def _joined(items):
 
 class SynthDriver(SynthDriver):
     name = "accentmini"
-    description = "Accent SA and Mini (SSI-263 emulation)"
+    description = "Accent-PC and Mini (SSI-263 emulation)"
 
     supportedSettings = (
         SynthDriver.VoiceSetting(),
@@ -426,7 +427,7 @@ class SynthDriver(SynthDriver):
                 continue
             if kind == "line":                   # say all's lines, as one line (ssi263_flow.py)
                 parts, marks, chars = _flow.line_text(value, lambda t: box.prepare(t, self._numbers))
-                # the unit's own index marks (a Ctrl-F in the text): the Accent SA answers each when speech reaches
+                # the unit's own index marks (a Ctrl-F in the text): the Accent-PC answers each when speech reaches
                 # it, one at the front of each text an index stands before (as_voice.h); the Accent-mini's driver
                 # counts each when the word before it has ended, one at the end of the text before (am_voice.h)
                 if parts:
@@ -479,7 +480,7 @@ class SynthDriver(SynthDriver):
                         log.warning("Accent: card stalled; restarting it. card: %s" % box.state())
                         raise RuntimeError("card stalled")
                     if getattr(box, "limit", False):
-                        # issue #8: the Accent SA's firmware was still reading when its wait ran out
+                        # issue #8: the Accent-PC's firmware was still reading when its wait ran out
                         log.warning("Accent: text stopped at the safety limit, the card still working (the rest flushed). card: %s"
                                     % box.state())
                     why = "done"

@@ -1,4 +1,4 @@
-"""The Accent SA host in C (src/csrc/accentsa, MAME's 8085: hosts/accent_sa_c.py) against the Python host
+"""The Accent-PC host in C (src/csrc/accentsa, MAME's 8085: hosts/accent_sa_c.py) against the Python host
 (hosts/accent_sa.py, the reference), on a scripted session, the same chip model (SSI263C) on both sides.
 
     python src/csrc/accentsa/compare_accent_sa.py [--quick] [--only greeting|commands|driver]

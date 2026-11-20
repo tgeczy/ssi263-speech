@@ -1,5 +1,5 @@
 /* am_voice.c -- see am_voice.h.  Each part names the driver function it ports (nvda/accent/synthDrivers/accentmini.py,
- * the "mini" voice); its text rules are ../accent_text.c, shared with the Accent SA's as_voice.c.  Change them
+ * the "mini" voice); its text rules are ../accent_text.c, shared with the Accent-PC's as_voice.c.  Change them
  * together.  nvda/tools/am_voice_equiv.py compares the two byte for byte.  MIT. */
 #include <stdio.h>
 #include <stdlib.h>

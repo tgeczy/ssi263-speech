@@ -32,7 +32,7 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
 - The Aicom Accent-mini (built in, Aicom's SPKEMS.DVC handed over in memory as the app does; its cases run when
   firmware/aicom-accent-mini/SPKEMS.DVC is there): against am_voice driven directly (test_android_native --am-direct:
   amv_set, amv_speak with the capital's offset, amv_render, amv_cancel on one kept unit), the settings computed here
-  as the Accent SA's are.  am_voice itself is the NVDA Accent driver's "mini" voice (nvda/tools/am_voice_equiv.py).
+  as the Accent-PC's are.  am_voice itself is the NVDA Accent driver's "mini" voice (nvda/tools/am_voice_equiv.py).
 - The two Mockingboards (Sweet Micro Systems' firmware: mockingboard-tts-1.1.bin and mockingboard-tts-early.bin,
   built into the GitHub APK and importable; each one's cases run when its file is in
   firmware/sweet-micro-mockingboard): against mb_voice driven directly on the same file (test_android_native
@@ -45,7 +45,7 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
   toolkit's gives the 1.1 file, Mockingboard disk 1's the early one, in DOS and ProDOS order and out of a zip; disk 2
   and a blank 140 KB disk refused with the disk reader's reason.
 - Index marks (test_android_native --marks; ssa_start_marked, ssa_reached): a mark at every word's start, as the
-  service sends them with "Tell Android which word is being spoken" on, on the Accent SA and the Accent-mini, whose
+  service sends them with "Tell Android which word is being spoken" on, on the Accent-PC and the Accent-mini, whose
   units have index marks of their own: each comes back once and in order with its frame in the utterance's audio,
   the same frames and audio whether it is pulled 250 samples at a time or 4096; with every voice made to estimate
   (voices.c's SSV_MARKS_ESTIMATE) none is reached and the audio is the unmarked one -- the app does not use the
@@ -54,7 +54,7 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
   line endings, with a DOS end-of-file mark, and out of a speakout.zip like GW Micro's; a HEX with one digit
   changed, one whose checksums were fixed after the change (another HEX), one cut short, and other files refused;
   a Braille Lite .BNS still the Braille Lite's.
-- The Aicom Accent SA (the built-in voice): against the NVDA Accent add-on's own driver, its "sa" voice on the
+- The Aicom Accent-PC (the built-in voice): against the NVDA Accent add-on's own driver, its "sa" voice on the
   desktop's C host (accent_reference.py; the built nvda/dist/accent-build and accentsa-lib), a fresh unit per case as
   the app has; the request's rate and pitch put on the driver's scales as ssa_map.c does, the pitch as a capital's
   PitchCommand.  Its front end's text (currencies, _clean, number words) is compared on TEXTS as well.  And a capital:
@@ -68,7 +68,7 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
                                                   the device), pushed to /data/local/tmp and removed afterwards
     SSI263_ANDROID_TEST_BREAK=1                   the control: the program drops the request's rate (ssa_map.h), so
                                                   the "fast" cases must differ -- this run must FAIL
-    SSI263_ANDROID_TEST_BREAK=accent-pitch        the Accent SA's controls (ssa_engine.h's ssa_accent_break), each
+    SSI263_ANDROID_TEST_BREAK=accent-pitch        the Accent-PC's controls (ssa_engine.h's ssa_accent_break), each
                              accent-glide         must FAIL: the request's pitch dropped; the pitch sent as a setting,
                              accent-reuse         glided to (no snap_pitch); one unit kept across utterances; the
                              accent-step          plain pitch mapping (a 120 % request on the 100 % step; the
@@ -104,7 +104,7 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
 SSI263_ANDROID_TEST_ONLY=<blocks>, a comma list of bl (the Braille Lite in lockstep, its Spanish unit and the probe),
 ra (run ahead), lift (the line-start lift), num (the number words), lang (0.8's German, Italian and Slovak units),
 rel (the release voices),
-accent (the Accent SA and its text), so (the Speak-Out), mini (the
+accent (the Accent-PC and its text), so (the Speak-Out), mini (the
 Accent-mini), mb (the Mockingboard), st (the SmarTalk), import (every import case): only those blocks, on
 both sides -- for the controls, so each runs what
 its bug touches (the 3-minute gate).
@@ -280,7 +280,7 @@ ST_CASES = [
     ("st-11k", HELLO_ST, 50, 50, 100, 100, 100, 1, 11025, 4096, 0),
 ]
 
-# The Accent SA's cases: test_android_native.c's accent_cases, in the same order -- (name, text, the app's rate and
+# The Accent-PC's cases: test_android_native.c's accent_cases, in the same order -- (name, text, the app's rate and
 # pitch sliders, the request's rate and pitch percentages, the engine volume, inflection, sample rate, pull size,
 # blocks before a stop).  Each is a unit of its own on both sides.
 HELLO_A = "Hello there. This is the Accent SA, speaking on a phone."
@@ -520,7 +520,7 @@ def numbers_heard(label, got):
     return bad
 
 
-# ---- the Accent SA's reference: the NVDA driver (accent_reference.py) -----------------------------------------------
+# ---- the Accent-PC's reference: the NVDA driver (accent_reference.py) -----------------------------------------------
 def accent_reference():
     level = accent_level()
     speech = []
@@ -1049,7 +1049,7 @@ def run_desktop(exe, data, aicom):
 
 def marks_cases(exe, aicom):
     """Index marks through the app's front end (test_android_native --marks, which judges them itself): a mark at
-    every word's start on the Accent SA and the Accent-mini comes back once, in order, at its frame in the
+    every word's start on the Accent-PC and the Accent-mini comes back once, in order, at its frame in the
     utterance's audio, however the audio is pulled; with every voice made to estimate, none, and the audio is the
     unmarked one (the app does not use the estimate: it renders the unit ahead of the listener)."""
     r = subprocess.run([exe, "--marks", aicom, MINI_DVC if os.path.isfile(MINI_DVC) else "-"], capture_output=True,
@@ -1207,7 +1207,7 @@ def lift_heard(label, got):
 
 def blazie_import_cases(exe, data, firmware):
     """Each Blazie unit's .BNS, as ssa_import_firmware judges it: taken as the app's voice (7, 8, 9 for 0.8's units:
-    not bl_firmware.h's languages 2, 3, 4, which are the Accent SA's, the Speak-Out's and the Accent-mini's indexes)
+    not bl_firmware.h's languages 2, 3, 4, which are the Accent-PC's, the Speak-Out's and the Accent-mini's indexes)
     and written as it came."""
     bad = 0
     for lang, (fw, _) in FILES.items():

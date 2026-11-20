@@ -1,6 +1,11 @@
-# src/csrc/accentsa: the Aicom Accent SA board on MAME's 8085 core
+# src/csrc/accentsa: the Aicom Accent-PC board on MAME's 8085 core
 
-**The 0.7 release default.** The Accent SA voice uses this C board on MAME's 8085.
+**A name kept on purpose.** This folder, its files (`as_*`), the voice's id `accentmini:sa` and the firmware
+folder `aicom-accent-sa` date from when the voice was called the Accent SA. Its ROMs turned out to be the Accent-PC
+card's (`docs/history.md`, 2026-11-20), and the names people see were changed in 0.9.5. These stay, so that
+nobody's saved voice changes; the true stand-alone Accent SA is another machine, with a Z80.
+
+**The 0.7 release default.** The Accent-PC voice uses this C board on MAME's 8085.
 The Python 8085 is retained only as a development reference. This folder provides
 the machine and host in C for front ends that run without Python. The board is `accent_sa.py`'s machine
 with nothing changed; the host is its lockstep with the chip, line for line. Aicom's ROMs are not built in: they are
@@ -11,7 +16,7 @@ read from a folder or given in memory (`firmware/aicom-accent-sa`, in the reposi
 | `as_board.h`, `as_board.c` | The machine: u2's lower half at 0000-77FF, 2 KB of RAM at 7800-7FFF, the 32 KB window at 8000-FFFF banked by port 40h (u2's upper half, u3, u4, nothing); the SSI-263 at ports 03-07, reversed, A/R in bit 7 of port 07; port 40h's latch (bank, and bit 4 gating A/R onto TRAP) and switches; the 8085 through `../cpu/cpu.h`; the TRAP gate, RxRDY on RST 6.5, RST 7.5's edge; and `as_board_run`, which counts T-states as the Python host does (below). The chip is the caller's, through two callbacks, so a write lands inside the slice and IN 07h reads A/R then. |
 | `as_usart.h`, `as_usart.c` | The 8251 as the firmware uses it: a mode word after reset, commands (RTS, internal reset), status 85h + RxRDY, the host's bytes queued and loaded one at a time while RTS is up. |
 | `as_host.h`, `as_host.c` | The host: `accent_sa.py`'s `AccentSA` in C (say, run, skip, busy, boot, cancel, speaking), around the board and an SSI-263 (`../ssi263.h`): the caller's, or one made from the built-in defaults. ROMs from a folder (`ash_create_dir`) or memory (`ash_create`). The API of `accent_sa.dll` / `libaccent_sa.so`. |
-| `as_voice.h`, `as_voice.c` | The Accent SA as a voice, for front ends without Python (Android's built-in voice, and since 0.7.5 the NVDA add-on through `ssi263speech.dll`, with its job API `asv_begin` ... `asv_flush` and `asv_set_voice`): the NVDA Accent driver's "sa" front end in C, as `../blazie/bl_voice.c` is the Braille Lite's -- boot, settings commands sent when they change, currencies, `_clean` and number words (`../accent_text.c`, shared with the Accent-mini's `../accentmini/am_voice.c`, and `../numwords.c`), a capital's pitch with snap_pitch, the 30 ms speak loop with the lead trim, the gain and the settle between clauses (issue #8), cancel. Held to the driver byte for byte by `src/platforms/android/test/test_android_native.py`. |
+| `as_voice.h`, `as_voice.c` | The Accent-PC as a voice, for front ends without Python (Android's built-in voice, and since 0.7.5 the NVDA add-on through `ssi263speech.dll`, with its job API `asv_begin` ... `asv_flush` and `asv_set_voice`): the NVDA Accent driver's "sa" front end in C, as `../blazie/bl_voice.c` is the Braille Lite's -- boot, settings commands sent when they change, currencies, `_clean` and number words (`../accent_text.c`, shared with the Accent-mini's `../accentmini/am_voice.c`, and `../numwords.c`), a capital's pitch with snap_pitch, the 30 ms speak loop with the lead trim, the gain and the settle between clauses (issue #8), cancel. Held to the driver byte for byte by `src/platforms/android/test/test_android_native.py`. |
 | `as_render.c` | The C API alone: the ROMs from a folder and a text into a WAV, no Python (`as_render <folder> "text" out.wav`). |
 | `test_as_board.c` | The board's rules on small programs in a synthetic u2 (no firmware): 12 tests, including I/O, memory and register effects at an acceptance-only slice boundary. |
 | `test_as_complete.py` | Issue #8: a text is done only when the unit has nothing left to say. Between clauses the firmware goes quiet (speaking flag down, no phoneme) while it reads the next one, and `asv_render` called that done; it now holds a quiet block in which the 8085 ran any of its own code (outside its waiting loops: `as_board.c`'s `WAITING`, the host's `work`) and gives the held blocks out only if speech follows; `asv_set_settle` caps the wait (6 s) and a done at the cap is reported (`asv_limit`), never plain. Checks, through the job API and `asv_speak`: a real done (API results, no fault, inside the budget); the host run on 4 s after it speaks nothing; a text that never paused keeps its audio and its done's chip time; the same with the blocks shifted 0-27 ms; a cancel or new text while blocks are held lets nothing through; the cap reported. Controls (`AS_COMPLETE_BREAK=1`, `never`, `held`, `limit`) must fail. Run by `nvda/tools/run_tests.py` and `tools/linux_tests.sh`. |
@@ -62,7 +67,7 @@ absorbs the 10 T-states. So this counting is exact but, on this firmware, not au
 chip time identical, the audio identical (791 blocks); two acceptances ended the Python host's slice, and the board
 carried two. `--quick` (run_tests): 1,761 writes, one carried, the same; on 32-bit Python 3.7 with the x86 DLL too.
 Two longer random sessions with commands between texts (a scratch search, seeds 27 and 36): 19,812 and 21,727 writes,
-4 and 5 carried, identical. The add-on's Accent SA voice on the C host (driver_sim, 64- and 32-bit): all 33 scenarios
+4 and 5 carried, identical. The add-on's Accent-PC voice on the C host (driver_sim, 64- and 32-bit): all 33 scenarios
 pass, and 32 of them give the same PCM as on the Python host byte for byte (the 33rd is the cancel timed by the wall
 clock). The C host runs the full session in about half a second where the Python host takes 8 to 16.
 

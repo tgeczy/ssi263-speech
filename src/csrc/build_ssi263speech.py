@@ -5,7 +5,7 @@ and the SAPI engine's native test host beside it.
 
 Into build/win/<arch>/:
 
-  ssi263speech.dll   the chip, the Braille Lite (board on MAME's Z180, host, voice, number words), the Accent SA
+  ssi263speech.dll   the chip, the Braille Lite (board on MAME's Z180, host, voice, number words), the Accent-PC
                      (board on MAME's 8085, host, voice), the Speak-Out (MAME's
                      V40), the Accent-mini and the SmarTalk (MAME's 8086) -- behind voices.h, the voice table.  It
                      exports the ssv_ table and every voice API (blv_, asv_, sov_, amv_, mbv_, stv_, ssi263_); the SAPI
@@ -134,7 +134,7 @@ def build(arch):
         bad = [d for d in got if d not in ALLOWED_IMPORTS]
         if bad:
             sys.exit("FAILED: %s imports %s (only %s allowed)" % (path, ", ".join(bad), ", ".join(sorted(ALLOWED_IMPORTS))))
-    print("%s: %s (%s), %s; imports %s" % (arch, os.path.relpath(dll, REPO), " ".join(have) or "Braille Lite and Accent SA",
+    print("%s: %s (%s), %s; imports %s" % (arch, os.path.relpath(dll, REPO), " ".join(have) or "Braille Lite and Accent-PC",
                                            os.path.relpath(exe, REPO), ", ".join(imports(objdump, dll, env))))
 
 

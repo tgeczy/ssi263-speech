@@ -2,7 +2,7 @@
 content; the Blazie firmware and states, and GW Micro's Speak-Out firmware, never: their users import them, 0.7.5;
 Tomi, 2026-10-10: the GitHub APK carries the two Mockingboard files until a store build exists).
 
-Allowed, by sha256 and nothing else -- exactly these files, the built-in voices (firmware/AICOM.txt): the Accent SA's
+Allowed, by sha256 and nothing else -- exactly these files, the built-in voices (firmware/AICOM.txt): the Accent-PC's
 three ROMs, and the Accent-mini's driver (build_android.sh stages it when src/csrc/accentmini/am_voice.c is there):
 
     u2.BIN      8d6aa48880d1efd02f8dc759741c16b8902db33dcc2856d1f0db4776149992ad   (8085 program ROM, 64 KB)

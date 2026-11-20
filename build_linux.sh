@@ -184,7 +184,7 @@ fi                                  # not on macOS
 $CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC -c -o "$OUT/test_z180_contract.o" "$SRC/cpu/test_z180_contract.c"
 $CXX -o "$OUT/test_z180_contract" "$OUT/test_z180_contract.o" "$OUT/obj/z180_mame.o" "$OUT/obj/z180_asci.o"
 $CXX $MAME -o "$OUT/test_z180_whitebox" "$SRC/cpu/test_z180_whitebox.cpp" "$OUT/obj/z180_asci.o"
-# MAME's 8085 core (src/csrc/cpu/i8085_mame.cpp, the Accent SA's; its board below): the CPU contract's tests.  Its own
+# MAME's 8085 core (src/csrc/cpu/i8085_mame.cpp, the Accent-PC's; its board below): the CPU contract's tests.  Its own
 # object folder.
 MAMET="-O3 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -Wall -I$SRC/cpu -I$SRC"
 mkdir -p "$OUT/obj_i8085"
@@ -227,7 +227,7 @@ $CXX -o "$OUT/test_i86_contract" "$OUT/obj_i86/test_i86_contract.o" "$OUT/obj_i8
 $CC -O3 -std=gnu89 -fPIC -I$SRC/cpu -c -o "$OUT/obj_i86/pc86.o" "$SRC/pc86/pc86.c"
 $CXX -shared -o "$OUT/libpc86.so" "$OUT/obj_i86/pc86.o" "$OUT/obj_i86/i86_mame.o"
 
-# The Accent SA (src/csrc/accentsa: its board on MAME's 8085 and accent_sa.py's host in C): the board's tests,
+# The Accent-PC (src/csrc/accentsa: its board on MAME's 8085 and accent_sa.py's host in C): the board's tests,
 # as_render (the C API alone, the chip built in) and libaccent_sa.so for src/hosts/accent_sa_c.py.  The .so leaves
 # the chip's functions undefined: they come from the libssi263speech.so that ssi263/native.py loaded, made global by
 # accent_sa_c.py first, so the host drives the caller's chip.  Own folder.
@@ -243,7 +243,7 @@ $CXX -o "$OUT/as_render" "$OUT/as_render.o" "$OUT"/obj_accentsa/*.o $CHIP_OBJS -
 $CXX -shared $UNDEF -o "$OUT/libaccent_sa.so" "$OUT"/obj_accentsa/*.o -lm
 
 # The speech-dispatcher module (src/platforms/speechd): one program with every voice's engine inside (no .so to
-# install beside it) -- the Braille Lite (the library's objects), the Accent SA (as_voice on the board above), and
+# install beside it) -- the Braille Lite (the library's objects), the Accent-PC (as_voice on the board above), and
 # the Accent-mini (am_voice, MAME's 8086) and the Speak-Out (so_voice, MAME's V40) once their voices' sources are in
 # the tree: voices.c (src/csrc/voices.h, the voice table the SAPI engine and Android share) gets SSV_HAVE_ACCENTMINI and
 # SSV_HAVE_SPEAKOUT for them.  libsd_voices_ref.so: the same engine objects with the chip and the number words, the

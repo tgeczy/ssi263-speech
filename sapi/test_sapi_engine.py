@@ -110,7 +110,7 @@ ABORT_AFTER = 6
 
 # the voices whose unit takes its own index mark for a bookmark, and how far the audio's length may then be from the
 # joined text's, as a share of it.  The Braille Lite's mark changes no time at all (bl_voice.h).  The others',
-# measured at 22,050 Hz on the bookmark case: the Speak-Out +12 samples of 41,360, the Accent SA +10 of 86,986, the
+# measured at 22,050 Hz on the bookmark case: the Speak-Out +12 samples of 41,360, the Accent-PC +10 of 86,986, the
 # Accent-mini -31 of 87,518.  (The SmarTalk's and the Sounding Board's marks leave the audio as it is.)
 OWN_MARKS = {"blazie:blazie": 0.0, "speakout:speakout": 0.01, "accentmini:mini": 0.01, "accentmini:sa": 0.01}
 

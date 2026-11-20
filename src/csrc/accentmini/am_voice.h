@@ -2,7 +2,7 @@
  * in C (its boot, its settings commands, currencies, _clean and _numbers, a capital's pitch with snap_pitch, the speak
  * loop with the lead trim and PCM, and cancel), around the C host (am_host.h: Aicom's SPKEMS.DVC on MAME's 8086,
  * src/hosts/accent.py's host) and a chip made from the built-in defaults (ssi263_default_params) -- as bl_voice.h is
- * the Braille Lite's and as_voice.h the Accent SA's.  The driver's text rules are shared with as_voice
+ * the Braille Lite's and as_voice.h the Accent-PC's.  The driver's text rules are shared with as_voice
  * (../accent_front.h).  For front ends without Python: the Linux speech-dispatcher module, Android.
  *
  * nvda/tools/am_voice_equiv.py gates it: the real NVDA driver's PCM and this one's, byte for byte, on the same texts

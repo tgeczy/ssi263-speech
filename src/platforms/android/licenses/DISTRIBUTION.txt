@@ -3,7 +3,7 @@ SSI-263 Speech for Android: distribution and licenses
 Copyright (c) 2026 Tamas Geczy
 
 This app is free software under the MIT License: the SSI-263 chip model,
-the Braille Lite, Accent SA, Accent-mini, Speak-Out and Mockingboard
+the Braille Lite, Accent-PC, Accent-mini, Speak-Out and Mockingboard
 boards, hosts and voices, and the app itself.
 The chip model draws on Casso's SSI-263 model (MIT License: Robert Elmer),
 whose notice is under Full licenses.
@@ -11,7 +11,7 @@ whose notice is under Full licenses.
 Its emulated processors are MAME's, and keep their own BSD-3-Clause
 licenses and copyright notices:
 - the Braille Lite's Zilog Z180: Juergen Buchmueller;
-- the Accent SA's Intel 8085: Juergen Buchmueller, Roberto Fresca,
+- the Accent-PC's Intel 8085: Juergen Buchmueller, Roberto Fresca,
   Grull Osgo;
 - the Speak-Out's NEC V40: Bryan McPhail;
 - the Accent-mini's Intel 8086: Carl.
@@ -26,11 +26,11 @@ https://github.com/tgeczy/ssi263-speech
 
 The app also carries the Kotlin runtime (Apache License 2.0).
 
-The built-in voices are Aicom's Accent SA and Accent-mini and the two
-Mockingboards. For the Accents the app carries the Accent SA's 8085
+The built-in voices are Aicom's Accent-PC and Accent-mini and the two
+Mockingboards. For the Accents the app carries the Accent-PC's 8085
 firmware and dictionary ROMs (u2, u3 and u4) and the Accent-mini's DOS
 driver (SPKEMS.DVC), Aicom Corporation's work, with the notice under Full
-licenses (Aicom Accent SA notice). They are not ours and are not covered by
+licenses (Aicom Accent-PC notice). They are not ours and are not covered by
 the licenses above.
 
 The Mockingboard voices are Sweet Micro Systems' text-to-speech: the app

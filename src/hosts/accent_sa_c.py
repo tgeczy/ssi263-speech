@@ -1,4 +1,4 @@
-"""The Accent SA host in C, in-process: accent_sa.py's AccentSA with its lockstep, board and 8085 (MAME's) in
+"""The Accent-PC host in C, in-process: accent_sa.py's AccentSA with its lockstep, board and 8085 (MAME's) in
 src/csrc/accentsa (accent_sa.dll), and the same constructor, methods and attributes the add-on uses.  The chip stays
 the SSI263C the caller made (accent_sa.dll imports ssi263.dll, so both use the one copy loaded).
 
@@ -61,7 +61,7 @@ def _load(chip):
             break
         tried.append(path)
     else:
-        raise OSError("the Accent SA library not found (build it: src/csrc/accentsa/build_board.py); tried %s" % tried)
+        raise OSError("the Accent-PC library not found (build it: src/csrc/accentsa/build_board.py); tried %s" % tried)
     lib.ash_create_dir.restype = _P
     lib.ash_create_dir.argtypes = [ctypes.c_char_p, _P, _D, ctypes.c_char_p, _I]
     lib.ash_destroy.argtypes = [_P]

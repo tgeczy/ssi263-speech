@@ -1,4 +1,4 @@
-/* The SSI-263 voices -- the Braille Lite 2000 (English and Spanish), the Speak-Out, the Accent-mini, the Accent SA
+/* The SSI-263 voices -- the Braille Lite 2000 (English and Spanish), the Speak-Out, the Accent-mini, the Accent-PC
  * and the Mockingboard -- as a SAPI 5 engine, 32- and 64-bit.
  *
  * A fork of outspoken-nvda's sapi/outspoken_sapi.cpp, itself a fork of panthera-speech's panthera_sapi.cpp, which

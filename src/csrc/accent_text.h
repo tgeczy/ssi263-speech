@@ -1,5 +1,5 @@
 /* accent_text.h -- what the two Aicom voices share: nvda/accent/synthDrivers/accentmini.py's text preparation and
- * settings mapping (one driver speaks both the Accent SA and the Accent-mini), and the Accent's ESC command syntax as
+ * settings mapping (one driver speaks both the Accent-PC and the Accent-mini), and the Accent's ESC command syntax as
  * the two Python hosts read it (src/hosts/accent.py and accent_sa.py, the same _ESC).  Used by accentsa/as_voice.c
  * and accentmini/am_voice.c, am_host.c.  Each function names the Python it ports; change them together.  Needs
  * numwords.c.  MIT.
@@ -30,7 +30,7 @@ int at_inflection(int inflection);
    when numbers is on.  malloc'd; NULL when out of memory. */
 char *at_say_text(const char *utf8, int numbers);
 /* The same text with the Accents' index mark, Ctrl-F (06h), for each word one of the caller's marks stands before
-   (marks.h).  where: AT_MARK_FRONT, at the front of that word, after the space before it (the Accent SA:
+   (marks.h).  where: AT_MARK_FRONT, at the front of that word, after the space before it (the Accent-PC:
    as_voice.h for what the unit does with it); AT_MARK_AFTER, directly after the last word before it that has a
    letter or a digit, its punctuation included (the Accent-mini: am_voice.h; two Ctrl-Fs with nothing spoken
    between them cost that unit 60 ms, so a dash alone carries none).  The text is
