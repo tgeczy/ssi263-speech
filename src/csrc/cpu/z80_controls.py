@@ -228,9 +228,13 @@ def undo(d, fname, old, new, count=1):
     """The rule's code replaced in the copy `d`; False when it is not there `count` times."""
     p = os.path.join(d, fname)
     t = open(p, encoding="utf-8", newline="").read()
+    crlf = "\r\n" in t                  # a tree unpacked from git archive on Windows has CRLF line ends
+    if crlf:
+        t = t.replace("\r\n", "\n")
     if t.count(old) != count:
         return False
-    open(p, "w", encoding="utf-8", newline="").write(t.replace(old, new))
+    t = t.replace(old, new)
+    open(p, "w", encoding="utf-8", newline="").write(t.replace("\n", "\r\n") if crlf else t)
     return True
 
 
