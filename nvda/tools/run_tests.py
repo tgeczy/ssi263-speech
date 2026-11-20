@@ -451,6 +451,15 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
 SAPI_ENGINE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_sapi_engine.py")
 if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "sapi-dev", "x86", "sapi_harness.exe")):
     CHECKS.append(check("SAPI engine DLL = the Python server, through SAPI's interface", [PY, SAPI_ENGINE]))
+    # a bookmark on a voice whose unit takes its own index mark: with every voice's marks estimated (voices.c's
+    # SSV_MARKS_ESTIMATE) those voices speak the joined text's very bytes, and their cases must fail
+    CHECKS.append(check("SAPI engine DLL CONTROL (a bookmark: every voice's marks estimated, must fail)",
+                        [PY, SAPI_ENGINE, "--bookmarks", "--arch", "x64"], env={"SSV_MARKS_ESTIMATE": "1"},
+                        expect_fail=True,
+                        fail_marks=[r"^FAIL x64 blazie:blazie bookmark .*the SAME bytes: no mark reached the unit",
+                                    r"^FAIL x64 speakout:speakout bookmark .*the SAME bytes",
+                                    r"^FAIL x64 accentmini:sa bookmark .*the SAME bytes",
+                                    r"^FAIL x64 accentmini:mini bookmark .*the SAME bytes"]))
     CHECKS.append(check("SAPI engine DLL CONTROL (the reference on nvda/dist's native drivers, must fail)",
                         [PY, SAPI_ENGINE, "--arch", "x64"], env={"SSI263_SAPI_REF_BREAK": "dist"},
                         expect_fail=True, fail_marks=[REF_MARK, r"^sapi engine: 1 FAILED$"]))

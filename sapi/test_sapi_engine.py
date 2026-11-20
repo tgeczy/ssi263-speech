@@ -21,8 +21,9 @@ checks first -- SSI263_SAPI_REF_BREAK=dist, the reference on nvda/dist's drivers
   - BrailleLiteNumbers with no value, 1 and 0 on both Braille Lite voices ("1,234,567", Spain's "1.234.567"): each the
     same as the Python server with the driver's numberWords so; no value = 1, and 0 differs from 1;
   - a bookmark between two halves: the event comes, and the audio is the joined text's -- byte for byte where the
-    voice's index marks are estimated; on the English Braille Lite, which gets its own index mark for the bookmark
-    (src/csrc/marks.h), as long as it and not the same bytes;
+    voice's index marks are estimated; where the unit gets its own index mark for the bookmark (src/csrc/marks.h:
+    OWN_MARKS below), not the same bytes, and as long as the joined text's: exactly on the English Braille Lite,
+    within 1 % on the Speak-Out and the two Accents, whose marks cost or save a few samples;
   - SAPI's abort after a few writes: Speak returns S_OK at once, nothing more is written (no events, no silence),
     and the next text comes out whole (voiced, as long as alone within 10 %);
   - the controls, in the same run (each must make its cases differ): SSI263_SAPI_TEST_BREAK=voice (English and
@@ -40,7 +41,11 @@ the DLL's side: SAPI's fragments, rates and pitches, the declared rate, the 150 
 abort, byte for byte.  The voice itself is test_native.py's (both widths, voiced, its settings changing it) and
 src/csrc/mockingboard's.
 
-    python sapi/test_sapi_engine.py [--arch x64|x86|both] [--verbose]
+    python sapi/test_sapi_engine.py [--arch x64|x86|both] [--verbose] [--bookmarks]
+
+--bookmarks runs the bookmark cases alone, each after its voice's default case.  With SSV_MARKS_ESTIMATE=1 (voices.c: every voice's marks estimated)
+the OWN_MARKS voices then speak the joined text's very bytes and their cases must fail: the control, registered
+in nvda/tools/run_tests.py.
 """
 import concurrent.futures
 import json
@@ -103,7 +108,11 @@ LONG = "This sentence is long enough to be cut somewhere in the middle of it, su
 ABORT_AFTER = 6
 
 
-OWN_MARKS = ("blazie:blazie",)        # the voices whose unit takes its own index mark for a bookmark
+# the voices whose unit takes its own index mark for a bookmark, and how far the audio's length may then be from the
+# joined text's, as a share of it.  The Braille Lite's mark changes no time at all (bl_voice.h).  The others',
+# measured at 22,050 Hz on the bookmark case: the Speak-Out +12 samples of 41,360, the Accent SA +10 of 86,986, the
+# Accent-mini -31 of 87,518.  (The SmarTalk's and the Sounding Board's marks leave the audio as it is.)
+OWN_MARKS = {"blazie:blazie": 0.0, "speakout:speakout": 0.01, "accentmini:mini": 0.01, "accentmini:sa": 0.01}
 
 def cases(voices):
     """[(label, voice, sapi rate, middle adj, settings, break, abort after, text, second text or None)], in the order
@@ -264,6 +273,10 @@ def main():
     voices = [ln.split("\t") for ln in open(os.path.join(STAGE, "voices.txt"), encoding="utf-8").read().splitlines()
               if "\t" in ln]
     todo = cases(voices)
+    if "--bookmarks" in ARGS:
+        # (each voice's default case stays in front of its bookmark: a unit's first utterance after its boot is
+        # not timed as its later ones, and the English Braille Lite's "as long" is exact from the second on)
+        todo = [c for c in todo if c[0].endswith((" bookmark", " default"))]
     # the harness runs: every arch speaks the cases in order in one engine; each control alone in a fresh one (x64),
     # against a fresh Python server, so what differs is the control's doing and nothing else
     main_idx = [k for k, c in enumerate(todo) if "CONTROL" not in c[0] and not numbers_run(c[0])]
@@ -316,9 +329,10 @@ def main():
                     elif t2 and vid in OWN_MARKS:
                         # the bookmark is the unit's own index mark, a Ctrl-F before the next word: every phoneme and
                         # its time as without it, one pause frame more (bl_voice.h) -- as long, not the same bytes
-                        ok = hr == 0 and declared == sr and len(data) == len(want) and data != want and marks == "7"
-                        what = ("as long as %s's joined text (%d samples), the unit's own index mark in it" % (
-                            server, len(want) // 2) if len(data) == len(want) and data != want else
+                        near = abs(len(data) - len(want)) <= OWN_MARKS[vid] * len(want)
+                        ok = hr == 0 and declared == sr and near and data != want and marks == "7"
+                        what = ("as long as %s's joined text (%d samples against %d), the unit's own index mark in it" % (
+                            server, len(data) // 2, len(want) // 2) if near and data != want else
                                 "%d samples against %d%s" % (len(data) // 2, len(want) // 2,
                                                              ", the SAME bytes: no mark reached the unit"
                                                              if data == want else "")) + ", bookmark %s" % marks
@@ -335,7 +349,7 @@ def main():
                     lines.append("%-4s %s %-38s %s" % ("ok" if ok else "FAIL", a, label, what))
                 # across the numbers runs: no value = 1, and 0 changes the audio (each is the Python server's above)
                 for vid, _name, lang in voices:
-                    if not vid.startswith("blazie:") or lang not in NUMBERS_TEXT:
+                    if not vid.startswith("blazie:") or lang not in NUMBERS_TEXT or "--bookmarks" in ARGS:
                         continue
                     pcm = {tag: results[a, next(k for k, c in enumerate(todo) if c[0] == "%s %s" % (vid, tag))][5]
                            for tag, _s in NUMBERS}
