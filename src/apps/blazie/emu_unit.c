@@ -374,9 +374,9 @@ static int tns_render(emu_unit *u, double seconds, const double **out)
         if (dt < 1e-5)
             dt = 1e-5;
         cyc = (unsigned long long)(CLOCK_HZ * dt * (u->hurry ? EMU_QUICK_TURBO : 1.0));
+        /* the fast part is no clock time (#78; EMU_QUICK_CLOCK_BREAK=1, the test's control: it is) */
+        tns_clock_speed(u->tns, u->hurry && !getenv("EMU_QUICK_CLOCK_BREAK") ? EMU_QUICK_TURBO : 1.0);
         tns_run(u->tns, cyc ? cyc : 1);
-        if (u->hurry && !getenv("EMU_QUICK_CLOCK_BREAK"))  /* the fast part is no clock time (#78) */
-            tns_clock_hurry(u->tns, cyc - (unsigned long long)(CLOCK_HZ * dt));
         tns_events_to_chip(u);
         t += dt;
     }

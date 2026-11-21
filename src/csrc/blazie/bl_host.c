@@ -937,15 +937,9 @@ BL_API int bh_run(bl_host *h, double seconds, double step, const double **audio)
         if (dt < 1e-5)
             dt = 1e-5;
         speed = h->preparing ? h->turbo : 1.0;
-        {
-            unsigned long long t0 = bl_board_time(h->unit), ran;
-            run_cpu(h, CLOCK_HZ * dt * speed);
-            /* the CPU ran `speed` times real time: the clock chips count only the real part (#78) */
-            if (speed > 1.0 && !bh_clock_hurry_break) {
-                ran = bl_board_time(h->unit) - t0;
-                bl_clock_hurry(h->unit, ran - (unsigned long long)((double)ran / speed));
-            }
-        }
+        /* the CPU runs `speed` times real time: the clock chips keep real time (#78) */
+        bl_clock_speed(h->unit, bh_clock_hurry_break ? 1.0 : speed);
+        run_cpu(h, CLOCK_HZ * dt * speed);
         t += dt;
     }
     if (h->board_on && h->n_buf)

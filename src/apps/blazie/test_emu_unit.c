@@ -164,6 +164,8 @@ static double key_latency(const char *fw, const char *st, int quick)
    the seconds it gained.  The fast CPU after a key was clock time too, and the time of day ran fast for good (#78).
    EMU_QUICK_CLOCK_BREAK=1 (the control) counts the fast cycles again: bl_host.c bh_clock_hurry_break for the Braille
    Lite, emu_unit.c for the Type 'n Speak */
+static char g_clock_seen[96];               /* the two readings, for the check's message */
+
 static long clock_gain(const char *fw, const char *st)
 {
     char err[256];
@@ -199,6 +201,8 @@ static long clock_gain(const char *fw, const char *st)
     emu_clock_time(u, 0, &b);
     t1 = emu_time(u);
     emu_destroy(u);
+    snprintf(g_clock_seen, sizeof g_clock_seen, "%04d-%02d-%02d %02d:%02d:%02d -> %04d-%02d-%02d %02d:%02d:%02d",
+             a.year, a.month, a.day, a.hour, a.minute, a.second, b.year, b.month, b.day, b.hour, b.minute, b.second);
     ca = ((a.day * 24L + a.hour) * 60 + a.minute) * 60 + a.second;
     cb = ((b.day * 24L + b.hour) * 60 + b.minute) * 60 + b.second;
     return (cb - ca) - (long)(t1 - t0 + 0.5);
@@ -311,7 +315,8 @@ int main(int argc, char **argv)
     }
     {
         long gain = clock_gain(fw, ready);
-        snprintf(d, sizeof d, "twelve keys with quick key response: the clock %ld s off the chip's time", gain);
+        snprintf(d, sizeof d, "twelve keys with quick key response: the clock %ld s off the chip's time (%s)", gain,
+                 g_clock_seen);
         check("clock keeps time", gain >= -1 && gain <= 1, d);
     }
     {   /* switched off and on: the saved memory is the state format, and the unit boots from it and speaks */

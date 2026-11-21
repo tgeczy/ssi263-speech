@@ -113,7 +113,8 @@ struct bl_unit {
        Never saved: derived from the core at every step, so a state's bytes do not change. */
     int x1_ok, x1;
     unsigned long long t_base, c_base;       /* board time and core cycles at the last switch */
-    unsigned long long clock_lag;            /* board time the clock chips do not count (bl_clock_hurry) */
+    double clock_div;                        /* the CPU's speed against real time (bl_clock_speed): 1, or the turbo's */
+    unsigned long long clock_c0, clock_t0;   /* board time and clock time when it last changed */
     /* The SSI-263's latch race (bl_set_latch_race): the chip takes a register at the first edge of its own clock
        after the write; a write that comes before that edge also puts its value into the register written before it.
        Only writes under BL_LATCH_GAP_US apart reach it -- the BASIC runtime's 1.465 us pairs at double speed, not
@@ -133,14 +134,15 @@ static unsigned long long now_t(const bl_unit *u)
     return u->t_base + (u->x1 ? (raw - u->c_base) / 2 : raw - u->c_base);
 }
 
-/* The clock chips' time: the board's, less what the host ran the CPU faster than real time (bl_clock_hurry).  On the
-   unit the clock controller (and the BNS 640's OKI clock) is a chip of its own with its own time base; stepped from the
-   CPU's cycles, every cycle of the emulator's quick key response was clock time too, and the unit's time of day ran
-   up to 8 times fast after each key, saved with it for good (#78) */
+/* The clock chips' time: the board's, divided by how fast the host runs the CPU (bl_clock_speed), so it moves at
+   real time whatever the turbo, and never back.  On the unit the clock controller (and the BNS 640's OKI clock) is a
+   chip of its own with its own time base; stepped from the CPU's cycles, every cycle of the emulator's quick key
+   response was clock time too, and the unit's time of day ran up to 8 times fast after each key, saved with it for
+   good (#78) */
 static unsigned long long clock_now(const bl_unit *u)
 {
-    unsigned long long t = now_t(u);
-    return t > u->clock_lag ? t - u->clock_lag : 0;
+    double div = u->clock_div > 0.0 ? u->clock_div : 1.0;
+    return u->clock_t0 + (unsigned long long)((double)(now_t(u) - u->clock_c0) / div);
 }
 
 static void clock_mode(bl_unit *u)           /* follows CCR bit 7 when double speed is allowed */
@@ -916,14 +918,13 @@ int bl_clock_on(bl_unit *u, const blc_time *now, long long unix_now)
     return 1;
 }
 
-void bl_clock_hurry(bl_unit *u, unsigned long long board_time)
+void bl_clock_speed(bl_unit *u, double speed)
 {
-    u->clock_lag += board_time;
-}
-
-unsigned long long bl_board_time(const bl_unit *u)
-{
-    return now_t(u);
+    if (speed == u->clock_div)
+        return;
+    u->clock_t0 = clock_now(u);
+    u->clock_c0 = now_t(u);
+    u->clock_div = speed;
 }
 
 int bl_clock_time(const bl_unit *u, int alarm, blc_time *t)

@@ -36,18 +36,19 @@ struct tns_unit {
     int n_ev, cap_ev;
     unsigned char ppi_c;                     /* the 8255's port C outputs (control word at port C3h) */
     blc_clock *clk;                          /* tns_clock_on: the clock controller on the CSI/O (bl_clock.h) */
-    unsigned long long clock_lag;            /* CPU cycles the clock does not count (tns_clock_hurry, #78) */
+    double clock_div;                        /* the CPU's speed against real time (tns_clock_speed, #78) */
+    unsigned long long clock_c0, clock_t0;   /* CPU cycles and clock time when it last changed */
     unsigned char clk_tail[BLC_SAVE_SIZE];   /* the state's saved controller, until tns_clock_on */
     int has_clk_tail;
     long long clk_wall;
 };
 
-/* the clock controller's time: the CPU's cycles less those the emulator ran beyond real time (quick key response);
-   on the unit the controller is a chip of its own (bl_board.c clock_now, #78) */
+/* the clock controller's time: the CPU's cycles divided by how fast the emulator runs it (quick key response), so
+   it keeps real time and never goes back; on the unit the controller is a chip of its own (bl_board.c, #78) */
 static unsigned long long clock_now(const tns_unit *u)
 {
-    unsigned long long t = z180_cycles(u->cpu);
-    return t > u->clock_lag ? t - u->clock_lag : 0;
+    double div = u->clock_div > 0.0 ? u->clock_div : 1.0;
+    return u->clock_t0 + (unsigned long long)((double)(z180_cycles(u->cpu) - u->clock_c0) / div);
 }
 
 static void event(tns_unit *u, unsigned char type, unsigned char a, unsigned char b)
@@ -413,9 +414,13 @@ int tns_save_state(const tns_unit *u, const char *path)
     return fclose(s) == 0 && ok;
 }
 
-void tns_clock_hurry(tns_unit *u, unsigned long long cycles)
+void tns_clock_speed(tns_unit *u, double speed)
 {
-    u->clock_lag += cycles;
+    if (speed == u->clock_div)
+        return;
+    u->clock_t0 = clock_now(u);
+    u->clock_c0 = z180_cycles(u->cpu);
+    u->clock_div = speed;
 }
 
 int tns_clock_on(tns_unit *u, const blc_time *now, long long unix_now)
