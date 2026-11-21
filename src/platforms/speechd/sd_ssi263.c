@@ -48,6 +48,7 @@
  * answers DEBUG and QUIT as up to 0.9.1 (old_replies below); SD_SSI263_TEST_PAUSE_704=1 answers a PAUSE with 704
  * (stop_event below); sd_voices.c's drop a key on its way to the voice -- the harness's controls must fail.
  */
+#include <ctype.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -324,16 +325,43 @@ static int to100(int ssip)                           /* SSIP -100..100 -> NVDA's
     return v < 0 ? 0 : v > 100 ? 100 : v;
 }
 
-/* SET language: a voice of that language, unless the current one already speaks it (an Accent user's "en" keeps the
-   Accent); the first one there otherwise.  Compared on the language's first two letters, as speech-dispatcher's
-   clients send "en", "en-US" or "es". */
+/* How well a voice's tag answers the language asked for: 3 the same tag (ar-AE, pt-BR), 2 the language's own with
+   no region (pt for pt-PT, en for en-US), 1 another region of the language, 0 another language.  Without case,
+   "_" as "-": clients send "en", "en-US", "pt_BR". */
+static int lang_match(const char *tag, const char *lang)
+{
+    char a[16], b[16];
+    size_t k, pa, pb;
+    for (k = 0; k + 1 < sizeof a && tag[k]; k++) a[k] = tag[k] == '_' ? '-' : (char)tolower((unsigned char)tag[k]);
+    a[k] = 0;
+    for (k = 0; k + 1 < sizeof b && lang[k]; k++) b[k] = lang[k] == '_' ? '-' : (char)tolower((unsigned char)lang[k]);
+    b[k] = 0;
+    pa = strcspn(a, "-");
+    pb = strcspn(b, "-");
+    if (pa != pb || strncmp(a, b, pa)) return 0;
+    return !strcmp(a, b) ? 3 : !a[pa] ? 2 : 1;
+}
+
+/* SET language: the voice that answers it best (lang_match), the first such in the table; the current voice is
+   kept when it answers as well (an Accent user's "en" or "en-US" keeps the Accent).  It compared the first two
+   letters and took the first voice: ar-AE got the plain Arabic unit, pt and pt-PT the Brazilian one (#48;
+   SD_SSI263_TEST_LANG_TWO=1, a control: as it was). */
 static void choose_language(const char *lang)
 {
-    int i;
+    int i, best = 0, at = -1;
     if (strlen(lang) < 2) return;
-    if (!strncmp(sdv_language(cur_voice), lang, 2)) return;
-    for (i = 0; i < sdv_count(); i++)
-        if (!strncmp(sdv_language(i), lang, 2) && sdv_available(i, &conf)) { cur_voice = i; return; }
+    if (getenv("SD_SSI263_TEST_LANG_TWO")) {
+        if (!strncmp(sdv_language(cur_voice), lang, 2)) return;
+        for (i = 0; i < sdv_count(); i++)
+            if (!strncmp(sdv_language(i), lang, 2) && sdv_available(i, &conf)) { cur_voice = i; return; }
+        return;
+    }
+    for (i = 0; i < sdv_count(); i++) {
+        int m = lang_match(sdv_language(i), lang);
+        if (m > best && sdv_available(i, &conf)) { best = m; at = i; }
+    }
+    if (at >= 0 && lang_match(sdv_language(cur_voice), lang) < best)
+        cur_voice = at;
 }
 
 /* What ends a message that a STOP or a PAUSE cut short: 703 for both.  The protocol has 704 for a pause, and

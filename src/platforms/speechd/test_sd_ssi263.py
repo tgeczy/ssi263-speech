@@ -84,6 +84,8 @@ before every word), in a session of their own, counted apart ("index marks: n of
     SD_SSI263_TEST_IGNORE_RUN_AHEAD=1: the module drops SSI263RunAhead -- the ra_ checks must FAIL
     SD_SSI263_TEST_IGNORE_LINE_LIFT=1: the module drops SSI263LineLift -- lift must FAIL
     SD_SSI263_TEST_IDLE_STOP=drop: a STOP between messages is dropped, as it was -- lift_stp must FAIL
+    SD_SSI263_TEST_LANG_TWO=1: SET language on its first two letters, the first voice, as it was -- lang_ar_ae,
+      lang_pt and lang_pt_pt must FAIL
     SD_SSI263_TEST_IGNORE_BL_NUMBERS=1: the module drops SSI263BrailleLiteNumbers (the default reaches the unit) --
                                         num_off and num_es_off must FAIL
     SD_SSI263_TEST_IGNORE_ACCENT_INFLECTION=1: the module drops SSI263AccentInflection -- as_infl must FAIL
@@ -559,6 +561,37 @@ for lang, text in (("de", "Guten Tag, schön."), ("it", "Buongiorno, città."), 
 
 m.send("QUIT")
 m.p.wait(timeout=10)
+
+
+# ---- SET language: the voice tagged exactly so first, then the language's own (no region), then any of it ------
+# (#48: on two letters, the first in the table, ar-AE got the plain Arabic unit and pt, pt-PT the Brazilian one).
+# Each a fresh module, its first message; the reference is the same voice chosen by name, and the voice it got
+# instead must sound different, or the check could not tell
+def first_message(text, **kw):
+    s = Module()
+    s.send("INIT")
+    assert s.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
+    s.set(**kw)
+    pcm, _ev, _n = s.speak(text)
+    s.send("QUIT")
+    s.p.wait(timeout=10)
+    return pcm
+
+
+ARABIC = ("Braille Lite 2000 (Arabic, UAE)", "bl2000/BL2UAE.BNS"), ("Braille Lite 2000 (Arabic)", "bl2000/BL2ARB.BNS")
+PORTUGUESE = (("Braille Lite 2000 (Portuguese)", "bl2000/BL2POR.BNS"),
+              ("Braille Lite 2000 (Brazilian Portuguese)", "bl2000/BL2BPG.BNS"))
+for label, tag, (want, other), text in (("lang_ar_ae", "ar-AE", ARABIC, "Hello, \u0645\u0631\u062d\u0628\u0627."),
+                                       ("lang_pt", "pt", PORTUGUESE, "Bom dia, obrigado."),
+                                       ("lang_pt_pt", "pt-PT", PORTUGUESE, "Bom dia, obrigado.")):
+    if not all(os.path.isfile(os.path.join(VDATA, f)) for _n, f in (want, other)):
+        print("%-8s skipped: %s or %s is not in the data folder" % (label, want[1], other[1]))
+        continue
+    got, by_name, by_other = (first_message(text, language=tag), first_message(text, synthesis_voice=want[0]),
+                              first_message(text, synthesis_voice=other[0]))
+    print("%-8s %s and %s %s" % (label, want[0], other[0], "sound different" if by_name != by_other
+                                                        else "sound the SAME (the check cannot tell)"))
+    results.append(same(label, got, by_name) and by_name != by_other)
 
 
 # ---- the protocol's corners, as speech-dispatcher 0.11.1's server sends them and its own modules answer them
