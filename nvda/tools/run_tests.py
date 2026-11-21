@@ -514,6 +514,15 @@ CHECKS.append(check("SAPI settings: Check for updates CONTROL (drafts offered, m
 CHECKS.append(check("SAPI settings: Check for updates CONTROL (any download taken, must fail)", PS,
                     env={"SSI263_UPDATES_BREAK": "hash"}, expect_fail=True,
                     fail_marks=[r"^FAIL a download that does not match is refused ", r"^sapi updates: 1 FAILED$"]))
+# the SAPI settings dialog's Save-Setting (#39: New-Item -Force on the existing key emptied it, every other setting with
+# it), run from settings.ps1 itself on a throwaway key; the control makes the key with -Force every time, as it was
+SAPI_SAVE = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+             os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_settings_save.ps1")]
+CHECKS.append(check("SAPI settings: a change keeps every other setting (#39)", SAPI_SAVE))
+CHECKS.append(check("SAPI settings: save CONTROL (the key emptied at each change, must fail)", SAPI_SAVE,
+                    env={"SSI263_SAVE_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL  two +SampleRate 44100 saved, then LineLift: SampleRate reads 22050",
+                                r"^ok    fresh ", r"^settings save: 2 FAILED$"]))
 # the golden vectors: every SSI-263 write with its time, the serial output and the audio hash of a fixed scenario, on
 # MAME's Z180 (0.7).  Two hosts, two baselines: the in-process host (bl.dll, the add-on's) has the lockstep cancel
 # protection on by default (blazie_{en,es}.txt, Astra's Replies 124-128); the pipe host (bns_live.exe / bl_live.exe,

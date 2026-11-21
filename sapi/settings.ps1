@@ -25,7 +25,8 @@ function Load-Setting([string]$name, [int]$default) {
     catch { $default }
 }
 function Save-Setting([string]$name, [int]$value) {
-    New-Item -Path $prefKey -Force | Out-Null
+    # made only when it is not there: New-Item -Force on an existing key empties it, every other setting with it (#39)
+    if (-not (Test-Path $prefKey)) { New-Item -Path $prefKey -Force | Out-Null }
     New-ItemProperty -Path $prefKey -Name $name -Value $value -PropertyType DWord -Force | Out-Null
 }
 
