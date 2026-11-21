@@ -15,7 +15,8 @@
 # SSI263_INSTALL_BREAK=default (a control) puts back --default's commenting of its own line and uninstall.sh's
 # restoring of it: the two "twice" checks must fail.
 # SSI263_INSTALL_BREAK=newline (a control) appends DefaultModule with no check for the last line's newline, as it was:
-# the "no final newline" checks must fail. 
+# the "no final newline" checks must fail.  SSI263_INSTALL_BREAK=chown (a control) gives back the two files alone:
+# "the modules folder given back" must fail.
 #   sh tools/speechd_install_test.sh
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -156,6 +157,22 @@ uninstall
 if grep -qx 'DefaultModule espeak-ng' "$D/etc/speechd.conf" && ! grep -q 'ssi263' "$D/etc/speechd.conf"; then
     ok "uninstall (no final newline)" "the old default back"
 else fail "uninstall (no final newline)" "$(tr '\n' '|' < "$D/etc/speechd.conf")"; fi
+
+# 4e. under sudo, into the user's own folder: the modules folder the install makes goes to the user, as the files in
+# it do (Brailab's audit, B29: only the two files were given back, the folder stayed root's).  A stand-in chown on the
+# PATH writes down what it is asked, so no root is needed
+mkdir -p "$T/fakebin"
+printf '#!/bin/sh\necho "$@" >> "%s/chown.log"\n' "$T" > "$T/fakebin/chown"
+chmod +x "$T/fakebin/chown"
+: > "$T/chown.log"
+D="$T/sudo"
+rm -rf "$D"; mkdir -p "$D/etc" "$D/modules" "$D/prefix"
+printf '%s' "$STOCK" > "$D/etc/speechd.conf"
+( cd "$PKG" && PATH="$T/fakebin:$PATH" SUDO_USER="$(id -un)" PREFIX="$D/prefix" SSI263_SPD_MODULES="$D/modules" \
+    SSI263_SPD_CONF="$D/etc/speechd.conf" sh ./install.sh ) > "$D/install.log" 2>&1
+if grep -q "$D/etc/modules\$\|$D/etc/modules " "$T/chown.log"; then
+    ok "sudo: the modules folder given back" "chown $(id -un) ... $D/etc/modules"
+else fail "sudo: the modules folder given back" "chown asked for: $(tr '\n' '|' < "$T/chown.log")"; fi
 
 # 5. an install over a module that is running and a library that is there: each put in place by a rename.  A real
 # program stands in for the module (a copy of sleep, running under its name), as speech-dispatcher has the module

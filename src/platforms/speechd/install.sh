@@ -155,7 +155,14 @@ if [ $MAKE_DEFAULT -eq 1 ]; then
     fi
 fi
 if [ -n "$SUDO_USER" ] && [ "$CONF" != "/etc/speech-dispatcher/speechd.conf" ]; then
-    chown "$SUDO_USER" "$CONF" "$MODCONF/ssi263.conf"
+    # the user's own: the config, the module's settings and the modules folder, which mkdir made as root when it was
+    # not there (Brailab's audit, B29: it stayed root's, and the user could not change their own settings there).
+    # (SSI263_INSTALL_BREAK=chown, the test's control: the two files alone, as it was)
+    if [ "${SSI263_INSTALL_BREAK:-}" = chown ]; then
+        chown "$SUDO_USER" "$CONF" "$MODCONF/ssi263.conf"
+    else
+        chown "$SUDO_USER" "$CONF" "$MODCONF/ssi263.conf" "$MODCONF"
+    fi
 fi
 
 cat <<EOF
