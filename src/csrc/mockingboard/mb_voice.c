@@ -272,6 +272,11 @@ MB_API int mbv_speak(mb_voice *v, const char *utf8, int pitch_offset)
 static int say_next(mb_voice *v)
 {
     int infl = mbv_pitch_step(v->pitch) + (v->offset ? (int)(v->offset * 18 / 50.0 + (v->offset > 0 ? 0.5 : -0.5)) : 0);
+    /* a part after the first: to the firmware a whole text, ended by its own power-down, so the tract is brought to
+       rest before it as before an utterance -- it began with the pop and the old phoneme rest() removes (#75;
+       tools/check_mb_parts.py.  MB_PART_REST_BREAK=1, the test's control: not between parts, as it was) */
+    if (v->next > 0 && v->next < v->n_parts && !getenv("MB_PART_REST_BREAK"))
+        rest(v);
     mbh_set(v->h, clamp(infl, 0, 26), mbv_rate_step(v->rate), AMPLITUDE, FILTER);
     while (v->next < v->n_parts) {
         char *s = v->parts[v->next];

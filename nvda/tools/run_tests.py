@@ -2696,6 +2696,14 @@ CHECKS.append(check("Mockingboard after a cancel CONTROL (the tract left as cut,
                     fail_marks=[r"^FAIL  mockingboard-tts-1\.1\.bin cut at 0\.12 s: onset 1\.\d ms",
                                 r"^FAIL  mockingboard-tts-early\.bin cut at 0\.20 s: onset 0\.0 ms",
                                 r"^mb cancel: 8 FAILED$"]))
+# ... and every part of a longer utterance starts from a tract at rest too (#75: only the first did; the others began
+# with the pop and the old phoneme): one utterance in two parts = the two said apart, sample for sample
+MB_PARTS = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_mb_parts.py")]
+CHECKS.append(check("Mockingboard: each part of an utterance starts as an utterance does (both versions, #75)", MB_PARTS))
+CHECKS.append(check("Mockingboard parts CONTROL (no rest between parts, must fail)", MB_PARTS,
+                    env={"MB_PART_REST_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL  mockingboard-tts-1\.1\.bin: .*first different at sample \d+ \(the second part",
+                                r"^FAIL  mockingboard-tts-early\.bin: ", r"^mb parts: 2 FAILED$"]))
 ST_EXE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "automated-functions-smartalk", "S_TALK.EXE")
 if os.path.isfile(ST_EXE):
     ST_HOST = os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_st_host.py")
