@@ -26,6 +26,7 @@ it fails, the previous unit keeps speaking, and a unit switched away from report
 the config in __init__ (blazie.py: 0.6.0's setSynth KeyError).
 """
 
+import os
 from collections import OrderedDict
 
 from synthDriverHandler import SynthDriver, VoiceInfo, synthIndexReached, synthDoneSpeaking
@@ -128,6 +129,23 @@ def mem_key(fw, setting_id):
     return "fw_%s_%s" % (fw, setting_id)
 
 
+def _quiet_save(inner):
+    """A unit driver inside this one is a real NVDA SynthDriver, and NVDA's AutoSettings registered its stock
+    saveSettings for every configuration save: it wrote [speech][<its name>] each time -- a KeyError logged where that
+    section is absent, the 0.7 add-on's section overwritten where it is (#72).  This driver saves the settings
+    (saveSettings below); the unit's own save is taken off.  (SSI263_QUIET_INNER_SAVE_BREAK=1, the test's control.)"""
+    if os.environ.get("SSI263_QUIET_INNER_SAVE_BREAK"):
+        return
+    try:
+        inner._unregisterConfigSaveAction()
+    except Exception:
+        try:
+            import config
+            config.pre_configSave.unregister(inner.saveSettings)
+        except Exception:
+            log.debugWarning("SSI-263: a unit's own config save could not be taken off", exc_info=True)
+
+
 class _Unified(SynthDriver):
     name = "ssi263"
     description = "Votrax SC-02 / SSI-263 (emulated)"
@@ -158,6 +176,7 @@ class _Unified(SynthDriver):
         langs = present_languages(fw)
         lang = lang if lang in langs else langs[0]
         inner = mod.SynthDriver(startVoice=voices[lang])
+        _quiet_save(inner)
         try:
             booted = getattr(inner, "booted", None)
             if booted is not None:

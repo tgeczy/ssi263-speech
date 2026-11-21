@@ -159,6 +159,13 @@ for synth in ("speakout", "accent"):
 # synth; the variant not forwarded must fail the tone cases and pass the first.  Built by nvda/build_ssi263.py.
 UNIFIED_SUM = r"^(?!(\d+) of \1 )\d+ of \d+ sequences byte-identical to the units' own drivers"
 if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "synthDrivers")):
+    # a configuration save runs the 0.8 driver's own save, not its unit drivers' stock ones (#72: a KeyError logged, or
+    # the 0.7 add-on's section overwritten, at every save); the control leaves them registered
+    CHECKS.append(check("0.8 driver: a config save runs no unit driver's own save (#72)", [PY, "config_save.py"]))
+    CHECKS.append(check("0.8 driver: config save CONTROL (the units' saves left on, must fail)", [PY, "config_save.py"],
+                        env={"CONFIG_SAVE_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL inner +the unified driver started .*: a save ran blazie$",
+                                    r"^config save: 2 FAILED$"]))
     CHECKS.append(check("0.8 driver = each unit's own driver, byte for byte", [PY, "unified_driver_equiv.py"],
                         ok=lambda out: bool(re.search(r"^(\d+) of \1 sequences byte-identical", out, re.M))))
     CHECKS.append(check("0.8 driver CONTROL (units report as themselves, must fail)", [PY, "unified_driver_equiv.py"],

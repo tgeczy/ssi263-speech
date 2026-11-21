@@ -71,6 +71,26 @@ if os.environ.get("FAKE_PLAYER") == "wasapi":
 sys.modules["nvwave"] = nvwave
 config = types.ModuleType("config")
 config.conf = {"audio": {"outputDevice": "default"}, "speech": {"outputDevice": "default"}}
+
+
+class _Action:
+    """config.pre_configSave, NVDA's extension point: the handlers run before every configuration save"""
+    def __init__(self):
+        self.handlers = []
+
+    def register(self, h):
+        self.handlers.append(h)
+
+    def unregister(self, h):
+        self.handlers[:] = [x for x in self.handlers if x != h]
+
+    def notify(self):
+        for h in list(self.handlers):
+            h()
+
+
+config.pre_configSave = _Action()
+config_saves = []          # the driver names whose stock saveSettings ran (NVDA's AutoSettings)
 sys.modules["config"] = config
 notified = []
 notify_hooks = []           # f(position in notified), run on the notifying thread just before it is visible there
@@ -103,8 +123,17 @@ class Base:
     VariantSetting = staticmethod(lambda: _Setting("variant"))
     InflectionSetting = staticmethod(lambda: _Setting("inflection"))
 
-    def __init__(self):
-        pass
+    def __init__(self):              # NVDA's AutoSettings.__init__: its save registered for every config save
+        self._registerConfigSaveAction()
+
+    def _registerConfigSaveAction(self):
+        config.pre_configSave.register(self.saveSettings)
+
+    def _unregisterConfigSaveAction(self):
+        config.pre_configSave.unregister(self.saveSettings)
+
+    def saveSettings(self):          # NVDA's stock save: [speech][<its name>] written (a KeyError without it)
+        config_saves.append(self.name)
 
 
 sdh = types.ModuleType("synthDriverHandler")
