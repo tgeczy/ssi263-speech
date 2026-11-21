@@ -597,13 +597,11 @@ for label, tag, (want, other), text in (("lang_ar_ae", "ar-AE", ARABIC, "Hello, 
 
 # ---- CHAR and KEY are spoken as sent: the bare character, where SPEAK is SSML (speech-dispatcher 0.11.1, seen
 # through a module that logged its input: CHAR "<" as "<", a SPEAK of "a < b" as "<speak>a &lt; b</speak>").  A "<"
-# taken for a tag was spoken as nothing (#47).  On the Spanish unit, which says a lone "<" (the English one says
-# nothing for it either way); the reference is the same character as SPEAK sends it, "&lt;"
-if os.path.isfile(os.path.join(DATA, "BL2SPA.BNS")):
-    SPANISH = "Braille Lite 2000 (Spanish)"
-    got, want = (first_message("<", cmd="CHAR", synthesis_voice=SPANISH),
-                 first_message("&lt;", synthesis_voice=SPANISH))
-    results.append(same("char_lt", got, want) and len(want) > 0)
+# taken for a tag was spoken as nothing (#47).  The witness: CHAR "&lt;", which as sent is the letters "lt" and taken
+# for SSML a "<", which no unit says now (the English one never did; the Spanish one did until #68's guard); the
+# reference is the same text as SPEAK sends it, "&amp;lt;"
+got, want = first_message("&lt;", cmd="CHAR"), first_message("&amp;lt;")
+results.append(same("char_lt", got, want) and len(want) > 0)
 
 
 # ---- the protocol's corners, as speech-dispatcher 0.11.1's server sends them and its own modules answer them

@@ -377,6 +377,38 @@ def _commas(text):
 _commas_cache = {}
 
 
+def _symbols(text, names):
+    """The text for a unit whose own reader names symbols with its punctuation set to none (the release table's
+    symbols, measured: the Spanish and Portuguese units read "(" as "abre paréntesis", "-" as "guion", whatever
+    the speech menu says -- #68): each symbol it names becomes a space, as the English unit, punctuation none, says
+    none of them (NVDA names a symbol itself when its symbol level says so).  A "$" before a digit stays: the
+    English unit reads "$5" "five dollars", the Spanish one "dólar cinco".  bl_voice.c's drop_symbols, the same
+    walk (voice_text_equiv.py --symbols)."""
+    return "".join(" " if c in names and not (c == "$" and i + 1 < len(text) and text[i + 1] in "0123456789") else c
+                   for i, c in enumerate(text))
+
+
+_symbols_cache = {}
+
+
+def _named_symbols(firmware):
+    """The ASCII symbols the firmware's release names with punctuation none (bl_firmware.h blv_release_symbols);
+    "" when none, or not measured."""
+    if firmware not in _symbols_cache:
+        names = ""
+        try:
+            import ctypes
+            lib = ctypes.CDLL(DLL)
+            lib.blv_release_of.argtypes = [ctypes.c_char_p]
+            lib.blv_release_symbols.argtypes = [ctypes.c_int]
+            lib.blv_release_symbols.restype = ctypes.c_char_p
+            names = (lib.blv_release_symbols(lib.blv_release_of(os.fsencode(firmware))) or b"").decode("ascii")
+        except (OSError, AttributeError) as e:
+            log.warning("Braille Lite: the release's symbols not read (%s: %s)" % (DLL, e))
+        _symbols_cache[firmware] = names
+    return _symbols_cache[firmware]
+
+
 def _commas_fault(firmware):
     """True when the firmware's release repeats digits around commas (bl_firmware.h blv_release_commas)."""
     if firmware not in _commas_cache:
@@ -917,6 +949,7 @@ class SynthDriver(SynthDriver):
         unit.whine = None if self._whine == "off" else self._whine
         unit.folds = _folds(firmware)
         unit.commas = _commas_fault(firmware)
+        unit.symbols = _named_symbols(firmware)
         unit.own_marks = _own_marks(firmware)
         unit.encoding = encoding
         unit.lang = lang.split("-")[0]
@@ -1167,6 +1200,10 @@ class SynthDriver(SynthDriver):
             # the other units read their own numbers, but past twelve digits most fold a trillion into billions
             # (measured): such a number goes a digit at a time
             text = _trillions(text)
+        if getattr(unit, "symbols", ""):
+            # a unit that names symbols with its punctuation set to none (measured: the Spanish and Portuguese
+            # ones): none of them is sent it
+            text = _symbols(text, unit.symbols)
         if getattr(unit, "commas", False):
             # a unit whose own reader repeats digits around commas (measured: the Spanish one): none is sent it
             # touching a digit -- whatever digits are left by now

@@ -450,6 +450,15 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
                         [PY, "voice_text_equiv.py", "2000", "1", "--commas"], env={"VOICE_TEXT_BREAK": "commas"},
                         expect_fail=True,
                         fail_marks=[r"^DIFF ", r"^(?!2000 )\d+ of 2000 texts give the unit the same bytes"]))
+    # a unit that names symbols with punctuation none (bl_languages.txt's symbols: the Spanish and Portuguese ones,
+    # #68): the driver's _symbols against bl_voice.c's guard on random texts, and the driver's _named_symbols read
+    # from its bl.dll
+    CHECKS.append(check("bl_voice symbol guard = the driver's, 5000 random texts",
+                        [PY, "voice_text_equiv.py", "5000", "1", "--symbols"]))
+    CHECKS.append(check("bl_voice symbol guard CONTROL (the driver's _symbols skipped, must fail)",
+                        [PY, "voice_text_equiv.py", "2000", "1", "--symbols"], env={"VOICE_TEXT_BREAK": "symbols"},
+                        expect_fail=True,
+                        fail_marks=[r"^DIFF ", r"^(?!2000 )\d+ of 2000 texts give the unit the same bytes"]))
     CHECKS.append(check("bl_voice trillions = the driver's, 5000 random texts",
                         [PY, "voice_text_equiv.py", "5000", "1", "--trillions"]))
     CHECKS.append(check("bl_voice trillions CONTROL (the driver's _trillions skipped, must fail)",
@@ -2671,6 +2680,17 @@ if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "blazie-lib", "x64
                         fail_marks=[r"^FAIL text +'1, 2, 3' -> '1, 2, 3'",
                                     r"^FAIL unit +'1, 2, 3, 4, 5, 6' with the number words off: 6\.\d+, 10\.\d+ s",
                                     r"^ok +table ", r"^commas: 2 FAILED$"]))
+    # the symbol guard (bl_voice.c drop_symbols; bl_languages.txt's symbols, #68): the Spanish unit, which names
+    # "(" "-" "%" ... whatever its speech menu says, says "alpha (beta) gamma" with the phonemes of "alpha beta gamma",
+    # and "$5" still with its dollar; the control leaves the symbols as they are
+    CHECKS.append(check("symbols: the Spanish unit names no symbol NVDA leaves (#68)",
+                        [PY, os.path.join(BL_SRC, "test_symbols.py")]))
+    CHECKS.append(check("symbols CONTROL (the symbols left as they are, must fail)",
+                        [PY, os.path.join(BL_SRC, "test_symbols.py")], env={"SSI263_SYMBOLS_BREAK": "1"},
+                        expect_fail=True,
+                        fail_marks=[r"^FAIL text +'\(hola\)' -> '\(hola\)'",
+                                    r"^FAIL unit +'alpha \(beta\) gamma' \d+ phonemes, 'alpha beta gamma' \d+",
+                                    r"^ok +table ", r"^symbols: 2 FAILED$"]))
     CHECKS.append(check("unit letters: each unit says its accented letters",
                         [PY, os.path.join(BL_SRC, "test_unit_letters.py")]))
     CHECKS.append(check("unit letters CONTROL (the encodings before, must fail)",

@@ -100,6 +100,10 @@ BL_API int blv_release_marks(int release);
 #define BLV_COMMAS_OK 1
 #define BLV_COMMAS_REPEAT 2
 BL_API int blv_release_commas(int release);
+/* The ASCII symbols the release's own reader names with its punctuation set to none (bl_languages.txt's symbols,
+   measured): "" none (the English unit), the Spanish and Portuguese units' 25, the Russian one's "@"; the
+   voices send it none of them (bl_voice.h).  NULL not measured, or past the list. */
+BL_API const char *blv_release_symbols(int release);
 BL_API const char *blv_release_tag(int release);
 BL_API int blv_release_model(int release);
 BL_API int blv_release_code_page(int release);

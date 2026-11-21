@@ -40,6 +40,7 @@ typedef struct {
     int trillions;                         /* bl_firmware.h BLV_TRILLIONS_*: its reading of 13 digits or more */
     int marks;                             /* its own index marks measured usable (a Ctrl-F inside a line) */
     int commas;                            /* bl_firmware.h BLV_COMMAS_*: its reading of a comma that touches a digit */
+    const char *symbols;                   /* the ASCII symbols it names with punctuation none; NULL not measured */
     long length;
     const char *sha256;                    /* the image */
     const char *state;                     /* the state made from it */
@@ -309,6 +310,11 @@ BL_API int blv_release_marks(int release)
 BL_API int blv_release_commas(int release)
 {
     return release >= 0 && release < N_KNOWN ? KNOWN[release].commas : -1;
+}
+
+BL_API const char *blv_release_symbols(int release)
+{
+    return release >= 0 && release < N_KNOWN ? KNOWN[release].symbols : NULL;
 }
 
 BL_API const char *blv_release_tag(int release){

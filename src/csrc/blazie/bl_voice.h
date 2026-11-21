@@ -157,6 +157,14 @@ BL_API int blv_say_bytes_with(const char *utf8, int encoding, int pack, blv_numb
 BL_API int blv_say_bytes_release(const char *utf8, int encoding, int pack, blv_numbers_fn fn, int commas,
                                  unsigned char *out, int cap);
 BL_API extern int blv_commas_break;         /* a test's control: nonzero, the commas are left as they are */
+/* ... and as a release whose own reader names symbols with its punctuation set to none is sent it (symbols: the
+   ones it names, bl_firmware.h blv_release_symbols, which blv_create reads for its firmware; NULL or "" none):
+   after the number words each of them is a space, a "$" before a digit kept (#68).  MEASURED on the emulated
+   Spanish unit (2026-11-21, test_symbols.py): "alpha (beta) gamma", "a-b" and "50%" said with the phonemes
+   of "alpha beta gamma", "a b" and "50"; "$5" with its dollar.  Not checked on a real unit. */
+BL_API int blv_say_bytes_guarded(const char *utf8, int encoding, int pack, blv_numbers_fn fn, int commas,
+                                 const char *symbols, unsigned char *out, int cap);
+BL_API extern int blv_symbols_break;        /* a test's control: nonzero, the symbols are left as they are */
 /* The unit's byte for one code point in that encoding (below 80h itself), or -1 when the unit has none: the NVDA
    driver's codec for BLV_CPHUN, which Python has no codec for. */
 BL_API int blv_text_byte(int encoding, unsigned code_point);

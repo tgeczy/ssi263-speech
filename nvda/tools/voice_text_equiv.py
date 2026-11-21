@@ -19,6 +19,11 @@ amounts, digits and commas, punctuation, odd whitespace, characters the units la
                               # repeat, the Spanish one): the driver's _commas against bl_voice.c's guard
                               # (blv_say_bytes_release), with the number words on for half the texts
     VOICE_TEXT_BREAK=commas   # control, with --commas: the Python side skips _commas -- must FAIL
+    python voice_text_equiv.py [count] [seed] --symbols
+                              # a unit that names symbols with punctuation none (bl_languages.txt's symbols: the
+                              # Spanish and Portuguese ones, #68): the driver's _symbols against bl_voice.c's guard
+                              # (blv_say_bytes_guarded), and the driver's _named_symbols read from its bl.dll
+    VOICE_TEXT_BREAK=symbols  # control, with --symbols: the Python side skips _symbols -- must FAIL
     python voice_text_equiv.py [count] [seed] --arabic
                               # the Arabic (UAE) unit's text (bl_voice.h BLV_CP864AR, the driver's "blazie_text_18"):
                               # Arabic letters and their presentation forms, vowel marks, tatweel, hamza, Arabic-Indic
@@ -36,6 +41,8 @@ NUMBERS = "--numbers" in sys.argv
 TRILLIONS = "--trillions" in sys.argv
 ARABIC = "--arabic" in sys.argv
 COMMAS = "--commas" in sys.argv
+SYMBOLS = "--symbols" in sys.argv
+NAMED = "\"#$%&()*+-/<=>@[\\]^_`{|}~"         # the Spanish and Portuguese units' 25 (bl_languages.txt)
 POS = [a for a in sys.argv[1:] if not a.startswith("--")]
 COUNT = int(POS[0]) if len(POS) > 0 else 5000
 SEED = int(POS[1]) if len(POS) > 1 else 1
@@ -46,12 +53,13 @@ BREAK = os.environ.get("VOICE_TEXT_BREAK") == "1"
 BREAK_NUMBERS = os.environ.get("VOICE_TEXT_BREAK") == "numbers"
 BREAK_TRILLIONS = os.environ.get("VOICE_TEXT_BREAK") == "trillions"
 BREAK_COMMAS = os.environ.get("VOICE_TEXT_BREAK") == "commas"
+BREAK_SYMBOLS = os.environ.get("VOICE_TEXT_BREAK") == "symbols"
 if ARABIC and os.environ.get("VOICE_TEXT_BREAK") == "arabic":
     drv_mod._arabic_silent = lambda o: False     # the control: the marks reach _clean, which makes them spaces
 
 ARCH = "x64" if struct.calcsize("P") == 8 else "x86"
 REPO = os.path.dirname(os.path.dirname(HERE))
-if NUMBERS or TRILLIONS or COMMAS:                  # the unified library: bl_voice with bl_numbers beside it
+if NUMBERS or TRILLIONS or COMMAS or SYMBOLS:      # the unified library: bl_voice with bl_numbers beside it
     lib = ctypes.CDLL(os.path.join(REPO, "build", "win", ARCH, "ssi263speech.dll"))
     lib.blv_say_bytes_with.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_char_p,
                                        ctypes.c_int]
@@ -60,6 +68,9 @@ if NUMBERS or TRILLIONS or COMMAS:                  # the unified library: bl_vo
     lib.blv_say_bytes_release.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_int,
                                           ctypes.c_char_p, ctypes.c_int]
     lib.blv_say_bytes_release.restype = ctypes.c_int
+    lib.blv_say_bytes_guarded.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_int,
+                                          ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+    lib.blv_say_bytes_guarded.restype = ctypes.c_int
 else:
     ctypes.CDLL(os.path.join(REPO, "src", "ssi263", "_bin", ARCH, "ssi263.dll"))
     lib = ctypes.CDLL(os.path.join(os.path.dirname(HERE), "dist", "blazie-lib", ARCH, "bl.dll"))
@@ -83,6 +94,11 @@ if NUMBERS:                                         # the number words' own edge
 if COMMAS:                                          # commas at digits, lists, decimals, a digit after a letter
     PIECES += ["1, 2, 3", "7,8,9", "3,5", " ,4", "MP3, MP4, ", "el n.7, ", "1,234,567", "12, 34, ", "5,", ",6",
                "x7, x8, ", "7), 8), ", "1 , 2", "9,a", "a,9", ", ", ",", ",,", "1,,2", "1, ,2"]
+
+
+if SYMBOLS:                                         # every symbol the units name, beside digits, letters, $ amounts
+    PIECES += list(NAMED) * 2 + ["$5", "$ 5", "5$", "50%", "(hola)", "a-b", "-4", "1-2", "3+4", "a@b.c", "21/11",
+                                 "x=y", "[1]", "{2}", "<3>", "#1", "a_b", "$$5", "$1,234.50", "(5)", "5%,"]
 
 
 if TRILLIONS:                                       # numbers either side of thirteen digits, grouped and not
@@ -109,7 +125,9 @@ def py_bytes(text, enc_name, lang, pack, numbers=NUMBERS):
         t = drv_mod._numbers(t, lang)
     if TRILLIONS and not BREAK_TRILLIONS:
         t = drv_mod._trillions(t)
-    if COMMAS and not BREAK_COMMAS:
+    if SYMBOLS and not BREAK_SYMBOLS:
+        t = drv_mod._symbols(t, NAMED)
+    if (COMMAS or SYMBOLS) and not BREAK_COMMAS:
         t = drv_mod._commas(t)
     lines = drv_mod._lines(t, pack=pack)
     if not lines:
@@ -119,6 +137,12 @@ def py_bytes(text, enc_name, lang, pack, numbers=NUMBERS):
 
 def c_bytes(text, enc, pack, numbers=NUMBERS):
     raw = text.encode("utf-8", "surrogatepass")
+    if SYMBOLS:                                     # the Spanish unit's guards: its commas and its symbols
+        fn = NUMBERS_FN if numbers else None
+        n = lib.blv_say_bytes_guarded(raw, enc, int(pack), fn, 1, NAMED.encode(), None, 0)
+        buf = ctypes.create_string_buffer(max(n, 1))
+        lib.blv_say_bytes_guarded(raw, enc, int(pack), fn, 1, NAMED.encode(), buf, n)
+        return buf.raw[:n]
     if COMMAS:
         fn = NUMBERS_FN if numbers else None
         n = lib.blv_say_bytes_release(raw, enc, int(pack), fn, 1, None, 0)
@@ -144,7 +168,7 @@ for k in range(COUNT):
     if ARABIC and k % 5 != 4:                       # the Arabic (UAE) unit's encoding for most texts
         enc, enc_name, lang = 18, "blazie_text_18", "ar"
     pack = k % 3 != 2
-    if COMMAS:                                      # the Spanish unit's own encoding, the number words on and off
+    if COMMAS or SYMBOLS:                           # the Spanish unit's own encoding, the number words on and off
         enc, enc_name, lang = 13, "blazie_text_13", "es"
         a, b = py_bytes(text, enc_name, lang, pack, k % 2 == 0), c_bytes(text, enc, pack, k % 2 == 0)
     else:
@@ -163,6 +187,18 @@ if COMMAS:                                          # the driver's _commas_fault
             continue
         got = drv_mod._commas_fault(path)
         print("%s the driver's _commas_fault(%s) = %s (want %s)" % ("ok  " if got == want else "FAIL", name, got, want))
+        bad += got != want
+if SYMBOLS:                                         # the driver's _named_symbols: the release table through its bl.dll
+    FW = os.environ.get("SSI263_FIRMWARE") or os.path.join(REPO, "firmware", "blazie")
+    for folder, name, want in (("spanish", "BL2SPA.BNS", NAMED), ("bl2000", "BL2POR.BNS", NAMED),
+                               ("bl2000", "BL2RUS.BNS", "@"), ("", "BL2ENG.BNS", "")):
+        path = os.path.join(FW, folder, name)
+        if not os.path.isfile(path):
+            print("skip the driver's _named_symbols: no %s in %s" % (os.path.join(folder, name), FW))
+            continue
+        got = drv_mod._named_symbols(path)
+        print("%s the driver's _named_symbols(%s) = %a (want %a)" % ("ok  " if got == want else "FAIL", name, got,
+                                                                  want))
         bad += got != want
 if TRILLIONS:                                       # the driver's _folds: the release table through its bl.dll
     FW = os.environ.get("SSI263_FIRMWARE") or os.path.join(REPO, "firmware", "blazie")
