@@ -53,6 +53,11 @@ class SettingsActivity : Activity() {
     private lateinit var importStatus: TextView
     private lateinit var removeButton: Button
     private var importDialog: AlertDialog? = null
+    private var checkingDialog: AlertDialog? = null
+    // Test hook: `--ez recreatebreak true` puts #49 back (test_import_recreate.py's control): the checking dialog
+    // dismissed before the screen is looked at, the check never handed to a rebuilt screen, which reads its
+    // intent's import again.  Harmless in normal use (the extra is never set).
+    private val recreateBreak get() = intent?.getBooleanExtra("recreatebreak", false) == true
     private var importBar: ProgressBar? = null
     private var importMessage: TextView? = null
     private var importAnnounced = -1
@@ -135,11 +140,13 @@ class SettingsActivity : Activity() {
                 intent.getBooleanExtra("aloud", false), intent.getIntExtra("stop", 0)).run()
         }
 
-        // An import already running -- this screen was rebuilt underneath it -- shows its progress again.
-        // Otherwise, the adb route, as outspoken's: `am start ... --es import /path/to/file` (or a content: URI)
-        // imports without the confirm dialog, typing the command being the consent.  `--ez removefirmware true`
-        // removes what was imported.
-        SsiImport.job?.let { attachImport(it) } ?: intent?.getStringExtra("import")?.let { arg ->
+        // An import already running -- this screen was rebuilt underneath it -- shows its progress again, and a
+        // file still being checked its outcome when it comes (#49).  Otherwise, on a fresh start (a rebuilt screen
+        // gets its intent again: the same file would be checked twice), the adb route, as outspoken's: `am start
+        // ... --es import /path/to/file` (or a content: URI) imports without the confirm dialog, typing the command
+        // being the consent.  `--ez removefirmware true` removes what was imported.
+        SsiImport.job?.let { attachImport(it) } ?: SsiImport.check?.takeIf { !recreateBreak }?.let { attachCheck(it) }
+            ?: intent?.getStringExtra("import")?.takeIf { savedInstanceState == null || recreateBreak }?.let { arg ->
             val source = if (arg.startsWith("content:") || arg.startsWith("file:"))
                 SsiImport.source(this, Uri.parse(arg)) else SsiImport.source(File(arg))
             importFrom(source, confirm = false)
@@ -175,6 +182,10 @@ class SettingsActivity : Activity() {
         SsiImport.job?.listener = null
         ticker.removeCallbacksAndMessages(null)
         importDialog?.dismiss(); importDialog = null
+        if (!recreateBreak) {                     // the check goes on without this screen; a rebuilt one attaches
+            SsiImport.check?.listener = null
+            checkingDialog?.dismiss(); checkingDialog = null
+        }
         super.onDestroy()
     }
 
@@ -401,34 +412,49 @@ class SettingsActivity : Activity() {
 
     /** Read what the source holds, say what will happen, and -- with `confirm`, once OK is pressed -- do it. */
     private fun importFrom(source: SsiImport.Source, confirm: Boolean) {
-        if (SsiImport.job != null) { toast("An import is already running."); return }
-        importStatus.text = "Checking ${source.name}…"
-        val checking = AlertDialog.Builder(this).setTitle("Checking the file")
-            .setMessage("Looking for firmware in ${source.name}…").setCancelable(false).create()
+        if (SsiImport.job != null || SsiImport.check != null) { toast("An import is already running."); return }
+        val check = SsiImport.Check(source, confirm)
+        SsiImport.check = check
+        attachCheck(check)
+        check.start(this)
+    }
+
+    /** Show a file being checked on this screen, whichever screen instance this is; its outcome comes here. */
+    private fun attachCheck(check: SsiImport.Check) {
+        importStatus.text = "Checking ${check.source.name}…"
+        checkingDialog?.dismiss()
+        checkingDialog = AlertDialog.Builder(this).setTitle("Checking the file")
+            .setMessage("Looking for firmware in ${check.source.name}…").setCancelable(false).create()
             .also { it.show() }
-        Thread({
-            val plan = try { SsiImport.inspect(this, source) }
-                catch (e: Exception) { FirmwareImport.Plan(emptyList(), "${source.name} could not be read: ${e.message}") }
-            runOnUiThread {
-                checking.dismiss()
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                val free = try { StatFs(filesDir.absolutePath).availableBytes } catch (e: Exception) { -1L }
-                val refusal = plan.refusal ?: if (free in 0 until (16L shl 20))
-                    "Not enough room: the firmware and the unit's state need about 3 MB, and this device has " +
-                    "${free shr 10} KB free." else null
-                if (refusal != null) {
-                    // Said in the status line (it stays on the page), in a dialog, and aloud: a screen reader reads
-                    // the dialog's title, so the reason is announced as well, as the import's other outcomes are.
-                    importStatus.text = "Not imported: $refusal"
-                    Log.i("SsiImport", "refused ${source.name}: $refusal")
-                    AlertDialog.Builder(this).setTitle("Cannot import ${source.name}").setMessage(refusal)
-                        .setPositiveButton("Close", null).show()
-                    try { importStatus.announceForAccessibility(refusal) } catch (e: Throwable) {}
-                    return@runOnUiThread
-                }
-                confirmImport(plan, confirm)
-            }
-        }, "ssi263-inspect").start()
+        check.listener = { c -> runOnUiThread { checkDone(c) } }
+        if (check.plan != null) runOnUiThread { checkDone(check) }      // done while no screen was attached
+    }
+
+    private fun checkDone(check: SsiImport.Check) {
+        if (recreateBreak) checkingDialog?.dismiss()      // (the control: before the screen is looked at, as it was)
+        if (isFinishing || isDestroyed || SsiImport.check !== check) return
+        val plan = check.plan ?: return
+        SsiImport.check = null
+        check.listener = null
+        checkingDialog?.dismiss(); checkingDialog = null
+        val source = check.source
+        val confirm = check.confirm
+        val free = try { StatFs(filesDir.absolutePath).availableBytes } catch (e: Exception) { -1L }
+        val refusal = plan.refusal ?: if (free in 0 until (16L shl 20))
+            "Not enough room: the firmware and the unit's state need about 3 MB, and this device has " +
+            "${free shr 10} KB free." else null
+        if (refusal != null) {
+            // Said in the status line (it stays on the page), in a dialog, and aloud: a screen reader reads
+            // the dialog's title, so the reason is announced as well, as the import's other outcomes are.
+            importStatus.text = "Not imported: $refusal"
+            Log.i("SsiImport", "refused ${source.name}: $refusal")
+            AlertDialog.Builder(this).setTitle("Cannot import ${source.name}").setMessage(refusal)
+                .setPositiveButton("Close", null).show()
+            try { importStatus.announceForAccessibility(refusal) } catch (e: Throwable) {}
+            return
+        }
+        Log.i("SsiImport", "plan for ${source.name}: ${plan.found.size} found")
+        confirmImport(plan, confirm)
     }
 
     private fun confirmImport(plan: FirmwareImport.Plan, confirm: Boolean) {

@@ -292,6 +292,8 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     SSI263_ANDROID_TEST_BREAK=smartalk-import-ignored|smartalk-builtin-ignored ...       # its built-in copy's: FAIL
     python src/platforms/android/test/test_volume_headroom.py              # the default volume, every voice
     python src/platforms/android/test/test_device_service.py [--rate 2.0] [--aloud]
+    python src/platforms/android/test/test_import_recreate.py              # on the phone: the screen rebuilt mid-check (#49)
+    python src/platforms/android/test/test_import_recreate.py --control    # control (--ez recreatebreak): must FAIL
                                   [--voice accent|braillelite|speakout|accentmini|mockingboard|both|all]
     python src/platforms/android/test/test_import_native.py               # the import's native part, and the states
     SSI263_IMPORT_TEST_BREAK=1 python src/platforms/android/test/test_import_native.py     # control: must FAIL

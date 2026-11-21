@@ -184,4 +184,21 @@ object SsiImport {
 
     /** One import at a time, whichever screen shows it. */
     @Volatile var job: Job? = null
+
+    /** A file being checked before an import (inspect: seconds for a large or slow one), held outside the screen as
+     * [job] is: a screen rebuilt while it runs (the screen turned, a keyboard, dark mode, font size) finds it again
+     * and shows its outcome, and the destroyed screen's dialog is never touched after its window is gone (#49: that
+     * dismiss threw IllegalArgumentException and took the app, the TTS service with it, down). */
+    class Check(val source: Source, val confirm: Boolean) {
+        @Volatile var plan: FirmwareImport.Plan? = null
+        @Volatile var listener: ((Check) -> Unit)? = null
+
+        fun start(ctx: Context) = Thread({
+            plan = try { inspect(ctx.applicationContext, source) }
+                catch (e: Exception) { FirmwareImport.Plan(emptyList(), "${source.name} could not be read: ${e.message}") }
+            listener?.invoke(this)
+        }, "ssi263-inspect").start()
+    }
+
+    @Volatile var check: Check? = null
 }
