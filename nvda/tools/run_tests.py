@@ -617,6 +617,32 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", Non
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "FIRST_FEED_BREAK": "1"}, expect_fail=True,
                             fail_marks=[r"^FAIL starts +24 utterances: .* under 25 ms: [1-9]", r"^ok +short ",
                                         r"^first feed: \d FAILED$"]))
+# An utterance that makes no sound (issue #32): NVDA's WASAPI player calls an onDone only while its stream plays, and
+# after a stop or NVDA's idle check nothing started it -- the indexes of text NVDA left as spaces, or of an index alone,
+# were never called, and NVDA said nothing more until a key press.  silent_indexes.py, each driver through the stand-in
+# NVDA on the WASAPI stand-in (FAKE_PLAYER=wasapi): after a cancel and after the idle check, such utterances report
+# their indexes and complete.  The control takes ssi263_feed.py's start of a silent stream away.
+for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", None, "Speak-Out"),
+                              ("speakout", "soundingboard", "Sounding Board"), ("accent", "mini", "Accent-mini"),
+                              ("accent", "sa", "Accent-PC"), ("mockingboard", None, "Mockingboard"),
+                              ("smartalk", None, "SmarTalk")):
+    _file = {"accent": "accentmini"}.get(_which, _which) + ".py"
+    if not os.path.isfile(os.path.join(_UNITS, _file)) or not os.path.isfile(
+            os.path.join(_UNITS, "_ssi263_" + _which, "ssi263_feed.py")):
+        continue
+    if _voice == "soundingboard" and not os.path.isfile(os.path.join(_UNITS, "_ssi263_speakout", "SBLOAD.COM")):
+        continue
+    _argv = [PY, "silent_indexes.py", _which] + ([_voice] if _voice else [])
+    CHECKS.append(check("an utterance that makes no sound still reports its indexes (#32): %s" % _name, _argv,
+                        env={"SSI263_SYNTH_DRIVERS": _UNITS},
+                        ok=lambda out: len(re.findall(r"^ok +(sound|spaces|index only|after idle|then sound) ", out,
+                                                      re.M)) == 5
+                        and bool(re.search(r"^silent indexes: all ok$", out, re.M))))
+    if _name in ("Braille Lite", "Sounding Board"):
+        CHECKS.append(check("silent indexes CONTROL (%s: a silent stream not started, must fail)" % _name, _argv,
+                            env={"SSI263_SYNTH_DRIVERS": _UNITS, "SILENT_INDEXES_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL spaces +.*MISSING INDEX", r"^FAIL index only ", r"^FAIL after idle ",
+                                        r"^ok +sound ", r"^ok +then sound ", r"^silent indexes: 3 FAILED$"]))
 # the Blazie emulator app (src/apps/blazie): its chord logic, and the unit headless (boot greeting heard, a chord
 # answered against the no-chord control, faster than real time)
 EMU = os.path.join(os.path.dirname(HERE), "dist", "blazie-emu")
@@ -2237,7 +2263,9 @@ if all(os.path.isfile(os.path.join(_FW, *p.split("/"))) for p in (
 CHECKS.append(check("accented letters: the Braille Lite's NVDA driver", [PY, "translit_test.py", "driver"]))
 CHECKS.append(check("accented letters: driver CONTROL (the pass off, must fail)", [PY, "translit_test.py", "driver"],
                     env={"TRANSLIT_BREAK": "1"}, expect_fail=True,
-                    fail_marks=[r"^FAIL blazie +driver +'\\xe1': the unit was sent \[\], 0 samples of audio",
+                    # (an utterance with no audio now ends with the one silent sample that starts the player's
+                    # stream, ssi263_feed.py, #32: "1 samples" here is nothing heard)
+                    fail_marks=[r"^FAIL blazie +driver +'\\xe1': the unit was sent \[\], [01] samples of audio",
                                 r"^FAIL blazie +driver +'t\\xfck\\xf6r': the unit was sent \['t k r'\]",
                                 r"^ok   blazie +driver +'Hello there\.'",
                                 r"^ok   blazie_es driver +'\\xf1': the unit was sent \['\\xf1'\]",

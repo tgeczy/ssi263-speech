@@ -16,11 +16,22 @@ again -- it holds what the driver feeds until there are MIN_MS of sound in it, c
 NVDA's threshold, and feeds that as one piece; after that every feed goes straight through.  A feed that carries a
 callback (an index reached, the utterance's end) lets go of what is held, with the callback on it: a callback must
 never wait for audio that may not come.  Everything else is the player's.
+
+An utterance that feeds no audio at all (issue #32: text NVDA left as spaces, an index alone).  NVDA's WASAPI player
+calls an onDone only from a later feed() or sync(), and sync() does nothing while the stream is stopped -- as it is
+after every stop(), and once NVDA's 10 s idle check has closed it.  A driver gives its indexes as feed(b"", onDone),
+so with no audio behind them nothing ever started the stream, the indexes were never called, and NVDA, waiting for
+the utterance's last index, said nothing more until the next key press.  So when callbacks have gone down since a
+stop or an idle with no audio at all, FirstFeed gives the player one silent sample before its idle() (and before an
+empty feed, a driver's way of having its callbacks serviced): that starts the stream, and the callbacks are called.
+An utterance with any audio is not touched.
 """
 
 MIN_MS = 30.0                     # of sound in an utterance's first feed: a block
 THRESHOLD = 32                    # NVDA's 1/1024 of full scale, in 16-bit samples
-HOLD = True                       # (the tests' control takes it away)
+SILENCE = b"\x00\x00"             # one sample of 16-bit mono: enough to start a stopped stream
+HOLD = True                       # (the tests' controls take these away)
+KICK = True
 
 
 def sound_bytes(pcm):
@@ -32,6 +43,7 @@ def sound_bytes(pcm):
     return 0
 
 
+
 class FirstFeed(object):
     """A player whose first feed after a stop or an idle is never a sliver (the module's text)."""
 
@@ -40,22 +52,41 @@ class FirstFeed(object):
         self._need = 2 * int(sample_rate * MIN_MS / 1000.0)
         self._held = b""
         self._first = True
+        self._started = False                     # audio has gone down since the last stop or idle
+        self._owed = False                        # ... and callbacks have, with none behind them
 
     def __getattr__(self, name):                  # close, pause, sync, and whatever a test's stand-in has
         return getattr(self._p, name)
 
+    def _down(self, data, onDone=None, **kw):
+        """everything that reaches the player goes through here"""
+        if data:
+            self._started = True
+        elif onDone is not None and not self._started:
+            self._owed = True
+        if onDone is not None or kw:
+            return self._p.feed(data, onDone=onDone, **kw)
+        return self._p.feed(data)
+
+    def _kick(self):
+        """callbacks given to a stream that nothing has started: start it, so they are called (issue #32)"""
+        if KICK and self._owed and not self._started:
+            self._owed = False
+            self._down(SILENCE)
+
     def _let_go(self, onDone=None):
         held, self._held = self._held, b""
         if held or onDone is not None:
-            if onDone is not None:
-                self._p.feed(held, onDone=onDone)
-            else:
-                self._p.feed(held)
+            self._down(held, onDone)
 
     def feed(self, data, onDone=None, **kw):
+        data = bytes(data or b"")
+        if not data and onDone is None and not kw:
+            self._kick()                          # an empty feed: the driver having its callbacks serviced
+            return self._p.feed(data)
         if not (HOLD and self._first):
-            return self._p.feed(data, onDone=onDone, **kw) if (onDone is not None or kw) else self._p.feed(data)
-        self._held += bytes(data or b"")
+            return self._down(data, onDone, **kw)
+        self._held += data
         if onDone is not None:                    # a callback does not wait
             self._let_go(onDone)
             return None
@@ -71,9 +102,12 @@ class FirstFeed(object):
     def stop(self):
         self._held = b""                          # cancelled: what was held is not to be heard
         self._first = True
+        self._started = self._owed = False
         return self._p.stop()
 
     def idle(self):
         self._let_go()                            # a short utterance: all of it, now
+        self._kick()
         self._first = True
+        self._started = self._owed = False
         return self._p.idle()
