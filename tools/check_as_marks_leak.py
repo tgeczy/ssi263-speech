@@ -97,11 +97,21 @@ def main():
         if os.environ.get("AS_LEAK_BREAK"):
             env["AS_LEAK_BREAK"] = "1"
         # with address-space randomisation off for this one program: GCC 11's sanitizer runtime dies at start-up now
-        # and then (SIGSEGV, no output, about one run in three on Coconut) under newer kernels' wider randomisation
-        run = [exe, ROMS]
+        # and then (SIGSEGV, no output, about one run in three on Coconut) under newer kernels' wider randomisation.
+        # Where that is not allowed (a container: GitHub's runners say "Operation not permitted") the program runs as
+        # it is, and a start-up death -- a signal before it printed a line -- is tried again, three times at most
+        def run_once(argv):
+            return subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True,
+                                  env=env)
+        r = None
         if shutil.which("setarch"):
-            run = ["setarch", platform.machine(), "-R"] + run
-        r = subprocess.run(run, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, env=env)
+            r = run_once(["setarch", platform.machine(), "-R", exe, ROMS])
+            if "failed to set personality" in r.stdout:
+                r = None
+        tries = 0
+        while r is None or (r.returncode < 0 and "unit " not in r.stdout and tries < 3):
+            r = run_once([exe, ROMS])
+            tries += 1
     out = r.stdout
     print("\n".join(ln for ln in out.splitlines() if ln.startswith("unit ")))
     ours = [ln.strip() for ln in out.splitlines() if "#" in ln and ("take_marks" in ln or "report_marks" in ln or "room" in ln)]
