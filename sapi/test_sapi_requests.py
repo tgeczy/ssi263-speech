@@ -20,12 +20,16 @@ The checks:
   - skip: +1, 0, +2 and -1 are answered with that count and speech goes on from that sentence (as long as that text
     spoken alone, within 15 %); more sentences than there are, a move back from the first, and a kind that is not
     sentences are answered with what could be done and the request ends; an abort with a skip is an abort;
+  - silence: a <silence msec=1000/> between two texts is exactly a second of zeros between their audio (the same
+    bytes as the two texts asked for alone); one before the text, a second of zeros before the plain request's
+    audio; an abort in a 3 s silence ends the request there (#42: it was dropped, the text after it came at once);
   - bookmarks: one before any text arrives before any audio; one between two unit utterances arrives between them
     with the bytes written as its offset; one at the end arrives after the audio and before the 150 ms of silence;
     JAWS's (inside one unit utterance) all arrive, in order, each at its place: the bytes written when its event
     comes are its offset (the voice's index marks, src/csrc/marks.h: the unit's own on the English Braille Lite).
 
-SSI263_SAPI_REQUESTS_BREAK=partial-write | deadline-wall | markup | spell | skip | marks-end | marks-late puts one bug back in
+SSI263_SAPI_REQUESTS_BREAK=partial-write | deadline-wall | markup | spell | skip | marks-end | marks-late | silence |
+silence-noabort puts one bug back in
 every request (the DLL's SSI263_SAPI_TEST_BREAK): the must-fail controls, registered in nvda/tools/run_tests.py.
 
     python sapi/test_sapi_requests.py [--arch x64|x86|both] [--verbose]
@@ -66,6 +70,10 @@ def L(text):
 
 def B(name):
     return "B:%s" % name
+
+
+def P(ms):
+    return "P:%d" % ms
 
 
 def req(frags, voice=EN, rate=0, volume=100, writes="all", actions="-"):
@@ -112,6 +120,10 @@ PROCS = {
     "mark-start": [req([B(1), S(TEXT)])],
     "mark-seam": [req([S("Hello there,"), B(2), S("how are you", middle=8)])],
     "mark-end": [req([S(TEXT), B(3)])],
+    "pause": [req([S("Hello there,"), P(1000), S("how are you")])],
+    "pause-sep": [req([S("Hello there,")]), req([S("how are you")])],
+    "pause-first": [req([P(1000), S(TEXT)])],
+    "pause-abort": [req([P(3000), S(TEXT)], actions="abort@5")],
 }
 
 
@@ -206,6 +218,16 @@ def checks(g):
     add("volume: a fragment's 50 is the program's 50", whole("vol-frag") == half)
     add("volume: 50 of the program's 50 is 25", whole("vol-both") == whole("vol-25"),
         "%.2f of full" % (rms(whole("vol-both")) / max(1.0, rms(a))))
+    # silence (#42)
+    second = b"\0" * (RATE * 2)
+    sep = body(g["pause-sep"][0]) + second + body(g["pause-sep"][1]) + PAD
+    add("silence: <silence msec=1000/> between two texts is a second of zeros between them", whole("pause") == sep,
+        "%s against %s (the two alone, a second between)" % (secs(len(whole("pause"))), secs(len(sep))))
+    add("silence: one before the text is a second of zeros before it", whole("pause-first") == second + a,
+        "%s against %s" % (secs(len(whole("pause-first"))), secs(len(second + a))))
+    r = g["pause-abort"][0]
+    add("silence: an abort in a 3 s silence ends it", r["hr"] == 0 and len(r["pcm"]) < RATE * 2 // 2,
+        "%s written, abort at the fifth Write" % secs(len(r["pcm"])))
     sep = b"".join(body(x) for x in g["pitch-sep"]) + PAD
     add("pitch: a change inside a request is three unit utterances", whole("pitch-mid") == sep,
         "%s against %s as three requests" % (secs(len(whole("pitch-mid"))), secs(len(sep))))

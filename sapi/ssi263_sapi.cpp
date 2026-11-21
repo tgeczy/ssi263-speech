@@ -372,12 +372,16 @@ public:
          * long as they ask for the same rate, volume and pitch -- the unit then makes the sentence's intonation, as it
          * does for any text.  Where a fragment asks for another (a <rate>, <volume> or <pitch> inside the text; the
          * pitch NVDA raises for a capital) a new utterance begins, the only way a unit changes them.  A <spell>
-         * fragment is a segment of its own, read a character at a time. */
-        struct Seg { std::wstring text; bool spell; long rateAdj; int vol; long middle; std::vector<Mark> marks; };
+         * fragment is a segment of its own, read a character at a time.  A <silence msec=N/> (SPVA_Silence) is one
+         * too, with no text: N ms of silence written where it stands (#42: it was dropped, and the text after it
+         * came at once). */
+        struct Seg { std::wstring text; bool spell; long rateAdj; int vol; long middle; std::vector<Mark> marks;
+                     DWORD silence; };
         std::vector<Seg> segs;
         const bool flat=!strcmp(brk,"markup");      /* a control: no fragment's rate, volume or pitch is looked at */
         {
             Seg cur; cur.spell=false; cur.rateAdj=0; cur.vol=100; cur.middle=frags?frags->State.PitchAdj.MiddleAdj:0;
+            cur.silence=0;
             const long first=cur.middle;
             for(auto f=frags;f;f=f->pNext){
                 if(f->State.eAction==SPVA_Bookmark){
@@ -385,6 +389,12 @@ public:
                         Mark m; m.name.assign(f->pTextStart,f->ulTextLen);
                         m.chars=cur.text.size(); cur.marks.push_back(m);
                     }
+                    continue;
+                }
+                if(f->State.eAction==SPVA_Silence&&strcmp(brk,"silence")){   /* "silence": a control, dropped */
+                    if(!cur.text.empty()||!cur.marks.empty()){segs.push_back(cur);cur.text.clear();cur.marks.clear();}
+                    Seg q=cur; q.silence=f->State.SilenceMSecs;
+                    if(q.silence)segs.push_back(q);
                     continue;
                 }
                 switch(f->State.eAction){
@@ -496,6 +506,20 @@ public:
             if(!marksLast)
                 for(size_t i=0;i<g.marks.size();i++)
                     if(g.marks[i].chars==from)bookmark(site,g.marks[i].name,total);
+            if(g.silence){
+                /* a <silence>: zeros at the output rate, 30 ms a Write so an abort ends it between two */
+                unsigned long long left=(unsigned long long)outRate*g.silence/1000*2;
+                std::vector<BYTE> zero((size_t)(outRate*3/100)*2,0);
+                while(left&&!aborted&&ok){
+                    if((site->GetActions()&SPVES_ABORT)&&strcmp(brk,"silence-noabort")){aborted=true;break;}
+                    ULONG n=(ULONG)(left<zero.size()?left:zero.size());   /* "silence-noabort": a control */
+                    if(!qfirst.QuadPart)QueryPerformanceCounter(&qfirst);
+                    int w=write_all(site,zero.data(),n,total,deadline,!strcmp(brk,"partial-write"));
+                    if(w!=WROTE){if(w==WRITE_ABORTED)aborted=true;else ok=false;break;}
+                    left-=n;
+                }
+                si++;continue;
+            }
             if(g.text.empty()){si++;continue;}
             ssv_settings s;
             long r=sapiRate+g.rateAdj; r=r<-10?-10:r>10?10:r;

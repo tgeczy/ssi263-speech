@@ -28,8 +28,8 @@
  *   actions:   - or a comma list of abort@W (SPVES_ABORT once W writes were taken) and skip@W:N[:x] (SPVES_SKIP once W
  *              writes were taken, N sentences; :x asks for a kind that is not sentences)
  *   fragments: S:rate:volume:middle:text (spoken), L:rate:volume:middle:text (SPVA_SpellOut, a <spell>), B:name (a
- *              bookmark); rate is the fragment's RateAdj, volume its Volume (100 when SAPI saw no <volume>), middle
- *              its PitchAdj.MiddleAdj
+ *              bookmark), P:ms (SPVA_Silence, a <silence msec=ms/>: no text); rate is the fragment's RateAdj, volume
+ *              its Volume (100 when SAPI saw no <volume>), middle its PitchAdj.MiddleAdj
  * Its line adds calls=<every Write, taken or not>, events=<each bookmark as name@bytes written when it came/its
  * offset, or -> and skips=<each CompleteSkip's count, or ->.
  */
@@ -269,6 +269,9 @@ int wmain(int argc, wchar_t **argv) {
                 if (g[0] == 'B') {
                     x.State.eAction = SPVA_Bookmark;
                     texts[i] = wide(g.substr(2));
+                } else if (g[0] == 'P') {    /* as SAPI hands a <silence>: the length, no text */
+                    x.State.eAction = SPVA_Silence;
+                    x.State.SilenceMSecs = (ULONG)atol(g.substr(2).c_str());
                 } else {                     /* S or L, then rate:volume:middle:text (the text may hold colons) */
                     size_t a = 2, b = g.find(':', a), c = g.find(':', b + 1), d = g.find(':', c + 1);
                     x.State.eAction = g[0] == 'L' ? SPVA_SpellOut : SPVA_Speak;

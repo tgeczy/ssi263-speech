@@ -511,7 +511,12 @@ if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "sapi-dev", "x86",
              [r"^FAIL x64 bookmark before the text: before any audio", r"^FAIL x64 bookmark between two unit utterances",
               r"^FAIL x64 JAWS: each bookmark arrives at its place", r"^sapi requests: 3 FAILED$"]),
             ("marks-late", "a bookmark inside a unit utterance sent after the utterance's audio",
-             [r"^FAIL x64 JAWS: each bookmark arrives at its place .*late by [1-9]", r"^sapi requests: 1 FAILED$"])):
+             [r"^FAIL x64 JAWS: each bookmark arrives at its place .*late by [1-9]", r"^sapi requests: 1 FAILED$"]),
+            ("silence", "a <silence> dropped (#42)",
+             [r"^FAIL x64 silence: <silence msec=1000/> between two texts", r"^FAIL x64 silence: one before the text",
+              r"^sapi requests: 2 FAILED$"]),
+            ("silence-noabort", "an abort not looked at in a <silence>",
+             [r"^FAIL x64 silence: an abort in a 3 s silence ends it: 3\.00 s", r"^sapi requests: 1 FAILED$"])):
         CHECKS.append(check("SAPI engine DLL requests CONTROL (%s, must fail)" % what,
                             [PY, SAPI_REQUESTS, "--arch", "x64"], env={"SSI263_SAPI_REQUESTS_BREAK": brk},
                             expect_fail=True, fail_marks=marks))
