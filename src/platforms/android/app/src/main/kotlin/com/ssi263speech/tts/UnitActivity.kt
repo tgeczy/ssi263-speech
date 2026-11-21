@@ -278,8 +278,8 @@ class UnitActivity : Activity() {
                     ?.let { if (!c.isNull(it)) modified = c.getLong(it) }
             }
         }
-        val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
-        if (bytes.size > 2 * 1024 * 1024) throw IllegalArgumentException("$name is larger than the unit's flash")
+        // read no further than the flash holds (UnitFiles, #50: a large file was read whole before the test)
+        val bytes = contentResolver.openInputStream(uri)?.use { UnitFiles.read(it, name) } ?: ByteArray(0)
         val cal = Calendar.getInstance().apply { timeInMillis = modified }
         val time = (cal.get(Calendar.HOUR_OF_DAY) shl 11) or (cal.get(Calendar.MINUTE) shl 5) or (cal.get(Calendar.SECOND) / 2)
         val date = (maxOf(cal.get(Calendar.YEAR) - 1980, 0) shl 9) or ((cal.get(Calendar.MONTH) + 1) shl 5) or
