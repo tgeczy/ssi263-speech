@@ -36,10 +36,19 @@ struct tns_unit {
     int n_ev, cap_ev;
     unsigned char ppi_c;                     /* the 8255's port C outputs (control word at port C3h) */
     blc_clock *clk;                          /* tns_clock_on: the clock controller on the CSI/O (bl_clock.h) */
+    unsigned long long clock_lag;            /* CPU cycles the clock does not count (tns_clock_hurry, #78) */
     unsigned char clk_tail[BLC_SAVE_SIZE];   /* the state's saved controller, until tns_clock_on */
     int has_clk_tail;
     long long clk_wall;
 };
+
+/* the clock controller's time: the CPU's cycles less those the emulator ran beyond real time (quick key response);
+   on the unit the controller is a chip of its own (bl_board.c clock_now, #78) */
+static unsigned long long clock_now(const tns_unit *u)
+{
+    unsigned long long t = z180_cycles(u->cpu);
+    return t > u->clock_lag ? t - u->clock_lag : 0;
+}
 
 static void event(tns_unit *u, unsigned char type, unsigned char a, unsigned char b)
 {
@@ -180,7 +189,7 @@ static void boundary(void *ctx, uint32_t pc)
     tns_unit *u = (tns_unit *)ctx;
     (void)pc;
     if (u->clk)
-        blc_step(u->clk, u->cpu, z180_cycles(u->cpu), (u->ppi_c & 0x10) != 0);
+        blc_step(u->clk, u->cpu, clock_now(u), (u->ppi_c & 0x10) != 0);
     if (u->n_keyq && !u->key_ready) {
         u->key_latch = u->keyq[0];
         memmove(u->keyq, u->keyq + 1, (size_t)--u->n_keyq);
@@ -404,6 +413,11 @@ int tns_save_state(const tns_unit *u, const char *path)
     return fclose(s) == 0 && ok;
 }
 
+void tns_clock_hurry(tns_unit *u, unsigned long long cycles)
+{
+    u->clock_lag += cycles;
+}
+
 int tns_clock_on(tns_unit *u, const blc_time *now, long long unix_now)
 {
     long long saved_at = -1;
@@ -412,7 +426,7 @@ int tns_clock_on(tns_unit *u, const blc_time *now, long long unix_now)
     u->clk = (blc_clock *)malloc(sizeof(blc_clock));
     if (!u->clk)
         return 0;
-    blc_init(u->clk, CLOCK_HZ, z180_cycles(u->cpu));
+    blc_init(u->clk, CLOCK_HZ, clock_now(u));
     if (u->has_clk_tail && blc_load(u->clk, u->clk_tail, &saved_at)) {
         if (saved_at >= 0 && unix_now >= 0)
             blc_advance_off(u->clk, (double)(unix_now - saved_at));   /* it kept time while the unit was off */

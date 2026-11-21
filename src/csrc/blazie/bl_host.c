@@ -932,7 +932,15 @@ BL_API int bh_run(bl_host *h, double seconds, double step, const double **audio)
         if (dt < 1e-5)
             dt = 1e-5;
         speed = h->preparing ? h->turbo : 1.0;
-        run_cpu(h, CLOCK_HZ * dt * speed);
+        {
+            unsigned long long t0 = bl_board_time(h->unit), ran;
+            run_cpu(h, CLOCK_HZ * dt * speed);
+            /* the CPU ran `speed` times real time: the clock chips count only the real part (#78) */
+            if (speed > 1.0 && !bh_clock_hurry_break) {
+                ran = bl_board_time(h->unit) - t0;
+                bl_clock_hurry(h->unit, ran - (unsigned long long)((double)ran / speed));
+            }
+        }
         t += dt;
     }
     if (h->board_on && h->n_buf)
@@ -1189,6 +1197,9 @@ void bh_braille_bars(bl_host *h, int down)
 {
     bl_braille_bars(h->unit, down);
 }
+
+/* the tests' control (nvda/tools/quick_clock.py): 1 counts the turbo's extra cycles as clock time, as it was */
+BL_API int bh_clock_hurry_break = 0;
 
 int bh_clock_on(bl_host *h, const blc_time *now, long long unix_now)
 {

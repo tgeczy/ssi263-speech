@@ -113,6 +113,7 @@ struct bl_unit {
        Never saved: derived from the core at every step, so a state's bytes do not change. */
     int x1_ok, x1;
     unsigned long long t_base, c_base;       /* board time and core cycles at the last switch */
+    unsigned long long clock_lag;            /* board time the clock chips do not count (bl_clock_hurry) */
     /* The SSI-263's latch race (bl_set_latch_race): the chip takes a register at the first edge of its own clock
        after the write; a write that comes before that edge also puts its value into the register written before it.
        Only writes under BL_LATCH_GAP_US apart reach it -- the BASIC runtime's 1.465 us pairs at double speed, not
@@ -130,6 +131,16 @@ static unsigned long long now_t(const bl_unit *u)
 {
     unsigned long long raw = z180_cycles(u->cpu);
     return u->t_base + (u->x1 ? (raw - u->c_base) / 2 : raw - u->c_base);
+}
+
+/* The clock chips' time: the board's, less what the host ran the CPU faster than real time (bl_clock_hurry).  On the
+   unit the clock controller (and the BNS 640's OKI clock) is a chip of its own with its own time base; stepped from the
+   CPU's cycles, every cycle of the emulator's quick key response was clock time too, and the unit's time of day ran
+   up to 8 times fast after each key, saved with it for good (#78) */
+static unsigned long long clock_now(const bl_unit *u)
+{
+    unsigned long long t = now_t(u);
+    return t > u->clock_lag ? t - u->clock_lag : 0;
 }
 
 static void clock_mode(bl_unit *u)           /* follows CCR bit 7 when double speed is allowed */
@@ -254,7 +265,7 @@ static uint8_t io_read(void *ctx, uint16_t Port)
         return (unsigned char)p;
     /* the BNS 640's clock drives D0-D3 only; the upper lines hold what the bus last carried, the port number */
     if (u->model == BL_MODEL_BNS640 && (p & 0xF0) == BLR_PORT)
-        return (unsigned char)((p & 0xF0) | blr_read(&u->rtc, p & 0x0F, now_t(u)));
+        return (unsigned char)((p & 0xF0) | blr_read(&u->rtc, p & 0x0F, clock_now(u)));
     v = p == 0x40 ? 0x00 : 0xFF;
     if (p == 0x81 && u->model == BL_MODEL_BRAILLE_LITE)
         v &= (unsigned char)~((u->braille_bars & 3) << 6);
@@ -329,7 +340,7 @@ static void io_write(void *ctx, uint16_t Port, uint8_t V)
     if (p == 0xE0)
         u->port_e0 = V;
     if (u->model == BL_MODEL_BNS640 && (p & 0xF0) == BLR_PORT)
-        blr_write(&u->rtc, p & 0x0F, V, now_t(u));
+        blr_write(&u->rtc, p & 0x0F, V, clock_now(u));
     if (p == 0x83) {
         unsigned char before = u->ppi_c;
         blc_ppi_control(&u->ppi_c, V);       /* the 8255's control word: port C bit 4 calls the clock controller */
@@ -437,7 +448,7 @@ static void boundary(void *ctx, uint32_t pc)
         u->starts++;
     }
     if (u->clk)
-        blc_step(u->clk, u->cpu, now_t(u), (u->ppi_c & 0x10) != 0);
+        blc_step(u->clk, u->cpu, clock_now(u), (u->ppi_c & 0x10) != 0);
     if (!u->live_on && !u->ssi_ar && now_t(u) >= u->ssi_ready_at) {
         u->ssi_ar = 1;
         ar_line(u);
@@ -797,7 +808,7 @@ int bl_save_state(const bl_unit *u, const char *path)
     if (ok && u->rtc_on && blr_break != 3) { /* the 640's chip, brought up to now (on a copy: the unit runs on) */
         unsigned char buf[BLR_SAVE_SIZE];
         blr_rtc copy = u->rtc;
-        blr_save(&copy, u->clk_wall, now_t(u), buf);
+        blr_save(&copy, u->clk_wall, clock_now(u), buf);
         ok = fwrite(buf, 1, sizeof buf, s) == sizeof buf;
     }
     return fclose(s) == 0 && ok;
@@ -880,11 +891,11 @@ int bl_clock_on(bl_unit *u, const blc_time *now, long long unix_now)
                                                 it was off, else from the host's time */
         if (u->rtc_on)
             return 1;
-        if (u->has_clk_tail && blr_load(&u->rtc, u->clk_tail, &saved_at, now_t(u))) {
+        if (u->has_clk_tail && blr_load(&u->rtc, u->clk_tail, &saved_at, clock_now(u))) {
             if (saved_at >= 0 && unix_now >= 0)
                 blr_advance_off(&u->rtc, unix_now - saved_at);
         } else if (now)
-            blr_set(&u->rtc, now, now_t(u));
+            blr_set(&u->rtc, now, clock_now(u));
         u->rtc_on = 1;
         u->clk_wall = unix_now;
         return 1;
@@ -894,7 +905,7 @@ int bl_clock_on(bl_unit *u, const blc_time *now, long long unix_now)
     u->clk = (blc_clock *)malloc(sizeof(blc_clock));
     if (!u->clk)
         return 0;
-    blc_init(u->clk, u->clock_hz, now_t(u));
+    blc_init(u->clk, u->clock_hz, clock_now(u));
     if (u->has_clk_tail && blc_load(u->clk, u->clk_tail, &saved_at)) {
         if (saved_at >= 0 && unix_now >= 0)
             blc_advance_off(u->clk, (double)(unix_now - saved_at));   /* it kept time while the unit was off */
@@ -905,13 +916,23 @@ int bl_clock_on(bl_unit *u, const blc_time *now, long long unix_now)
     return 1;
 }
 
+void bl_clock_hurry(bl_unit *u, unsigned long long board_time)
+{
+    u->clock_lag += board_time;
+}
+
+unsigned long long bl_board_time(const bl_unit *u)
+{
+    return now_t(u);
+}
+
 int bl_clock_time(const bl_unit *u, int alarm, blc_time *t)
 {
     if (u->model == BL_MODEL_BNS640) {       /* its OKI clock (no alarm), read on a copy: reading brings time up */
         blr_rtc copy = u->rtc;
         if (alarm)
             return 0;
-        blr_get(&copy, t, now_t(u));
+        blr_get(&copy, t, clock_now(u));
         return 1;
     }
     if (!u->clk)

@@ -468,6 +468,10 @@ check "emulator: the unit headless (Type 'n Speak)" ./build/linux/test_emu_unit 
 control "emulator: a save whole or not at all CONTROL (saved in place, must fail)" \
     "^FAIL save whole +cut short: returned 1, the last state CHANGED" "^ok +switched off and on " "^FAILED$" \
     -- env EMU_SAVE_WHOLE_BREAK=1 ./build/linux/test_emu_unit bl "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state"
+# #78: the clock keeps the chip's time with quick key response; its control counts the fast cycles again
+control "emulator: the clock with quick key response CONTROL (the fast cycles counted, must fail)" \
+    "^FAIL clock keeps time +twelve keys with quick key response: the clock [2-9] s off" "^FAILED$" \
+    -- env EMU_QUICK_CLOCK_BREAK=1 ./build/linux/test_emu_unit bl "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state"
 check "emulator: the clock controller" ./build/linux/test_clock unit
 check "emulator: the clock and keys held at a restart (Braille Lite)" ./build/linux/test_clock bl "$DATA/BL2ENG.BNS" \
     "$DATA/bl2_2003_warm.state"

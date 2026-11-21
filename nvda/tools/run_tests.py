@@ -850,6 +850,13 @@ if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
                          os.path.join(ENG, "bl2_2003_warm.state")], env={"EMU_SAVE_WHOLE_BREAK": "1"},
                         expect_fail=True, fail_marks=[r"^FAIL save whole +cut short: returned 1, the last state CHANGED",
                                                       r"^ok +save time ", r"^ok +switched off and on ", r"^FAILED$"]))
+    # #78: the unit's clock keeps the chip's time with quick key response on (test_emu_unit's "clock keeps time"); the
+    # control counts the fast cycles as clock time again (bh_clock_hurry_break; emu_unit.c for the Type 'n Speak)
+    CHECKS.append(check("Blazie emulator: the clock with quick key response CONTROL (the fast cycles counted, must fail)",
+                        [os.path.join(EMU, "test_emu_unit.exe"), "bl", os.path.join(ENG, "BL2ENG.BNS"),
+                         os.path.join(ENG, "bl2_2003_warm.state")], env={"EMU_QUICK_CLOCK_BREAK": "1"},
+                        expect_fail=True, fail_marks=[r"^FAIL clock keeps time +twelve keys with quick key response: "
+                                                      r"the clock [2-9] s off", r"^ok +quick key response ", r"^FAILED$"]))
     CHECKS.append(check("Blazie emulator: the Spanish unit, headless", [os.path.join(EMU, "test_emu_unit.exe"), "bl",
                         os.path.join(ENG, "BL2SPA.BNS"), os.path.join(ENG, "bl2spa_fresh.state")]))
     # the German and Italian Braille Lite 2000 in the emulator (its Firmware menu, 0.8), from the firmware folder; the
@@ -895,6 +902,20 @@ if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
         if os.path.isfile(os.path.join(TNS_DIR, name)):
             CHECKS.append(check("Blazie emulator: Type 'n Speak %s, headless" % name[3:6],
                                 [os.path.join(EMU, "test_emu_unit.exe"), "tns", os.path.join(TNS_DIR, name), "-"]))
+    if os.path.isfile(os.path.join(TNS_DIR, "TNSENG.TNS")):
+        CHECKS.append(check("Blazie emulator: Type 'n Speak clock with quick key response CONTROL (the fast cycles "
+                            "counted, must fail)", [os.path.join(EMU, "test_emu_unit.exe"), "tns",
+                                                    os.path.join(TNS_DIR, "TNSENG.TNS"), "-"],
+                            env={"EMU_QUICK_CLOCK_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL clock keeps time +twelve keys with quick key response: the clock [2-9] s off",
+                                        r"^FAILED$"]))
+# the Braille Lite's clock in the host itself: 5 s of the chip's time with the CPU 8 times fast moves it 5 s (#78)
+QUICK_CLOCK = [PY, "quick_clock.py"]
+if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "blazie-lib", "x64", "bl.dll")):
+    CHECKS.append(check("Braille Lite: the clock keeps real time while the CPU runs fast (#78)", QUICK_CLOCK))
+    CHECKS.append(check("Braille Lite: the clock with a fast CPU CONTROL (the fast cycles counted, must fail)",
+                        QUICK_CLOCK, env={"QUICK_CLOCK_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^ok +plain ", r"^FAIL hurried .*the clock moved 40 s", r"^quick clock: 1 FAILED$"]))
 # the units' clock controller (src/csrc/blazie/bl_clock.c; Jayson: the clock asked to be reset, did not move, lost
 # the year) and keys held while the unit starts (Jayson: i-chord held through p-chord l's restart): the controller
 # alone; the English Braille Lite and Type 'n Speak setting, reading and keeping time through their own commands; and

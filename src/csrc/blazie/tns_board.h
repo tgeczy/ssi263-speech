@@ -66,6 +66,8 @@ int  tns_flash_busy(const tns_unit *u, unsigned long *chip_erases, unsigned long
 int  tns_clock_on(tns_unit *u, const blc_time *now, long long unix_now);
 int  tns_clock_time(const tns_unit *u, int alarm, blc_time *t);
 void tns_clock_wall(tns_unit *u, long long unix_now);
+/* CPU cycles run beyond real time (quick key response): the clock does not count them (#78) */
+void tns_clock_hurry(tns_unit *u, unsigned long long cycles);
 /* tests: which 0, the 1 MB address space's RAM (the program at its start); which 1, the 4 MB file flash; the size */
 int  tns_memory(const tns_unit *u, int which, const unsigned char **bytes);
 

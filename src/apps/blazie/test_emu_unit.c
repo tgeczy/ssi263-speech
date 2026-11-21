@@ -33,6 +33,7 @@
 #include "audio_pace.h"
 #include "emu_unit.h"
 #include "tns_setup.h"
+#include "../../csrc/blazie/bl_host.h"
 
 #define RATE 44100
 
@@ -159,6 +160,50 @@ static double key_latency(const char *fw, const char *st, int quick)
     return found;
 }
 
+/* the unit's clock against the chip's time over twelve keys, each with a second after it, quick key response on:
+   the seconds it gained.  The fast CPU after a key was clock time too, and the time of day ran fast for good (#78).
+   EMU_QUICK_CLOCK_BREAK=1 (the control) counts the fast cycles again: bl_host.c bh_clock_hurry_break for the Braille
+   Lite, emu_unit.c for the Type 'n Speak */
+static long clock_gain(const char *fw, const char *st)
+{
+    char err[256];
+    emu_unit *u = make(fw, st, err, sizeof err);
+    int block = RATE / 100, i, k;
+    short buf[RATE / 100];
+    blc_time a, b;
+    double t0, t1;
+    long ca, cb;
+    if (!u) {
+        printf("FAIL create: %s\n", err);
+        exit(1);
+    }
+    if (getenv("EMU_QUICK_CLOCK_BREAK"))
+        bh_clock_hurry_break = 1;
+    emu_set_quick(u, 1);
+    for (i = 0; i < 800; i++)
+        emu_render(u, buf, block);
+    if (!emu_clock_time(u, 0, &a)) {
+        emu_destroy(u);
+        return -1000;
+    }
+    t0 = emu_time(u);
+    for (k = 0; k < 12; k++) {
+        if (g_kind == EMU_TYPE_N_SPEAK) {
+            emu_key(u, 0x94);
+            emu_key(u, 0x14);
+        } else
+            emu_key(u, 0x01);
+        for (i = 0; i < 100; i++)
+            emu_render(u, buf, block);
+    }
+    emu_clock_time(u, 0, &b);
+    t1 = emu_time(u);
+    emu_destroy(u);
+    ca = ((a.day * 24L + a.hour) * 60 + a.minute) * 60 + a.second;
+    cb = ((b.day * 24L + b.hour) * 60 + b.minute) * 60 + b.second;
+    return (cb - ca) - (long)(t1 - t0 + 0.5);
+}
+
 /* the display after the boot (at[0]), then after advance at 5 s, advance at 7 s and `third` at 9 s (at[1..3]); the
    display's cells (0: none) and the unit's model */
 /* the English Braille Lite's own double-speed switch (the status menu, + (dots 3-4-6), y, then e-chord out of the
@@ -263,6 +308,11 @@ int main(int argc, char **argv)
         check("key latency", slow > 0 && slow <= latency_max, d);
         snprintf(d, sizeof d, "key to first sound %.1f ms with quick key response, %.1f ms without", fast, slow);
         check("quick key response", fast > 0 && fast <= latency_max * 100.0 / 320.0 && fast < slow, d);
+    }
+    {
+        long gain = clock_gain(fw, ready);
+        snprintf(d, sizeof d, "twelve keys with quick key response: the clock %ld s off the chip's time", gain);
+        check("clock keeps time", gain >= -1 && gain <= 1, d);
     }
     {   /* switched off and on: the saved memory is the state format, and the unit boots from it and speaks */
         char err[256], path[64];     /* per process: run_tests runs the bl and tns checks side by side */

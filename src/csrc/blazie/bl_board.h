@@ -64,6 +64,9 @@ void bl_queue(bl_unit *u, const unsigned char *bytes, int n);/* bns 'S': bytes f
 void bl_urgent(bl_unit *u, int byte);                        /* bns 'U': one byte delivered even under XOFF (^X) */
 int  bl_drop(bl_unit *u);                                    /* bns 'D': drop queued input; the ^F markers dropped */
 unsigned long long bl_cycles(const bl_unit *u);              /* CPU cycles so far */
+unsigned long long bl_board_time(const bl_unit *u);          /* the board's time, in cycles of its base clock */
+/* board time the host ran the CPU beyond real time (its turbo): the clock chips do not count it (#78) */
+void bl_clock_hurry(bl_unit *u, unsigned long long board_time);
 /* the last value the firmware wrote to port A0 (0 before any).  Bit 1 is the speech channel's power, watched on the
    running firmware (English and Spanish): set ~0.26 s before a line's first phoneme when the channel was off, cleared
    with R3 = 00 when the firmware clicks the channel off (~10 s after the last phoneme).  The emulator's idle sounds
