@@ -7,8 +7,11 @@
 #   - --default sets DefaultModule, and uninstall.sh gives back each config exactly as it was;
 #   - an install over a running module finishes (a plain cp onto it fails, "Text file busy", and stopped the install
 #     half done), and the library is a new file renamed over the old one, not the old one rewritten.
+#   - every file the package carries for the voices is installed, in its folder (#44: only three folders were,
+#     and the Sounding Board, Mockingboards, SmarTalk and 17 Braille Lite languages never appeared).
 # SSI263_INSTALL_BREAK=1 (a control) puts 0.7.6's always-added line back: the stock and earlier-install checks
 # must fail.  SSI263_INSTALL_BREAK=copy (a control) puts the plain cp back: the last two checks must fail.
+# SSI263_INSTALL_BREAK=folders (a control) copies the three folders it did: "every firmware folder" must fail.
 #   sh tools/speechd_install_test.sh
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -23,6 +26,13 @@ PKG="$T/pkg"
 mkdir -p "$PKG/share/ssi263-speech/speech-dispatcher" "$PKG/lib" "$PKG/bin"
 : > "$PKG/share/ssi263-speech/BL2ENG.BNS"
 : > "$PKG/share/ssi263-speech/bl2.state"
+# the folders tools/package_linux.sh stages beside them, a file in each (as the release tarball has them)
+for f in aicom-accent-sa/u2.BIN aicom-accent-mini/SPKEMS.DVC gw-micro-speakout/SPEAKOUT.HEX \
+         gw-micro-sounding-board/SBLOAD.COM sweet-micro-mockingboard/MOCKINGBOARD.DSK \
+         automated-functions-smartalk/S_TALK.EXE bl2000/Lite2000_fr.BNS bl2000/lite2000_fr_fresh.state tns/TNS.TNS; do
+    mkdir -p "$PKG/share/ssi263-speech/$(dirname "$f")"
+    : > "$PKG/share/ssi263-speech/$f"
+done
 printf 'DefaultVoice "blazie"\n' > "$PKG/share/ssi263-speech/speech-dispatcher/ssi263.conf"
 : > "$PKG/lib/libssi263speech.so"
 printf '#!/bin/sh\n' > "$PKG/bin/sd_ssi263"
@@ -65,6 +75,12 @@ else fail "stock config unchanged" "$(diff "$D/before.conf" "$D/etc/speechd.conf
 if [ -x "$D/modules/sd_ssi263" ] && grep -q '^SSI263DataDir' "$D/etc/modules/ssi263.conf" 2>/dev/null; then
     ok "module and settings installed" "modules/sd_ssi263, modules/ssi263.conf"
 else fail "module and settings installed" "$(ls "$D/modules" "$D/etc/modules" 2>&1 | tr '\n' ' ')"; fi
+missing=""
+for f in $(cd "$PKG/share/ssi263-speech" && find . -type f ! -path './speech-dispatcher/*' | sed 's|^\./||'); do
+    [ -f "$D/prefix/share/ssi263-speech/$f" ] || missing="$missing $f"
+done
+if [ -z "$missing" ]; then ok "every firmware folder installed" "the package's files, each in its folder"
+else fail "every firmware folder installed" "not installed:$missing"; fi
 uninstall
 if cmp -s "$D/before.conf" "$D/etc/speechd.conf" && [ ! -e "$D/modules/sd_ssi263" ]; then
     ok "uninstall (stock)" "config as before, module gone"

@@ -47,10 +47,20 @@ fi
 echo "Installing the SSI-263 voices"
 mkdir -p "$DATA" "$PREFIX/lib" "$MODCONF"
 cp "$HERE"/share/ssi263-speech/*.BNS "$HERE"/share/ssi263-speech/*.state "$DATA/"
-for d in aicom-accent-sa aicom-accent-mini gw-micro-speakout; do   # the other voices' firmware (sd_voices.h)
+# every other voice's firmware, each folder as the package has it (sd_voices.h names them): it named three once, and
+# the Sounding Board, the Mockingboards, the SmarTalk and the bl2000 languages never appeared (#44).  Not the
+# speech-dispatcher settings, which go to speech-dispatcher's own folder below.  (SSI263_INSTALL_BREAK=folders, the
+# test's control: the three it named.)
+if [ "${SSI263_INSTALL_BREAK:-}" = folders ]; then
+    FOLDERS="aicom-accent-sa aicom-accent-mini gw-micro-speakout"
+else
+    FOLDERS="$(cd "$HERE/share/ssi263-speech" && for d in */; do [ -d "$d" ] && printf '%s ' "${d%/}"; done)"
+fi
+for d in $FOLDERS; do
+    [ "$d" = speech-dispatcher ] && continue
     if [ -d "$HERE/share/ssi263-speech/$d" ]; then
         mkdir -p "$DATA/$d"
-        cp "$HERE/share/ssi263-speech/$d"/* "$DATA/$d/"
+        cp -R "$HERE/share/ssi263-speech/$d"/. "$DATA/$d/"
     fi
 done
 if [ -d "$HERE/licenses" ]; then

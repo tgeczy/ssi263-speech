@@ -294,6 +294,11 @@ control "speech-dispatcher installer CONTROL (0.7.6's AddModule line, must fail)
 control "speech-dispatcher installer CONTROL (a plain copy onto a running module, must fail)" \
     "^ok +stock config unchanged " "^FAIL install over a running module " "^FAIL library replaced, not rewritten " \
     -- env SSI263_INSTALL_BREAK=copy sh tools/speechd_install_test.sh
+# every firmware folder the package carries, installed (#44: three were, and 21 voices never appeared); its control
+# copies the three it named
+control "speech-dispatcher installer CONTROL (only the three folders it named, must fail)" \
+    "^ok +stock config unchanged " "^FAIL every firmware folder installed +not installed: .*gw-micro-sounding-board" \
+    "^speechd install: FAILED$" -- env SSI263_INSTALL_BREAK=folders sh tools/speechd_install_test.sh
 control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^stop +module .*identical" \
     "^after +module .*DIFFER" "^set +module .*DIFFER" "^key +module .*DIFFER" "^spanish +module .*identical" \
     "^ra_stop +module .*identical" "^ra_after +module .*DIFFER" \
