@@ -46,6 +46,7 @@ try:
 except ImportError:                       # an engine from before it
     _first = None
 FLOW = True                               # (the tests' control takes it away)
+CANCEL_FIRST = True                       # cancel() empties the queue first (#34; a test's control)
 OWN_MARKS = True                          # (... or has each index estimated, as for a unit without index marks)
 
 BLOCK_S = 0.03
@@ -610,6 +611,7 @@ class SynthDriver(SynthDriver):
         self._player = self._whole(self._makePlayer())
         self._queue = queue.Queue()
         self._cancelFlag = threading.Event()
+        self._gen = 0                    # cancels so far: each job carries the count it was queued after
         self._wake = threading.Event()   # speak() / cancel() wake the idle tail
         self._stopped = False
         self._unit = None
@@ -669,13 +671,21 @@ class SynthDriver(SynthDriver):
                 items.append(("pitch", item.offset))
             elif isinstance(item, speech.commands.LangChangeCommand):
                 items.append(("lang", item.lang))
-        self._queue.put(_joined(items) if self._join else items)
+        self._queue.put((self._gen, _joined(items) if self._join else items))
         self._wake.set()
 
     def cancel(self):
         self._lift_next = True
+        if CANCEL_FIRST:
+            self._gen += 1               # (#34) before the flag: see the worker's check
         self._cancelFlag.set()
         self._wake.set()
+        if CANCEL_FIRST:                 # (#34) emptied before the player's stop, a call into NVDA's
+            while True:                  # C library that lets the worker run and take a job
+                try:
+                    self._queue.get_nowait()
+                except queue.Empty:
+                    break
         try:
             self._player.stop()
         except Exception:
@@ -913,6 +923,9 @@ class SynthDriver(SynthDriver):
             if job is None:
                 break
             self._cancelFlag.clear()
+            gen, job = job
+            if CANCEL_FIRST and gen != self._gen:
+                continue                     # queued before a cancel that came since (#34)
             if self._quiet_since is not None and _now() - self._quiet_since >= LIFT_PAUSE_S:
                 self._lift_next = True       # spoken into a pause: fresh, as after a cancel
             self._quiet_since = None

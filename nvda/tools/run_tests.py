@@ -667,6 +667,30 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", Non
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "FAULT_INDEXES_BREAK": "1"}, expect_fail=True,
                             fail_marks=[r"^FAIL fault +.*MISSING INDEX", r"^ok +recovers ",
                                         r"^fault indexes: 1 FAILED$"]))
+# A cancel right after an utterance was handed over (issue #34): cancel() stopped the player before it emptied the queue,
+# and the stop, a call into NVDA's C library, let the worker take the utterance and clear the flag -- say all read one
+# more chunk after the key that should have silenced it.  cancel_race.py, each driver, the player's stop given 150 ms
+# that other threads run in: an utterance handed over and cancelled at once is never spoken.  The control puts the
+# old order back (no generations).
+for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", None, "Speak-Out"),
+                              ("speakout", "soundingboard", "Sounding Board"), ("accent", "mini", "Accent-mini"),
+                              ("accent", "sa", "Accent-PC"), ("mockingboard", None, "Mockingboard"),
+                              ("smartalk", None, "SmarTalk")):
+    _file = {"accent": "accentmini"}.get(_which, _which) + ".py"
+    if not os.path.isfile(os.path.join(_UNITS, _file)):
+        continue
+    if _voice == "soundingboard" and not os.path.isfile(os.path.join(_UNITS, "_ssi263_speakout", "SBLOAD.COM")):
+        continue
+    _argv = [PY, "cancel_race.py", _which] + ([_voice] if _voice else [])
+    CHECKS.append(check("a cancel right after an utterance was handed over cancels it (#34): %s" % _name, _argv,
+                        env={"SSI263_SYNTH_DRIVERS": _UNITS},
+                        ok=lambda out: len(re.findall(r"^ok +(cancelled|then sound) ", out, re.M)) == 2
+                        and bool(re.search(r"^cancel race: all ok$", out, re.M))))
+    if _name in ("Braille Lite", "Sounding Board"):
+        CHECKS.append(check("cancel race CONTROL (%s: the old order, must fail)" % _name, _argv,
+                            env={"SSI263_SYNTH_DRIVERS": _UNITS, "CANCEL_RACE_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL cancelled +5 utterances handed over and cancelled at once: [1-5] spoken",
+                                        r"^ok +then sound ", r"^cancel race: 1 FAILED$"]))
 # the Blazie emulator app (src/apps/blazie): its chord logic, and the unit headless (boot greeting heard, a chord
 # answered against the no-chord control, faster than real time)
 EMU = os.path.join(os.path.dirname(HERE), "dist", "blazie-emu")

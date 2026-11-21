@@ -39,6 +39,7 @@ try:
 except ImportError:                       # an engine from before it
     _first = None
 FLOW = True                               # (the tests' control takes it away)
+CANCEL_FIRST = True                       # cancel() empties the queue first (#34; a test's control)
 PART = 120                                # the characters the voice takes as one part (mb_voice.h's MBV_PART)
 
 FIRMWARE = os.path.join(_ENGINE_DIR, "mockingboard-tts-1.1.bin")
@@ -103,6 +104,7 @@ class SynthDriver(SynthDriver):
         self._player = self._whole(self._makePlayer())
         self._queue = queue.Queue()
         self._cancelFlag = threading.Event()
+        self._gen = 0                    # cancels so far: each job carries the count it was queued after
         self._stopped = False
         self._box = None
         # which version, "mockingboard" (1.1) or "early"; the worker boots it (startVoice: synthDrivers/ssi263.py)
@@ -159,10 +161,18 @@ class SynthDriver(SynthDriver):
             elif isinstance(item, speech.commands.PitchCommand):
                 # a capital: an offset on the user's own pitch, for the texts after it until the next PitchCommand
                 items.append(("pitch", item.offset))
-        self._queue.put(_joined(items) if self._join else items)
+        self._queue.put((self._gen, _joined(items) if self._join else items))
 
     def cancel(self):
+        if CANCEL_FIRST:
+            self._gen += 1               # (#34) before the flag: see the worker's check
         self._cancelFlag.set()
+        if CANCEL_FIRST:                 # (#34) emptied before the player's stop, a call into NVDA's
+            while True:                  # C library that lets the worker run and take a job
+                try:
+                    self._queue.get_nowait()
+                except queue.Empty:
+                    break
         try:
             self._player.stop()
         except Exception:
@@ -262,6 +272,9 @@ class SynthDriver(SynthDriver):
             if job is None:
                 break
             self._cancelFlag.clear()
+            gen, job = job
+            if CANCEL_FIRST and gen != self._gen:
+                continue                     # queued before a cancel that came since (#34)
             if self._want_rate != self._out_rate:
                 try:
                     self._switch_rate()

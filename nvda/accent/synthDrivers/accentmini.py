@@ -46,6 +46,7 @@ try:
 except ImportError:                       # an engine from before it
     _first = None
 FLOW = True                               # (the tests' control takes it away)
+CANCEL_FIRST = True                       # cancel() empties the queue first (#34; a test's control)
 OWN_MARKS = True                          # (... or has each index estimated, as on a unit without index marks)
 
 # Developer switch: True writes a step-by-step "Accent:" trace to NVDA's log (at debug level)
@@ -144,6 +145,7 @@ class SynthDriver(SynthDriver):
         self._player = self._whole(self._makePlayer())
         self._queue = queue.Queue()
         self._cancelFlag = threading.Event()
+        self._gen = 0                    # cancels so far: each job carries the count it was queued after
         self._stopped = False
         self._box = None
         self._phase = ("start", time.monotonic())
@@ -202,11 +204,19 @@ class SynthDriver(SynthDriver):
                 items.append(("pitch", item.offset))
         job = _joined(items) if self._join else items
         _dbg("speak: %d items %s" % (len(job), _summary(job)))
-        self._queue.put(job)
+        self._queue.put((self._gen, job))
 
     def cancel(self):
         _dbg("cancel (worker in %s)" % self._phase[0])
+        if CANCEL_FIRST:
+            self._gen += 1               # (#34) before the flag: see the worker's check
         self._cancelFlag.set()
+        if CANCEL_FIRST:                 # (#34) emptied before the player's stop, a call into NVDA's
+            while True:                  # C library that lets the worker run and take a job
+                try:
+                    self._queue.get_nowait()
+                except queue.Empty:
+                    break
         try:
             self._player.stop()
         except Exception:
@@ -371,6 +381,9 @@ class SynthDriver(SynthDriver):
             if job is None:
                 break
             self._cancelFlag.clear()
+            gen, job = job
+            if CANCEL_FIRST and gen != self._gen:
+                continue                     # queued before a cancel that came since (#34)
             if self._want_rate != self._out_rate:
                 self._set_phase("switching sample rate")
                 try:
