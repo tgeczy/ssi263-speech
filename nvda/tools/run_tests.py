@@ -2302,6 +2302,14 @@ CHECKS.append(check("stacked_q_symbols", [PY, "-S", "stacked_q_symbols.py", NVDA
 # the Braille Lite driver keeps the unit's channel open after speech (hiss/whine until the firmware clicks off),
 # at no cost to response time; the control runs it with keep open off and must fail
 # (alone: its F times speech's first sound to 15 ms; under 16 other checks it read 205 ms against 115, 2026-10-29)
+# the Braille Lite unit for a language NVDA marks: the exact tag first, the chosen voice kept (#69: Portuguese and
+# Arabic (UAE) were spoken by the other unit of their language); the control takes the first of the base language
+CHECKS.append(check("Braille Lite: the unit for a marked language (#69)", [PY, "voice_for_lang.py"]))
+CHECKS.append(check("Braille Lite: the unit for a marked language CONTROL (the first of the language, must fail)",
+                    [PY, "voice_for_lang.py"], env={"VOICE_FOR_LANG_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL chosen +blazie_pt +chosen, NVDA marks pt +-> blazie_pt_br",
+                                r"^FAIL chosen +blazie_ar_ae ", r"^ok +switch .* pt_BR +-> blazie_pt_br$",
+                                r"^voice for language: 5 FAILED$"]))
 CHECKS.append(check("keep the channel open", [PY, "keep_open_test.py"], alone=True))
 CHECKS.append(check("keep the channel open CONTROL (off, must fail)", [PY, "keep_open_test.py"],
                     env={"KEEP_OPEN_BREAK": "1"}, expect_fail=True, alone=True,

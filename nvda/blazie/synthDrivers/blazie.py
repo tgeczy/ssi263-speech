@@ -47,6 +47,18 @@ except ImportError:                       # an engine from before it
     _first = None
 FLOW = True                               # (the tests' control takes it away)
 CANCEL_FIRST = True                       # cancel() empties the queue first (#34; a test's control)
+LANG_EXACT = True                         # _voice_for: the exact tag first, the chosen voice kept (#69; a control)
+
+
+def _lang_match(tag, lang):
+    """How well a voice's tag answers a language NVDA marked: 3 the same tag (ar-AE, pt-BR), 2 the language's own with
+    no region (pt for pt_PT), 1 another region of it, 0 another language; without case, "_" as "-" (sd_ssi263.c's
+    lang_match, #48)."""
+    a, b = tag.replace("_", "-").lower(), lang.replace("_", "-").lower()
+    pa, pb = a.split("-")[0], b.split("-")[0]
+    if pa != pb:
+        return 0
+    return 3 if a == b else 2 if a == pa else 1
 OWN_MARKS = True                          # (... or has each index estimated, as for a unit without index marks)
 
 BLOCK_S = 0.03
@@ -825,15 +837,27 @@ class SynthDriver(SynthDriver):
             self._voice = v
 
     def _voice_for(self, lang):
-        """The unit for a language NVDA marked (None: the chosen voice's)."""
+        """The unit for a language NVDA marked (None: the chosen voice's): the voice that answers it best
+        (_lang_match), the first such; the chosen voice kept when it answers as well.  It took the first voice of the
+        base language: NVDA marks every utterance with the voice's own language, so the Portuguese voice was spoken
+        by the Brazilian unit, Arabic (UAE) by the plain Arabic one (#69; nvda/tools/voice_for_lang.py)."""
         if not lang:
             return self._voice
-        base = lang.replace("-", "_").split("_")[0].lower()
         voices = _voices()
+        if not LANG_EXACT:                   # (the test's control: as it was)
+            base = lang.replace("-", "_").split("_")[0].lower()
+            for v in self._present():
+                if voices[v][1].replace("-", "_").split("_")[0].lower() == base:
+                    return v
+            return self._voice
+        best, at = 0, None
         for v in self._present():
-            if voices[v][1].replace("-", "_").split("_")[0].lower() == base:
-                return v
-        return self._voice
+            m = _lang_match(voices[v][1], lang)
+            if m > best:
+                best, at = m, v
+        if at is None or (self._voice in voices and _lang_match(voices[self._voice][1], lang) >= best):
+            return self._voice
+        return at
 
     @staticmethod
     def _unit_pitch(p):
