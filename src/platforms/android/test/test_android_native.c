@@ -67,6 +67,7 @@
 #include "mockingboard/mb_voice.h"
 #include "smartalk/st_voice.h"
 #include "blazie/bl_firmware.h"
+#include "blazie/bl_numbers.h"
 #include "blazie/bl_state.h"
 
 static const char *HELLO = "Hello there. This is the Braille Lite, speaking on a phone.";
@@ -999,6 +1000,7 @@ int main(int argc, char **argv)
                     : !strcmp(brk, "smartalk-pitch") ? 11 : !strcmp(brk, "smartalk-numbers") ? 12
                     : !strcmp(brk, "smartalk-import-ignored") ? 13 : !strcmp(brk, "smartalk-builtin-ignored") ? 14
                     : !strcmp(brk, "marks-frames") ? 15 : !strcmp(brk, "marks-estimate") ? 16
+                    : !strcmp(brk, "trillions") ? 17
                     : 0;
     ssa_import_break = !brk ? 0 : !strcmp(brk, "import-hash") ? 1 : !strcmp(brk, "import-dsk") ? 2
                      : !strcmp(brk, "import-lang") ? 3 : !strcmp(brk, "import-release") ? 4
@@ -1139,6 +1141,39 @@ int main(int argc, char **argv)
             printf("rel-%d-probe %ld %016llx\n", v, n, h);
         }
         printf("rel-voices-here %d 0\n", here);
+    }
+
+    /* the trillion guard (#53): "Read numbers as words" on, a unit whose reader folds a trillion into billions -- the
+       German unit, the Hungarian release -- says 13 digits as the guard's own text, a digit at a time (bl_trillions),
+       not as its reader would; the Russian release reads trillions itself, so it says them the same on and off.  Each
+       on a fresh unit: "trill-<lang>-on", and "-digits" (the guard's text, the words off) or "-off" */
+    if (block("trill")) {
+        static const char *T = "1001000000000.";
+        ssa_settings off = s;
+        char *digits = bl_trillions(T, 0);
+        int v;
+        off.numbers = 0;
+        for (v = 0; v < SSA_VOICES && digits; v++) {
+            const char *id = v == SSA_GERMAN ? "de" : NULL, *rid;
+            int r = ssa_voice_release(v);
+            if (r >= 0 && (rid = blv_release_id(r)) != NULL)
+                id = !strcmp(rid, "bl2_hu_1999_07") ? "hu" : !strcmp(rid, "bl2_ru_1998_12") ? "ru" : id;
+            if (!id) continue;
+            for (int k = 0; k < 2; k++) {
+                char name[64];
+                int against = strcmp(id, "ru") != 0;      /* folding: on against the digits; else on against off */
+                e = ssa_new(argv[1]);
+                ssa_configure(e, 22050, 1, 0);
+                if (ssa_has_voice(e, v)) {
+                    if (speak(e, v, k == 0 ? T : against ? digits : T, k == 0 ? &s : &off, 100, 100, 4096, 0, &d))
+                        return 1;
+                    snprintf(name, sizeof name, "trill-%s-%s", id, k == 0 ? "on" : against ? "digits" : "off");
+                    report(name, &d);
+                }
+                ssa_free(e);
+            }
+        }
+        free(digits);
     }
 
     /* the number words ("Read numbers as words", the driver's default: on), each case on a fresh unit -- so on and

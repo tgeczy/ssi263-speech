@@ -252,14 +252,19 @@ static void settings_for(const ssa_engine *e, int voice, const ssa_settings *s, 
     case SSA_ITALIAN:
     case SSA_SLOVAK:                   /* 0.8's Blazie units: as the two above, less what they do not have -- each
                                           reads its own numbers, and run ahead is tested on English and Spanish
-                                          alone (voices.c's ssv_speak drops both for them whatever is sent); the
-                                          line-start lift is sent as to every Blazie unit, and does nothing on
-                                          them (their pitch writes are the same with it on and off) */
+                                          alone (voices.c's ssv_speak gives them no number words and no run ahead
+                                          whatever is sent); the line-start lift is sent as to every Blazie unit,
+                                          and does nothing on them (their pitch writes are the same with it on and
+                                          off) */
         o->pitch = ssa_pitch(s->pitch, request_pitch);
         o->tone = s->tone;
         o->pack = s->pack;
         o->line_lift = s->line_lift && ssa_voice_break != 10;
-        o->numbers = 0;
+        /* ... but "Read numbers as words" goes through: with it, voices.c gives a unit whose reader folds a trillion
+           into billions (bl_languages.txt's trillions = fold) a number of 13 digits or more a digit at a time
+           (bl_trillions), as NVDA, SAPI and speech-dispatcher do; it was sent 0, and "1001000000000" was read
+           "one billion one billion" on Android alone (#53).  Control 17 (test_android_native's "trillions"): 0 */
+        o->numbers = s->numbers && ssa_voice_break != 17;
         o->run_ahead = 0;
         break;
     case SSA_SPEAKOUT:                 /* the slider's pitch as the setting, the request's as a capital's offset */

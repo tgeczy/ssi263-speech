@@ -77,6 +77,8 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
                              speakout-settings    ssa_voice_break 2: its tone, join and short pauses dropped
                              run-ahead            ssa_voice_break 3: the Braille Lite's run ahead dropped
                              numbers              ssa_voice_break 4: its number words dropped (always off)
+                             trillions            ssa_voice_break 17: the numbers setting withheld from the units
+                                                  that read their own (#53): a folding one's trillion guard gone
                              mockingboard-pitch   ssa_voice_break 5: the Mockingboard's request pitch dropped
                              mockingboard-numbers ssa_voice_break 6: its number words dropped (always off)
                              mockingboard-import-ignored   7: the imported copy ignored (the built-in one used)
@@ -504,6 +506,24 @@ def numbers_reference(lib_path, data):
             got[name] = (len(pcm) // 2, fnv(pcm))
             lib.blv_destroy(ref.v)
     return got
+
+
+def trillions_heard(label, got):
+    """The trillion guard (#53): a folding unit (German, Hungarian) says 13 digits as the guard's digit-at-a-time text,
+    with "Read numbers as words" on; the Russian unit, which reads trillions, the same on and off.  Each when here."""
+    bad = 0
+    for lang, other, what in (("de", "digits", "the German unit"), ("hu", "digits", "the Hungarian unit"),
+                              ("ru", "off", "the Russian unit (reads trillions)")):
+        on, against = got.get("trill-%s-on" % lang), got.get("trill-%s-%s" % (lang, other))
+        if on is None and against is None:
+            print("skip  %-8s %s: not here" % (label, what))
+            continue
+        ok = on is not None and against is not None and on == against
+        print("%-5s %-8s trill-%s-on = trill-%s-%s (%s: 1001000000000 %s)" % (
+            "ok" if ok else "FAIL", label, lang, lang, other, what,
+            "a digit at a time" if other == "digits" else "its own reading, guard or not"))
+        bad += not ok
+    return bad
 
 
 def numbers_heard(label, got):
@@ -1352,6 +1372,8 @@ def main():
                 bad += run_ahead_taken(label, got)
             if numbers:
                 bad += numbers_heard(label, got)
+            if block("trill"):
+                bad += trillions_heard(label, got)
             if block("lift"):
                 bad += lift_heard(label, got)
             if speakout and block("so"):
