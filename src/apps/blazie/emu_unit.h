@@ -93,6 +93,12 @@ extern int emu_hold_break;
    is left.  A PATH ending in ".new" (a state written first and then put in place, as the Linux apps save) keeps its program
    beside the name without ".new". */
 int emu_save(emu_unit *u, const char *path);
+/* emu_save, whole or not at all: the state written as PATH.new, then put in place of PATH in one step (#37).  A
+   save cut short -- the app killed, a crash, a full disk, the power lost while it writes -- leaves the last good
+   state as it was, where a save written straight to PATH truncated it first and left a file that will not load,
+   with every file in the unit gone.  1 on success; 0, PATH untouched and no PATH.new left, on failure.  Every app
+   saves a unit's state with this (tools/check_emu_saves.py). */
+int emu_save_whole(emu_unit *u, const char *path);
 /* the Braille Lite's program flash, bank a then bank b (0 for the Type 'n Speak): tests */
 long emu_program_flash(emu_unit *u, unsigned char **data);
 /* The unit's clock controller (../../csrc/blazie/bl_clock.h): emu_create switches it on, going on from the clock

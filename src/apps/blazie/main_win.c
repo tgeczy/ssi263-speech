@@ -217,7 +217,7 @@ static void save_unit(void)
     CreateDirectoryA(g_save_dir, NULL);
     saved_path(g_kind, path, sizeof path);
     EnterCriticalSection(&g_lock);
-    ok = emu_save(g_unit, path);
+    ok = emu_save_whole(g_unit, path);    /* whole or not at all (#37) */
     LeaveCriticalSection(&g_lock);
     if (!ok)
         MessageBoxA(g_wnd, "Could not save the unit's memory; what you wrote this time is lost.", "Blazie emulator",
@@ -475,7 +475,7 @@ static int unit_off(const char *title, const char *doing, char *st, size_t cap)
     saved_path(g_kind, st, cap);
     EnterCriticalSection(&g_lock);
     busy = emu_flash(g_unit, NULL);
-    ok = !busy && emu_save(g_unit, st);
+    ok = !busy && emu_save_whole(g_unit, st);
     old = ok ? g_unit : NULL;
     if (ok)
         g_unit = NULL;                      /* switched off: nothing runs while its memory changes */
@@ -763,7 +763,7 @@ static double autosave(void)
     if (g_unit) {                           /* (none: switched off, as while Back to the factory state asks) */
         CreateDirectoryA(g_save_dir, NULL);
         saved_path(g_kind, path, sizeof path);
-        ok = emu_save(g_unit, path);
+        ok = emu_save_whole(g_unit, path);
     }
     LeaveCriticalSection(&g_lock);
     if (!ok)

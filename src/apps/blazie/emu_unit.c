@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+#include <windows.h>                /* MoveFileExA: emu_save_whole */
+#endif
 #include "../../csrc/ssi263.h"
 #include "../../csrc/blazie/bl_host.h"
 #include "../../csrc/blazie/tns_board.h"
@@ -529,6 +532,31 @@ int emu_save(emu_unit *u, const char *path)
     }
     bh_clock_wall(u->host, secs);
     return bh_save_state(u->host, path) && program_keep(u->host, path);
+}
+
+int emu_save_whole(emu_unit *u, const char *path)
+{
+    size_t n = strlen(path);
+    char *tmp = (char *)malloc(n + 5);
+    int ok;
+    if (!tmp)
+        return 0;
+    memcpy(tmp, path, n);
+    memcpy(tmp + n, ".new", 5);
+    if (getenv("EMU_SAVE_WHOLE_BREAK"))                /* the tests' control: straight to PATH, as Windows saved */
+        ok = emu_save(u, path);
+    else {
+        ok = emu_save(u, tmp);
+#ifdef _WIN32
+        ok = ok && MoveFileExA(tmp, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+#else
+        ok = ok && rename(tmp, path) == 0;
+#endif
+        if (!ok)
+            remove(tmp);
+    }
+    free(tmp);
+    return ok;
 }
 
 long emu_program_flash(emu_unit *u, unsigned char **data)

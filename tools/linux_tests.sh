@@ -96,6 +96,12 @@ else
     echo "skip  reference: the z180emu development build (LEGACY=1 ./build_linux.sh)"
 fi
 check "chip defaults" python3 src/csrc/gen_chip_defaults.py --check
+# #37: the emulator apps save a unit's state whole or not at all (tools/check_emu_saves.py); its control reads the
+# Windows app's first save as it was
+check "emulator apps: every save of a unit's state whole or not at all (#37)" python3 tools/check_emu_saves.py
+control "emulator apps: saves CONTROL (the Windows app's first save as it was, must fail)" \
+    "^FAIL main_win\.c +saves in place with emu_save\(\) at line [0-9]+$" "^ok +main_linux\.c " \
+    "^emulator saves: 1 FAILED$" -- env EMU_SAVES_BREAK=1 python3 tools/check_emu_saves.py
 # the Braille Lite's text preparation on runs of 64 digits and more (tools/check_bl_digit_run.py: bl_voice.c built alone
 # with AddressSanitizer; amounts() wrote one int past a 64-entry stack array); its control puts the old bound back
 check "Braille Lite text preparation: long digit runs under AddressSanitizer" python3 tools/check_bl_digit_run.py
@@ -430,6 +436,10 @@ control "emulator: keyboard CONTROL (dots 1 and 4 swapped, must fail)" "^FAIL +k
 check "emulator: the unit headless (Braille Lite)" ./build/linux/test_emu_unit bl "$DATA/BL2ENG.BNS" \
     "$DATA/bl2_2003_warm.state"
 check "emulator: the unit headless (Type 'n Speak)" ./build/linux/test_emu_unit tns "$TNS" -
+# #37: a save whole or not at all; the control saves straight to the file, as the Windows app did
+control "emulator: a save whole or not at all CONTROL (saved in place, must fail)" \
+    "^FAIL save whole +cut short: returned 1, the last state CHANGED" "^ok +switched off and on " "^FAILED$" \
+    -- env EMU_SAVE_WHOLE_BREAK=1 ./build/linux/test_emu_unit bl "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state"
 check "emulator: the clock controller" ./build/linux/test_clock unit
 check "emulator: the clock and keys held at a restart (Braille Lite)" ./build/linux/test_clock bl "$DATA/BL2ENG.BNS" \
     "$DATA/bl2_2003_warm.state"

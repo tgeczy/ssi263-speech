@@ -310,7 +310,9 @@ hour, day or month, while the unit is running.
 
 As a real unit keeps its battery-backed RAM, its file flash and its clock while switched off, the program saves them
 on exit (and when you switch units) to `%APPDATA%\ssi263-speech\blazie-emu\english.state` or `spanish.state`, and starts from
-them next time. The first time, and after Firmware > Back to the factory state, it starts from the shipped state; the
+them next time. Each save is written whole first (`english.state.new`) and then put in place, so a save cut short (the
+program killed, a crash, a full disk, the power lost) leaves the last one as it was; before 0.9.5 the Windows program wrote
+straight over it, and such a save could leave a file that would not load. The first time, and after Firmware > Back to the factory state, it starts from the shipped state; the
 Type 'n Speak starts as a new unit, with its cold reset (below, "The Type 'n Speak's first start").
 
 ### The Type 'n Speak's first start

@@ -10,6 +10,8 @@
  * (run_tests passes the source tree's firmware/blazie files)
  * The English Braille Lite (BL2ENG.BNS) also has its double-speed switch keyed, with the upgrade and without
  * (emu_set_double_speed; TEST_EMU_DOUBLE_BREAK=1 the must-fail control).
+ * A save is whole or not at all (emu_save_whole, #37): one that cannot finish leaves the last state as it was
+ * (EMU_SAVE_WHOLE_BREAK=1, the must-fail control: saved straight to the file, as the Windows app did).
  */
 #include <math.h>
 #include <stdio.h>
@@ -17,10 +19,16 @@
 #include <string.h>
 #include <time.h>
 #ifdef _WIN32
+#include <direct.h>
 #include <process.h>
+#define MKDIR(p) _mkdir(p)
+#define RMDIR(p) _rmdir(p)
 #else
+#include <sys/stat.h>
 #include <unistd.h>
 #define _getpid getpid
+#define MKDIR(p) mkdir(p, 0700)
+#define RMDIR(p) rmdir(p)
 #endif
 #include "audio_pace.h"
 #include "emu_unit.h"
@@ -85,6 +93,26 @@ static double run(const char *fw, const char *st, int press, double at, double f
     free(buf);
     emu_destroy(u);
     return r;
+}
+
+/* a whole file into memory (NULL: none); its size in *n */
+static unsigned char *slurp(const char *path, long *n)
+{
+    FILE *f = fopen(path, "rb");
+    unsigned char *d = NULL;
+    *n = -1;
+    if (!f)
+        return NULL;
+    fseek(f, 0, SEEK_END);
+    *n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    d = (unsigned char *)malloc((size_t)*n + 1);
+    if (d && fread(d, 1, (size_t)*n, f) != (size_t)*n) {
+        free(d);
+        d = NULL;
+    }
+    fclose(f);
+    return d;
 }
 
 static void check(const char *name, int ok, const char *detail)
@@ -262,6 +290,33 @@ int main(int argc, char **argv)
             snprintf(d, sizeof d, "the worst of 5 saves %.1f ms (the sound thread renders %d ms ahead of a save)",
                      worst, AP_SAVE_AHEAD_MS);
             check("save time", worst < AP_SAVE_AHEAD_MS, d);
+        }
+        {   /* #37: a save that cannot finish -- here PATH.new is a folder, so it cannot be written -- leaves the last
+               state as it was; then a save that can, replaces it and leaves no PATH.new */
+            char tmp[80];
+            long n0, n1, n2;
+            unsigned char *before = slurp(path, &n0), *after;
+            int r1, r2, same, left;
+            FILE *t;
+            emu_key(u, g_kind == EMU_TYPE_N_SPEAK ? 0xBD : 0x01);
+            emu_render(u, buf, RATE);
+            snprintf(tmp, sizeof tmp, "%s.new", path);
+            MKDIR(tmp);
+            r1 = emu_save_whole(u, path);
+            after = slurp(path, &n1);
+            same = before && after && n0 == n1 && !memcmp(before, after, (size_t)n0);
+            RMDIR(tmp);
+            free(after);
+            r2 = emu_save_whole(u, path);
+            after = slurp(path, &n2);
+            left = (t = fopen(tmp, "rb")) != NULL;
+            if (t)
+                fclose(t);
+            snprintf(d, sizeof d, "cut short: returned %d, the last state %s; then saved: returned %d, %ld bytes, "
+                     "%s left", r1, same ? "as it was" : "CHANGED", r2, n2, left ? "a .new" : "no .new");
+            check("save whole", r1 == 0 && same && r2 == 1 && n2 > 0 && !left, d);
+            free(before);
+            free(after);
         }
         emu_destroy(u);
         if ((f = fopen(path, "rb")) != NULL) {

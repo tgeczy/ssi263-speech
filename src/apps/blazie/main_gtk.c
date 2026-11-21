@@ -515,17 +515,13 @@ static void save_settings(void)
    no GTK here.  1 on success (or no unit), the file in path. */
 static int write_unit(char *path, int cap)
 {
-    char tmp[PATH_MAX + 8];
     int ok = 1;
     path[0] = 0;
     pthread_mutex_lock(&g_lock);
     if (g_unit) {
         make_dirs(g_cfg_dir);
         saved_path(g_kind, path, cap);
-        snprintf(tmp, sizeof tmp, "%s.new", path);
-        ok = emu_save(g_unit, tmp) && rename(tmp, path) == 0;
-        if (!ok)
-            unlink(tmp);
+        ok = emu_save_whole(g_unit, path);           /* whole or not at all: a crash mid-write keeps the last one */
     }
     pthread_mutex_unlock(&g_lock);
     if (ok && path[0])
@@ -1032,7 +1028,7 @@ static int unit_off(const char *title, const char *doing, char *st, size_t cap)
     saved_path(g_kind, st, cap);
     pthread_mutex_lock(&g_lock);
     busy = emu_flash(g_unit, NULL);
-    ok = !busy && emu_save(g_unit, st);
+    ok = !busy && emu_save_whole(g_unit, st);
     old = ok ? g_unit : NULL;
     if (ok)
         g_unit = NULL;                          /* switched off: nothing runs while its memory changes */

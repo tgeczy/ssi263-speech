@@ -294,6 +294,14 @@ CHECKS.append(check("cut_test", [PY, "cut_test.py"], env={"CUTS": "0.1", "CUT_RE
 # Braille Lite's run ahead and number words on each.  Every platform is required here: the add-ons and the SAPI stage
 # are built for this suite, the Linux and Android sides read from their sources.  Each control drops one cell from one
 # platform's discovered list and must fail naming exactly that cell.
+# #37: the emulator apps save a unit's state whole or not at all -- none calls emu_save() itself, only
+# emu_save_whole(); the control reads the Windows app's first save as it was
+_EMU_SAVES = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_emu_saves.py")]
+CHECKS.append(check("emulator apps: every save of a unit's state whole or not at all (#37)", _EMU_SAVES))
+CHECKS.append(check("emulator apps: saves CONTROL (the Windows app's first save as it was, must fail)", _EMU_SAVES,
+                    env={"EMU_SAVES_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL main_win\.c +saves in place with emu_save\(\) at line \d+$",
+                                r"^ok +main_linux\.c ", r"^ok +main_gtk\.c ", r"^emulator saves: 1 FAILED$"]))
 UNIFORM = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_uniform.py"),
            "--require", "nvda,sapi,linux,android"]
 CHECKS.append(check("uniform: every voice on every platform", UNIFORM))
@@ -764,6 +772,13 @@ if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
                                         r"^audio: 14 FAILED$"]))
     CHECKS.append(check("Blazie emulator: the unit, headless", [os.path.join(EMU, "test_emu_unit.exe"), "bl",
                         os.path.join(ENG, "BL2ENG.BNS"), os.path.join(ENG, "bl2_2003_warm.state")]))
+    # #37: a save is whole or not at all (emu_save_whole): the control saves straight to the file, as the Windows
+    # app did, and a save that cannot finish then changes the last state
+    CHECKS.append(check("Blazie emulator: a save whole or not at all CONTROL (saved in place, must fail)",
+                        [os.path.join(EMU, "test_emu_unit.exe"), "bl", os.path.join(ENG, "BL2ENG.BNS"),
+                         os.path.join(ENG, "bl2_2003_warm.state")], env={"EMU_SAVE_WHOLE_BREAK": "1"},
+                        expect_fail=True, fail_marks=[r"^FAIL save whole +cut short: returned 1, the last state CHANGED",
+                                                      r"^ok +save time ", r"^ok +switched off and on ", r"^FAILED$"]))
     CHECKS.append(check("Blazie emulator: the Spanish unit, headless", [os.path.join(EMU, "test_emu_unit.exe"), "bl",
                         os.path.join(ENG, "BL2SPA.BNS"), os.path.join(ENG, "bl2spa_fresh.state")]))
     # the German and Italian Braille Lite 2000 in the emulator (its Firmware menu, 0.8), from the firmware folder; the

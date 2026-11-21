@@ -410,16 +410,13 @@ static void save_settings(void)
    units, leaving) never write the same file at once.  Called from either thread. */
 static void save_unit(void)
 {
-    char path[PATH_MAX], tmp[PATH_MAX + 8];
+    char path[PATH_MAX];
     int ok = 1;
     pthread_mutex_lock(&g_lock);
     if (g_unit) {
         make_dirs(g_cfg_dir);
         saved_path(g_kind, path, sizeof path);
-        snprintf(tmp, sizeof tmp, "%s.new", path);   /* whole or not at all: a crash mid-write keeps the last one */
-        ok = emu_save(g_unit, tmp) && rename(tmp, path) == 0;
-        if (!ok)
-            unlink(tmp);
+        ok = emu_save_whole(g_unit, path);           /* whole or not at all: a crash mid-write keeps the last one */
     }
     pthread_mutex_unlock(&g_lock);
     if (!ok)
@@ -1101,7 +1098,7 @@ static void load_programs(void)
     saved_path(g_kind, st, sizeof st);
     pthread_mutex_lock(&g_lock);
     busy = g_unit && emu_flash(g_unit, NULL);
-    ok = g_unit && !busy && emu_save(g_unit, st);
+    ok = g_unit && !busy && emu_save_whole(g_unit, st);
     old = ok ? g_unit : NULL;
     if (ok)
         g_unit = NULL;                          /* switched off: nothing runs while its memory changes */
@@ -1559,7 +1556,7 @@ static int headless(const char *wav, double seconds, const char *script, const c
             t.month, t.day, t.hour, t.minute, t.second, text, found ? "yes" : "no");
     }
     if (save_to) {
-        int ok = emu_save(g_unit, save_to);
+        int ok = emu_save_whole(g_unit, save_to);
         say("saved %s: %s", save_to, ok ? "yes" : "no");
     }
     free(s);
