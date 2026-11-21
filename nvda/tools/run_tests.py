@@ -599,6 +599,16 @@ if os.path.isfile(os.path.join(ENG, "BL2ENG.BNS")):
                         [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "blazie",
                                           "lift_controls.py"),
                          os.path.join(ENG, "BL2ENG.BNS"), os.path.join(ENG, "bl2_2003_warm.state")]))
+    # the firmware from a folder named with letters beyond ASCII (#62: blv_release_of found no release, and the
+    # commas, trillions and own-marks guards went off unseen); the control opens every path with fopen, as it did
+    _SPEECH_DLL = os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", "win", "x64", "ssi263speech.dll")
+    if os.path.isfile(_SPEECH_DLL):
+        _UNI = [PY, "unicode_paths.py", _SPEECH_DLL, os.path.join(ENG, "BL2ENG.BNS"),
+                os.path.join(ENG, "bl2_2003_warm.state")]
+        CHECKS.append(check("Braille Lite from a folder named beyond ASCII (#62)", _UNI))
+        CHECKS.append(check("Braille Lite from a folder named beyond ASCII CONTROL (fopen as it was, must fail)", _UNI,
+                            env={"BL_FOPEN_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL release +from .*: release -1 ", r"^unicode paths: 1 FAILED$"]))
     # ... and through the real driver: lifted after a cancel, into a pause and first; never queued or off
     CHECKS.append(check("Blazie line-start lift through the driver", [PY, "line_lift_driver.py"]))
     CHECKS.append(check("Blazie line-start lift CONTROL (the request never reaches the unit, must fail)",

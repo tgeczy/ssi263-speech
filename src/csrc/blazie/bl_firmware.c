@@ -4,6 +4,7 @@
 #include <string.h>
 #include "bl_board.h"
 #include "bl_firmware.h"
+#include "bl_fopen.h"
 #include "bl_state.h"
 #include "bl_voice.h"                      /* BLV_LATIN1 .. BLV_CP866: a release's text encoding */
 
@@ -346,7 +347,7 @@ BL_API int blv_firmware_recipe(int language)
 /* A whole file, malloc'd; NULL when it cannot be read or is larger than `cap`. */
 static unsigned char *read_file(const char *path, long cap, long *n)
 {
-    FILE *f = fopen(path, "rb");
+    FILE *f = bl_fopen(path, "rb");             /* a UTF-8 path, letters beyond ASCII too (#62) */
     unsigned char *p = NULL;
     long size;
     if (!f)
