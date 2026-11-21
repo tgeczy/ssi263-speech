@@ -260,7 +260,12 @@ def _currency_words(sym, whole, frac):
         return "%s.%s %s" % (whole or "0", frac, major)            # read as a number: "2.635 pounds"
     cents = int((frac + "0")[:2]) if frac else 0
     out = []
-    if whole and (int(whole.replace(",", "")) or not cents):
+    # the pounds part zero or not decided on the string: Python refuses int() past 4300 digits, and "£" with a long
+    # run of digits raised -- the utterance dropped, the unit restarted (Panthera's audit, P28's variant; big() below
+    # decides the same way).  NUMWORDS_CURRENCY_BREAK=1, the test's control: int(), as it was
+    nonzero = (int(whole.replace(",", "")) if os.environ.get("NUMWORDS_CURRENCY_BREAK")
+               else whole.replace(",", "").strip("0") != "") if whole else False
+    if whole and (nonzero or not cents):
         out.append("%s %s" % (whole, major1 if whole == "1" else major))
     if cents:
         out.append("%d %s" % (cents, minor1 if cents == 1 else minor))

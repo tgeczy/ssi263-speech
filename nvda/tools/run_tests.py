@@ -2591,6 +2591,12 @@ CHECKS.append(check("accented letters: driver CONTROL (the pass off, must fail)"
 # other currencies than the dollar reach every unit as words (a listener: "£2.63" was read "2.63")
 # a number written with leading zeros said digit by digit, the zeros said (#65, Tomi): the Python number words and the
 # C ones (bl_numbers: numwords.c, numwords_es.c); the control builds the integer, as they did
+# currency amounts of thousands of digits said, not dropped with Python's int() limit (Panthera's audit, P28's
+# variant); the control is int() again
+CHECKS.append(check("number words: currency amounts past 4300 digits", [PY, "currency_long.py"]))
+CHECKS.append(check("number words: currency amounts CONTROL (int(), as it was, must fail)", [PY, "currency_long.py"],
+                    env={"NUMWORDS_CURRENCY_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL .* ValueError: Exceeds the limit", r"^ok .*'5 euros'", r"^currency long: 4 FAILED$"]))
 CHECKS.append(check("number words: leading zeros said, digit by digit (#65)", [PY, "leading_zeros.py"]))
 CHECKS.append(check("number words: leading zeros CONTROL (the integer, as it was, must fail)", [PY, "leading_zeros.py"],
                     env={"NUMWORDS_ZERO_BREAK": "1"}, expect_fail=True,
