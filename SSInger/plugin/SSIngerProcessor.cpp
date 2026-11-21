@@ -204,17 +204,8 @@ void SSIngerProcessor::applyParams(ssinger_bus_t& bus)
     /* First, so a Glide or Rate change below already writes R1 in the
      * mode's layout; crossing DUR 3 re-latches the chips' mode. */
     ssinger_bus_set_dur(&bus, (int)get(ids::dur));
-    if (newRate != cfg.rate || newGlide != cfg.glide) {
-        cfg.rate = newRate & 15;
-        cfg.glide = newGlide & 7;
-        for (int v = 0; v < bus.nvoices; v++)
-            ssinger_write_inflection(&bus.fw, v, bus.fw.v[v].inflection);
-    }
-    if (newArt != cfg.articulation) {
-        cfg.articulation = newArt & 7;
-        for (int v = 0; v < bus.nvoices; v++)
-            ssinger_write_r3(&bus.fw, v, bus.fw.v[v].amplitude);
-    }
+    /* written only when a parameter itself moved: CC3 and the Patent mod wheel set the live values (#83) */
+    ssinger_apply_rate_params(&bus.fw, newRate, newGlide, newArt);
     cfg.vel_curve = (int)get(ids::velCurve);
     cfg.bend_range_st = get(ids::bendRange);
 

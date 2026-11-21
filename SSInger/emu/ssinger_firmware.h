@@ -107,6 +107,7 @@ typedef struct ssinger_voice {
 
 /* the tests' controls (tests/test_6850_midi.c; nothing else sets them): 1 puts the old behaviour back */
 static int ssinger_routing_break = 0;  /* #82: a routing change and All Notes Off release nothing */
+static int ssinger_params_break = 0;   /* #83: the parameters compared with the live values */
 
 typedef struct ssinger_state {
     ssinger_cfg_t cfg;
@@ -127,6 +128,9 @@ typedef struct ssinger_state {
      * patent bend (FF + offset) or the Polaxis wheel (absolute) -- the
      * latest writer wins, as on one chip. Chip k gets it + filter_off[k]. */
     int ff_common;
+    /* the Rate, Glide and Articulation parameters as last applied (-1: none yet): a controller (CC3, the Patent
+     * map's mod wheel) changes the live cfg values, and only a parameter that itself moved overrides it (#83) */
+    int param_rate, param_glide, param_art;
 } ssinger_state_t;
 
 static void ssinger_default_cfg(ssinger_cfg_t *c)
@@ -196,6 +200,7 @@ static void ssinger_reset(ssinger_state_t *s)
         s->v[i].carrier_ext = 0;
     }
     s->ff_common = s->cfg.filter_ff;
+    s->param_rate = s->param_glide = s->param_art = -1;
     for (i = 0; i < SG_NVOICES_MAX; i++)
         s->v[i].filter_ff = ssinger_chip_ff(s, i);
     s->running = 0;
@@ -685,6 +690,30 @@ static void ssinger_cc(ssinger_state_t *s, int voice, int cc, int val)
         break;
     default:
         break;
+    }
+}
+
+/* the Rate, Glide and Articulation parameters, applied each block: written only when the parameter itself moved.
+   Compared with the live values, CC3's rate and the Patent mod wheel's articulation were put back to the knob's at
+   the next block (#83; ssinger_params_break, the test's control: compared so) */
+static void ssinger_apply_rate_params(ssinger_state_t *s, int rate, int glide, int art)
+{
+    int v, n = s->cfg.nvoices < SG_NVOICES_MAX ? s->cfg.nvoices : SG_NVOICES_MAX;
+    int moved = ssinger_params_break ? (rate != s->cfg.rate || glide != s->cfg.glide)
+                                     : (rate != s->param_rate || glide != s->param_glide);
+    if (moved) {
+        s->param_rate = rate;
+        s->param_glide = glide;
+        s->cfg.rate = rate & 15;
+        s->cfg.glide = glide & 7;
+        for (v = 0; v < n; v++)
+            ssinger_write_inflection(s, v, s->v[v].inflection);
+    }
+    if (ssinger_params_break ? art != s->cfg.articulation : art != s->param_art) {
+        s->param_art = art;
+        s->cfg.articulation = art & 7;
+        for (v = 0; v < n; v++)
+            ssinger_write_r3(s, v, s->v[v].amplitude);
     }
 }
 
