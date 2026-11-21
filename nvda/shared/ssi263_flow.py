@@ -39,6 +39,23 @@ nvda/tools/say_all_flow.py holds each driver to it.  Python 3.7 to 3.13.
 AHEAD = 8                         # blocks rendered for each one played
 
 
+def pause(ms, rate, feed, cancelled):
+    """NVDA's BreakCommand(ms): that much silence, fed where the break stands, in 30 ms pieces so a cancel stops it.
+    NVDA's "Delayed descriptions for characters" puts a second's break before a letter's description, to be heard
+    only when the user stops on the letter; every driver dropped it, and the description came at once (#71).  NVDA
+    keeps a sequence's leading silence when a BreakCommand puts it there (nvwave.py _onPreSpeak).
+    BREAK_PAUSE_BREAK=1, the tests' control: nothing fed, as it was"""
+    import os
+    if os.environ.get("BREAK_PAUSE_BREAK"):
+        return
+    left = int(rate * max(0, ms) / 1000.0)
+    block = max(1, int(rate * 0.03))
+    while left > 0 and not cancelled():
+        n = min(block, left)
+        feed(bytes(2 * n))
+        left -= n
+
+
 def lines(items):
     """a driver's items -- (kind, value) -- with each run of texts and indexes that holds two texts or more as one
     ("line", the run); the others as they are"""

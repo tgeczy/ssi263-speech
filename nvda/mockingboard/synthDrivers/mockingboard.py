@@ -64,6 +64,11 @@ def _joined(items):
     return out
 
 
+# NVDA's BreakCommand, a pause: honoured where NVDA has it (#71)
+_BREAK = getattr(speech.commands, "BreakCommand", None)
+_BREAKS = {_BREAK} if _BREAK else set()
+
+
 class SynthDriver(SynthDriver):
     name = "mockingboard"
     description = "Mockingboard (SSI-263 emulation)"
@@ -77,7 +82,7 @@ class SynthDriver(SynthDriver):
         BooleanDriverSetting("numberWords", "Custom n&umber processing (fix digit-by-digit numbers)", defaultVal=True),
         DriverSetting(rates.SETTING_ID, rates.SETTING_LABEL, defaultVal=str(rates.DEFAULT)),
     )
-    supportedCommands = {speech.commands.IndexCommand, speech.commands.PitchCommand}
+    supportedCommands = {speech.commands.IndexCommand, speech.commands.PitchCommand} | _BREAKS                    # NVDA's pause (#71)
     supportedNotifications = {synthIndexReached, synthDoneSpeaking}
     # the synth NVDA's speech manager knows (blazie.py): this driver, or the 0.8 add-on's driver running it inside
     notifySynth = None
@@ -161,6 +166,8 @@ class SynthDriver(SynthDriver):
             elif isinstance(item, speech.commands.PitchCommand):
                 # a capital: an offset on the user's own pitch, for the texts after it until the next PitchCommand
                 items.append(("pitch", item.offset))
+            elif _BREAK is not None and isinstance(item, _BREAK):
+                items.append(("break", item.time))          # a pause (#71)
         self._queue.put((self._gen, _joined(items) if self._join else items))
 
     def cancel(self):
@@ -329,6 +336,10 @@ class SynthDriver(SynthDriver):
         for kind, value in (_flow.lines(items) if _flow and FLOW and self._join else items):
             if self._cancelFlag.is_set():
                 return
+            if kind == "break":                  # NVDA's pause: that much silence, here (#71)
+                if _flow and hasattr(_flow, "pause"):
+                    _flow.pause(value, self._out_rate, self._player.feed, self._cancelFlag.is_set)
+                continue
             if kind == "index":
                 self._notifyIndex(value)
                 continue

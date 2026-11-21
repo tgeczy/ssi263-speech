@@ -647,6 +647,18 @@ if os.path.isfile(os.path.join(ENG, "BL2ENG.BNS")):
                                     r"^line lift: 3 FAILED$"]))
 # Say all's lines (nvda/shared/ssi263_flow.py; a listener, 2026-11-19: "it pauses after every line"): texts with only
 # indexes between them go to the unit as ONE line and every index is reported near its place -- each driver through
+# NVDA's BreakCommand honoured: a second's break before "Hello." makes it a second longer, the second silent (#71:
+# every driver dropped it); each driver from the 0.8 add-on's folder, the control on two
+_BREAK_UNITS = os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "synthDrivers", "_ssi263_unified")
+if os.path.isdir(_BREAK_UNITS):
+    for _w in ("blazie", "speakout", "accent", "mockingboard", "smartalk"):
+        if os.path.isfile(os.path.join(_BREAK_UNITS, {"accent": "accentmini"}.get(_w, _w) + ".py")):
+            CHECKS.append(check("NVDA's pause (BreakCommand): %s (#71)" % _w, [PY, "break_pause.py", _w],
+                                env={"SSI263_SYNTH_DRIVERS": _BREAK_UNITS}))
+    for _w in ("blazie", "accent"):
+        CHECKS.append(check("NVDA's pause CONTROL (%s: the break dropped, must fail)" % _w, [PY, "break_pause.py", _w],
+                            env={"SSI263_SYNTH_DRIVERS": _BREAK_UNITS, "BREAK_PAUSE_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL pause +%s: .*\(-?0\.00 s more\)" % _w, r"^break pause: 1 FAILED$"]))
 # the stand-in NVDA (say_all_flow.py), the units of the 0.8 add-on from its own folder.  The control takes the
 # drivers' FLOW away: each text a sentence of its own again, "flows" must fail.
 _UNITS = os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "synthDrivers", "_ssi263_unified")

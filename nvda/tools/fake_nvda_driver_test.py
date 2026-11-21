@@ -197,8 +197,14 @@ class LangChangeCommand:
         self.lang = lang
 
 
+class BreakCommand:
+    def __init__(self, time=0):
+        self.time = time
+
+
 cmds.IndexCommand, cmds.PitchCommand = IndexCommand, PitchCommand
 cmds.LangChangeCommand = LangChangeCommand
+cmds.BreakCommand = BreakCommand
 speech.commands = cmds
 sys.modules["speech"] = speech
 sys.modules["speech.commands"] = cmds
