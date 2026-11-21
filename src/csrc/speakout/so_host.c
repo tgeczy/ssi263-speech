@@ -10,6 +10,7 @@
 
 #include "so_board.h"
 #include "../numwords.h"
+#include "../blazie/bl_fopen.h"
 
 static const unsigned char CTRL_X[] = {0x18};
 /* The firmware's text ring: every byte received goes to [1A30h], 8000h-83FFh, and the rules read at [1A32h].  It never
@@ -97,7 +98,7 @@ SO_API so_host *soh_create(const char *hex, size_t len, ssi263 *chip, double out
 
 SO_API so_host *soh_create_file(const char *path, ssi263 *chip, double out_rate, char *err, int errlen)
 {
-    FILE *f = fopen(path, "rb");
+    FILE *f = bl_fopen(path, "rb");
     long len;
     char *text;
     so_host *h;

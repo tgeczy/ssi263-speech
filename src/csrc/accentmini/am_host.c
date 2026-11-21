@@ -13,6 +13,7 @@
 
 #include "pc86.h"
 #include "../accent_text.h"
+#include "../blazie/bl_fopen.h"
 
 #define LOAD_SEG 0x0800            /* the driver image sits at 0800:0000 */
 #define MARK_COUNT 0x6E3           /* ... and counts the index marks speech has passed in this byte of it */
@@ -1149,7 +1150,7 @@ AM_API am_host *amh_create(const unsigned char *dvc, size_t n, ssi263 *chip, dou
 
 AM_API am_host *amh_create_file(const char *path, ssi263 *chip, double out_rate, char *err, int errlen)
 {
-    FILE *f = fopen(path, "rb");
+    FILE *f = bl_fopen(path, "rb");
     long len;
     unsigned char *d;
     am_host *h;

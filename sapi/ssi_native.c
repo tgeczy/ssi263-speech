@@ -111,3 +111,13 @@ int ssi_ansi_path(const wchar_t *path, char *out, int cap)
     n = WideCharToMultiByte(CP_ACP, 0, use, -1, out, cap, NULL, &lossy);
     return n > 0 && !lossy;
 }
+
+int ssi_lib_path(const wchar_t *path, char *out, int cap)
+{
+    /* the ANSI form where there is one (8.3 names, or a name in the code page): every caller of the voices takes it;
+       else UTF-8, which the voices' every firmware open takes too (bl_fopen.h) -- a folder named in another script on
+       a volume without 8.3 names had no form at all, and every voice was silent (Panthera's audit, P27) */
+    if (ssi_ansi_path(path, out, cap))
+        return 1;
+    return WideCharToMultiByte(CP_UTF8, 0, path, -1, out, cap, NULL, NULL) > 0;
+}

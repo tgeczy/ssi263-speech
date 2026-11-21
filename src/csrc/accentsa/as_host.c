@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "as_board.h"
+#include "../blazie/bl_fopen.h"
 
 static const unsigned char FLUSH_BOOT[] = {0x1B, '=', 'F', 0x1B, '=', 'M', 0x18};   /* ESC =F, ESC =M, Ctrl-X */
 static const unsigned char CTRL_X[] = {0x18};
@@ -152,7 +153,7 @@ static unsigned char *slurp(const char *dir, const char *name, size_t *n, char *
     long len;
     unsigned char *d;
     snprintf(path, sizeof path, "%s/%s", dir, name);
-    f = fopen(path, "rb");
+    f = bl_fopen(path, "rb");
     if (!f) {
         if (err && errlen > 0)
             snprintf(err, (size_t)errlen, "%s: cannot open", name);

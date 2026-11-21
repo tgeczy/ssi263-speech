@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "mb_board.h"
+#include "../blazie/bl_fopen.h"
 
 /* the same three in both versions (mb_host.h) */
 #define A_PTR 0x06u                        /* (06h): the text */
@@ -271,10 +272,10 @@ MB_API mb_host *mbh_create_dir(const char *dir, ssi263 *chip, double out_rate, c
     unsigned char *d;
     mb_host *h;
     snprintf(path, sizeof path, "%s/%s", dir, MB_FILE);
-    f = fopen(path, "rb");
+    f = bl_fopen(path, "rb");
     if (!f) {                                /* no 1.1 here: the early one, if it is */
         snprintf(path, sizeof path, "%s/%s", dir, MB_FILE_EARLY);
-        f = fopen(path, "rb");
+        f = bl_fopen(path, "rb");
     }
     if (!f) {
         if (err && errlen > 0)

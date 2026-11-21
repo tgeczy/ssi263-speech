@@ -7,6 +7,7 @@
 
 #include "am_voice.h"
 #include "../accent_text.h"
+#include "../blazie/bl_fopen.h"
 
 /* the driver's constants */
 #define BLOCK_S 0.03
@@ -103,7 +104,7 @@ AM_API am_voice *amv_create_mem(const unsigned char *dvc, size_t n, double out_r
 
 AM_API am_voice *amv_create(const char *dvc_path, double out_rate, char *err, int errlen)
 {
-    FILE *f = fopen(dvc_path, "rb");
+    FILE *f = bl_fopen(dvc_path, "rb");
     long len;
     unsigned char *d;
     am_voice *v;

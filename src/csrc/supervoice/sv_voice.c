@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "sv_voice.h"
+#include "../blazie/bl_fopen.h"
 #include "../accent_text.h"                /* at_say_text: the shared 7-bit text path (translit, currencies, numbers) */
 
 #define BLOCK_S 0.03
@@ -212,7 +213,7 @@ SV_API sv_voice *svv_create_dir(const char *dir, double out_rate, char *err, int
     unsigned char *d = NULL;
     sv_voice *v = NULL;
     snprintf(path, sizeof path, "%s/%s", dir, SV_FILE);
-    f = fopen(path, "rb");
+    f = bl_fopen(path, "rb");
     if (f && fseek(f, 0, SEEK_END) == 0 && (len = ftell(f)) > 0 && fseek(f, 0, SEEK_SET) == 0
             && (d = (unsigned char *)malloc((size_t)len)) != NULL && fread(d, 1, (size_t)len, f) == (size_t)len)
         v = svv_create(d, (size_t)len, out_rate, err, errlen);

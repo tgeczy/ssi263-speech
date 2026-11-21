@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "az_board.h"
+#include "../blazie/bl_fopen.h"
 
 /* ---- the board as the host asks for it (as_host.h's ash_board) --------------------------------------------------- */
 
@@ -56,7 +57,7 @@ static unsigned char *slurp(const char *dir, const char *name, size_t *n, char *
     int found;
     FILE *f;
     snprintf(path, sizeof path, "%s/%s", dir, name);
-    f = fopen(path, "rb");
+    f = bl_fopen(path, "rb");
     found = f != NULL;
     if (f && !fseek(f, 0, SEEK_END))
         len = ftell(f);

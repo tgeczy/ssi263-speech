@@ -230,7 +230,14 @@ static bool voices_ready() {
         logline(L"the voices could not load: %hs", err);
         return false;
     }
-    if (!ssi_ansi_path(fw.c_str(), g_fwdir, sizeof g_fwdir) || !(g_bank = g_api.bank_new(g_fwdir))) {
+#ifdef SSI263_SAPI_DEV
+    char pbrk[16]={0}; GetEnvironmentVariableA("SSI263_SAPI_TEST_BREAK",pbrk,sizeof pbrk);
+    const bool ansiOnly=!strcmp(pbrk,"ansi-path");     /* a control: the ANSI form alone, as it was (P27) */
+#else
+    const bool ansiOnly=false;
+#endif
+    if (!(ansiOnly ? ssi_ansi_path(fw.c_str(), g_fwdir, sizeof g_fwdir) : ssi_lib_path(fw.c_str(), g_fwdir, sizeof g_fwdir))
+            || !(g_bank = g_api.bank_new(g_fwdir))) {
         g_failed = true;
         logline(L"the firmware folder cannot be opened");
         FreeLibrary(g_api.dll);

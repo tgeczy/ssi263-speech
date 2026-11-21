@@ -25,6 +25,7 @@
 #endif
 #ifdef SSV_HAVE_SMARTALK
 #include "smartalk/st_voice.h"
+#include "blazie/bl_fopen.h"
 #endif
 
 /* ---- the table ---------------------------------------------------------------------------------------------------- */
@@ -94,7 +95,7 @@ static char *join_path(const char *dir, const char *rel)
 
 static unsigned char *read_path(const char *path, size_t *n)
 {
-    FILE *f = path ? fopen(path, "rb") : NULL;
+    FILE *f = path ? bl_fopen(path, "rb") : NULL;
     unsigned char *data = NULL;
     long len;
     *n = 0;
@@ -431,7 +432,7 @@ SSV_API int ssv_available(int i, const char *fwdir)
     if (!ssv_engine_built(i)) return 0;
     for (k = 0; VOICES[i].files[k]; k++) {
         char *path = join_path(fwdir, VOICES[i].files[k]);
-        FILE *f = path ? fopen(path, "rb") : NULL;
+        FILE *f = path ? bl_fopen(path, "rb") : NULL;
         free(path);
         if (!f) return 0;
         fclose(f);

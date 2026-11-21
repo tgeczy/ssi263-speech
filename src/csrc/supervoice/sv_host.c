@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "../cpu/cpu.h"
+#include "../blazie/bl_fopen.h"
 
 #define PROG_LO 0x5800u                    /* SUPERTOK's one LOADM segment: the program, then its dictionary (7400h) */
 #define PROG_HI 0x7FF0u
@@ -297,7 +298,7 @@ SV_API sv_host *svh_create_dir(const char *dir, ssi263 *chip, double out_rate, c
     unsigned char *d;
     sv_host *h;
     snprintf(path, sizeof path, "%s/%s", dir, SV_FILE);
-    f = fopen(path, "rb");
+    f = bl_fopen(path, "rb");
     if (!f) {
         fail(err, errlen, SV_FILE ": cannot open");
         return NULL;

@@ -9,6 +9,7 @@
 #include "../translit.h"
 #ifdef SO_HAVE_SOUNDINGBOARD
 #include "../soundingboard/sb_host.h"
+#include "../blazie/bl_fopen.h"
 #endif
 
 /* the driver's constants */
@@ -200,7 +201,7 @@ SO_API so_voice *sov_create_hex(const char *hex, size_t len, double out_rate, ch
 
 SO_API so_voice *sov_create(const char *firmware, double out_rate, char *err, int errlen)
 {
-    FILE *f = fopen(firmware, "rb");
+    FILE *f = bl_fopen(firmware, "rb");
     long len;
     char *text;
     so_voice *v;
