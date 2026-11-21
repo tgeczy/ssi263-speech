@@ -302,6 +302,8 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     python src/platforms/android/test/test_voice_status.py --control       # control (--ez voicebreak): must FAIL
     python src/platforms/android/test/test_hooks_rebuild.py                # on the phone: the intent runs once, not on a rebuild (P40)
     python src/platforms/android/test/test_hooks_rebuild.py --control      # control (--ez hooksbreak): must FAIL
+    python src/platforms/android/test/test_preview_leave.py                # on the phone: Speak stops when the screen is left (P54)
+    python src/platforms/android/test/test_preview_leave.py --control      # control (--ez previewbreak): must FAIL
                                   [--voice accent|braillelite|speakout|accentmini|mockingboard|both|all]
     python src/platforms/android/test/test_import_native.py               # the import's native part, and the states
     SSI263_IMPORT_TEST_BREAK=1 python src/platforms/android/test/test_import_native.py     # control: must FAIL

@@ -202,6 +202,13 @@ class SettingsActivity : Activity() {
         super.onSaveInstanceState(out)
     }
 
+    override fun onStop() {
+        super.onStop()
+        // a Speak stops when the screen is left -- it went on talking from the background (Panthera's audit, P54); an
+        // export goes on.  `--ez previewbreak true` (test_preview_leave.py's control, a debug build's): as it was
+        if (!(hooks && intent?.getBooleanExtra("previewbreak", false) == true)) PreviewPlayer.stopPreview()
+    }
+
     override fun onDestroy() {
         PreviewPlayer.stop()
         SsiImport.job?.listener = null

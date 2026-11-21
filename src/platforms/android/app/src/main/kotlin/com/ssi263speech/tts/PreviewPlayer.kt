@@ -18,12 +18,19 @@ import java.io.OutputStream
 
 object PreviewPlayer {
     @Volatile private var stopRequested = false
+    @Volatile private var previewing = false        // a Speak (its render and its playback), not an export
 
     /** One render: the samples, their rate, and whether it ran to its end (a Stop cuts it short). */
     class Render(val pcm: ByteArray, val rate: Int, val finished: Boolean, val voice: SsiEngine.VoiceInfo)
 
     /** Blocking: call off the UI thread.  -> samples spoken, or -1 when the engine could not speak. */
     fun speak(ctx: Context, text: String): Int {
+        previewing = true
+        try { return speakNow(ctx, text) }
+        finally { previewing = false }
+    }
+
+    private fun speakNow(ctx: Context, text: String): Int {
         val r = render(ctx, text) ?: return -1
         try { FileOutputStream(File(ctx.filesDir, "last-render.wav")).use { WavExport.write(it, r.pcm, r.rate) } }
         catch (e: Exception) { Log.w("Preview", "wav not written", e) }
@@ -68,6 +75,10 @@ object PreviewPlayer {
         return Render(pcm, rate, finished, voice)
     }
 
+    /** Any thread: a Speak, if one runs -- the screen left (Home, another app): it went on talking from the
+     * background (Panthera's audit, P54).  An export goes on: it is the person's file being written. */
+    fun stopPreview() { if (previewing) stop() }
+
     /** Any thread: the preview's or the export's render, if one runs (never another user's utterance: #51). */
     fun stop() {
         stopRequested = true
@@ -101,6 +112,8 @@ object PreviewPlayer {
             val deadline = android.os.SystemClock.elapsedRealtime() + frames * 1000L / rate + 2000
             while (!stopRequested && track.playbackHeadPosition < frames &&
                    android.os.SystemClock.elapsedRealtime() < deadline) Thread.sleep(20)
+            Log.i("Preview", "played ${minOf(track.playbackHeadPosition, frames)} of ${pcm.size / 2} samples" +
+                  if (stopRequested) ", stopped" else "")
         } finally {
             try { track.stop() } catch (e: Exception) {}
             track.release()
