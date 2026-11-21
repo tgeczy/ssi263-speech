@@ -33,6 +33,11 @@ ring hook.
     UNIFIED_PLUGIN_BREAK=version   control: an unversioned (preview) ledger taken as done -- preview_ledger must FAIL
     UNIFIED_PLUGIN_BREAK=context   control: only the pending profiles given to the migration -- late_profile must FAIL
     UNIFIED_PLUGIN_BREAK=active    control: removal only while this driver speaks -- other_synth must FAIL
+  install   the downloaded update handed to NVDA's own add-on install (its confirmation, then the restart
+            prompt), which a portable NVDA has as well; on an NVDA without it, opened with os.startfile, and that
+            failing (no file association: a portable NVDA) said in a message naming the file (#64)
+    SSI263_UPDATE_BREAK=startfile  control (the plugin's): os.startfile, unguarded, as it was --
+                                   install_nvda and install_open must FAIL
 
   upgrade   a preview's unversioned ledger, "done" over a profile still on blazie: looked at once more, switched,
             the ledger now versioned (Reply 165, 1); a profile added after the base was migrated still inherits the
@@ -328,6 +333,74 @@ def test_migrate(tmp):
     shutil.rmtree(tmp3, ignore_errors=True)
 
 
+# ---- installing the downloaded update (#64) ----------------------------------------------------------------
+def test_install(plugin):
+    wx = types.ModuleType("wx")
+    wx.YES, wx.NO, wx.YES_NO, wx.ICON_QUESTION, wx.OK, wx.ICON_ERROR = 1, 0, 2, 4, 8, 32
+    wx.CallAfter = lambda fn, *a, **k: fn(*a, **k)
+    gui = types.ModuleType("gui")
+    boxes, installed, opened = [], [], []
+
+    def message_box(message, *a):
+        boxes.append(message)
+        return wx.YES
+    gui.messageBox = message_box
+    addon_gui = types.ModuleType("gui.addonGui")
+    addon_gui.handleRemoteAddonInstall = installed.append
+    gui.addonGui = addon_gui
+
+    class Thread:                                     # the plugin's threads, run at once
+        def __init__(self, target, args=(), **kw):
+            self.run = lambda: target(*args)
+
+        def start(self):
+            self.run()
+
+    def startfile(path):                              # a portable NVDA: no program for .nvda-addon
+        opened.append(path)
+        raise OSError(1155, "No application is associated with the specified file for this operation")
+    name = "ssi263-speech-9.9.9-install-test.nvda-addon"
+    path = os.path.join(tempfile.gettempdir(), name)
+    saved = (plugin.threading, plugin.updates.check, plugin.updates.download, plugin._version,
+             getattr(os, "startfile", None), sys.modules.get("wx"), sys.modules.get("gui"))
+    plugin.threading = types.SimpleNamespace(Thread=Thread)
+    plugin.updates.check = lambda current: ("9.9.9", name)
+    plugin.updates.download = lambda found: b"PK the add-on"
+    plugin._version = lambda: "0.9.2"
+    os.startfile = startfile
+    sys.modules["wx"], sys.modules["gui"], sys.modules["gui.addonGui"] = wx, gui, addon_gui
+
+    def run():
+        try:
+            plugin.check_for_updates()
+            return ""
+        except Exception as e:
+            return "%s: %s" % (type(e).__name__, e)
+    try:
+        crash = run()
+        check("install_nvda", installed == [path] and not opened and not crash,
+              "NVDA's own install given %s; os.startfile %s%s" % (installed, opened, "; " + crash if crash else ""))
+        del addon_gui.handleRemoteAddonInstall           # an NVDA without it
+        del boxes[:], installed[:], opened[:]
+        crash = run()
+        said = [b for b in boxes if path in b]
+        check("install_open", opened == [path] and bool(said) and not crash,
+              "os.startfile %s, failing: %s%s" % (opened, "said %r" % said[0][:60] if said else "nothing said",
+                                                 "; " + crash if crash else ""))
+    finally:
+        (plugin.threading, plugin.updates.check, plugin.updates.download, plugin._version) = saved[:4]
+        if saved[4] is not None:
+            os.startfile = saved[4]
+        for key, mod in (("wx", saved[5]), ("gui", saved[6])):
+            if mod is None:
+                sys.modules.pop(key, None)
+            else:
+                sys.modules[key] = mod
+        sys.modules.pop("gui.addonGui", None)
+        if os.path.exists(path):
+            os.remove(path)
+
+
 # ---- removal ---------------------------------------------------------------------------------------------------
 def test_removal():
     def session(synth, ledger):
@@ -541,6 +614,7 @@ def main():
     try:
         plugin, _state = install(tmp, Conf({}, {}), None)
         test_updates(plugin.updates)
+        test_install(plugin)
         test_panel(plugin.panel)
         test_ring(plugin.ring)
         test_migrate(tmp)

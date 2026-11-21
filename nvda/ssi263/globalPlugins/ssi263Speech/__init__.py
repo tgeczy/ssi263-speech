@@ -118,7 +118,32 @@ def check_for_updates(parent=None):
             wx.CallAfter(gui.messageBox, "Nothing was installed. %s" % e, "Check for updates",
                          wx.OK | wx.ICON_ERROR, parent)
             return
-        wx.CallAfter(os.startfile, path)      # NVDA opens .nvda-addon files and asks before installing
+        if os.environ.get("SSI263_UPDATE_BREAK") == "startfile":
+            wx.CallAfter(os.startfile, path)  # (the test's control: as it was)
+        else:
+            wx.CallAfter(install, path)
+
+    def install(path):
+        """NVDA's own install of an add-on file, as when one is opened: it asks to confirm, then offers the
+        restart.  A portable NVDA has it too, where os.startfile finds no program for the file (only NVDA's
+        installer registers .nvda-addon): the download was checked, then nothing happened (#64).  os.startfile is
+        kept for an NVDA without handleRemoteAddonInstall, and if that fails the user is told where the file is."""
+        try:
+            from gui import addonGui
+            handle = getattr(addonGui, "handleRemoteAddonInstall", None)
+        except Exception:
+            handle = None
+        try:
+            if handle is not None:
+                handle(path)
+            else:
+                os.startfile(path)
+        except Exception:
+            log.warning("SSI-263: the downloaded update could not be opened", exc_info=True)
+            gui.messageBox("The new version was downloaded and checked, but could not be opened for "
+                           "installing. It is saved as:\n%s\nTo install it, open that file, or in NVDA choose "
+                           "Tools, Add-on store, Install from external source." % path, "Check for updates",
+                           wx.OK | wx.ICON_ERROR, parent)
 
     threading.Thread(target=work, name="ssi263-update-check", daemon=True).start()
 
