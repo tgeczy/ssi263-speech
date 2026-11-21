@@ -54,6 +54,8 @@ struct as_voice {
     int base_pitch, cur_pitch;                         /* settings[1], _cur_pitch */
     int pitch_dirty, snap_until_speech;
     int lead, active;
+    int settings_unread;                               /* begin()'s settings the unit has not run a block since:
+                                                          1 rate, 2 pitch, 4 voice, 8 inflection (#35) */
     int job, fault;                                    /* inside asv_begin ... asv_end; the job failed */
     double t_start, gain;
     short *pcm;
@@ -170,6 +172,21 @@ static void unsettle(as_voice *v)                      /* no wait in progress: n
 
 /* a new text, a cancel, a job's end: a wait in progress belongs to the text before, and goes with it -- its held
    audio and its pending done (asv_set_test_break(1) keeps them: the control for exactly that) */
+/* #35: the settings begin() sent that the unit never ran a block to read went with the cancel (ash_cancel drops
+   its unread input): those are sent again with the next job, or the unit keeps the old ones while the record says
+   the new.  Only those: a repeated option command emits a preparation record of its own.  (SSV_SETTINGS_BREAK: the
+   tests' control, the record kept.) */
+static void unread_settings_lost(as_voice *v)
+{
+    if (v->settings_unread && !getenv("SSV_SETTINGS_BREAK")) {
+        if (v->settings_unread & 1) v->sent_rate = 0;
+        if (v->settings_unread & 2) v->sent_pitch = -1;
+        if (v->settings_unread & 4) v->sent_voice = -1;
+        if (v->settings_unread & 8) v->sent_infl = -1;
+    }
+    v->settings_unread = 0;
+}
+
 static void forget(as_voice *v)
 {
     if (v->test_break != 1)
@@ -292,6 +309,8 @@ static void begin(as_voice *v)
     v->limit = 0;
     v->n_mk = v->n_reached = v->n_wait = 0;
     v->sent06 = v->got06 = 0;
+    v->settings_unread = (r != v->sent_rate) | (p != v->sent_pitch) << 1 | (v->voice != v->sent_voice) << 2
+                         | (infl != v->sent_infl) << 3;
     if (r != v->sent_rate) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bR%c", r);
     if (p != v->sent_pitch) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bP%d", p);
     if (v->voice != v->sent_voice) k += snprintf(cmd + k, sizeof cmd - (size_t)k, "\x1bV%d", v->voice);
@@ -382,6 +401,7 @@ static int render_block(as_voice *v, const short **pcm, int *done)
     v->held_before = 0;
     if (!v->active) { *done = 1; return 0; }
     n = ash_run(v->h, BLOCK_S, STEP_S, &y);
+    v->settings_unread = 0;                                   /* a block run: the unit has read them (#35) */
     if (n < 0) { stop(v); *done = 1; return 0; }
     if (v->lead) {                                            /* _trim_lead */
         int k;
@@ -692,6 +712,7 @@ AS_API void asv_cancel(as_voice *v)
         finish(v);
     forget(v);
     ash_cancel(v->h, CANCEL_LIMIT);
+    unread_settings_lost(v);
     if (v->pitch_dirty)
         resend_pitch(v);
 }
@@ -743,6 +764,7 @@ AS_API int asv_flush(as_voice *v)
         return -1;
     forget(v);
     ash_cancel(v->h, CANCEL_LIMIT);
+    unread_settings_lost(v);
     if (v->pitch_dirty)
         resend_pitch(v);
     return 0;

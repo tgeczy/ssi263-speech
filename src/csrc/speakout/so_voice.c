@@ -44,6 +44,7 @@ struct so_voice {
     int base_pitch, cur_pitch;                       /* settings[1], _cur_pitch */
     int pitch_dirty, snap_until_speech;
     int lead, active, fault;
+    int settings_unread;                             /* sov_begin sent settings the box has not run a block since */
     int job;                                         /* inside sov_begin ... sov_end: the driver's whole sequence */
     double t_start, gain;
     short *pcm;
@@ -686,6 +687,7 @@ static void begin(so_voice *v)
         say_str(v, cmd);
         v->sent = s;
         v->sent_valid = 1;
+        v->settings_unread = 1;
     }
     v->base_pitch = v->cur_pitch = s.pitch;
     v->gain = v->volume / 100.0;
@@ -793,6 +795,12 @@ SO_API void sov_end(so_voice *v)
 SO_API void sov_flush(so_voice *v)
 {
     box_cancel(box_of(v), CANCEL_LIMIT);         /* _run: box.cancel() */
+    /* #35: settings sent at this job's start that the box never ran a block to read went with the flush; sent
+       again with the next job, or the box keeps the old ones while the record says the new (SSV_SETTINGS_BREAK:
+       the tests' control, the record kept) */
+    if (v->settings_unread && !getenv("SSV_SETTINGS_BREAK"))
+        v->sent_valid = 0;
+    v->settings_unread = 0;
     if (v->pitch_dirty && v->sent_valid) {  /* _resend_pitch (none after a reboot) */
         char cmd[16];
         ssi263_set_snap_pitch(v->chip, 1);
@@ -816,6 +824,7 @@ SO_API int sov_render(so_voice *v, const short **pcm, int *done)
         return 0;
     }
     n = box_run(box_of(v), BLOCK_S, STEP_S, &y);
+    v->settings_unread = 0;                                    /* a block run: the box has read them (#35) */
     if (n < 0) {                    /* the host has faulted (the Sounding Board's does so): rebooted at the next begin */
         report_marks(v, 0, 0, 1);
         finish(v);

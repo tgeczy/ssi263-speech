@@ -691,6 +691,29 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", Non
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "CANCEL_RACE_BREAK": "1"}, expect_fail=True,
                             fail_marks=[r"^FAIL cancelled +5 utterances handed over and cancelled at once: [1-5] spoken",
                                         r"^ok +then sound ", r"^cancel race: 1 FAILED$"]))
+# A setting changed just before a cancel (issue #35): the Speak-Out's and the Accent-PC's voices recorded the settings
+# as sent when they queued them, and a cancel before the unit had run a block to read them dropped them, so NVDA showed
+# the new rate and the unit kept the old.  cancel_settings.py, each voice: a phrase's length at a slow and a fast rate,
+# then the rate moved and the next utterance cancelled the moment its text was handed over -- the phrase after it
+# takes the fast time.  The control keeps the record (SSV_SETTINGS_BREAK, read by the C voices): the two voices fail.
+for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", None, "Speak-Out"),
+                              ("speakout", "soundingboard", "Sounding Board"), ("accent", "mini", "Accent-mini"),
+                              ("accent", "sa", "Accent-PC"), ("mockingboard", None, "Mockingboard"),
+                              ("smartalk", None, "SmarTalk")):
+    _file = {"accent": "accentmini"}.get(_which, _which) + ".py"
+    if not os.path.isfile(os.path.join(_UNITS, _file)):
+        continue
+    if _voice == "soundingboard" and not os.path.isfile(os.path.join(_UNITS, "_ssi263_speakout", "SBLOAD.COM")):
+        continue
+    _argv = [PY, "cancel_settings.py", _which] + ([_voice] if _voice else [])
+    CHECKS.append(check("a setting changed just before a cancel reaches the unit (#35): %s" % _name, _argv,
+                        env={"SSI263_SYNTH_DRIVERS": _UNITS},
+                        ok=lambda out: len(re.findall(r"^ok +(baseline|after cancel) ", out, re.M)) == 2
+                        and bool(re.search(r"^cancel settings: all ok$", out, re.M))))
+    if _name in ("Speak-Out", "Accent-PC"):
+        CHECKS.append(check("cancel settings CONTROL (%s: the record kept, must fail)" % _name, _argv,
+                            env={"SSI263_SYNTH_DRIVERS": _UNITS, "SSV_SETTINGS_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^ok +baseline ", r"^FAIL after cancel ", r"^cancel settings: 1 FAILED$"]))
 # the Blazie emulator app (src/apps/blazie): its chord logic, and the unit headless (boot greeting heard, a chord
 # answered against the no-chord control, faster than real time)
 EMU = os.path.join(os.path.dirname(HERE), "dist", "blazie-emu")
