@@ -518,6 +518,14 @@ CHECKS.append(check("SAPI settings: Check for updates CONTROL (any download take
 # it), run from settings.ps1 itself on a throwaway key; the control makes the key with -Force every time, as it was
 SAPI_SAVE = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
              os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_settings_save.ps1")]
+# the settings dialog's access keys, each its own (#40: Unregister and Check for updates both had U, and Alt+U from the
+# voice list clicked Unregister); the control reads Unregister's as it was
+SAPI_KEYS = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_mnemonics.py")]
+CHECKS.append(check("SAPI settings: every access key its own (#40)", SAPI_KEYS))
+CHECKS.append(check("SAPI settings: access keys CONTROL (Unregister's U as it was, must fail)", SAPI_KEYS,
+                    env={"SSI263_MNEMONIC_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL Alt\+U  &Unregister / Check for &updates\.\.\.$", r"^ok   Alt\+V ",
+                                r"^settings access keys: U twice$"]))
 CHECKS.append(check("SAPI settings: a change keeps every other setting (#39)", SAPI_SAVE))
 CHECKS.append(check("SAPI settings: save CONTROL (the key emptied at each change, must fail)", SAPI_SAVE,
                     env={"SSI263_SAVE_BREAK": "1"}, expect_fail=True,

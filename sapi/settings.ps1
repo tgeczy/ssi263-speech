@@ -97,7 +97,7 @@ function Refresh-Voices {
 
 $register = New-Object Windows.Forms.Button; $register.Text = '&Register'; $register.AutoSize = $true
 $register.Location = New-Object Drawing.Point(12, 214)
-$unregister = New-Object Windows.Forms.Button; $unregister.Text = '&Unregister'; $unregister.AutoSize = $true
+$unregister = New-Object Windows.Forms.Button; $unregister.Text = 'Unre&gister'; $unregister.AutoSize = $true
 $unregister.Location = New-Object Drawing.Point(110, 214)
 $updates = New-Object Windows.Forms.Button; $updates.Text = 'Check for &updates...'; $updates.AutoSize = $true
 $updates.AccessibleName = 'Check for updates'
