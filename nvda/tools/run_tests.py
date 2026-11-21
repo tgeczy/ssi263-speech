@@ -2398,7 +2398,13 @@ CHECKS.append(check("accented letters: translit.h CONTROL (the pass off, must fa
                                 r'^FAIL decomposed, lone: "a\\xcc\\x81" -> "a\\xcc\\x81", not "a acute"$',
                                 r'^FAIL several marks: "au\\xcc\\x88\\xcc\\x81to" -> ',
                                 r'^ok   unattached, after a space: ',
-                                r"^translit: \d+ of 83 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$"]))
+                                r"^translit: \d+ of 91 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$"]))
+# the typeset ligatures as their letters, the zero-width characters dropped (#66: each became a space, "o ce",
+# a word split); its control passes them on as they were
+CHECKS.append(check("accented letters: translit.h CONTROL (ligatures and zero-width as before, must fail)",
+                    [PY, "translit_test.py", "module"], env={"TRANSLIT_BREAK": "2"}, expect_fail=True,
+                    fail_marks=[r'^FAIL ligatures: "o\\xef\\xac\\x83ce" -> ', r'^FAIL zero width: "exam',
+                                r'^ok   lone: "\\xc3\\xa1" -> "a acute"$', r"^translit: 8 of 91 FAILED$"]))
 CHECKS.append(check("accented letters: the bytes every voice sends", [PY, "translit_test.py", "bytes"]))
 CHECKS.append(check("accented letters: bytes CONTROL (the pass off, must fail)", [PY, "translit_test.py", "bytes"],
                     env={"TRANSLIT_BREAK": "1"}, expect_fail=True,

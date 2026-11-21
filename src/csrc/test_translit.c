@@ -6,7 +6,8 @@
  *
  * nvda/tools/translit_test.py builds and runs it (Windows), tools/linux_ci_checks.sh too (Linux).  Its control:
  * TRANSLIT_BREAK=1 sets ssv_translit_break, the pass off, as every voice then speaks (the old path) -- this test must
- * FAIL. */
+ * FAIL.  TRANSLIT_BREAK=2 (#66's control): the ligatures and the zero-width characters passed on as they were, for
+ * each voice's clean-up to make a space -- the "ligatures" and "zero width" checks must FAIL. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -153,8 +154,21 @@ int main(void)
 {
     /* the control: TRANSLIT_BREAK=1 in this test's environment sets the library's flag (the library reads none) */
     const char *brk = getenv("TRANSLIT_BREAK");
-    if (brk && !strcmp(brk, "1"))
-        ssv_translit_break = 1;
+    if (brk && (!strcmp(brk, "1") || !strcmp(brk, "2")))
+        ssv_translit_break = atoi(brk);
+    /* the typeset ligatures U+FB00-FB06 are their letters (a PDF's "file", "office"), and the zero-width
+       characters inside a word (U+200B space, U+200C non-joiner, U+200D joiner, U+2060 word joiner, U+FEFF) are
+       nothing: each voice's clean-up made them a space, " le", "o ce", a word split in two (#66) */
+    expect("ligatures", "\xef\xac\x81le", tl_known_ascii, "file");                       /* U+FB01 */
+    expect("ligatures", "o\xef\xac\x83" "ce", tl_known_ascii, "office");                 /* U+FB03 */
+    expect("ligatures", "\xef\xac\x80 \xef\xac\x82 \xef\xac\x84 \xef\xac\x85 \xef\xac\x86", tl_known_ascii,
+           "ff fl ffl st st");
+    expect("ligatures", "\xef\xac\x81", tl_known_ascii, "f i");                          /* lone */
+    expect("ligatures", "\xef\xac\x83\xef\xac\x83\xef\xac\x83\xef\xac\x83", tl_known_ascii,
+           "ffiffiffiffi");                                         /* three letters each: tl_room */
+    expect("zero width", "exam\xe2\x80\x8bple", tl_known_ascii, "example");               /* U+200B */
+    expect("zero width", "a\xe2\x80\x8c" "b\xe2\x80\x8d" "c\xe2\x81\xa0" "d\xef\xbb\xbf" "e", tl_known_ascii, "abcde");
+    expect("zero width", "\xef\xbb\xbfHello", known_cp850, "Hello");               /* a BOM */
     /* the lone letters' words (the whole text one character, whitespace trimmed) */
     expect("lone", "\xc3\xa1", tl_known_ascii, "a acute");                          /* á */
     expect("lone", "\xc3\xa0", tl_known_ascii, "a grave");                          /* à */

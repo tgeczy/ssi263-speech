@@ -79,8 +79,11 @@ control "F4 CONTROL (v0.20's fixed F4, must fail)" "^FAIL  LAW py R " "^FAIL  FO
 check "accented letters: translit.h (C), the table, alone and in a word, case" python3 nvda/tools/translit_test.py module
 control "accented letters: translit.h CONTROL (the pass off, must fail)" \
     '^FAIL lone: "\\xc3\\xa1" -> "\\xc3\\xa1", not "a acute"$' '^ok   ascii: all 128 characters pass unchanged' \
-    '^translit: [0-9]+ of 83 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$' \
+    '^translit: [0-9]+ of 91 FAILED \(TRANSLIT_BREAK=1: the pass is off\)$' \
     -- env TRANSLIT_BREAK=1 python3 nvda/tools/translit_test.py module
+control "accented letters: translit.h CONTROL (ligatures and zero-width as before, must fail)" \
+    '^FAIL ligatures: ' '^FAIL zero width: ' '^translit: 8 of 91 FAILED$' \
+    -- env TRANSLIT_BREAK=2 python3 nvda/tools/translit_test.py module
 check "accented letters: the bytes every voice sends" python3 nvda/tools/translit_test.py bytes
 # the SmarTalk as a voice (tools/check_st_voice.py; S_TALK.EXE is in the repository, so it always runs), through the
 # voice table and the NVDA binding on libssi263_voices.so (build_linux.sh: the speech-dispatcher module's own objects

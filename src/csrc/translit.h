@@ -27,6 +27,8 @@
  *     a table letter ("u" U+0308 U+0301) is not named, only its base;
  *   - an UNATTACHED mark -- at the start, or after a character that is not a letter (a space, a digit, a symbol) --
  *     passes unchanged, with any marks after it, to the voice's own rules as before (they make it a space);
+ *   - the typeset ligatures U+FB00-FB06 are table letters ("\xef\xac\x81" -> "fi"; alone, "f i"), and the
+ *     zero-width characters (U+200B, U+200C, U+200D, U+2060, U+FEFF) are dropped: they became spaces (#66);
  *   - anything else (symbols, other scripts) passes unchanged, to the voice's own rules as before.
  *
  * The table covers Latin-1 Supplement and Latin Extended-A (U+00C0-U+017F, all but the two symbols x and ÷), the
@@ -120,6 +122,9 @@ static const struct {
 } tl_extra[] = {
     {0x0218, {"S", "comma"}}, {0x0219, {"s", "comma"}}, {0x021A, {"T", "comma"}}, {0x021B, {"t", "comma"}},
     {0x1E9E, {"SS", "=sharp s"}},
+    /* the typeset ligatures: their letters (#66) */
+    {0xFB00, {"ff", "=f f"}}, {0xFB01, {"fi", "=f i"}}, {0xFB02, {"fl", "=f l"}}, {0xFB03, {"ffi", "=f f i"}},
+    {0xFB04, {"ffl", "=f f l"}}, {0xFB05, {"st", "=s t"}}, {0xFB06, {"st", "=s t"}},
 };
 
 /* the letter c is, or NULL when the table has none */
@@ -153,10 +158,20 @@ TL_FN int tl_combining(unsigned c) { return c >= 0x300 && c <= 0x36F; }
 #endif
 TL_FLAG int ssv_translit_break = 0;
 
-TL_FN int tl_broken(void) { return ssv_translit_break != 0; }
+TL_FN int tl_broken(void) { return ssv_translit_break == 1; }
+/* (#66's control, 2: the ligatures and the zero-width characters passed on as they were) */
+TL_FN int tl_old_extras(void) { return ssv_translit_break == 2; }
 
-/* The room tl_apply needs for n code points: two per letter in text ("ss"), or a lone letter's words. */
-TL_FN int tl_room(int n) { return 2 * n + 32; }
+/* the zero-width characters, which a word may carry inside it (web pages break long words with them): nothing.
+   Each voice's clean-up made them a space and split the word (#66) */
+TL_FN int tl_invisible(unsigned c)
+{
+    return c == 0x200B || c == 0x200C || c == 0x200D || c == 0x2060 || c == 0xFEFF;
+}
+
+/* The room tl_apply needs for n code points: three per letter in text (the ffi ligature), or a lone letter's
+   words. */
+TL_FN int tl_room(int n) { return 3 * n + 32; }
 
 /* The lone words of l into out; returns the count. */
 TL_FN int tl_put_words(const tl_letter *l, unsigned *out)
@@ -218,6 +233,12 @@ TL_FN int tl_put(unsigned c, int lone, tl_known_fn known, unsigned *out)
     const tl_letter *l;
     const char *s;
     int m = 0;
+    if (tl_old_extras() && (tl_invisible(c) || (c >= 0xFB00 && c <= 0xFB06))) {
+        out[m++] = c;                                     /* (the control: as before) */
+        return m;
+    }
+    if (tl_invisible(c))
+        return 0;
     if (known(c) || (l = tl_lookup(c)) == NULL) {
         out[m++] = c;
     } else if (lone) {
