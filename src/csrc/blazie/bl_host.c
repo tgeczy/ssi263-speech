@@ -337,6 +337,8 @@ static void ra_cb_opened(void *ctx, int seg, int how)
         log_write(h, 9 + how, seg);                        /* 9 at the request, 10 moved up, 11 without waiting */
 }
 
+BL_API int bh_lowpass_break = 0;              /* the tests' control (nvda/tools/low_rate.py), as above */
+
 BL_API bl_host *bh_create(const char *firmware, const char *state, ssi263 *chip, double out_rate, double board_hz,
                           const unsigned long long *key_at, const unsigned char *key_val, int n_keys,
                           unsigned long long boot_instr, int log_writes, char *err, int errlen)
@@ -346,7 +348,10 @@ BL_API bl_host *bh_create(const char *firmware, const char *state, ssi263 *chip,
     h->chip = chip;
     h->log_on = log_writes != 0;
     h->out_rate = out_rate;
-    if (board_hz > 0.0) {                                  /* dsp.onepole_coeffs: butter(1, hz, fs) */
+    /* the board's low-pass only below Nyquist: at or above it there is nothing in the band to take away, and the
+       tangent below turns negative -- a pole outside the unit circle, every sample 2.4 times the last, full-scale
+       noise at a rate under 10 kHz (#81; nvda/tools/low_rate.py.  bh_lowpass_break, its control: kept, as it was) */
+    if (board_hz > 0.0 && (board_hz < out_rate / 2.0 || bh_lowpass_break)) {   /* dsp.onepole_coeffs: butter(1, hz, fs) */
         double k = tan(M_PI * board_hz / out_rate);
         h->board_on = 1;
         h->b0 = k / (1.0 + k);

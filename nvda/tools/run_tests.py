@@ -623,6 +623,15 @@ if os.path.isfile(os.path.join(ENG, "BL2ENG.BNS")):
         CHECKS.append(check("Braille Lite from a folder named beyond ASCII CONTROL (fopen as it was, must fail)", _UNI,
                             env={"BL_FOPEN_BREAK": "1"}, expect_fail=True,
                             fail_marks=[r"^FAIL release +from .*: release -1 ", r"^unicode paths: [12] FAILED$"]))
+    # the voice at a sample rate below 10 kHz (#81: the board low-pass above Nyquist made full-scale noise, the wheel's
+    # --rate 8000); its control keeps the low-pass there, as it was
+    if os.path.isfile(_SPEECH_DLL):
+        _LOW = [PY, "low_rate.py", _SPEECH_DLL, os.path.join(ENG, "BL2ENG.BNS"), os.path.join(ENG, "bl2_2003_warm.state")]
+        CHECKS.append(check("Braille Lite below 10 kHz: speech, not a full-scale tone (#81)", _LOW))
+        CHECKS.append(check("Braille Lite below 10 kHz CONTROL (the low-pass above Nyquist, must fail)", _LOW,
+                            env={"LOW_RATE_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^ok +rate 22050 ", r"^FAIL rate +8000 .*100\.0 percent of it at full scale",
+                                        r"^low rate: 2 FAILED$"]))
     # ... and through the real driver: lifted after a cancel, into a pause and first; never queued or off
     CHECKS.append(check("Blazie line-start lift through the driver", [PY, "line_lift_driver.py"]))
     CHECKS.append(check("Blazie line-start lift CONTROL (the request never reaches the unit, must fail)",

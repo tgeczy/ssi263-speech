@@ -273,8 +273,13 @@ emu_unit *emu_create(int kind, const char *firmware, const char *state, double o
                 tns_destroy(u->tns); ssi263_free(u->chip); free(u); return NULL;
             }
         }
-        u->b0 = u->b1 = k / (1.0 + k);
-        u->a1 = (k - 1.0) / (k + 1.0);
+        if (BOARD_LOWPASS_HZ < out_rate / 2.0) {
+            u->b0 = u->b1 = k / (1.0 + k);
+            u->a1 = (k - 1.0) / (k + 1.0);
+        } else {                       /* nothing to take away below Nyquist; above it the pole is unstable (#81) */
+            u->b0 = 1.0;
+            u->b1 = u->a1 = 0.0;
+        }
         u->ar = -1;
     } else {
         u->host = bh_create(firmware, state, u->chip, out_rate, BOARD_LOWPASS_HZ, NULL, NULL, 0, BOOT_INSTR, 0, err,

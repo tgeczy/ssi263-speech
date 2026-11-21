@@ -137,6 +137,7 @@ BL_API int bh_save_state(const bl_host *h, const char *path);   /* bl_save_state
 BL_API void bh_keys_down(bl_host *h, int bits);
 BL_API int bh_clock_on(bl_host *h, const blc_time *now, long long unix_now);
 BL_API extern int bh_clock_hurry_break;     /* the tests' control: the turbo's cycles counted as clock time */
+BL_API extern int bh_lowpass_break;         /* the tests' control: the board low-pass kept above Nyquist (#81) */
 BL_API int bh_clock_time(const bl_host *h, int alarm, blc_time *t);
 BL_API void bh_clock_wall(bl_host *h, long long unix_now);
 BL_API int bh_starts(const bl_host *h);     /* bl_starts: the firmware's starts so far */
