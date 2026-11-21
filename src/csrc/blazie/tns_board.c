@@ -7,6 +7,7 @@
 #include <string.h>
 #include "../cpu/cpu.h"
 #include "tns_board.h"
+#include "bl_fopen.h"
 #include "bl_clock.h"
 #include "flash29.h"
 
@@ -202,7 +203,7 @@ static long image_offset(const unsigned char *d, long n)
 long tns_program_end(const char *firmware)
 {
     unsigned char *file = (unsigned char *)malloc(0x100000);
-    FILE *f = file ? fopen(firmware, "rb") : NULL;
+    FILE *f = file ? bl_fopen(firmware, "rb") : NULL;
     long n, off;
     if (!f) { free(file); return -1; }
     n = (long)fread(file, 1, 0x100000, f);
@@ -238,7 +239,7 @@ tns_unit *tns_create(const char *firmware, const char *state, char *err, int err
 #endif
     u->ff.short_decode = 1;
     if (state) {
-        FILE *s = fopen(state, "rb");
+        FILE *s = bl_fopen(state, "rb");
         if (!s || fread(u->ram, 1, RAM_SIZE, s) != RAM_SIZE || fread(u->fdata, 1, FLASH_SIZE, s) != FLASH_SIZE) {
             if (s) fclose(s);
             snprintf(err, errlen, "cannot read state %s", state);
@@ -249,7 +250,7 @@ tns_unit *tns_create(const char *firmware, const char *state, char *err, int err
         u->has_clk_tail = blc_read_tail(s, u->clk_tail);   /* the clock controller, when it was on */
         fclose(s);
     }
-    f = fopen(firmware, "rb");
+    f = bl_fopen(firmware, "rb");          /* a UTF-8 path, letters beyond ASCII too (#63) */
     if (!f) { snprintf(err, errlen, "cannot open %s", firmware); free(file); tns_destroy(u); return NULL; }
     n = (long)fread(file, 1, 0x100000, f);
     fclose(f);
@@ -393,7 +394,7 @@ int tns_serial_read(tns_unit *u, unsigned char *out, int cap, bl_serial_status *
 
 int tns_save_state(const tns_unit *u, const char *path)
 {
-    FILE *s = fopen(path, "wb");
+    FILE *s = bl_fopen(path, "wb");
     int ok;
     if (!s)
         return 0;

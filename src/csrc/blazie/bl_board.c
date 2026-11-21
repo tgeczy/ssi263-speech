@@ -33,6 +33,7 @@
 #include <string.h>
 #include "../cpu/cpu.h"
 #include "bl_board.h"
+#include "bl_fopen.h"
 #include "bl_serial.h"
 #include "bl_clock.h"
 #include "bl_display.h"
@@ -530,7 +531,7 @@ bl_unit *bl_create(const char *firmware, const char *state, double phon_ms,
         /* by its size: RAM (its first 256 KB or all 768 KB: bl_save_state), then the flash (512 KB or 2 MB), then
            the clock controller's tail when it was on (bl_clock_on) -- eight sizes in all, none two ways; the tail
            is never read as flash */
-        FILE *s = fopen(state, "rb");
+        FILE *s = bl_fopen(state, "rb");
         long size = -1, rest;
         unsigned long fl = 0, rn = RAM_SAVE_OLD;
         int tail = 0, k;
@@ -556,7 +557,7 @@ bl_unit *bl_create(const char *firmware, const char *state, double phon_ms,
         u->has_clk_tail = tail && (blc_read_tail(s, u->clk_tail) || !memcmp(u->clk_tail, "BLR6242", 7));
         fclose(s);
     }
-    f = fopen(firmware, "rb");
+    f = bl_fopen(firmware, "rb");          /* a UTF-8 path, letters beyond ASCII too (#63) */
     if (!f) { snprintf(err, errlen, "cannot open %s", firmware); bl_destroy(u); return NULL; }
     fseek(f, FILE_ROM_OFFSET, SEEK_SET);
     n = (long)fread(u->flash, 1, ROM_SIZE, f);
@@ -773,7 +774,7 @@ int bl_drop(bl_unit *u)
 
 int bl_save_state(const bl_unit *u, const char *path)
 {
-    FILE *s = fopen(path, "wb");
+    FILE *s = bl_fopen(path, "wb");
     int ok;
     unsigned long n = FFLASH_SIZE, rn = RAM_SAVE, i;
     if (!s)

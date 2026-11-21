@@ -600,15 +600,23 @@ if os.path.isfile(os.path.join(ENG, "BL2ENG.BNS")):
                                           "lift_controls.py"),
                          os.path.join(ENG, "BL2ENG.BNS"), os.path.join(ENG, "bl2_2003_warm.state")]))
     # the firmware from a folder named with letters beyond ASCII (#62: blv_release_of found no release, and the
-    # commas, trillions and own-marks guards went off unseen); the control opens every path with fopen, as it did
+    # commas, trillions and own-marks guards went off unseen; #63: the unit could not boot, and the synthesizer
+    # failed to load); the controls open every path with fopen, and encode the boot's path as mbcs, as they did
     _SPEECH_DLL = os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", "win", "x64", "ssi263speech.dll")
     if os.path.isfile(_SPEECH_DLL):
         _UNI = [PY, "unicode_paths.py", _SPEECH_DLL, os.path.join(ENG, "BL2ENG.BNS"),
                 os.path.join(ENG, "bl2_2003_warm.state")]
-        CHECKS.append(check("Braille Lite from a folder named beyond ASCII (#62)", _UNI))
+        _BL_DLL = os.path.join(os.path.dirname(HERE), "dist", "blazie-lib", "x64", "bl.dll")
+        if os.path.isfile(_BL_DLL):
+            _UNI.append(_BL_DLL)
+            CHECKS.append(check("Braille Lite from a folder named beyond ASCII CONTROL (the boot's path as mbcs, "
+                                "must fail)", _UNI, env={"UNICODE_PATHS_BREAK": "mbcs"}, expect_fail=True,
+                                fail_marks=[r"^ok +release ", r"^FAIL boot +from .*UnicodeEncodeError",
+                                            r"^unicode paths: 1 FAILED$"]))
+        CHECKS.append(check("Braille Lite from a folder named beyond ASCII (#62, #63)", _UNI))
         CHECKS.append(check("Braille Lite from a folder named beyond ASCII CONTROL (fopen as it was, must fail)", _UNI,
                             env={"BL_FOPEN_BREAK": "1"}, expect_fail=True,
-                            fail_marks=[r"^FAIL release +from .*: release -1 ", r"^unicode paths: 1 FAILED$"]))
+                            fail_marks=[r"^FAIL release +from .*: release -1 ", r"^unicode paths: [12] FAILED$"]))
     # ... and through the real driver: lifted after a cancel, into a pause and first; never queued or off
     CHECKS.append(check("Blazie line-start lift through the driver", [PY, "line_lift_driver.py"]))
     CHECKS.append(check("Blazie line-start lift CONTROL (the request never reaches the unit, must fail)",

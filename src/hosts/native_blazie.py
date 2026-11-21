@@ -68,6 +68,13 @@ RA_STATES = ("idle", "capturing", "replaying", "trailing", "final load", "comple
 FAULT_RUN_AHEAD, FAULT_EVENT = 1, 2     # bl_host.c BH_FAULT_*
 
 
+# The firmware's and state's paths, as the C library takes them: UTF-8 everywhere (bl_fopen.h opens it with _wfopen on
+# Windows).  They were strict mbcs on Windows, which raised on a letter outside the ANSI code page -- a Cyrillic or
+# Greek user folder on a Western Windows -- and the Braille Lite, the synthesizer's first type, could not boot, so
+# the whole synthesizer failed to load (#63; nvda/tools/unicode_paths.py's control sets it back to mbcs).
+PATH_ENCODING = "utf-8"
+
+
 def _load(path):
     path = os.path.abspath(path)
     if path in _libs:
@@ -158,8 +165,7 @@ class NativeBlazie:
         at = (ctypes.c_ulonglong * max(1, len(keys)))(*[int(k.split("=")[0]) for k in keys])
         val = (ctypes.c_ubyte * max(1, len(keys)))(*[int(k.split("=")[1], 16) for k in keys])
         err = ctypes.create_string_buffer(256)
-        self._h = self._lib.bh_create(firmware.encode("mbcs" if os.name == "nt" else "utf-8"),
-                                      state.encode("mbcs" if os.name == "nt" else "utf-8"), chip._c,
+        self._h = self._lib.bh_create(firmware.encode(PATH_ENCODING), state.encode(PATH_ENCODING), chip._c,
                                       float(chip.out_rate), float(board_lowpass_hz or 0.0), at, val, len(keys),
                                       boot_instr, 1 if on_write else 0, err, 256)
         if not self._h:
