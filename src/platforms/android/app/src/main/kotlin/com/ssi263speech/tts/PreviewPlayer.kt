@@ -52,7 +52,7 @@ object PreviewPlayer {
         val pcm = SsiEngine.withEngine {
             SsiEngine.configure(s)
             rate = SsiNative.nativeSampleRate()
-            val started = SsiEngine.start(voice, text, s, 100, 100)
+            val started = SsiEngine.start(PreviewPlayer, voice, text, s, 100, 100)
             if (started < 0) { Log.w("Preview", "start: ${SsiNative.nativeError()}"); return@withEngine null }
             val all = ByteArrayOutputStream()
             if (started == 1) { finished = true; return@withEngine all.toByteArray() }
@@ -68,10 +68,10 @@ object PreviewPlayer {
         return Render(pcm, rate, finished, voice)
     }
 
-    /** Any thread. */
+    /** Any thread: the preview's or the export's render, if one runs (never another user's utterance: #51). */
     fun stop() {
         stopRequested = true
-        SsiEngine.stop()
+        SsiEngine.stop(PreviewPlayer)
     }
 
     // MODE_STREAM, written in pieces so a stop cuts it short.  Accessibility usage, as a screen reader's speech.

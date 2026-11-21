@@ -133,6 +133,9 @@ class SettingsActivity : Activity() {
             (if (v < 0) p.remove(SsiSettings.RUN_AHEAD) else p.putBoolean(SsiSettings.RUN_AHEAD, v == 1)).commit()
             Log.i("SsiSettings", "run ahead set by the test hook: ${SsiSettings.snapshot(this).runAhead}")
         }
+        // Test hook: `--ez stopbreak true` (test_engine_stop_owner.py's control) lets any stop end whatever utterance
+        // owns the engine, as before #51.
+        if (intent?.getBooleanExtra("stopbreak", false) == true) SsiEngine.stopBreak = true
         // Test hook: the TTS service through Android's client (TtsSelfTest.kt).
         if (intent?.getBooleanExtra("ttstest", false) == true) {
             TtsSelfTest(this, intent.getStringExtra("text") ?: sampleText.text.toString(),

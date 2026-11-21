@@ -67,7 +67,7 @@ class SsiTtsService : TextToSpeechService() {
     override fun onStop() {
         stopAt = android.os.SystemClock.elapsedRealtime()
         stopRequested = true
-        SsiEngine.stop()
+        SsiEngine.stop(this)                 // this service's utterance only (#51)
     }
 
     override fun onSynthesizeText(request: SynthesisRequest, callback: SynthesisCallback) {
@@ -100,7 +100,7 @@ class SsiTtsService : TextToSpeechService() {
             // the framework is told which word is being spoken (rangeStart; TalkBack takes it, and apps that
             // highlight what is read).  Off by default: the marks can move a unit's pauses.
             val words = if (s.wordMarks) SsiWords.of(text) else emptyList()
-            val started = SsiEngine.start(voice, text, s, request.speechRate, request.pitch,
+            val started = SsiEngine.start(this, voice, text, s, request.speechRate, request.pitch,
                                           if (words.isEmpty()) null else IntArray(words.size) { words[it].utf8 })
             if (started < 0) {
                 Log.w(TAG, "start failed: ${SsiNative.nativeError()}")

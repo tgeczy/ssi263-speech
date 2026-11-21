@@ -136,14 +136,27 @@ object SsiEngine {
 
     private fun bit(b: Boolean) = if (b) 1 else 0
 
-    /** Inside withEngine: begin an utterance.  0 audio to pull, 1 nothing to say, negative on failure. */
-    fun start(voice: VoiceInfo, text: String, s: SsiSettings.Snapshot, requestRate: Int, requestPitch: Int,
-              marks: IntArray? = null): Int =
-        SsiNative.nativeStart(voice.index, text.toByteArray(Charsets.UTF_8), s.rate, s.pitch, s.tone, s.volume,
+    /** Who owns the utterance being spoken: the TTS service, or the settings screen's preview or export.  The
+     * engine has one stop flag, which ends whichever utterance owns it at its next pull: a stop must be its owner's
+     * (#51: the screen's preview stop, run by its onDestroy and Stop, cut a screen reader's utterance; a screen
+     * reader's stop of an utterance waiting behind a preview cut the preview, and an export wrote nothing). */
+    @Volatile private var owner: Any? = null
+
+    // Test hook (the screen's --ez stopbreak true, test_engine_stop_owner.py's control): any stop ends whatever
+    // utterance owns the engine, as it was
+    @Volatile var stopBreak = false
+
+    /** Inside withEngine: begin an utterance for `by` (the one whose stop ends it).  0 audio to pull, 1 nothing to
+     * say, negative on failure. */
+    fun start(by: Any, voice: VoiceInfo, text: String, s: SsiSettings.Snapshot, requestRate: Int, requestPitch: Int,
+              marks: IntArray? = null): Int {
+        owner = by
+        return SsiNative.nativeStart(voice.index, text.toByteArray(Charsets.UTF_8), s.rate, s.pitch, s.tone, s.volume,
                               bit(s.shortPauses), bit(s.runAhead), bit(s.lineLift), bit(s.numbers), s.soTone,
                               bit(s.soJoin),
                               bit(s.soShortPauses),
                               requestRate, requestPitch, marks)
+    }
 
     /** Inside withEngine, after a pull: the marks reached, as (mark, frame) pairs in `out`; how many pairs. */
     fun reached(out: IntArray): Int = SsiNative.nativeReached(out)
@@ -154,8 +167,8 @@ object SsiEngine {
     /** Inside withEngine, after a stop or an abandoned utterance. */
     fun cancel() = SsiNative.nativeCancel()
 
-    /** Any thread. */
-    fun stop() { if (opened) SsiNative.nativeStop() }
+    /** Any thread: end `by`'s utterance, if it is the one the engine is speaking; another's goes on. */
+    fun stop(by: Any) { if (opened && (owner === by || stopBreak)) SsiNative.nativeStop() }
 
     fun sampleRate(): Int = if (opened) SsiNative.nativeSampleRate() else 22050
 }
