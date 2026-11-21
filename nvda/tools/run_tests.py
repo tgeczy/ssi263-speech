@@ -2508,6 +2508,13 @@ CHECKS.append(check("accented letters: driver CONTROL (the pass off, must fail)"
                                 r"^FAIL blazie_es driver +'\\u0151': the unit was sent \[\]",
                                 r"^translit driver: \d+ of 10 FAILED \(TRANSLIT_BREAK=1"]))
 # other currencies than the dollar reach every unit as words (a listener: "£2.63" was read "2.63")
+# a number written with leading zeros said digit by digit, the zeros said (#65, Tomi): the Python number words and the
+# C ones (bl_numbers: numwords.c, numwords_es.c); the control builds the integer, as they did
+CHECKS.append(check("number words: leading zeros said, digit by digit (#65)", [PY, "leading_zeros.py"]))
+CHECKS.append(check("number words: leading zeros CONTROL (the integer, as it was, must fail)", [PY, "leading_zeros.py"],
+                    env={"NUMWORDS_ZERO_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL python en 'code 047291'", r"^FAIL c +en 'code 047291'", r"^ok   python en '10' ",
+                                r"^leading zeros: 12 FAILED$"]))
 CHECKS.append(check("currency rule", [PY, "currency_test.py", "rules"]))
 for w in ("blazie", "speakout", "accent"):
     CHECKS.append(check("currency %s: the unit is sent pounds and pence" % w, [PY, "currency_test.py", w]))

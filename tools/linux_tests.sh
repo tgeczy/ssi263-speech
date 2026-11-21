@@ -883,6 +883,11 @@ control "as_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^as marks: 1 FAILED$" -- env AS_MARKS_BREAK=3 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
 control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^as marks: 5 FAILED$" -- env AS_MARKS_BREAK=4 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
+# a number written with leading zeros said digit by digit (#65): the Python and C number words; the control: the integer
+check "number words: leading zeros said, digit by digit (#65)" python3 nvda/tools/leading_zeros.py build/linux/libssi263_voices.so
+control "number words: leading zeros CONTROL (the integer, as it was, must fail)" "^FAIL python en 'code 047291'" \
+    "^FAIL c +en 'code 047291'" "^leading zeros: 12 FAILED$" -- env NUMWORDS_ZERO_BREAK=1 \
+    python3 nvda/tools/leading_zeros.py build/linux/libssi263_voices.so
 # the Braille Lite below 10 kHz (#81: the board low-pass above Nyquist gave full-scale noise); its control keeps it
 check "Braille Lite below 10 kHz: speech, not a full-scale tone (#81)" python3 nvda/tools/low_rate.py \
     build/linux/libssi263_voices.so "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state"

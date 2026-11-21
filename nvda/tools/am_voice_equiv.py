@@ -26,6 +26,13 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
+# 0.7.0's number words dropped a number's leading zeros; since #65 a number written with them is said digit by digit
+# (nvda/tools/leading_zeros.py holds that).  Against 0.7.0 the C side reads them as it did (numwords.c's switch, read
+# with the C runtime's getenv, which sees only what the process started with: so this check starts itself again)
+if os.environ.get("NUMWORDS_ZERO_BREAK") != "1":
+    import subprocess
+    sys.exit(subprocess.run([sys.executable, os.path.abspath(__file__)] + sys.argv[1:],
+                            env=dict(os.environ, NUMWORDS_ZERO_BREAK="1")).returncode)
 sys.argv = [sys.argv[0], "accent"]
 # the reference is 0.7.0's Python driver (since 0.7.5 the add-on's driver is am_voice itself: native_driver_equiv.py)
 sys.path.insert(0, HERE)

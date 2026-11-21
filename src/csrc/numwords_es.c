@@ -125,15 +125,32 @@ static void cardinal_es(sbuf *b, unsigned long long n)
     if (n % 1000) { sb_puts(b, " "); cardinal_es(b, n % 1000); }
 }
 
-/* the digits t[a..e) (commas skipped) as words, LARGE_ES when more than 18 are left after the leading zeros (big()) */
-static void whole_words(sbuf *b, const unsigned *t, int a, int e)
+/* the digits t[a..e) (commas skipped) as words, LARGE_ES when more than 18 are left after the leading zeros (big());
+   ord: the bare cardinal of an ordinal (never digit by digit) */
+static void whole_words(sbuf *b, const unsigned *t, int a, int e, int ord)
 {
     unsigned long long v = 0;
-    int k, sig = 0;
+    int k, sig = 0, n = 0, first = -1;
     for (k = a; k < e; k++)
         if (isdig(t[k]) && (sig || t[k] != '0'))
             sig++;
     if (sig > 18) { sb_puts(b, LARGE_ES); return; }
+    for (k = a; k < e; k++)
+        if (isdig(t[k])) {
+            if (first < 0) first = (int)t[k];
+            n++;
+        }
+    if (!ord && n > 1 && first == '0' && !getenv("NUMWORDS_ZERO_BREAK")) {
+        /* a number written with leading zeros: digit by digit, the zeros said (#65; numwords.c the same) */
+        int lead = 1;
+        for (k = a; k < e; k++)
+            if (isdig(t[k])) {
+                if (!lead) sb_puts(b, " ");
+                sb_puts(b, ONES_ES[t[k] - '0']);
+                lead = 0;
+            }
+        return;
+    }
     for (k = a; k < e; k++)
         if (isdig(t[k]))
             v = v * 10 + (unsigned long long)(t[k] - '0');
@@ -275,12 +292,12 @@ char *nw_normalise_es(const unsigned *t0, int n0)
         int ord = 0, end = match_number(t, n, i, &ord);
         if (!end) { sb_putcp(&b, t[i]); i++; continue; }
         if (ord) {
-            whole_words(&b, t, i, end - 2);                  /* Spanish: the bare cardinal */
+            whole_words(&b, t, i, end - 2, 1);               /* Spanish: the bare cardinal */
         } else {
             int a = i + (t[i] == '-'), dot = a, k;
             if (t[i] == '-') sb_puts(&b, MINUS_ES " ");
             while (dot < end && t[dot] != '.') dot++;
-            whole_words(&b, t, a, dot);
+            whole_words(&b, t, a, dot, 0);
             if (dot < end) {                                 /* the fraction, digit by digit */
                 sb_puts(&b, " " COMMA_ES);
                 for (k = dot + 1; k < end; k++) { sb_puts(&b, " "); sb_puts(&b, ONES_ES[t[k] - '0']); }

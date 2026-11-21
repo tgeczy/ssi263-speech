@@ -287,6 +287,19 @@ static void ordinal(sbuf *b, unsigned long long n)
 static int a_digit(char c) { return c >= '0' && c <= '9'; }
 static int a_word(char c) { return a_digit(c) || ((c | 32) >= 'a' && (c | 32) <= 'z') || c == '_'; }   /* \w, 7-bit */
 
+/* two digits or more in s[a..e) (commas skipped), the first a 0: a number written with leading zeros (#65).
+   NUMWORDS_ZERO_BREAK=1, the tests' control: never, as it was */
+static int leading_zero(const char *s, int a, int e)
+{
+    int k, n = 0, first = -1;
+    for (k = a; k < e; k++)
+        if (a_digit(s[k])) {
+            if (first < 0) first = s[k];
+            n++;
+        }
+    return n > 1 && first == '0' && !getenv("NUMWORDS_ZERO_BREAK");
+}
+
 /* the digits s[a..b) (commas skipped), "large number" when more than 18 are left after the leading zeros (big()) */
 static void whole_words(sbuf *b, const char *s, int a, int e, int ord)
 {
@@ -296,6 +309,18 @@ static void whole_words(sbuf *b, const char *s, int a, int e, int ord)
         if (a_digit(s[k]) && (sig || s[k] != '0'))
             sig++;
     if (sig > 18) { sb_puts(b, "large number"); return; }
+    if (!ord && leading_zero(s, a, e)) {
+        /* a code, not an amount ("047291", "007", a ZIP code): digit by digit, the zeros said; as an integer they
+           were dropped (#65, Tomi; ssi263_numwords.py the same) */
+        int first = 1;
+        for (k = a; k < e; k++)
+            if (a_digit(s[k])) {
+                if (!first) sb_puts(b, " ");
+                sb_puts(b, ONES[s[k] - '0']);
+                first = 0;
+            }
+        return;
+    }
     for (k = a; k < e; k++)
         if (a_digit(s[k]))
             v = v * 10 + (unsigned long long)(s[k] - '0');

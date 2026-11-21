@@ -34,6 +34,7 @@ the size says more than a stack of scale words does.
 
     py -3 addon/synthDrivers/_outspoken/numwords.py "you owe 1,234.50"
 """
+import os
 import re
 import sys
 
@@ -347,6 +348,11 @@ def normalise(text, spell_out=False, lang="en", decimal_comma=False):
             out = digits(whole or "0", lang)
         elif big(whole):
             out = large
+        elif len(whole) > 1 and whole[0] == "0" and not os.environ.get("NUMWORDS_ZERO_BREAK"):
+            # A number written with leading zeros is a code, not an amount: "047291", "007", a ZIP code, "09:05".
+            # Said digit by digit, the zeros with it; as an integer they were dropped (#65, Tomi; numwords.c and
+            # numwords_es.c the same.  NUMWORDS_ZERO_BREAK=1, the tests' control: the integer, as it was)
+            out = digits(whole, lang)
         else:
             out = cardinal(int(whole or "0"), lang)
         if frac:
