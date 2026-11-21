@@ -119,7 +119,7 @@ def main():
     unit = chip + board() + [emu, chords, setup]
     # a saved Type 'n Speak that was never set up (the previews' first start), told apart and set up anew
     rescue = compile_c(os.path.join(HERE, "tns_rescue.c"), APP)
-    shell = [compile_c(os.path.join(HERE, f), APP) for f in ("main_win.c", "tns_keymap_win.c", "serial_win.c",
+    shell = [compile_c(os.path.join(HERE, f), APP) for f in ("main_win.c", "win_keys.c", "tns_keymap_win.c", "serial_win.c",
                                                              "audio_pace.c", "brl_win.c")]
     # the braille display field: its keys to the window, the cells as Unicode braille, each change told to the screen
     # reader, no name before the cells; _break: the keys kept in the field, _stale: 0.8's first preview (no event, the
@@ -148,6 +148,10 @@ def main():
          libs=("-lwinmm", "-lsetupapi", "-lcomdlg32", "-lm"), extra=("-mwindows",))
     link("test_rescue.exe", [compile_c(os.path.join(HERE, "test_rescue.c"), APP), rescue] + unit + files)
     link("test_chords.exe", [compile_c(os.path.join(HERE, "test_chords.c"), APP), chords], libs=())
+    # the Windows app's braille keys from its window messages (win_keys.c: the up with Alt held, #84)
+    link("test_win_keys.exe", [compile_c(os.path.join(HERE, "test_win_keys.c"), APP),
+                               compile_c(os.path.join(HERE, "win_keys.c"), APP, name="win_keys_test"), chords],
+         libs=())
     # the same from the command line, on a saved state (no unit runs: Linux and the BTSpeak build it alone)
     link("blazie_files.exe", [compile_c(os.path.join(HERE, "blazie_files.c"), APP)] + files, libs=())
     # the unit, headless (run_tests passes it the firmware)

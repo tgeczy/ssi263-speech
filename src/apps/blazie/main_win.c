@@ -32,6 +32,7 @@
 #include "audio_pace.h"
 #include "brl_win.h"
 #include "chords.h"
+#include "win_keys.h"
 #include "emu_catalog.h"
 #include "emu_unit.h"
 #include "serial_win.h"
@@ -105,7 +106,7 @@ static emu_unit *g_unit;
 static int g_kind, g_whine = 3;          /* the idle channel: 0 silent, 1 hiss, 2 whine, 3 as the unit (by volume) */
 static int g_keep_open = 1;              /* 0 off, 1 until the unit clicks off, 2 always */
 static int g_popclick = 1, g_tick = 1;   /* the channel's pop and click-off, its 10 Hz tick */
-static chord_state g_chord;
+static win_keys g_keys;                  /* the braille keys' chord (win_keys.c) */
 static HWAVEOUT g_wave;
 static WAVEHDR g_hdr[AP_MAX_BLOCKS];
 static short g_buf[AP_MAX_BLOCKS][BLOCK_MAX];
@@ -353,7 +354,7 @@ static int start_unit(int kind)
     emu_destroy(g_unit);
     g_unit = u;
     g_kind = kind;
-    chord_reset(&g_chord);
+    wk_reset(&g_keys);
     LeaveCriticalSection(&g_lock);
     status(g_units[kind].name);
     {
@@ -1250,33 +1251,29 @@ static LRESULT CALLBACK wndproc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
     switch (msg) {
     case WM_KEYDOWN:
-        if (wp < 256 && g_keymap[wp]) {
-            EnterCriticalSection(&g_lock);
-            chord_down(&g_chord, g_keymap[wp]);
-            if (g_unit)
-                emu_keys_down(g_unit, g_chord.down);   /* held: the unit sees them as it starts (i-chord: cold reset) */
-            LeaveCriticalSection(&g_lock);
-            return 0;
-        }
-        break;
     case WM_KEYUP:
+    case WM_SYSKEYDOWN:
+    case WM_SYSKEYUP:                      /* a key that went down without Alt comes up with it held (#84) */
         if (wp < 256 && g_keymap[wp]) {
-            int chord;
+            int held = 0, chord = 0, kind = msg == WM_KEYDOWN ? WK_KEYDOWN : msg == WM_KEYUP ? WK_KEYUP
+                                             : msg == WM_SYSKEYDOWN ? WK_SYSKEYDOWN : WK_SYSKEYUP, ours;
             EnterCriticalSection(&g_lock);
-            chord = chord_up(&g_chord, g_keymap[wp]);
-            if (g_unit)
-                emu_keys_down(g_unit, g_chord.down);
-            if (chord && g_unit)
-                emu_key(g_unit, chord);
+            ours = wk_message(&g_keys, kind, g_keymap[wp], &held, &chord);
+            if (ours > 0 && g_unit) {
+                emu_keys_down(g_unit, held);   /* held: the unit sees them as it starts (i-chord: cold reset) */
+                if (chord)
+                    emu_key(g_unit, chord);
+            }
             LeaveCriticalSection(&g_lock);
-            return 0;
+            if (ours > 0)
+                return 0;
         }
         break;
     case WM_CHAR:
         return 0;                           /* no beeps for the braille keys */
     case WM_KILLFOCUS:
         EnterCriticalSection(&g_lock);
-        chord_reset(&g_chord);              /* a chord half-pressed when the window lost the keyboard is dropped */
+        wk_reset(&g_keys);                  /* a chord half-pressed when the window lost the keyboard is dropped */
         if (g_unit)
             emu_keys_down(g_unit, 0);
         LeaveCriticalSection(&g_lock);

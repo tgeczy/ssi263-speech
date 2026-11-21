@@ -814,6 +814,14 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", Non
 EMU = os.path.join(os.path.dirname(HERE), "dist", "blazie-emu")
 if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
     CHECKS.append(check("Blazie emulator: chords", [os.path.join(EMU, "test_chords.exe")]))
+    # the Windows app's braille keys from its window messages (win_keys.c): a key up with Alt held is an up (#84: it
+    # stayed down and every chord after it was swallowed); the control leaves that up to Windows, as it was
+    if os.path.isfile(os.path.join(EMU, "test_win_keys.exe")):
+        CHECKS.append(check("Blazie emulator: the Windows app's braille keys (#84)", [os.path.join(EMU, "test_win_keys.exe")]))
+        CHECKS.append(check("Blazie emulator: braille keys CONTROL (the up with Alt left to Windows, must fail)",
+                            [os.path.join(EMU, "test_win_keys.exe")], env={"WIN_KEYS_BREAK": "sysup"},
+                            expect_fail=True, fail_marks=[r"^FAIL alt_up +space up with Alt held: keys held after it 40",
+                                                          r"^win keys: 1 FAILED$"]))
     # the braille display field (src/apps/blazie/brl_win.c): its keys go to the window, the cells as Unicode braille;
     # the control keeps the keys in the field and must fail on exactly those
     if os.path.isfile(os.path.join(EMU, "test_brl_win.exe")):
