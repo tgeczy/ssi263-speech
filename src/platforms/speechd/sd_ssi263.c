@@ -79,6 +79,17 @@ static void rappend(const char *p, size_t n)
     rbuf[rlen] = 0;
 }
 
+/* out of memory: said, and the module ends (speech-dispatcher starts it again) -- never a write through NULL
+   (Brailab's audit, B32: malloc, calloc and realloc went unchecked) */
+static void *checked(void *p)
+{
+    if (!p) {
+        fprintf(stderr, "sd_ssi263: out of memory\n");
+        exit(1);
+    }
+    return p;
+}
+
 /* the next line (without \r\n) into a malloc'd string; NULL at EOF */
 static char *readline_sd(void)
 {
@@ -86,7 +97,7 @@ static char *readline_sd(void)
         char *nl = rbuf ? (char *)memchr(rbuf, '\n', rlen) : NULL;
         if (nl) {
             size_t n = (size_t)(nl - rbuf);
-            char *line = (char *)malloc(n + 1);
+            char *line = (char *)checked(malloc(n + 1));
             memcpy(line, rbuf, n);
             line[n] = 0;
             if (n && line[n - 1] == '\r') line[n - 1] = 0;
@@ -249,6 +260,16 @@ static void read_config(const char *path)
     char line[1200], key[128], val[1024];
     if (!f) return;
     while (fgets(line, sizeof line, f)) {
+        size_t n = strlen(line);
+        /* longer than the buffer (no setting is: its value is 1023 at most): the rest of it skipped too, never read
+           as a line of its own -- a long comment ending in a setting set it (Brailab's audit, B32).
+           (SD_SSI263_TEST_LONG_LINE=split, a control: its tail read as a line, as it was) */
+        if (n && line[n - 1] != '\n' && !feof(f) && !getenv("SD_SSI263_TEST_LONG_LINE")) {
+            int c;
+            while ((c = fgetc(f)) != EOF && c != '\n')
+                ;
+            continue;
+        }
         if (line[0] == '#') continue;
         if (sscanf(line, "%127s \"%1023[^\"]\"", key, val) != 2 && sscanf(line, "%127s %1023s", key, val) != 2)
             continue;
@@ -432,7 +453,7 @@ static void speak(char *text, int ssml)
 
 static char *read_text(void)
 {
-    char *text = (char *)calloc(1, 1), *line;
+    char *text = (char *)checked(calloc(1, 1)), *line;
     size_t n = 0;
     while ((line = readline_sd()) != NULL) {
         const char *s = line;
@@ -440,7 +461,7 @@ static char *read_text(void)
         if (!strcmp(line, ".")) { free(line); break; }
         if (s[0] == '.') s++;                        /* a leading dot is escaped as two */
         k = strlen(s);
-        text = (char *)realloc(text, n + k + 2);
+        text = (char *)checked(realloc(text, n + k + 2));
         if (n) text[n++] = ' ';
         memcpy(text + n, s, k);
         n += k;

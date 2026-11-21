@@ -674,6 +674,9 @@ def configured(label, conf, user_conf, rate, whine=0, run_ahead=0, line_lift=0):
 results.append(configured("conf44", "SSI263SampleRate 44100\n", None, 44100))
 results.append(configured("user", "SSI263SampleRate 11025\n", "SSI263SampleRate 44100\n", 44100))
 results.append(configured("badrate", "SSI263SampleRate 48000\n", None, 22050))
+# a line longer than the reader's buffer is skipped whole: its tail was read as a line of its own, so a long comment
+# ending in a setting set it (Brailab's audit, B32); SD_SSI263_TEST_LONG_LINE=split, the control: as it was
+results.append(configured("longline", "#" + "x" * 1198 + " SSI263SampleRate 44100\n", None, 22050))
 results.append(configured("userhiss", None, 'SSI263Whine "hiss"\n', 22050, whine=1))
 
 
