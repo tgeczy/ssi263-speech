@@ -359,7 +359,9 @@ def test_install(plugin):
     def startfile(path):                              # a portable NVDA: no program for .nvda-addon
         opened.append(path)
         raise OSError(1155, "No application is associated with the specified file for this operation")
-    name = "ssi263-speech-9.9.9-install-test.nvda-addon"
+    # one name per process: the suite runs this test and its controls side by side, and a shared name made one
+    # remove the file another was writing (PermissionError, the control "crashed")
+    name = "ssi263-speech-9.9.9-install-test-%d.nvda-addon" % os.getpid()
     path = os.path.join(tempfile.gettempdir(), name)
     saved = (plugin.threading, plugin.updates.check, plugin.updates.download, plugin._version,
              getattr(os, "startfile", None), sys.modules.get("wx"), sys.modules.get("gui"))
