@@ -114,6 +114,12 @@ class UnitActivity : Activity() {
             refresh()
             // Test hook: `am start -n com.ssi263speech.tts/.UnitActivity --es unit bl-en --ez autostart true` switches
             // that unit on without touching the screen (TalkBack takes a test's taps).  Never set in normal use.
+            // Test hook: `--ez bgbreak true` (test_unit_background.py's control) lets a start that finishes unseen
+            // switch the unit on, as before #52.
+            bgBreak = intent?.getBooleanExtra("bgbreak", false) == true
+            // Test hook: `--ei startdelay <ms>` holds the start that long before the unit's own, as a slow first
+            // start does (test_unit_background.py: the screen left during it, every time).
+            startDelay = intent?.getIntExtra("startdelay", 0) ?: 0
             if (intent?.getBooleanExtra("autostart", false) == true) {
                 val want = units.indexOfFirst { it.key == intent.getStringExtra("unit") }
                 if (want >= 0) { selected = want; choice.check(choice.getChildAt(want).id) }
@@ -132,9 +138,20 @@ class UnitActivity : Activity() {
         setContentView(root)
     }
 
+    override fun onStart() {
+        super.onStart()
+        shown = true
+    }
+
     override fun onStop() {
         super.onStop()
+        shown = false
         if (handle != 0L) switchOff()               // never runs unseen; its memory saved
+    }
+
+    override fun onDestroy() {
+        if (handle != 0L) switchOff()               // a screen the system destroys leaves no unit running unsaved
+        super.onDestroy()
     }
 
     private fun refresh() {
@@ -167,10 +184,23 @@ class UnitActivity : Activity() {
         }
         main.postDelayed(progress, 500)
         Thread {
+            if (startDelay > 0) Thread.sleep(startDelay.toLong())
             val h = UnitNative.nativeUnitStart(SsiData.dir(this).path, unit.key, savedDir.path, UnitNative.RATE, 3)
             val err = if (h == 0L) UnitNative.nativeUnitError() else ""
             main.post {
                 starting = false
+                // A start that finished while the screen was not shown -- Home or another app during it, which
+                // onStop could not stop: nothing was on yet -- switched the unit on unseen, its sound and its
+                // emulation running in the background (#52).  It is switched off at once instead, its memory saved.
+                if (h != 0L && !shown && !isFinishing && !isDestroyed && !bgBreak) {
+                    val saved = UnitNative.nativeUnitStop(h)
+                    status.text = "The ${unit.name} was switched off: this screen was left while it started." +
+                        (if (saved) " Its memory is saved." else "")
+                    if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0)
+                        Log.d("SsiUnit", "not shown: ${unit.key} switched off as it came on, saved $saved")
+                    refresh()
+                    return@post
+                }
                 if (h == 0L || isFinishing || isDestroyed) {
                     if (h != 0L) UnitNative.nativeUnitStop(h)
                     status.text = "The ${unit.name} would not start: $err"
@@ -201,6 +231,7 @@ class UnitActivity : Activity() {
     private fun switchOff() {
         val h = handle
         if (h == 0L) return
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) Log.d("SsiUnit", "off ${running?.key}")
         val name = running?.name ?: "unit"
         if (UnitNative.nativeUnitFlashBusy(h) && !isFinishing && hasWindowFocus()) {
             status.text = "The $name is writing its flash; switch it off when it has finished."
@@ -223,6 +254,9 @@ class UnitActivity : Activity() {
     // <state>.before-import, the unit switched on again if it was on.
 
     private var reopen = false
+    private var shown = false                       // between onStart and onStop
+    private var bgBreak = false
+    private var startDelay = 0
 
     private fun pickFiles() {
         val unit = units[selected]
