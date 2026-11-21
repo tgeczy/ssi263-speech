@@ -521,6 +521,16 @@ SAPI_SAVE = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
 # the settings dialog's access keys, each its own (#40: Unregister and Check for updates both had U, and Alt+U from the
 # voice list clicked Unregister); the control reads Unregister's as it was
 SAPI_KEYS = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_mnemonics.py")]
+# each SAPI voice registered in its own language (#41: 17 Braille Lites were US English), register.ps1's Language-Code
+# on every language of the built voice list, held to Windows' culture data; the control puts the four-language table back
+_SAPI_VOICES = os.path.join(os.path.dirname(HERE), "dist", "sapi", "voices.txt")
+if os.path.isfile(_SAPI_VOICES):
+    SAPI_LANGS = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                  os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_languages.ps1"), _SAPI_VOICES]
+    CHECKS.append(check("SAPI voices: each registered in its own language (#41)", SAPI_LANGS))
+    CHECKS.append(check("SAPI voices: languages CONTROL (four known, the rest US English, must fail)", SAPI_LANGS,
+                        env={"SSI263_LANG_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL  ru +409 +en-US$", r"^ok    es +40A ", r"^sapi languages: 17 of 22 FAILED$"]))
 CHECKS.append(check("SAPI settings: every access key its own (#40)", SAPI_KEYS))
 CHECKS.append(check("SAPI settings: access keys CONTROL (Unregister's U as it was, must fail)", SAPI_KEYS,
                     env={"SSI263_MNEMONIC_BREAK": "1"}, expect_fail=True,

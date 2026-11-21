@@ -29,12 +29,37 @@ function Remove-Voices {
     }
 }
 
+# The token's Language: the Windows LCID (hex) of the voice's language, the full tag first (pt-BR, ar-AE), then the
+# language alone in its own country.  It knew four once and gave every other voice 409, US English (#41;
+# sapi\test_languages.ps1 holds each voice list language to Windows' own culture data).
 function Language-Code([string]$lang) {
-    switch ($lang.Split('_')[0].Split('-')[0].ToLower()) {
+    $tag = $lang.Replace('_', '-').ToLower()
+    switch ($tag) {
+        'pt-br' { return '416' }
+        'ar-ae' { return '3801' }
+    }
+    switch ($tag.Split('-')[0]) {
+        'en' { return '409' }
         'es' { return '40A' }
         'de' { return '407' }
         'it' { return '410' }
         'sk' { return '41B' }
+        'ar' { return '401' }
+        'pt' { return '816' }
+        'hr' { return '41A' }
+        'cs' { return '405' }
+        'da' { return '406' }
+        'fr' { return '40C' }
+        'el' { return '408' }
+        'he' { return '40D' }
+        'hu' { return '40E' }
+        'ko' { return '412' }
+        'no' { return '414' }
+        'nb' { return '414' }
+        'pl' { return '415' }
+        'sv' { return '41D' }
+        'tr' { return '41F' }
+        'ru' { return '419' }
         default { return '409' }
     }
 }
