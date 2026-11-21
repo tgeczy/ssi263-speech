@@ -836,6 +836,9 @@ control "SmarTalk voice CONTROL (the bank's last slot kept on a boot change, mus
 control "SmarTalk voice CONTROL (the contractions as they are, must fail)" "^FAIL  said as: don't +\"don't\"$" \
     "^FAIL  said as: I'm " "^FAIL  don't: said as one word, no letter T " "^ok    said as: rock 'n roll " \
     "^st voice: 6 FAILED$" -- env ST_TEXT_BREAK=1 python3 tools/check_st_voice.py build/linux/libssi263_voices.so
+control "SmarTalk voice CONTROL (\$.00 dropped, must fail)" "^FAIL  said as: [$][.]00 +''$" \
+    "^FAIL  said as: [$][.]00% +'percent'$" "^st voice: 2 FAILED$" \
+    -- env ST_DOLLAR_BREAK=1 python3 tools/check_st_voice.py build/linux/libssi263_voices.so
 # letters typed at rate 0 on the Speak-Out's front end, both boxes (tools/check_so_tail.py, as run_tests.py's): no
 # letter starts with the last one's phoneme; the control leaves the held phoneme out of busy().  The two boxes' files
 # from where the translit check above looks for SPEAKOUT.HEX, gathered in one folder

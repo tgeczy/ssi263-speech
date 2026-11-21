@@ -200,6 +200,10 @@ static char *dollars_percent(const char *s)
                     if (w1 > w0 && (!whole_zero || !cents)) {
                         m = put(out, m, s, w0, w1);
                         m = put_str(out, m, w1 - w0 == 1 && s[w0] == '1' ? " dollar" : " dollars");
+                    } else if (w1 == w0 && !cents && !getenv("ST_DOLLAR_BREAK")) {
+                        /* "$.00": no whole part and no cents, said as "$0.00" is; it was dropped without a word (#80;
+                           ST_DOLLAR_BREAK=1, the test's control: as it was) */
+                        m = put_str(out, m, "0 dollars");
                     }
                     if (cents) {
                         char c[24];
@@ -213,7 +217,7 @@ static char *dollars_percent(const char *s)
                 continue;
             }
         } else if (s[i] == '%' && i > 0 && (digit(s[i - 1]) || (s[i - 1] == ' ' && i > 1 && digit(s[i - 2])))) {
-            if (out[m - 1] != ' ')
+            if ((m > 0 || getenv("ST_DOLLAR_BREAK")) && out[m - 1] != ' ')   /* nothing written yet: no look-back (#80) */
                 out[m++] = ' ';
             m = put_str(out, m, "percent");
             i++;

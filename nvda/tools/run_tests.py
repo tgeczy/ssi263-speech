@@ -2756,6 +2756,12 @@ if os.path.isfile(ST_EXE):
                         fail_marks=[r'^FAIL  said as: don\'t +"don\'t"$', r"^FAIL  said as: I'm ",
                                     r"^FAIL  don't: said as one word, no letter T ", r"^ok    said as: rock 'n roll ",
                                     r"^st voice: 6 FAILED$"]))
+    # "$.00" said as "0 dollars", and a percent right after it at the text's start read in bounds (#80): the control
+    # drops it and looks back unguarded, as it was
+    CHECKS.append(check("SmarTalk voice CONTROL ($.00 dropped, must fail)", [PY, ST_VOICE],
+                        env={"ST_DOLLAR_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL  said as: \$\.00 +''$", r"^FAIL  said as: \$\.00% +'percent'$",
+                                    r"^ok    said as: \$2\.63 ", r"^st voice: 2 FAILED$"]))
     # the pitch snap at an utterance's start disarmed: the phrase start, the capital and a new pitch setting must
     # fail, the glides inside the phrase still pass
     CHECKS.append(check("SmarTalk voice CONTROL (no pitch snap, must fail)", [PY, ST_VOICE],

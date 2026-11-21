@@ -17,6 +17,8 @@ speak: the phrase-start and capital checks must fail, and only they.
 ST_RATE_BREAK=1 -- the rate's old mapping (50 = the TSR's ESC >5, not its power-up speed): the rate-back-at-50
 check must fail, and only it.
 ST_TEXT_BREAK=1 -- the contractions left as they are (st_voice.c contractions()): the contraction checks must fail.
+ST_DOLLAR_BREAK=1 -- "$.00" dropped and the percent's look-back unguarded, as they were (st_voice.c
+dollars_percent, #80): the two "$.00" checks must fail, and only they.
 SSV_BANK_BREAK=1 -- a bank keeps its last slot on a boot change (the SmarTalk's, as when its slot was past the
 bank's end): the bank check must fail, and only it.
 """
@@ -349,7 +351,10 @@ def main():
        "%r / %r" % (words, raw))
     for text, want in (("$2.63", "2 dollars 63 cents"), ("$1", "1 dollar"), ("$.5", "50 cents"),
                        ("$0.01", "1 cent"), ("$2.635", "2.635 dollars"), ("a$3", "a 3 dollars"), ("$", "$"),
-                       ("50 %", "50 percent"), ("5%.", "5 percent.")):
+                       ("50 %", "50 percent"), ("5%.", "5 percent."),
+                       # #80: no whole part and no cents, as "$0.00" says it (it was dropped); and a percent sign
+                       # right after it at the text's start (it looked one byte before the buffer)
+                       ("$.00", "0 dollars"), ("$.00%", "0 dollars percent")):
         lib.stv_parts(text.encode(), 0, out, 400)
         ok(out.value.decode() == want, "said as: %s" % text, repr(out.value.decode()))
 
