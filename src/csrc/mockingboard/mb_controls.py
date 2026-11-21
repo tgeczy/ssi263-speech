@@ -25,7 +25,7 @@ from tools import repo_paths  # noqa: E402
 from contract_controls import RunError, run_tests  # noqa: E402
 
 SPEECH = ["golden_r0", "streams", "clean_core", "settings", "busy_refused", "overflow_guard", "overflow_in_rules",
-          "cancel", "start_pitch", "kept_texts"]
+          "cancel", "cancel_in_handler", "start_pitch", "kept_texts"]
 SPEECH += ["early_" + t for t in SPEECH]           # the host's tests run on both versions (test_mockingboard.c)
 
 # a rule -> (its file under src/csrc, its code, the code with the rule undone, the tests that must then fail); a rule
@@ -37,14 +37,21 @@ VARIANTS = {
         [t for t in SPEECH if t != "overflow_in_rules"]),
     "the text between spaces (MB$ GETTEXT)": (
         "mockingboard/mb_host.c", "    mb_board_poke(h->b, L->text, ' ');", "    mb_board_poke(h->b, L->text, 'X');",
-        ["golden_r0", "overflow_guard", "cancel", "early_golden_r0", "early_overflow_guard", "early_cancel"]),
+        ["golden_r0", "overflow_guard", "cancel", "cancel_in_handler", "early_golden_r0", "early_overflow_guard",
+         "early_cancel", "early_cancel_in_handler"]),
     "the overflow guard (both checks)": (
         "mockingboard/mb_host.c", [("    if (raw + 4 * marks > MBH_MAX_FRAMES) {", "    if (0) {"),
                                    ("    mb_board_guard(h->b, L->guard_lo, L->guard_hi);\n", "")],
         None, ["overflow_guard", "overflow_in_rules", "early_overflow_guard", "early_overflow_in_rules"]),
     "cancel moves the end": (
         "mockingboard/mb_host.c", "    mb_board_poke(h->b, A_END, mb_board_peek(h->b, A_PLAYING));\n", "",
-        ["cancel", "early_cancel"]),
+        ["cancel", "cancel_in_handler", "early_cancel", "early_cancel_in_handler"]),
+    # the driver's interrupt handler run to its end before the end moves (#76): stopped between its end test and its
+    # step of the frame pointer, the end was stepped over and the driver played on through memory
+    "the handler finished before a cancel": (
+        "mockingboard/mb_host.c",
+        "    while (!mb_board_idle(h->b) && mb_board_cycles(h->b) - start < SETTLE_CYCLES)\n        mb_board_run(h->b, 1);\n",
+        "", ["cancel_in_handler", "early_cancel_in_handler"]),
     # a file of the right size taken whatever its bytes: a changed byte gets through
     "the firmware's sha256": (
         "mockingboard/mb_host.c", "        if (hex_is(sum, LAYOUTS[k].sha256))",
@@ -55,7 +62,7 @@ VARIANTS = {
     "early: the guard after its set-up": (
         "mockingboard/mb_host.c", "0x6000, 0x6600, 0x660E, 0x662C, 0x6617, 0x6600, 0x6600,",
         "0x6000, 0x6600, 0x660E, 0x662C, 0, 0x6600, 0x6600,",
-        ["early_busy_refused", "early_cancel", "early_clean_core", "early_golden_r0", "early_kept_texts",
+        ["early_busy_refused", "early_cancel", "early_cancel_in_handler", "early_clean_core", "early_golden_r0", "early_kept_texts",
          "early_overflow_guard", "early_settings", "early_start_pitch", "early_streams"]),
     "early: the guard on 6600h": (
         "mockingboard/mb_host.c", "0x6000, 0x6600, 0x660E, 0x662C, 0x6617, 0x6600, 0x6600,",

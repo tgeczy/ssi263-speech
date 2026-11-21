@@ -24,6 +24,10 @@
  *   overflow_in_rules  253 characters of WXYZ, whose R0 frames overflow during the rules: refused by the guard
  *                   itself, no frame past its first byte (1.1: 8B00h; the early one: 6600h, its own variables)
  *   cancel          a cancel stops the frames within one more A/R, and the next text speaks normally
+ *   cancel_in_handler  the same with the 6502 stopped inside the driver's interrupt handler, past its end test
+ *                   and before it steps the frame pointer (INC ECh: 93AEh in 1.1, 6DB3h in the early one): the
+ *                   driver still stops, and the next text speaks (#76: the end was stepped over and the driver
+ *                   played on through memory)
  *   kept_texts      one host, eleven texts in a row, each run only until the firmware says done (as the voice does):
  *                   all taken and spoken (the early handler clears its busy flag before it returns: left parked
  *                   there, every later text was refused)
@@ -45,6 +49,7 @@ static const char *g_file = MB_FILE;
 static const unsigned char *g_golden;
 static int g_ngolden;
 static int g_r3 = 0x50;                              /* the driver's R3: g_r3 | the amplitude (+ 4) */
+static unsigned g_step_pc = 0x93AE;                  /* the handler's INC ECh, after its end test (mb_host.c) */
 static unsigned g_guard_lo = 0x8B00;                 /* the first byte past the R0 frames' room (mb_host.c) */
 /* the program's own bytes below C000h (code, tables, rules), which no text may change */
 static unsigned g_prog[3][2];
@@ -335,6 +340,40 @@ static void t_cancel(const char *dir)
     mbh_destroy(h);
 }
 
+/* the cancel with the 6502 inside the driver's interrupt handler, between its end test and its step of the frame
+   pointer (#76): after 0.4 s of a long text, chip steps of 0.1 ms (about 100 cycles, the handler about 135), after
+   each the 6502 run on toward the step (INC ECh) -- reached when a step ended in the handler before it, or with its
+   interrupt pending -- and the cancel there */
+static void t_cancel_in_handler(const char *dir)
+{
+    mb_host *h = make(dir);
+    const double *a;
+    double t = 0.0;
+    int k, there = 0, next;
+    unsigned char buf[512];
+    mbh_say(h, (const unsigned char *)"THIS IS A RATHER LONG SENTENCE THAT WILL NOT BE FINISHED.", 57);
+    mbh_run(h, 0.4, 0.0005, &a);
+    for (k = 0; k < 30000 && !there && mbh_busy(h); k++) {   /* while it speaks, at any rate (up to 3 s more) */
+        mbh_run(h, 0.0001, 0.0001, &a);       /* about 100 cycles: shorter than the handler, so a step ends in it */
+        mbh_set_int(h, "run_to_pc", (int)g_step_pc);
+        there = mbh_get_int(h, "pc") == (int)g_step_pc;
+    }
+    if (there)
+        mbh_cancel(h);
+    while (mbh_busy(h) && t < 3.0) {
+        mbh_run(h, 0.03, 0.0005, &a);
+        t += 0.03;
+    }
+    mbh_clear_writes(h);
+    next = !mbh_busy(h) && speak(h, "HELLO, MY NAME IS MOCKINGBOARD.", 20.0) > 1.0
+           && r0s(h, buf, 512) == g_ngolden && !memcmp(buf, g_golden, (size_t)g_ngolden);
+    check("cancel_in_handler", there && !mbh_busy(h) && t < 0.5 && next,
+          "the 6502 at %04X (the handler's step of the frame pointer): %s; done %s %.2f s after the cancel; the "
+          "next text as golden: %d", g_step_pc, there ? "reached" : "NEVER reached", mbh_busy(h) ? "NOT, still "
+          "busy at" : "in", t, next);
+    mbh_destroy(h);
+}
+
 /* every text starts AT its first pitch: the driver powers the chip up for each one and the first frame's pitch
    write snaps the counter there (mb_host.c, mbh_say).  Without it the pitch climbs from the bottom of the range on a
    fresh unit (and from the last text's end after one), which a listener heard and the real card does not do. */
@@ -460,6 +499,7 @@ int main(int argc, char **argv)
             g_golden = pass ? GOLDEN_EARLY : GOLDEN;
             g_ngolden = pass ? (int)sizeof GOLDEN_EARLY : (int)sizeof GOLDEN;
             g_r3 = pass ? 0x70 : 0x50;
+            g_step_pc = pass ? 0x6DB3 : 0x93AE;
             g_guard_lo = pass ? 0x6600 : 0x8B00;
             memcpy(g_prog, pass ? prog_early : prog11, sizeof g_prog);
             t_golden(dir);
@@ -469,6 +509,7 @@ int main(int argc, char **argv)
             t_busy_refused(dir);
             t_overflow_guard(dir);
             t_cancel(dir);
+            t_cancel_in_handler(dir);
             t_start_pitch(dir);
             t_kept_texts(dir);
             t_wrong_image(dir);

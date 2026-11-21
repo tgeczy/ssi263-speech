@@ -416,10 +416,21 @@ MB_API int mbh_say(mb_host *h, const unsigned char *text, int n)
     return 1;
 }
 
+/* The driver's interrupt handler tests for the end with an equality compare of its frame pointer (ECh) against the
+   end (1Ah) -- 935Dh-9367h in 1.1, 6D62h-6D6Ch in the early program -- before it writes the frame, and steps the
+   pointer after (INC ECh at 93AEh / 6DB3h).  A block of mbh_run can stop the 6502 anywhere, in there too; the end
+   set to the playing frame between the test and the step was stepped over, and the driver played on through
+   memory: the next text not said, the old one's frames instead, until another cancel (#76).  So the handler runs
+   to its end first, back to the idle loop (a few instructions; the chip's time still, as settle), and the end is
+   then the frame the next interrupt tests (mb_controls.py's variant takes the run away: cancel_in_handler
+   fails) */
 MB_API void mbh_cancel(mb_host *h)
 {
+    uint64_t start = mb_board_cycles(h->b);
     if (!mbh_busy(h))
         return;
+    while (!mb_board_idle(h->b) && mb_board_cycles(h->b) - start < SETTLE_CYCLES)
+        mb_board_run(h->b, 1);
     mb_board_poke(h->b, A_END, mb_board_peek(h->b, A_PLAYING));
     mb_board_poke(h->b, A_END + 1, mb_board_peek(h->b, A_PLAYING + 1));
 }
@@ -484,6 +495,7 @@ MB_API int mbh_get_int(const mb_host *h, const char *name)
     if (!strcmp(name, "frames")) return h->frames;
     if (!strcmp(name, "fault")) return h->fault;
     if (!strcmp(name, "variant")) return h->L->variant;
+    if (!strcmp(name, "pc")) return mb_board_pc(h->b);
     if (!strcmp(name, "pitch_gap")) {        /* the chip's pitch counter against its target, rounded */
         double st[64];
         ssi263_state(h->chip, st, 64);
@@ -498,6 +510,12 @@ MB_API void mbh_set_int(mb_host *h, const char *name, int v)
 {
     if (!strcmp(name, "log_writes"))
         h->log_on = v != 0;
+    if (!strcmp(name, "run_to_pc")) {      /* the tests': the 6502 run on to address v, at most 400 cycles (an
+                                             interrupt pending: into its handler); "pc" says where it stopped */
+        uint64_t start = mb_board_cycles(h->b);
+        while (mb_board_pc(h->b) != (uint16_t)v && mb_board_cycles(h->b) - start < 400)
+            mb_board_run(h->b, 1);
+    }
 }
 
 MB_API int mbh_writes(const mb_host *h, const mbh_write **writes)
