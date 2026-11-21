@@ -377,12 +377,18 @@ static const char *stop_event(int how)
 }
 
 /* ---- SPEAK ------------------------------------------------------------------------------------------------------- */
-static void speak(char *text)
+/* ssml: the text is SSML (SPEAK); CHAR and KEY come as the bare character or key name, a "<" or "&" among them
+   (speech-dispatcher 0.11.1, seen through a module that logged its input), and were stripped as SSML: a "<" was
+   taken for a tag and spoken as nothing (#47; SD_SSI263_TEST_CHAR_SSML=1, a control: stripped, as they were) */
+static void speak(char *text, int ssml)
 {
     char err[256];
     const short *pcm;
     int done = 0, stopped = 0, v = cur_voice;
-    strip_ssml(text);
+    if (ssml || getenv("SD_SSI263_TEST_CHAR_SSML"))
+        strip_ssml(text);
+    else
+        forget_marks();                              /* no marks in it; none left from before */
     if (sdv_load(v, &conf, err, sizeof err) != 0) {
         fprintf(stderr, "sd_ssi263: %s: %s\n", sdv_name(v), err);
         send_line("301 ERROR CANT SPEAK");
@@ -506,7 +512,7 @@ int main(int argc, char **argv)
                 send_line("701 BEGIN");
                 send_line("702 END");
             } else {
-                speak(text);
+                speak(text, !strcmp(cmd, "SPEAK"));
             }
             free(text);
         } else if (!strcmp(cmd, "STOP") || !strcmp(cmd, "CANCEL") || !strcmp(cmd, "PAUSE")) {

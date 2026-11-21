@@ -84,6 +84,7 @@ before every word), in a session of their own, counted apart ("index marks: n of
     SD_SSI263_TEST_IGNORE_RUN_AHEAD=1: the module drops SSI263RunAhead -- the ra_ checks must FAIL
     SD_SSI263_TEST_IGNORE_LINE_LIFT=1: the module drops SSI263LineLift -- lift must FAIL
     SD_SSI263_TEST_IDLE_STOP=drop: a STOP between messages is dropped, as it was -- lift_stp must FAIL
+    SD_SSI263_TEST_CHAR_SSML=1: CHAR and KEY through the SSML stripper, as they were -- char_lt must FAIL
     SD_SSI263_TEST_LANG_TWO=1: SET language on its first two letters, the first voice, as it was -- lang_ar_ae,
       lang_pt and lang_pt_pt must FAIL
     SD_SSI263_TEST_IGNORE_BL_NUMBERS=1: the module drops SSI263BrailleLiteNumbers (the default reaches the unit) --
@@ -567,12 +568,12 @@ m.p.wait(timeout=10)
 # (#48: on two letters, the first in the table, ar-AE got the plain Arabic unit and pt, pt-PT the Brazilian one).
 # Each a fresh module, its first message; the reference is the same voice chosen by name, and the voice it got
 # instead must sound different, or the check could not tell
-def first_message(text, **kw):
+def first_message(text, cmd="SPEAK", **kw):
     s = Module()
     s.send("INIT")
     assert s.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
     s.set(**kw)
-    pcm, _ev, _n = s.speak(text)
+    pcm, _ev, _n = s.speak(text, cmd=cmd)
     s.send("QUIT")
     s.p.wait(timeout=10)
     return pcm
@@ -592,6 +593,17 @@ for label, tag, (want, other), text in (("lang_ar_ae", "ar-AE", ARABIC, "Hello, 
     print("%-8s %s and %s %s" % (label, want[0], other[0], "sound different" if by_name != by_other
                                                         else "sound the SAME (the check cannot tell)"))
     results.append(same(label, got, by_name) and by_name != by_other)
+
+
+# ---- CHAR and KEY are spoken as sent: the bare character, where SPEAK is SSML (speech-dispatcher 0.11.1, seen
+# through a module that logged its input: CHAR "<" as "<", a SPEAK of "a < b" as "<speak>a &lt; b</speak>").  A "<"
+# taken for a tag was spoken as nothing (#47).  On the Spanish unit, which says a lone "<" (the English one says
+# nothing for it either way); the reference is the same character as SPEAK sends it, "&lt;"
+if os.path.isfile(os.path.join(DATA, "BL2SPA.BNS")):
+    SPANISH = "Braille Lite 2000 (Spanish)"
+    got, want = (first_message("<", cmd="CHAR", synthesis_voice=SPANISH),
+                 first_message("&lt;", synthesis_voice=SPANISH))
+    results.append(same("char_lt", got, want) and len(want) > 0)
 
 
 # ---- the protocol's corners, as speech-dispatcher 0.11.1's server sends them and its own modules answer them

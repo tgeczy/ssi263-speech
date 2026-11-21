@@ -309,6 +309,10 @@ control "speech-dispatcher installer CONTROL (--default twice left our DefaultMo
 control "module CONTROL (a STOP between messages dropped, must fail)" "^lift +module .*identical" \
     "^lift_stp module .*DIFFER" "^$((N - 1)) of $N checks passed" -- env SD_SSI263_TEST_IDLE_STOP=drop \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
+# CHAR and KEY spoken as sent (#47: a "<" went through the SSML stripper and was silent); its control strips them
+control "module CONTROL (CHAR and KEY taken for SSML, must fail)" "^char +module .*identical" \
+    "^char_lt +module .*DIFFER" "^$((N - 1)) of $N checks passed" -- env SD_SSI263_TEST_CHAR_SSML=1 \
+    python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # SET language: the exact tag first (#48: ar-AE got the plain Arabic unit, pt and pt-PT the Brazilian); its control
 # compares two letters and takes the first voice, as it did
 control "module CONTROL (SET language on two letters, must fail)" "^lang_ar_ae module .*DIFFER" \
