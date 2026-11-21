@@ -2058,6 +2058,13 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
     CHECKS.append(check("am_voice marks CONTROL (the Ctrl-F inside the word before, must fail)", [PY, "am_marks.py"],
                         env={"AM_MARKS_BREAK": "4"}, expect_fail=True,
                         fail_marks=[r"^FAIL frames .*phonemes DIFFER", r"^FAIL bytes ", r"^am marks: 8 FAILED$"]))
+    # the Accent-mini speaks a long text item whole (#67: the call handing it the text was taken for a stall after 30 s
+    # and the rest lost); the control counts the limit from the call's start, as it was
+    CHECKS.append(check("am_voice: a 3,000-character item spoken whole (#67)", [PY, "am_long_text.py"]))
+    CHECKS.append(check("am_voice long text CONTROL (30 s from the call's start, must fail)", [PY, "am_long_text.py"],
+                        env={"AM_LONG_TEXT_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL whole +default: 3000 characters, 29\.\d+ s of audio, fault True$",
+                                    r"^accent-mini long text: 2 FAILED$"]))
     # ... and the SmarTalk's (st_voice.h): Ctrl-F after the word before each marked word, the parts cut where they
     # are without marks, the TSR's own count of marks passed
     CHECKS.append(check("st_voice: index marks by the TSR's own Ctrl-F", [PY, "st_marks.py"]))

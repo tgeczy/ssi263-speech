@@ -719,7 +719,13 @@ static int far_call(am_host *h, int seg, int off, uint64_t budget, double wait_l
     return 1;
 }
 
-/* _call_step: the CPU's share of one step while a background call runs */
+/* the tests' control (nvda/tools/am_long_text.py): 1 counts a background call's limit from its start, as it was */
+AM_API int amh_call_stall_break = 0;
+
+/* _call_step: the CPU's share of one step while a background call runs.  The call that hands the driver a text runs
+   as long as its speech -- the driver takes characters only as its buffer empties -- so it is stalled only when the
+   card has said nothing for the limit, not when the call is older than it: a text item of 2,600 characters was cut
+   at 30 s mid-sentence, the card rebooted and the rest lost (#67) */
 static int call_step(am_host *h, double dt)
 {
     uint64_t count = steps_for(h, dt);
@@ -734,7 +740,8 @@ static int call_step(am_host *h, double dt)
         h->call = 0;
         w(h, CS, IDLE_SEG);
         w(h, IP, 0);
-    } else if (h->call_waited > h->call_limit) {
+    } else if (h->call_waited > h->call_limit
+               && (amh_call_stall_break || ssi263_time(h->chip) - h->last_speech > h->call_limit)) {
         raise_(h, "driver call still waiting after %.0f s", h->call_waited);
         return -1;
     }

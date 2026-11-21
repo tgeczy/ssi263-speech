@@ -122,6 +122,10 @@ control "as_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^as marks: 1 FAILED$" -- env AS_MARKS_BREAK=3 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
 control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^as marks: 5 FAILED$" -- env AS_MARKS_BREAK=4 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
+# the Accent-mini speaks a long text item whole (#67: cut at 30 s as a stall); its control counts from the call's start
+check "am_voice: a 3,000-character item spoken whole (#67)" python3 nvda/tools/am_long_text.py $B/libssi263_voices.so
+control "am_voice long text CONTROL (30 s from the call's start, must fail)" "^FAIL whole +default: 3000 characters, 29" \
+    "^accent-mini long text: 2 FAILED$" -- env AM_LONG_TEXT_BREAK=1 python3 nvda/tools/am_long_text.py $B/libssi263_voices.so
 # ... and the SmarTalk's (st_voice.h): Ctrl-F after the word before each marked word, the parts cut where they are
 # without marks, the TSR's own count of marks passed (S_TALK.EXE is in the repository: it always runs)
 check "st_voice: index marks by the TSR's own Ctrl-F" python3 nvda/tools/st_marks.py $B/libssi263_voices.so

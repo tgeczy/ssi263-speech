@@ -483,7 +483,9 @@ class Accent:
             self.call = None
             self.w("cs", IDLE_SEG)
             self.w("ip", 0)
-        elif self.call["waited"] > self.call["limit"]:
+        elif self.call["waited"] > self.call["limit"] and self.chip.time - self.last_speech > self.call["limit"]:
+            # stalled only when the card has said nothing for the limit: the call that hands the driver a text runs
+            # as long as its speech (#67, am_host.c call_step)
             raise RuntimeError("driver call %s still waiting after %.0f s" % (self.call["name"], self.call["waited"]))
 
     def _marks_poll(self, sample):

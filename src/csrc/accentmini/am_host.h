@@ -99,6 +99,8 @@ AM_API double amh_get_double(const am_host *h, const char *name);
 AM_API void amh_set_double(am_host *h, const char *name, double v);
 AM_API int amh_get_int(const am_host *h, const char *name);
 AM_API void amh_set_int(am_host *h, const char *name, int v);
+/* the tests' control: 1 takes a background call waiting past its limit for stalled even while the card speaks */
+AM_API extern int amh_call_stall_break;
 AM_API int amh_writes(const am_host *h, const amh_write **writes);   /* with "log_writes": drain it, or it grows */
 AM_API void amh_clear_writes(am_host *h);
 
