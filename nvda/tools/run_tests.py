@@ -532,6 +532,15 @@ if os.path.isfile(_SAPI_VOICES):
                         env={"SSI263_LANG_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^FAIL  ru +409 +en-US$", r"^ok    es +40A ", r"^sapi languages: 17 of 22 FAILED$"]))
 CHECKS.append(check("SAPI settings: every access key its own (#40)", SAPI_KEYS))
+# Unregister on 32-bit Windows too (#43: the x86 DLL was taken off only where SysWOW64 exists), register.ps1's own
+# Unregister-Plan on made-up 64- and 32-bit Windows folders; the control puts the old plan back
+SAPI_UNREG = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+              os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_unregister.ps1")]
+CHECKS.append(check("SAPI unregister: every registered DLL taken off, 32-bit Windows too (#43)", SAPI_UNREG))
+CHECKS.append(check("SAPI unregister CONTROL (the x86 DLL only with SysWOW64, must fail)", SAPI_UNREG,
+                    env={"SSI263_UNREG_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^ok    64-bit ", r"^FAIL  32-bit +no SysWOW64, the x86 DLL: nothing unregistered$",
+                                r"^sapi unregister: 1 FAILED$"]))
 CHECKS.append(check("SAPI settings: access keys CONTROL (Unregister's U as it was, must fail)", SAPI_KEYS,
                     env={"SSI263_MNEMONIC_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^FAIL Alt\+U  &Unregister / Check for &updates\.\.\.$", r"^ok   Alt\+V ",

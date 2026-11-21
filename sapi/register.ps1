@@ -19,6 +19,23 @@ $windir = $env:SystemRoot
 $sys64 = Join-Path $windir 'Sysnative\regsvr32.exe'
 if (!(Test-Path $sys64)) { $sys64 = Join-Path $windir 'System32\regsvr32.exe' }
 $sys32 = Join-Path $windir 'SysWOW64\regsvr32.exe'
+$x64dll = Join-Path $stage 'x64\ssi263_sapi.dll'
+$x86dll = Join-Path $stage 'x86\ssi263_sapi.dll'
+
+# What Unregister runs: (regsvr32, DLL) for each DLL this Windows has registered, as -Register registers them below.
+# A 64-bit Windows (SysWOW64 there): the x64 DLL by the 64-bit regsvr32, the x86 one by SysWOW64's; a 32-bit Windows:
+# the x86 DLL by its only regsvr32.  The 32-bit case was missing, and its COM class stayed registered after an
+# uninstall, pointing at a deleted DLL (#43; sapi\test_unregister.ps1).
+function Unregister-Plan {
+    $plan = @()
+    if (Test-Path $sys32) {
+        if (Test-Path $x64dll) { $plan += ,@($sys64, $x64dll) }
+        if (Test-Path $x86dll) { $plan += ,@($sys32, $x86dll) }
+    } elseif (Test-Path $x86dll) {
+        $plan += ,@($sys64, $x86dll)
+    }
+    return ,$plan
+}
 
 function Remove-Voices {
     foreach ($view in $views) {
@@ -66,8 +83,7 @@ function Language-Code([string]$lang) {
 
 if ($Unregister) {
     Remove-Voices
-    if (Test-Path (Join-Path $stage 'x64\ssi263_sapi.dll')) { & $sys64 /s /u (Join-Path $stage 'x64\ssi263_sapi.dll') }
-    if ((Test-Path $sys32) -and (Test-Path (Join-Path $stage 'x86\ssi263_sapi.dll'))) { & $sys32 /s /u (Join-Path $stage 'x86\ssi263_sapi.dll') }
+    foreach ($step in (Unregister-Plan)) { & $step[0] /s /u $step[1] }
     Write-Host 'SSI-263 SAPI voices removed.'
     exit 0
 }
@@ -75,8 +91,6 @@ if (!$Register) { Write-Host 'Use -Register or -Unregister (elevated).'; exit 2 
 
 # The COM class, in each view: the x64 DLL for 64-bit programs, the x86 DLL for 32-bit ones.  A 32-bit Windows has
 # only the x86 DLL (no SysWOW64 there: its own regsvr32 is the 32-bit one).
-$x64dll = Join-Path $stage 'x64\ssi263_sapi.dll'
-$x86dll = Join-Path $stage 'x86\ssi263_sapi.dll'
 if (Test-Path $sys32) {
     if (Test-Path $x64dll) {
         $p = Start-Process -FilePath $sys64 -ArgumentList @('/s', "`"$x64dll`"") -Wait -PassThru
