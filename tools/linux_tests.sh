@@ -376,9 +376,10 @@ control "module CONTROL (SSI263BrailleLiteNumbers ignored, must fail)" "^num_dfl
     "^num_es +module .*identical" "^num_user +module .*identical" "^num_off +module .*DIFFER" \
     "^num_es_off +module .*DIFFER" "^$((N - 2)) of $N checks passed" -- env SD_SSI263_TEST_IGNORE_BL_NUMBERS=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
-# the line-start lift's key (SSI263LineLift) dropped on its way to the voice: only lift fails
+# the line-start lift's key (SSI263LineLift) dropped on its way to the voice: only lift and lift_stp (#46) fail
 control "module CONTROL (SSI263LineLift ignored, must fail)" "^ra_sys +module .*identical" \
-    "^lift +module .*DIFFER" "^$((N - 1)) of $N checks passed" -- env SD_SSI263_TEST_IGNORE_LINE_LIFT=1 \
+    "^lift +module .*DIFFER" "^lift_stp module .*DIFFER" "^$((N - 2)) of $N checks passed" \
+    -- env SD_SSI263_TEST_IGNORE_LINE_LIFT=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 # the Accent's own key (SSI263AccentInflection) dropped on its way to the Accent-PC: only as_infl fails
 control "module CONTROL (SSI263AccentInflection ignored, must fail)" "^as_speak +module .*identical" \
