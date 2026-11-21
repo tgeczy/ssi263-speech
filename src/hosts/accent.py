@@ -431,7 +431,7 @@ class Accent:
         carries on with it step for step -- the same steps, so the same audio -- handing the
         host what the card says while the driver is still taking the text."""
         self.stopped = None
-        sp0 = self.r("sp")
+        sp0, ss0 = self.r("sp"), self.r("ss")
         self._push(BIOS_SEG)
         self._push(RETURN_OFF)
         self.w("cs", seg)
@@ -444,7 +444,8 @@ class Accent:
         if background and not self.stopped and self.r("cs") * 16 + self.r("ip") != ret:
             # the client pushed CX (characters left) just below the return address
             self.call = {"name": "%04X:%04X" % (seg, off), "waited": 0.0, "limit": wait_limit,
-                         "cx_at": self.r("ss") * 16 + ((sp0 - 6) & 0xFFFF)}
+                         "cx_at": ss0 * 16 + ((sp0 - 6) & 0xFFFF)}   # the call's own stack: the driver
+                                                                      # is on its own by now (am_host.c)
             return False
         while not self.stopped and self.r("cs") * 16 + self.r("ip") != ret:
             if waited > wait_limit:

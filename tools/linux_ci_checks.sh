@@ -126,6 +126,10 @@ control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL 
 check "am_voice: a 3,000-character item spoken whole (#67)" python3 nvda/tools/am_long_text.py $B/libssi263_voices.so
 control "am_voice long text CONTROL (30 s from the call's start, must fail)" "^FAIL whole +default: 3000 characters, 29" \
     "^accent-mini long text: 2 FAILED$" -- env AM_LONG_TEXT_BREAK=1 python3 nvda/tools/am_long_text.py $B/libssi263_voices.so
+# a cancel while the driver still takes a long text stops at once (the stack slot); its control: the driver's segment
+check "am_voice: a cancel during a long text stops at once" python3 nvda/tools/am_cancel_capital.py $B/libssi263_voices.so
+control "am_voice cancel CONTROL (the count slot in the driver's segment, must fail)" "^FAIL plain " \
+    "^accent-mini cancel: 1 FAILED$" -- env AM_CANCEL_CAPITAL_BREAK=ss python3 nvda/tools/am_cancel_capital.py $B/libssi263_voices.so
 # ... and the SmarTalk's (st_voice.h): Ctrl-F after the word before each marked word, the parts cut where they are
 # without marks, the TSR's own count of marks passed (S_TALK.EXE is in the repository: it always runs)
 check "st_voice: index marks by the TSR's own Ctrl-F" python3 nvda/tools/st_marks.py $B/libssi263_voices.so

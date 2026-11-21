@@ -670,12 +670,13 @@ static double dt_since(am_host *h, double before)
    background: such a call is left running.  1 when it returned, 0 when left in the background, -1 on a fault. */
 static int far_call(am_host *h, int seg, int off, uint64_t budget, double wait_limit, double step, int background)
 {
-    int sp0;
+    int sp0, ss0;
     double waited = 0.0;
     if (h->fault)
         return -1;
     h->stopped = 0;
     sp0 = r(h, SP);
+    ss0 = r(h, SS);
     push(h, BIOS_SEG);
     push(h, RETURN_OFF);
     w(h, CS, seg);
@@ -684,11 +685,15 @@ static int far_call(am_host *h, int seg, int off, uint64_t budget, double wait_l
     if (h->fault)
         return -1;
     if (background && !h->stopped && here(h) != RET_LINEAR) {
-        /* the client pushed CX (characters left) just below the return address */
+        /* the client pushed CX (characters left) just below the return address -- on the stack the call began on.
+           By now the driver is inside its INT 17h on a stack of its own (SS 0800h): the slot was taken in that
+           segment, so drop_call's "stop after this character" was written elsewhere, and every cancel while the
+           driver still took a text ran the rest of it through the card (2,400 characters: 42 s of card time;
+           nvda/tools/am_cancel_capital.py).  (amh_drop_ss_break = 1, the test's control: the SS of now.) */
         h->call = 1;
         h->call_waited = 0.0;
         h->call_limit = wait_limit;
-        h->cx_at = (unsigned long)r(h, SS) * 16 + (unsigned long)((sp0 - 6) & 0xFFFF);
+        h->cx_at = (unsigned long)(amh_drop_ss_break ? r(h, SS) : ss0) * 16 + (unsigned long)((sp0 - 6) & 0xFFFF);
         return 0;
     }
     while (!h->stopped && here(h) != RET_LINEAR) {
@@ -721,6 +726,9 @@ static int far_call(am_host *h, int seg, int off, uint64_t budget, double wait_l
 
 /* the tests' control (nvda/tools/am_long_text.py): 1 counts a background call's limit from its start, as it was */
 AM_API int amh_call_stall_break = 0;
+/* the tests' control (nvda/tools/am_cancel_capital.py): 1 takes the client's CX slot in the stack segment the driver
+   is on when the call is left running, as it was */
+AM_API int amh_drop_ss_break = 0;
 
 /* _call_step: the CPU's share of one step while a background call runs.  The call that hands the driver a text runs
    as long as its speech -- the driver takes characters only as its buffer empties -- so it is stalled only when the
