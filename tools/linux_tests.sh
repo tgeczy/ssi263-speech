@@ -876,6 +876,11 @@ control "as_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^as marks: 1 FAILED$" -- env AS_MARKS_BREAK=3 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
 control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^as marks: 5 FAILED$" -- env AS_MARKS_BREAK=4 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
+# the Accent-PC voice gives back its marks' memory when destroyed (#79), under LeakSanitizer; its control leaves it
+check "as_voice: a destroyed unit keeps none of its marks' memory (#79)" python3 tools/check_as_marks_leak.py build/linux/libssi263_voices.so
+control "as_voice marks leak CONTROL (the three arrays left, must fail)" \
+    "^FAIL  leaks after three units destroyed: SUMMARY: LeakSanitizer: 384 byte" "^as marks leak: FAILED$" \
+    -- env AS_LEAK_BREAK=1 python3 tools/check_as_marks_leak.py build/linux/libssi263_voices.so
 # ... and the Accent-mini's (am_voice.h): Ctrl-F after the word before each marked word, the driver's own count of
 # marks passed read from its memory (SPKEMS.DVC is in the repository: it always runs)
 check "am_voice: index marks by the driver's own Ctrl-F" python3 nvda/tools/am_marks.py build/linux/libssi263_voices.so

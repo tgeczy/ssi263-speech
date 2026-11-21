@@ -156,6 +156,13 @@ AS_API void asv_destroy(as_voice *v)
     free_roms(v);
     free(v->pcm);
     free(v->held);
+    if (!getenv("AS_LEAK_BREAK")) {              /* (the test's control: left, as they were) */
+        /* the index marks' arrays (take_marks, report_marks): a unit destroyed after every marked utterance, as the
+           Android app's, kept them all (#79; tools/check_as_marks_leak.py) */
+        free(v->mk);
+        free(v->wait);
+        free(v->reached);
+    }
     free(v);
 }
 
