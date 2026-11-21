@@ -61,7 +61,7 @@ int bh_trace_on;
 #define FFLASH_SIZE 0x200000UL               /* the file flash: a 29F016 */
 #define FFLASH_OLD 0x80000UL                 /* a state saved before the 2 MB chip: its first 512 KB */
 #define MAX_KEYS 64
-#define FIFO 0x10000
+#define FIFO 0x10000                         /* the serial input queue's first size; it grows (#36) */
 
 struct bl_unit {
     unsigned char *flash, *ram, *fflash;
@@ -76,6 +76,7 @@ struct bl_unit {
     unsigned long long ssi_ready_at;
     unsigned char *lfifo;
     unsigned lhead, ltail;
+    unsigned fcap;                           /* lfifo's size: a power of two, FIFO or more */
     int urgent, host_xoff;
     unsigned long long key_at[MAX_KEYS];
     unsigned char key_val[MAX_KEYS], key_latch;
@@ -383,9 +384,9 @@ static int asci_rx(void *ctx, int channel)
         }
         if (channel != 0 || u->lhead == u->ltail || u->host_xoff)
             return -1;
-        TR("RX %llu %02X left=%u\n", (unsigned long long)now_t(u), u->lfifo[u->ltail & (FIFO - 1)],
+        TR("RX %llu %02X left=%u\n", (unsigned long long)now_t(u), u->lfifo[u->ltail & (u->fcap - 1)],
            u->lhead - u->ltail - 1);
-        return u->lfifo[u->ltail++ & (FIFO - 1)];
+        return u->lfifo[u->ltail++ & (u->fcap - 1)];
     }
     return -1;                               /* before live mode nothing is queued (bns: no --serial in live runs) */
 }
@@ -493,6 +494,7 @@ bl_unit *bl_create(const char *firmware, const char *state, double phon_ms,
     u->ram = (unsigned char *)calloc(1, 0x100000);
     u->fflash = (unsigned char *)malloc(FFLASH_SIZE);
     u->lfifo = (unsigned char *)malloc(FIFO);
+    u->fcap = FIFO;
     if (!u->flash || !u->ram || !u->fflash || !u->lfifo) { snprintf(err, errlen, "out of memory"); bl_destroy(u); return NULL; }
     u->ff.data = u->fflash;                  /* an Am29F016 (the firmware never reads its ID) */
     u->ff.size = FFLASH_SIZE;
@@ -714,12 +716,41 @@ void bl_set_ar(bl_unit *u, int requesting)
     ar_line(u);
 }
 
+/* The queue made at least `need` bytes, what is unread kept in order (#36: it was a fixed 64 KB ring with no check
+   against what the unit had read, and one utterance over 64 KB overwrote its own start).  0 when out of memory. */
+static int fifo_grow(bl_unit *u, unsigned need)
+{
+    unsigned cap = u->fcap, used = u->lhead - u->ltail, k;
+    unsigned char *q;
+    while (cap < need) {
+        if (cap >= 0x40000000u)
+            return 0;
+        cap <<= 1;
+    }
+    q = (unsigned char *)malloc(cap);
+    if (!q)
+        return 0;
+    for (k = 0; k < used; k++)
+        q[k] = u->lfifo[(u->ltail + k) & (u->fcap - 1)];
+    free(u->lfifo);
+    u->lfifo = q;
+    u->fcap = cap;
+    u->ltail = 0;
+    u->lhead = used;
+    return 1;
+}
+
 void bl_queue(bl_unit *u, const unsigned char *bytes, int n)
 {
     int i;
+    unsigned used = u->lhead - u->ltail;
     TR("Q %llu n=%d\n", (unsigned long long)now_t(u), n);
+    if (n <= 0)
+        return;
+    if (used + (unsigned)n > u->fcap && !fifo_grow(u, used + (unsigned)n))
+        n = (int)(u->fcap - used);           /* out of memory: what fits, never over what the unit has not read */
     for (i = 0; i < n; i++)
-        u->lfifo[u->lhead++ & (FIFO - 1)] = bytes[i];
+        u->lfifo[u->lhead++ & (u->fcap - 1)] = bytes[i];
 }
 
 void bl_urgent(bl_unit *u, int byte)
@@ -733,7 +764,7 @@ int bl_drop(bl_unit *u)
     int n6 = 0;
     TR("DROP %llu n=%u\n", (unsigned long long)now_t(u), u->lhead - u->ltail);
     while (u->ltail != u->lhead) {
-        if (u->lfifo[u->ltail & (FIFO - 1)] == 0x06)
+        if (u->lfifo[u->ltail & (u->fcap - 1)] == 0x06)
             n6++;
         u->ltail++;
     }

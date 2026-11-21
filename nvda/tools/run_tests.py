@@ -532,6 +532,17 @@ if os.path.isfile(os.path.join(LIB, "bl_live.exe")):
     CHECKS.append(check("library board: two units in one process", [os.path.join(LIB, "test_bl_board.exe"),
                         os.path.join(ENG, "BL2ENG.BNS"), os.path.join(ENG, "bl2_2003_warm.state"),
                         os.path.join(ENG, "BL2SPA.BNS"), os.path.join(ENG, "bl2spa_fresh.state")]))
+    # the board's serial input queue (#36): one utterance over 64 KB overwrote its own start (a fixed ring with no
+    # check against what the unit had read); test_bl_fifo.exe reads it back as the unit does, up to 300,000 bytes.
+    # The control (fifo_control.py) builds the 64 KB ring back into it: "sizes" must fail
+    if os.path.isfile(os.path.join(LIB, "test_bl_fifo.exe")):
+        CHECKS.append(check("library board: the serial input queue keeps a long utterance whole (#36)",
+                            [os.path.join(LIB, "test_bl_fifo.exe"), os.path.join(ENG, "BL2ENG.BNS")]))
+        CHECKS.append(check("library board: serial input queue CONTROL (the 64 KB ring, must fail)",
+                            [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "blazie",
+                                              "fifo_control.py"), os.path.join(ENG, "BL2ENG.BNS")],
+                            ok=lambda out: bool(re.search(r"^FAIL sizes +70000 bytes queued", out, re.M))
+                            and bool(re.search(r"^fifo control: failed as it must", out, re.M))))
     # CONTRACT.md 3: the legacy path's own exceptions (src/csrc/cpu/test_z180_legacy.c) -- a development reference
     # since 0.7, built only by build_board.py --legacy-tests (with a z180emu checkout): run when it is there
     if os.path.isfile(os.path.join(LIB, "test_z180_legacy.exe")):

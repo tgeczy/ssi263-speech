@@ -43,6 +43,9 @@ if [ "$DATA" != "$ROOT/nvda/dist/blazie-build/synthDrivers/_ssi263_blazie" ]; th
 fi
 check "two units in one process (MAME Z180)" ./build/linux/test_bl_board "$DATA/BL2ENG.BNS" \
     "$DATA/bl2_2003_warm.state" "$DATA/BL2SPA.BNS" "$DATA/bl2spa_fresh.state"
+# the board's serial input queue (#36): an utterance over 64 KB kept whole; the control builds the 64 KB ring back
+check "the serial input queue keeps a long utterance whole (#36)" ./build/linux/test_bl_fifo "$DATA/BL2ENG.BNS"
+check "serial input queue CONTROL (the 64 KB ring, must fail)" python3 src/csrc/blazie/fifo_control.py "$DATA/BL2ENG.BNS"
 check "CPU contract tests (MAME Z180 core)" ./build/linux/test_z180_contract
 check "white-box tests (MAME Z180 core)" ./build/linux/test_z180_whitebox
 check "CPU contract tests (MAME 8085 core)" ./build/linux/test_i8085_contract

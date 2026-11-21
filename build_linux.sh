@@ -71,6 +71,9 @@ $CXX -shared $SHARED_CXX -o "$OUT/libssi263speech.so" $LIB_OBJS -lm
 # two units in one process, on the shipping board
 $CC -O3 -std=gnu89 -ffp-contract=off -I$SRC/blazie -I$SRC/cpu -I$SRC -c -o "$OUT/test_bl_board.o" "$SRC/blazie/test_bl_board.c"
 $CXX -o "$OUT/test_bl_board" "$OUT/test_bl_board.o" $BOARD_OBJS -lm
+# the serial input queue (#36): test_bl_fifo.c includes bl_board.c itself, so the board's other objects only
+$CC -O3 -std=gnu89 -ffp-contract=off -DBL_Z180_MAME -I$SRC/blazie -I$SRC/cpu -I$SRC -c -o "$OUT/test_bl_fifo.o" "$SRC/blazie/test_bl_fifo.c"
+$CXX -o "$OUT/test_bl_fifo" "$OUT/test_bl_fifo.o" $(echo $BOARD_OBJS | tr ' ' '\n' | grep -v "/bl_board.o$") -lm
 # (the speech-dispatcher module is linked below, after the other engines' objects)
 rm -f "$OUT/test_bl_board_mame"                     # the old name of test_bl_board on MAME
 

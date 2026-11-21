@@ -49,6 +49,7 @@ def build_mame(gcc, env):
             ("bl_serial", os.path.join(HERE, "bl_serial.c"), gcc, ["-O3", "-std=gnu89"]),
             ("bl_live", os.path.join(HERE, "bl_live.c"), gcc, ["-O3", "-std=gnu89"]),
             ("test_bl_board", os.path.join(HERE, "test_bl_board.c"), gcc, ["-O3", "-std=gnu89"]),
+            ("test_bl_fifo", os.path.join(HERE, "test_bl_fifo.c"), gcc, ["-O3", "-std=gnu89", "-DBL_Z180_MAME"]),
             ("test_z180_contract", os.path.join(cpu, "test_z180_contract.c"), gcc, ["-O2", "-std=gnu89"]),
             ("i8085_mame", os.path.join(cpu, "i8085_mame.cpp"), gxx, MAME_CXX + ["-Wno-sign-compare"]),
             ("test_i8085_contract", os.path.join(cpu, "test_i8085_contract.c"), gcc, ["-O2", "-std=gnu89"]),
@@ -64,6 +65,9 @@ def build_mame(gcc, env):
     core = [objs["bl_board"], objs["flash29"], objs["bl_clock"], objs["bl_rtc6242"], objs["bl_serial"], objs["z180_mame"], objs["z180_asci"]]
     for exe, main_o in (("bl_live_mame.exe", "bl_live"), ("test_bl_board_mame.exe", "test_bl_board")):
         subprocess.run([gxx] + MAME_LINK + ["-o", os.path.join(OUT, exe), objs[main_o]] + core, env=env, check=True)
+    # the serial input queue (#36): test_bl_fifo.c includes bl_board.c itself, to read the queue as the unit does
+    subprocess.run([gxx] + MAME_LINK + ["-o", os.path.join(OUT, "test_bl_fifo.exe"), objs["test_bl_fifo"]]
+                   + [o for o in core if o != objs["bl_board"]], env=env, check=True)
     # the CPU contract's tests (no board): ../cpu/test_z180_contract.c
     subprocess.run([gxx] + MAME_LINK + ["-o", os.path.join(OUT, "test_z180_contract.exe"), objs["test_z180_contract"],
                                         objs["z180_mame"], objs["z180_asci"]], env=env, check=True)
