@@ -37,8 +37,11 @@ VARIANTS = {
     "the second marker ends it": ("bl_host.c", "                h->lift = 0;                           /* the second",
                                   "                h->lift = 2;                           /* the second", ["lifted", "pause"]),
     # every utterance lifted, queued ones too: say-all would lift each line
-    "only after a cancel": ("bl_voice.c", "        v->lift_next = 0;\n", "", ["say_all"]),
+    "only after a cancel": ("bl_voice.c", "        v->lift_next = 0;\n", "", ["read_on", "say_all"]),
     "or after a pause": ("bl_voice.c", "blv_clock() - v->quiet_since >= LIFT_PAUSE_S", "0", ["pause"]),
+    # the pause counted from the end of rendering, as it was (#77): a line read on, heard to its end, is lifted
+    "the pause is the listener's": ("bl_voice.c", "v->quiet_since = v->play_end > now ? v->play_end : now;",
+                                    "v->quiet_since = now;", ["read_on"]),
 }
 
 

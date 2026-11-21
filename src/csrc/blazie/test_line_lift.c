@@ -6,8 +6,12 @@
  * dot 4 + space -- the unit lifts the start of each line moved to.  Then the voice (bl_voice) speaks the same lines:
  *   lifted        lift on, each line after a cancel (moving by line while speech goes on): every lifted line start's
  *                 first six phonemes, and the pitch byte at each, as note-taking mode's
- *   pause         lift on, each line after a second of silence and no cancel (moving by line in a pause): the same
+ *   pause         lift on, each line a second after the one before was heard, no cancel (moving by line in a
+ *                 pause): the same
  *   say_all       lift on, the lines queued with no cancel or pause between them: none lifted after the first
+ *   read_on       lift on, each line sent a tenth of a second after the one before was heard (reading on, as a
+ *                 server sends the next message once the last has played; the voice renders far ahead of the
+ *                 ear): none lifted after the first.  The pause is the listener's, not the renderer's (#77)
  *   off           lift off (the default): none lifted
  *   inflection    lift on, the unit's voice inflection off: none lifted (the firmware drops its markers)
  * Lines are matched by their first six phonemes (the voice's punctuation is none, note-taking mode's some: a line
@@ -27,7 +31,7 @@
 #define KEY_GAP_S 2.5          /* the unit's time between keys */
 
 typedef struct { int n; int ph[FIRST], r1[FIRST]; } opening;
-enum { QUEUED, CANCEL, PAUSE };
+enum { QUEUED, CANCEL, PAUSE, READ_ON };
 
 static int failures;
 static double g_now;                                     /* the voice's clock (blv_clock), moved by the test only */
@@ -110,8 +114,9 @@ static int help_lines(const char *fw, char lines[][128], int max)
     return k > 0 ? k - 1 : 0;
 }
 
-/* the voice speaking the lines: how = QUEUED (one after the other), CANCEL (a cancel before each), PAUSE (a second
-   of the voice's clock before each) */
+/* the voice speaking the lines: how = QUEUED (one after the other), CANCEL (a cancel before each), PAUSE (the voice's
+   clock moved on by the line before as heard, then a second), READ_ON (as heard, then a tenth of a second).  The
+   clock stands still while the voice renders: rendering takes no listener's time */
 static int voice_run(const char *fw, const char *st, int lift, int how, int inflection, char lines[][128], int nl,
                      opening *out, int *base)
 {
@@ -119,6 +124,7 @@ static int voice_run(const char *fw, const char *st, int lift, int how, int infl
     bl_voice *v = blv_create(fw, st, 0, RATE, inflection, 0, err, (int)sizeof err);
     const bh_write *w;
     int k, n;
+    double heard = 0.0;                                  /* the line before, as played */
     if (!v) {
         printf("FAIL voice: %s\n", err);
         exit(1);
@@ -127,16 +133,20 @@ static int voice_run(const char *fw, const char *st, int lift, int how, int infl
     blv_set_line_lift(v, lift);
     for (k = 0; k < nl; k++) {
         int done = 0, guard = 0;
+        long samples = 0;
         const short *pcm;
         if (how == CANCEL)
             blv_cancel(v);
         else if (how == PAUSE)
-            g_now += 1.0;
+            g_now += heard + 1.0;
+        else if (how == READ_ON)
+            g_now += heard + 0.1;
         if (k == 1 || (k == 0 && how == CANCEL))
             bh_set_int(blv_host(v), "log_writes", 1);     /* from the second line (the first is always lifted) */
         blv_speak(v, lines[k]);
         while (!done && guard++ < 4000)
-            blv_render(v, &pcm, &done);
+            samples += blv_render(v, &pcm, &done);
+        heard = (double)samples / RATE;
     }
     n = bh_writes(blv_host(v), &w);
     *base = -1;
@@ -236,6 +246,12 @@ int main(int argc, char **argv)
         any += lifted(&got[k], base);
     snprintf(d, sizeof d, "%d of %d queued lines lifted", any, ngot);
     check("say_all", ngot >= 8 && any == 0, d);
+
+    ngot = voice_run(argv[1], argv[2], 1, READ_ON, 1, lines, nl, got, &base);
+    for (k = 0, any = 0; k < ngot; k++)
+        any += lifted(&got[k], base);
+    snprintf(d, sizeof d, "%d of %d lines read on lifted (each sent 0.1 s after the last was heard)", any, ngot);
+    check("read_on", ngot >= 8 && any == 0, d);
 
     ngot = voice_run(argv[1], argv[2], 0, CANCEL, 1, lines, nl, got, &base);
     for (k = 0, any = 0; k < ngot; k++)

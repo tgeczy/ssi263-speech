@@ -55,6 +55,7 @@ struct bl_voice {
     int lead, active;
     int line_lift, lift_next;     /* blv_set_line_lift; the next utterance comes after a cancel (or is the first) */
     double quiet_since;           /* blv_clock() when the last utterance ended; < 0 while one is under way */
+    double out_rate, play_end;    /* blv_clock() when the listener will have heard all the audio handed out */
     double tail;                  /* seconds rendered after the unit was done, its last sound decaying */
     int fault;                    /* the host refused or failed an utterance (bh_say/bh_busy < 0: run ahead's sticky
                                      faults, Astra's Reply 112); the next blv_speak recovers with bh_cancel first */
@@ -133,6 +134,8 @@ BL_API bl_voice *blv_create(const char *firmware, const char *state, int encodin
     v->rate = 50; v->pitch = 50; v->tone = DEFAULT_TONE; v->volume = 100; v->pack = 1;
     v->lift_next = 1;
     v->quiet_since = -1.0;
+    v->out_rate = out_rate;
+    v->play_end = 0.0;
     return v;
 }
 
@@ -1048,8 +1051,12 @@ BL_API int blv_render(bl_voice *v, const short **pcm, int *done)
         v->pcm = b;
         v->pcm_cap = n - start;
     }
-    if (n > start)
+    if (n > start) {
+        double now = blv_clock();
         ssi_pcm16(y + start, n - start, v->gain, v->pcm);
+        /* _feed: a device plays from the first block, in real time, each block after the one before */
+        v->play_end = (v->play_end > now ? v->play_end : now) + (n - start) / v->out_rate;
+    }
     *pcm = v->pcm;
     *done = 0;
     {
@@ -1072,7 +1079,13 @@ BL_API int blv_render(bl_voice *v, const short **pcm, int *done)
         if (busy <= 0) {
             v->active = 0;
             *done = 1;
-            v->quiet_since = blv_clock();
+            /* quiet once the listener has heard it all (blazie.py), not once it is rendered: the callers render
+               ahead of the ear (speech-dispatcher's module a whole message, voices.c eight blocks a mark), and a
+               line read on was taken for one spoken into a pause and lifted (#77) */
+            {
+                double now = blv_clock();
+                v->quiet_since = v->play_end > now ? v->play_end : now;
+            }
         }
         report_marks(v, start, n - start, busy <= 0);
     }
@@ -1083,6 +1096,7 @@ BL_API void blv_cancel(bl_voice *v)
 {
     bh_cancel(v->host, 3.0, -1.0, -1.0);
     v->lift_next = 1;
+    v->play_end = 0.0;                               /* the caller drops what it had */
     v->active = 0;
     if (blv_marks_break != 3)
         v->n_mk = v->n_reached = 0;                  /* no mark of a cancelled text is reported */
