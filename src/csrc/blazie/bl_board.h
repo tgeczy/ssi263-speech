@@ -67,6 +67,8 @@ unsigned long long bl_cycles(const bl_unit *u);              /* CPU cycles so fa
 /* how fast the host runs the CPU against real time from now on (its turbo; 1 at its own speed): the clock chips
    keep real time (#78) */
 void bl_clock_speed(bl_unit *u, double speed);
+/* time the unit's clock kept while the host ran nothing (a suspend): added, as for a unit switched off (#86) */
+void bl_clock_advance(bl_unit *u, long long seconds);
 /* the last value the firmware wrote to port A0 (0 before any).  Bit 1 is the speech channel's power, watched on the
    running firmware (English and Spanish): set ~0.26 s before a line's first phoneme when the channel was off, cleared
    with R3 = 00 when the firmware clicks the channel off (~10 s after the last phoneme).  The emulator's idle sounds

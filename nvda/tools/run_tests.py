@@ -873,6 +873,13 @@ if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
                          os.path.join(ENG, "bl2_2003_warm.state")], env={"EMU_QUICK_CLOCK_BREAK": "1"},
                         expect_fail=True, fail_marks=[r"^FAIL clock keeps time +twelve keys with quick key response: "
                                                       r"the clock [2-9] s off", r"^ok +quick key response ", r"^FAILED$"]))
+    # #86: an hour's sleep of the computer under a running unit moves its clock that hour (test_emu_unit's "clock over
+    # a sleep"); the control loses it, as the shells did
+    CHECKS.append(check("Blazie emulator: the clock over a sleep CONTROL (the sleep lost, must fail)",
+                        [os.path.join(EMU, "test_emu_unit.exe"), "bl", os.path.join(ENG, "BL2ENG.BNS"),
+                         os.path.join(ENG, "bl2_2003_warm.state")], env={"EMU_SLEEP_BREAK": "1"},
+                        expect_fail=True, fail_marks=[r"^FAIL clock over a sleep +an hour's sleep of the computer: the "
+                                                      r"clock moved 0 s", r"^ok +clock keeps time ", r"^FAILED$"]))
     CHECKS.append(check("Blazie emulator: the Spanish unit, headless", [os.path.join(EMU, "test_emu_unit.exe"), "bl",
                         os.path.join(ENG, "BL2SPA.BNS"), os.path.join(ENG, "bl2spa_fresh.state")]))
     # the German and Italian Braille Lite 2000 in the emulator (its Firmware menu, 0.8), from the firmware folder; the

@@ -468,6 +468,10 @@ check "emulator: the unit headless (Type 'n Speak)" ./build/linux/test_emu_unit 
 control "emulator: a save whole or not at all CONTROL (saved in place, must fail)" \
     "^FAIL save whole +cut short: returned 1, the last state CHANGED" "^ok +switched off and on " "^FAILED$" \
     -- env EMU_SAVE_WHOLE_BREAK=1 ./build/linux/test_emu_unit bl "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state"
+# #86: an hour's sleep of the computer moves the unit's clock that hour; its control loses it
+control "emulator: the clock over a sleep CONTROL (the sleep lost, must fail)" \
+    "^FAIL clock over a sleep +an hour's sleep of the computer: the clock moved 0 s" "^FAILED$" \
+    -- env EMU_SLEEP_BREAK=1 ./build/linux/test_emu_unit tns "$TNS" -
 # #78: the clock keeps the chip's time with quick key response; its control counts the fast cycles again
 control "emulator: the clock with quick key response CONTROL (the fast cycles counted, must fail)" \
     "^FAIL clock keeps time +twelve keys with quick key response: the clock [2-9] s off" "^FAILED$" \

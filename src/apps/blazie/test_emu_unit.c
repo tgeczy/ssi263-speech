@@ -166,6 +166,36 @@ static double key_latency(const char *fw, const char *st, int quick)
    Lite, emu_unit.c for the Type 'n Speak */
 static char g_clock_seen[96];               /* the two readings, for the check's message */
 
+/* a computer's sleep under a running unit: the host's time jumps an hour between two blocks.  The unit's clock
+   must have moved that hour on (the time an emulator was closed is added at its next start, a sleep was lost for
+   good, #86).  The seconds it moved over that block; EMU_SLEEP_BREAK=1 (the control): the sleep lost, as it was */
+static long clock_over_sleep(const char *fw, const char *st)
+{
+    char err[256];
+    emu_unit *u;
+    int block = RATE / 100, i;
+    short buf[RATE / 100];
+    blc_time a, b;
+    long ca, cb;
+    emu_fake_host_time(1700000000LL);           /* 2023-11-14 22:13:20 UTC, mid-day enough for an hour */
+    u = make(fw, st, err, sizeof err);
+    if (!u) {
+        printf("FAIL create: %s\n", err);
+        exit(1);
+    }
+    for (i = 0; i < 200; i++)
+        emu_render(u, buf, block);
+    emu_clock_time(u, 0, &a);
+    emu_fake_host_time(1700000000LL + 3600);    /* the lid shut for an hour */
+    emu_render(u, buf, block);
+    emu_clock_time(u, 0, &b);
+    emu_destroy(u);
+    emu_fake_host_time(-1);
+    ca = ((a.day * 24L + a.hour) * 60 + a.minute) * 60 + a.second;
+    cb = ((b.day * 24L + b.hour) * 60 + b.minute) * 60 + b.second;
+    return cb - ca;
+}
+
 static long clock_gain(const char *fw, const char *st)
 {
     char err[256];
@@ -318,6 +348,11 @@ int main(int argc, char **argv)
         snprintf(d, sizeof d, "twelve keys with quick key response: the clock %ld s off the chip's time (%s)", gain,
                  g_clock_seen);
         check("clock keeps time", gain >= -1 && gain <= 1, d);
+    }
+    {
+        long moved = clock_over_sleep(fw, ready);
+        snprintf(d, sizeof d, "an hour's sleep of the computer: the clock moved %ld s over the next block", moved);
+        check("clock over a sleep", moved >= 3599 && moved <= 3601, d);
     }
     {   /* switched off and on: the saved memory is the state format, and the unit boots from it and speaks */
         char err[256], path[64];     /* per process: run_tests runs the bl and tns checks side by side */

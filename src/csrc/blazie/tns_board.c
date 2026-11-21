@@ -414,6 +414,12 @@ int tns_save_state(const tns_unit *u, const char *path)
     return fclose(s) == 0 && ok;
 }
 
+void tns_clock_advance(tns_unit *u, long long seconds)
+{
+    if (seconds > 0 && u->clk)
+        blc_advance_off(u->clk, (double)seconds);
+}
+
 void tns_clock_speed(tns_unit *u, double speed)
 {
     if (speed == u->clock_div)

@@ -918,6 +918,16 @@ int bl_clock_on(bl_unit *u, const blc_time *now, long long unix_now)
     return 1;
 }
 
+void bl_clock_advance(bl_unit *u, long long seconds)
+{
+    if (seconds <= 0)
+        return;
+    if (u->model == BL_MODEL_BNS640)
+        blr_advance_off(&u->rtc, seconds);
+    else if (u->clk)
+        blc_advance_off(u->clk, (double)seconds);
+}
+
 void bl_clock_speed(bl_unit *u, double speed)
 {
     if (speed == u->clock_div)

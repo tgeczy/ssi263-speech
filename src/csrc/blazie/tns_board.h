@@ -69,6 +69,8 @@ void tns_clock_wall(tns_unit *u, long long unix_now);
 /* how fast the emulator runs the CPU against real time from now on (quick key response; 1 at its own speed): the
    clock keeps real time (#78) */
 void tns_clock_speed(tns_unit *u, double speed);
+/* time the clock kept while the host ran nothing (a suspend), added (#86) */
+void tns_clock_advance(tns_unit *u, long long seconds);
 /* tests: which 0, the 1 MB address space's RAM (the program at its start); which 1, the 4 MB file flash; the size */
 int  tns_memory(const tns_unit *u, int which, const unsigned char **bytes);
 

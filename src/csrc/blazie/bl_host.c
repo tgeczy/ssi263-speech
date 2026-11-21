@@ -1210,6 +1210,11 @@ int bh_clock_time(const bl_host *h, int alarm, blc_time *t)
     return bl_clock_time(h->unit, alarm, t);
 }
 
+void bh_clock_advance(bl_host *h, long long seconds)
+{
+    bl_clock_advance(h->unit, seconds);
+}
+
 void bh_clock_wall(bl_host *h, long long unix_now)
 {
     bl_clock_wall(h->unit, unix_now);

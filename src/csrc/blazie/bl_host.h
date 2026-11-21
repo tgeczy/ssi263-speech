@@ -140,6 +140,8 @@ BL_API extern int bh_clock_hurry_break;     /* the tests' control: the turbo's c
 BL_API extern int bh_lowpass_break;         /* the tests' control: the board low-pass kept above Nyquist (#81) */
 BL_API int bh_clock_time(const bl_host *h, int alarm, blc_time *t);
 BL_API void bh_clock_wall(bl_host *h, long long unix_now);
+/* time the unit's clock kept while the host ran nothing (a suspend), added (#86) */
+BL_API void bh_clock_advance(bl_host *h, long long seconds);
 BL_API int bh_starts(const bl_host *h);     /* bl_starts: the firmware's starts so far */
 
 #ifdef __cplusplus

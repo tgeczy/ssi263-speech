@@ -180,6 +180,7 @@ struct emu_unit {
     int bars_up_wanted;             /* let go by the hand, still down until EMU_BAR_MIN_S has passed */
     int bar_chord;                  /* a chord typed with a bar: given once the firmware has the bar */
     double hold_until;              /* emu_hold_at_start: its keys let up at this chip time (0: none held) */
+    long long wall_seen;            /* the host's time at the last block (sleep_check) */
 };
 
 /* the board's bars (bl_board.h bl_braille_bars): bit 0 forward (the advance bar), bit 1 back */
@@ -415,8 +416,28 @@ static void hurry_check(emu_unit *u)
     }
 }
 
+/* The unit's time passes only while blocks are rendered, which the shells do as the sound card takes them: while
+   the computer sleeps nothing renders, and the unit's clock lost the sleep for good (an hour's lid shut, an hour
+   behind, saved so).  A block more than EMU_SLEEP_GAP_S of the host's time after the one before means the host
+   ran nothing: the gap is added to the unit's clock, as the time a unit was switched off is (#86).
+   EMU_SLEEP_BREAK=1, the test's control: not added, as it was */
+#define EMU_SLEEP_GAP_S 10
+static void sleep_check(emu_unit *u)
+{
+    blc_time t;
+    long long now = host_now(&t), gap = u->wall_seen > 0 ? now - u->wall_seen : 0;
+    u->wall_seen = now;
+    if (gap <= EMU_SLEEP_GAP_S || getenv("EMU_SLEEP_BREAK"))
+        return;
+    if (u->tns)
+        tns_clock_advance(u->tns, gap);
+    else if (u->host)
+        bh_clock_advance(u->host, gap);
+}
+
 void emu_render(emu_unit *u, short *out, int n)
 {
+    sleep_check(u);
     while (n > 0) {
         int k;
         if (!u->n_pend) {
