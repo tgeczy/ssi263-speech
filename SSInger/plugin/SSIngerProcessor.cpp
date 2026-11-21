@@ -193,8 +193,9 @@ void SSIngerProcessor::applyParams(ssinger_bus_t& bus)
     auto get = [this](const char* id) { return apvts.getRawParameterValue(id)->load(); };
 
     auto& cfg = bus.fw.cfg;
-    cfg.base_channel = juce::jlimit(0, 15, (int)get(ids::phonBase) - 1);
-    cfg.embodiment = (int)get(ids::embod) == 0 ? SG_EMB_PHONEME_PITCH : SG_EMB_EXPANDER;
+    /* a change lets go of the held phonemes: their note-offs could not reach them any more (#82) */
+    ssinger_set_routing(&bus.fw, juce::jlimit(0, 15, (int)get(ids::phonBase) - 1),
+                        (int)get(ids::embod) == 0 ? SG_EMB_PHONEME_PITCH : SG_EMB_EXPANDER);
     cfg.ctlmap = (int)get(ids::ctlMap) == 0 ? SG_MAP_PATENT : SG_MAP_POLAXIS;
 
     int newRate = (int)get(ids::rate);

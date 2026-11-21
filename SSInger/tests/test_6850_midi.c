@@ -1354,6 +1354,39 @@ static void test_tour_loudness(void)
     CHECK(4 * pf >= 1.0, "control: a plain sum of four would clip (%.2f dB)", 20 * log10(4 * pf));
 }
 
+/* #82: a phoneme held while the routing (Phoneme channel, MIDI embodiment) changes is released then, as its own
+   note-off can no longer reach it (sent on the old channel, dropped); and All Notes Off releases a voice's notes.
+   SSINGER_ROUTING_BREAK=1 (the control): the routing written as it was, and CC 123 ignored */
+static void test_routing_change_releases(void)
+{
+    ssinger_state_t s;
+    sc_log_t l;
+    const uint8_t on[] = { 0x90, 60, 100 };
+    const uint8_t old_off[] = { 0x80, 60, 0 };
+    const uint8_t on2[] = { 0x92, 60, 100 };
+    const uint8_t all_off[] = { 0xB2, 123, 0 };
+    int i, r0;
+    fw_init(&s, &l);
+    if (getenv("SSINGER_ROUTING_BREAK"))
+        ssinger_routing_break = 1;
+    feed(&s, on, 3);
+    CHECK(s.v[0].note_held == 1, "the phoneme held on channel 1");
+    ssinger_set_routing(&s, 2, s.cfg.embodiment);   /* Phoneme channel moved to 3 under the held key */
+    feed(&s, old_off, 3);                            /* the key let go: its note-off on the old channel */
+    CHECK(s.v[0].note_held == 0 && s.v[0].n_phon == 0, "a routing change releases the held phoneme (held %d, %d notes)",
+          s.v[0].note_held, s.v[0].n_phon);
+    l.n = 0;
+    feed(&s, on2, 3);                                /* a note on the new channel, then All Notes Off there */
+    feed(&s, all_off, 3);
+    r0 = -1;
+    for (i = 0; i < l.n && i < 64; i++)
+        if (l.addr[i] == SG_SC_R0)
+            r0 = l.value[i] & 0x3F;
+    CHECK(s.v[0].note_held == 0 && r0 == SG_PHONEME_PAUSE, "All Notes Off releases it (held %d, last R0 code %d)",
+          s.v[0].note_held, r0);
+    ssinger_routing_break = 0;
+}
+
 int main(void)
 {
     test_acia_reset();
@@ -1385,6 +1418,7 @@ int main(void)
     test_expander_all_phonemes();
     test_note_map_doc();
     test_tour_filter_wheel();
+    test_routing_change_releases();
     test_tour_filter_offsets();
     test_tour_loudness();
     test_dur_glide_mode();

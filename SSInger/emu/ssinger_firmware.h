@@ -105,6 +105,9 @@ typedef struct ssinger_voice {
     int carrier_ext;   /* CC64 state */
 } ssinger_voice_t;
 
+/* the tests' controls (tests/test_6850_midi.c; nothing else sets them): 1 puts the old behaviour back */
+static int ssinger_routing_break = 0;  /* #82: a routing change and All Notes Off release nothing */
+
 typedef struct ssinger_state {
     ssinger_cfg_t cfg;
     ssinger_voice_t v[SG_NVOICES_MAX];
@@ -620,6 +623,33 @@ static void ssinger_pitch_bend(ssinger_state_t *s, int voice, int value)
     (void)voice;
 }
 
+/* every phoneme held on `voice` (-1: on every voice) let go, PA written: All Notes Off, and a routing change, after
+   which the held keys' note-offs come on a channel that no longer reaches them (#82) */
+static void ssinger_release_all(ssinger_state_t *s, int voice)
+{
+    int v;
+    for (v = 0; v < s->cfg.nvoices && v < SG_NVOICES_MAX; v++) {
+        if (voice >= 0 && v != voice)
+            continue;
+        if (s->v[v].n_phon > 0 || s->v[v].note_held) {
+            s->v[v].n_phon = 0;
+            s->v[v].note_held = 0;
+            ssinger_write_r0(s, v, SG_PHONEME_PAUSE);
+        }
+    }
+}
+
+/* the Phoneme channel and the MIDI embodiment, as the editor or the host sets them: a change lets go of every held
+   phoneme first.  It was written under the held key, whose note-off then came on the old channel (dropped) or as a
+   pitch release (ignored): the phoneme sang on for good, and panic could not stop it (#82) */
+static void ssinger_set_routing(ssinger_state_t *s, int base_channel, ssinger_embodiment_t embodiment)
+{
+    if ((base_channel != s->cfg.base_channel || embodiment != s->cfg.embodiment) && !ssinger_routing_break)
+        ssinger_release_all(s, -1);
+    s->cfg.base_channel = base_channel;
+    s->cfg.embodiment = embodiment;
+}
+
 static void ssinger_cc(ssinger_state_t *s, int voice, int cc, int val)
 {
     int i;
@@ -644,6 +674,11 @@ static void ssinger_cc(ssinger_state_t *s, int voice, int cc, int val)
     case 3: /* CC3: control/transition rate (Polaxis) -> RATE. */
         s->cfg.rate = (val * 16 / 128) & 15;
         ssinger_write_inflection(s, voice, s->v[voice].inflection);
+        break;
+    case 120: /* All Sound Off and All Notes Off: the voice's held phonemes let go (#82). */
+    case 123:
+        if (!ssinger_routing_break)
+            ssinger_release_all(s, voice);
         break;
     case 64: /* Sustain: internal/external carrier. */
         s->v[voice].carrier_ext = (val >= 64) ? 1 : 0;
