@@ -752,6 +752,17 @@ if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
                             [os.path.join(EMU, "test_brl_win_stale.exe")], expect_fail=True,
                             fail_marks=[r"^FAIL  the change told to the screen reader",
                                         r"^FAIL  no name for a screen reader"]))
+    # #38: after a unit failed to start, Back to the factory state erased the unit before (the English one at start),
+    # named none, and left the failed one; the title said "Starting".  test_win_factory.py drives a private copy of the
+    # program (its own ini and APPDATA) by window messages; the control keeps the unit before as the app's own
+    if os.path.isfile(os.path.join(EMU, "blazie_emu.exe")) and os.path.isfile(os.path.join(ENG, "BL2SPA.BNS")):
+        _FACTORY = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "apps", "blazie",
+                                     "test_win_factory.py"), os.path.join(EMU, "blazie_emu.exe"), ENG]
+        CHECKS.append(check("Blazie emulator: Back to the factory state after a failed start (#38)", _FACTORY, alone=True))
+        CHECKS.append(check("Blazie emulator: factory CONTROL (the unit before kept, must fail)", _FACTORY,
+                            env={"EMU_FACTORY_BREAK": "1"}, expect_fail=True, alone=True,
+                            fail_marks=[r"^FAIL question .*Braille Lite 2000 \(English\)", r"^FAIL kept +.*CHANGED",
+                                        r"^FAIL reset ", r"^factory after a failed start: 3 FAILED$"]))
     # its sound queue (src/apps/blazie/audio_pace.c; Tomi: the emulator's speech stutters, the add-on's doesn't)
     # against a simulated sound card calibrated on this desktop's waveOut: a busy machine and a remote card heard
     # without gaps once the automatic queue has grown, a slow save without gaps; the control puts the 0.7.0 draft's

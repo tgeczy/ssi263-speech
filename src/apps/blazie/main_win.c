@@ -280,6 +280,29 @@ static int offer_setup(int kind, const char *fw, const char *st)
 /* keys the next start_unit holds as the unit is switched on (emu_hold_at_start): one-handed mode's dot 6 or dot 3 */
 static int g_hold_at_start;
 
+/* A unit that did not start (#38).  With nothing left running -- at start, or after offer_setup let the one before
+   go -- the app is about the unit that failed: Restart and Back to the factory state act on it (they acted on the
+   unit before, the English one at start, and erased ITS memory).  With the unit before still running, that one
+   stays the app's: its minute's save must go on to its own file.  The title then names what is running, or says
+   the chosen unit did not start (it said "Starting" until the next start). */
+static void start_failed(int kind)
+{
+    char t[200];
+    int running;
+    EnterCriticalSection(&g_lock);
+    running = g_unit != NULL;
+    if (!running && !getenv("EMU_FACTORY_BREAK"))      /* (the tests' control: the unit before kept, as it was) */
+        g_kind = kind;
+    LeaveCriticalSection(&g_lock);
+    if (running)
+        status(g_units[g_kind].name);
+    else {
+        snprintf(t, sizeof t, "%s did not start", g_units[g_kind].name);
+        status(t);
+    }
+    CheckMenuRadioItem(GetMenu(g_wnd), unit_id(g_kind), unit_id(g_kind), unit_id(g_kind), MF_BYCOMMAND);
+}
+
 static int start_unit(int kind)
 {
     char fw[MAX_PATH], st[MAX_PATH], err[256];
@@ -298,6 +321,7 @@ static int start_unit(int kind)
         if (!emc_make_factory(&g_units[kind], st, NULL, NULL, err, sizeof err)) {
             snprintf(msg, sizeof msg, "Could not set up the %s for its first start.\n\n%s", g_units[kind].name, err);
             MessageBoxA(g_wnd, msg, "Blazie emulator", MB_OK | MB_ICONERROR);
+            start_failed(kind);
             return 0;
         }
     } else if (!exists(st)) {               /* the first time: the unit as it left the factory */
@@ -315,6 +339,7 @@ static int start_unit(int kind)
         snprintf(msg, sizeof msg, "Could not start the %s.\n\n%s\n\nFirmware looked for in:\n%s", g_units[kind].name,
                  err, g_fw_dir);
         MessageBoxA(g_wnd, msg, "Blazie emulator", MB_OK | MB_ICONERROR);
+        start_failed(kind);
         return 0;
     }
     if (g_link)
@@ -1278,11 +1303,11 @@ static LRESULT CALLBACK wndproc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         case ID_IMPORT: import_files(); return 0;
         case ID_ADDPROG: add_programs(); return 0;
         case ID_FACTORY: {
-            char path[MAX_PATH];
+            char path[MAX_PATH], q[400];
             emu_unit *old;
-            if (MessageBoxA(w, "Put this unit back as it left the factory? Its files and settings are erased, and a "
-                            "firmware update it was given.",
-                            "Blazie emulator", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
+            snprintf(q, sizeof q, "Put the %s back as it left the factory? Its files and settings are erased, and "
+                     "a firmware update it was given.", g_units[g_kind].name);   /* which unit: #38 */
+            if (MessageBoxA(w, q, "Blazie emulator", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
                 return 0;
             EnterCriticalSection(&g_lock);
             old = g_unit;
