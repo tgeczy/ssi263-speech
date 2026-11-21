@@ -1190,22 +1190,24 @@ if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
                          os.path.join(ENG, "bl2_2003_warm.state")], env={"TEST_EMU_DOUBLE_BREAK": "1"},
                         expect_fail=True, fail_marks=[r"^ok +quick key response ", r"^FAIL double speed +after",
                                                       r"^FAILED$"]))
-CHECKS.append(check("open channel: new speech not queued behind it", [PY, "tail_latency.py"]))
+# (all four time speech in wall-clock ms against limits of 60 to 250 ms: alone, after the others -- under the
+# suite's load the 0.9.5 suite saw A, a 17 ms case by hand, past its limit and the plain-wait control fail it)
+CHECKS.append(check("open channel: new speech not queued behind it", [PY, "tail_latency.py"], alone=True))
 CHECKS.append(check("open channel CONTROL (0.6.0 pacing, must fail)", [PY, "tail_latency.py"],
-                    env={"TAIL_LATENCY_BREAK": "1"}, expect_fail=True,
+                    env={"TAIL_LATENCY_BREAK": "1"}, expect_fail=True, alone=True,
                     fail_marks=[r"^FAIL A whine on, keep open, no cancel ", r"^ok +B whine off",
                                 r"^tail latency: \d FAILED$"]))   # 0.6.0 whole can delay D and E too, under load
 # Tomi (0.7 test build): with keep open, a follow-up utterance paused longer -- the idle audio still queued (up to
 # IDLE_AHEAD_S and a block) played before it; now dropped once the last speech has played (the player's onDone)
 CHECKS.append(check("open channel CONTROL (idle audio left queued, must fail)", [PY, "tail_latency.py"],
-                    env={"TAIL_LATENCY_BREAK": "queued"}, expect_fail=True,
+                    env={"TAIL_LATENCY_BREAK": "queued"}, expect_fail=True, alone=True,
                     fail_marks=[r"^FAIL A whine on, keep open, no cancel .*B \+ 40 ms", r"^ok +B whine off",
                                 r"^tail latency: [12] FAILED$"]))   # D may fail too: the queue delays it as well
 # ... and while the last speech's onDone is still due (Astra, Reply 109): NVDA's player calls it only from feed/sync on
 # the feeding thread, so the wait must service it (an empty feed) and a cancel must end it; the plain wait put back
 # stalled ~0.5 s, even after a cancel -- D and E must fail
 CHECKS.append(check("open channel CONTROL (plain wait on the last onDone, must fail)", [PY, "tail_latency.py"],
-                    env={"TAIL_LATENCY_BREAK": "plainwait"}, expect_fail=True,
+                    env={"TAIL_LATENCY_BREAK": "plainwait"}, expect_fail=True, alone=True,
                     fail_marks=[r"^ok +A whine on", r"^FAIL D next speech while the last onDone is due",
                                 r"^FAIL E cancel inside that wait", r"^tail latency: 2 FAILED$"]))
 # ... and the opt-in, EXPERIMENTAL "run ahead" mode (src/csrc/blazie/run_ahead.h; Astra, Reply 107).  Its contract on a

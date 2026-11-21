@@ -72,6 +72,9 @@ if VOICE == "blazie_de":            # the German Braille Lite says the same two 
                                   # cancel case, 2026-11-20: 1480 1483 1445 1443 1484 1446 1474 1447; four runs
                                   # before that gave 1,444 to 1,473 and a limit of 35, which the cancel's landing,
                                   # 20 or 30 ms after the speak, was enough to break: 1443 against 1482)
+if WHICH == "accent" and VOICE == "sa":       # the Accent-PC says them 1,183 to 1,199 ms long (eight in a row
+    SAME_MS = 20.0                # after the cancel case, 2026-11-20: 1183 1196 1199 1183 1195 1198 1183 1195):
+                                  # a 16 ms spread, which the full suite's run of it met as 1183 against 1198
 WORD = 0.15                       # of the utterance: how far an index may be from its share
 LINE = 0.06                       # of a ten-line utterance: how far an index may be from its line's start
 OWN_AT = 0.5                      # of the utterance: where "it is on this" starts after "w w w w", at the least
