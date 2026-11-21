@@ -10,9 +10,13 @@ fix the Sounding Board gave 0 to 3 ms there in 33 of 60 utterances of "blank": t
   starts      each utterance of the words, said one after another to their ends
   after cut   the same, each one cut by a cancel 120 ms in, and the next begun at once
   short       a single letter: an utterance shorter than the hold still comes out whole, and is done
+  paced       the stand-in paced through the driver's player (as the cancel tests set it) paces: a long sentence
+              cancelled 0.3 s in has fed less than half of itself (set on the wrapper alone, all of it was fed
+              before the cancel came, and those tests tested no cancel mid-speech)
 
     python first_feed.py speakout|accent|blazie|mockingboard|smartalk [voice]      exit 1 on any failure
     FIRST_FEED_BREAK=1     the hold off (the drivers before it)       -- must fail: starts
+    FIRST_FEED_BREAK=set   pace set on the wrapper alone, as it was   -- must fail: paced
 """
 import os
 import sys
@@ -34,7 +38,9 @@ feed_mod = getattr(drv_mod, "_first", None)
 if feed_mod is None:
     print("FAIL the driver has no ssi263_feed module (an add-on built before it?)")
     sys.exit(1)
-if os.environ.get("FIRST_FEED_BREAK"):
+if os.environ.get("FIRST_FEED_BREAK") == "set":
+    feed_mod.PASS_SET = False
+elif os.environ.get("FIRST_FEED_BREAK"):
     feed_mod.HOLD = False
 if VOICE:
     d._set_voice(VOICE)
@@ -93,6 +99,24 @@ wait_idle()
 ms_, last, total = first_sound(n0)
 check("short", ms_ is not None and total > 40.0, "one letter: %.0f ms of audio came out, the first sound in a feed of %s ms" % (
     total, "-" if ms_ is None else "%.0f" % ms_))
+LONG = "this sentence is going to be interrupted very soon by a cancel, and it keeps going on and on"
+n0 = len(d._player.chunks)
+d.speak([LONG])
+wait_idle()
+with d._player.lock:
+    whole = sum(len(c) for c in d._player.chunks[n0:])
+d._player.pace = True                             # as cancel_tail.py, cut_test.py and complete_fuzz.py set it
+n0 = len(d._player.chunks)
+d.speak([LONG])
+time.sleep(0.3)
+d.cancel()
+time.sleep(0.5)
+d._player.pace = False
+wait_idle()
+with d._player.lock:
+    cut = sum(len(c) for c in d._player.chunks[n0:])
+check("paced", whole > 0 and cut < 0.5 * whole, "a %.2f s sentence cancelled 0.3 s in, paced: %.2f s of it fed" % (
+    whole / sr, cut / sr))
 print("first feed: %s" % ("%d FAILED" % bad if bad else "all ok"))
 sys.stdout.flush()
 os._exit(1 if bad else 0)

@@ -728,13 +728,18 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", Non
     _argv = [PY, "first_feed.py", _which] + ([_voice] if _voice else [])
     CHECKS.append(check("an utterance's first feed is never a sliver: %s" % _name, _argv,
                         env={"SSI263_SYNTH_DRIVERS": _UNITS},
-                        ok=lambda out: len(re.findall(r"^ok +(starts|after cut|short) ", out, re.M)) == 3
+                        ok=lambda out: len(re.findall(r"^ok +(starts|after cut|short|paced) ", out, re.M)) == 4
                         and bool(re.search(r"^first feed: all ok$", out, re.M))))
     if _name in ("Braille Lite", "Sounding Board"):
         CHECKS.append(check("first feed CONTROL (%s: the hold off, must fail)" % _name, _argv,
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "FIRST_FEED_BREAK": "1"}, expect_fail=True,
                             fail_marks=[r"^FAIL starts +24 utterances: .* under 25 ms: [1-9]", r"^ok +short ",
                                         r"^first feed: \d FAILED$"]))
+    if _name == "Braille Lite":                  # pace set through the driver's player reaches the stand-in
+        CHECKS.append(check("first feed CONTROL (Braille Lite: pace set on the wrapper alone, must fail)", _argv,
+                            env={"SSI263_SYNTH_DRIVERS": _UNITS, "FIRST_FEED_BREAK": "set"}, expect_fail=True,
+                            fail_marks=[r"^ok +starts ", r"^FAIL paced +a [\d.]+ s sentence cancelled 0\.3 s in, "
+                                        r"paced: [\d.]+ s of it fed", r"^first feed: 1 FAILED$"]))
 # An utterance that makes no sound (issue #32): NVDA's WASAPI player calls an onDone only while its stream plays, and
 # after a stop or NVDA's idle check nothing started it -- the indexes of text NVDA left as spaces, or of an index alone,
 # were never called, and NVDA said nothing more until a key press.  silent_indexes.py, each driver through the stand-in

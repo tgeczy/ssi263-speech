@@ -32,6 +32,7 @@ THRESHOLD = 32                    # NVDA's 1/1024 of full scale, in 16-bit sampl
 SILENCE = b"\x00\x00"             # one sample of 16-bit mono: enough to start a stopped stream
 HOLD = True                       # (the tests' controls take these away)
 KICK = True
+PASS_SET = True
 REPORT_OWED = True
 
 
@@ -72,6 +73,15 @@ class FirstFeed(object):
 
     def __getattr__(self, name):                  # close, pause, sync, and whatever a test's stand-in has
         return getattr(self._p, name)
+
+    def __setattr__(self, name, value):
+        """the wrapper's own state (its names begin with _) and its own methods (a test's spy on feed wraps this
+        feed) here; anything else set on the player under it -- a test's stand-in paced like a device (pace): set on
+        the wrapper it paced nothing, and the tests that cancel mid-speech had every feed in before their cancel came"""
+        if name.startswith("_") or hasattr(type(self), name) or not PASS_SET:
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._p, name, value)
 
     def _down(self, data, onDone=None, **kw):
         """everything that reaches the player goes through here"""
