@@ -20,6 +20,7 @@ predate the accented-letter pass (src/csrc/translit.h): the reference is given e
 -- current-preprocessing / frozen-downstream equivalence, not an oracle for the pass (translit_test.py's handwritten
 fixtures are).
 """
+import ctypes
 import os
 import pickle
 import subprocess
@@ -138,6 +139,26 @@ def child(voice, side, out):
     # to the old drivers byte for byte
     if hasattr(g["drv_mod"], "FLOW"):
         g["drv_mod"].FLOW = False
+    # Three of the Accent-mini's ways were changed on purpose since 0.7.0, each held by its own test: a capital's pitch
+    # left to the flush instead of restored before the cancel (#74; am_cancel_capital.py "capital"), a cancel's "one
+    # character left" written in the call's own stack segment (am_cancel_capital.py "plain"), and a long text's call
+    # taken for a stall only when the card has said nothing for 30 s (#67; am_long_text.py).  Together they change a
+    # cancel during a capital and what follows it.  Against 0.7.0 the native side runs with the three as they were.
+    # (the library is loaded on the driver's worker as it boots: wait for it)
+    if side == "native" and voice != "speakout":
+        until, found = time.monotonic() + 30.0, False
+        while not found and time.monotonic() < until:
+            for m in list(sys.modules.values()):
+                libs = getattr(m, "_libs", None)
+                for lib in list(libs.values()) if isinstance(libs, dict) else []:
+                    if hasattr(lib, "amv_cancel_restore_first"):
+                        for flag in ("amv_cancel_restore_first", "amh_drop_ss_break", "amh_call_stall_break"):
+                            ctypes.c_int.in_dll(lib, flag).value = 1
+                        found = True
+            if not found:
+                time.sleep(0.02)
+        if not found:
+            sys.exit("native side: the Accent-mini's library never loaded (no amv_cancel_restore_first)")
     feeds = []
     orig_feed = player.feed
 
