@@ -14,9 +14,13 @@ for CONF in ${SSI263_SPD_CONF:-"$USER_HOME/.config/speech-dispatcher/speechd.con
         # the blank line an earlier installer put before the comment line, then the comment and module lines
         # (active, as install.sh adds to a config that lists its modules, or commented out, as #11's did)
         sed -i -e '/^$/{N;s/^\n\(# --- the Braille Lite 2000 voice (ssi263-speech install.sh) ---\)$/\1/}' "$CONF"
+        # and our DefaultModule, with the copy of it an earlier --default run twice commented out as if it were the
+        # old default (#45; SSI263_INSTALL_BREAK=default, the test's control, gives that copy back)
+        KEEP_OURS='/^# (before ssi263) DefaultModule ssi263$/d'
+        [ "${SSI263_INSTALL_BREAK:-}" = default ] && KEEP_OURS='# (the control: kept)'
         sed -i -e '/^# --- the Braille Lite 2000 voice (ssi263-speech install.sh) ---$/d' \
                -e '/^[[:space:]]*#\{0,1\}[[:space:]]*AddModule[[:space:]]*"ssi263"/d' -e '/^DefaultModule ssi263$/d' \
-               -e 's/^# (before ssi263) DefaultModule/DefaultModule/' "$CONF"
+               -e "$KEEP_OURS" -e 's/^# (before ssi263) DefaultModule/DefaultModule/' "$CONF"
         echo "cleaned $CONF"
     fi
     rm -f "$(dirname "$CONF")/modules/ssi263.conf"

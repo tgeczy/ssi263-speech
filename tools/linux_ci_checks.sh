@@ -38,6 +38,11 @@ control "speech-dispatcher installer CONTROL (a plain copy onto a running module
 control "speech-dispatcher installer CONTROL (only the three folders it named, must fail)" \
     "^ok +stock config unchanged " "^FAIL every firmware folder installed +not installed: .*gw-micro-sounding-board" \
     "^speechd install: FAILED$" -- env SSI263_INSTALL_BREAK=folders sh tools/speechd_install_test.sh
+# --default run twice, then uninstalled, gives the config back (#45: a DefaultModule ssi263 was left); its control is
+# the second run commenting out its own line, and uninstall.sh restoring it
+control "speech-dispatcher installer CONTROL (--default twice left our DefaultModule, must fail)" \
+    "^ok +--default " "^FAIL --default twice " "^FAIL uninstall \(--default twice\) " \
+    "^FAIL uninstall \(earlier --default twice\) " -- env SSI263_INSTALL_BREAK=default sh tools/speechd_install_test.sh
 B=build/linux
 EMU=$B/blazie_emu
 GTK_EMU=""; [ -x $B/blazie_emu_gtk ] && GTK_EMU=$B/blazie_emu_gtk

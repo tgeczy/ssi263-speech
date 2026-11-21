@@ -12,6 +12,8 @@
 # SSI263_INSTALL_BREAK=1 (a control) puts 0.7.6's always-added line back: the stock and earlier-install checks
 # must fail.  SSI263_INSTALL_BREAK=copy (a control) puts the plain cp back: the last two checks must fail.
 # SSI263_INSTALL_BREAK=folders (a control) copies the three folders it did: "every firmware folder" must fail.
+# SSI263_INSTALL_BREAK=default (a control) puts back --default's commenting of its own line and uninstall.sh's
+# restoring of it: the two "twice" checks must fail.
 #   sh tools/speechd_install_test.sh
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -115,6 +117,30 @@ else fail "--default" "$(cat "$D/etc/speechd.conf" | tr '\n' '|')"; fi
 uninstall
 if cmp -s "$D/before.conf" "$D/etc/speechd.conf"; then ok "uninstall (--default)" "the old default back"
 else fail "uninstall (--default)" "$(diff "$D/before.conf" "$D/etc/speechd.conf" | tr '\n' ' ')"; fi
+
+# 4b. --default twice (an upgrade): still one active DefaultModule, the old one kept once, and uninstall gives the
+# config back (#45: the second run commented out its own line, and uninstall restored it, active, after the old one)
+run default2 "$STOCK" --default
+( cd "$PKG" && PREFIX="$D/prefix" SSI263_SPD_MODULES="$D/modules" SSI263_SPD_CONF="$D/etc/speechd.conf" \
+    sh ./install.sh --default ) >> "$D/install.log" 2>&1
+if [ "$(grep -c '^DefaultModule' "$D/etc/speechd.conf")" = 1 ] && grep -q '^DefaultModule ssi263$' "$D/etc/speechd.conf" \
+        && [ "$(grep -c '^# (before ssi263) DefaultModule' "$D/etc/speechd.conf")" = 1 ]; then
+    ok "--default twice" "one DefaultModule ssi263, the old default kept once"
+else fail "--default twice" "$(grep 'DefaultModule' "$D/etc/speechd.conf" | tr '\n' '|')"; fi
+uninstall
+if cmp -s "$D/before.conf" "$D/etc/speechd.conf"; then ok "uninstall (--default twice)" "the old default back, nothing left"
+else fail "uninstall (--default twice)" "$(diff "$D/before.conf" "$D/etc/speechd.conf" | tr '\n' ' ')"; fi
+
+# 4c. a config an earlier double --default left (its own line commented out under the old default): uninstall
+# gives back the old default alone
+D="$T/leftover"
+rm -rf "$D"; mkdir -p "$D/etc" "$D/modules" "$D/prefix"
+printf '%s' "$STOCK" > "$D/before.conf"
+{ printf '%s' "$STOCK" | sed 's/^DefaultModule/# (before ssi263) DefaultModule/'
+  printf '# (before ssi263) DefaultModule ssi263\nDefaultModule ssi263\n'; } > "$D/etc/speechd.conf"
+uninstall
+if cmp -s "$D/before.conf" "$D/etc/speechd.conf"; then ok "uninstall (earlier --default twice)" "the old default back alone"
+else fail "uninstall (earlier --default twice)" "$(diff "$D/before.conf" "$D/etc/speechd.conf" | tr '\n' ' ')"; fi
 
 # 5. an install over a module that is running and a library that is there: each put in place by a rename.  A real
 # program stands in for the module (a copy of sleep, running under its name), as speech-dispatcher has the module

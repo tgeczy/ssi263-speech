@@ -135,11 +135,20 @@ else
     echo "  speech-dispatcher finds the module by itself ($CONF unchanged)"
 fi
 if [ $MAKE_DEFAULT -eq 1 ]; then
-    if grep -q '^DefaultModule' "$CONF"; then
+    # every other DefaultModule commented out, for uninstall.sh to give back; our own line left as it is, so a second
+    # --default (an upgrade) neither comments it out nor adds another (#45: it did both, and uninstall.sh then gave
+    # back ours as the default).  (SSI263_INSTALL_BREAK=default, the test's control: every one commented, ours added.)
+    if [ "${SSI263_INSTALL_BREAK:-}" = default ]; then
         sed -i 's/^DefaultModule/# (before ssi263) DefaultModule/' "$CONF"
+    else
+        sed -i '/^DefaultModule ssi263$/!s/^DefaultModule/# (before ssi263) DefaultModule/' "$CONF"
     fi
-    echo "DefaultModule ssi263" >> "$CONF"
-    echo "  made the default synthesizer"
+    if grep -q '^DefaultModule ssi263$' "$CONF"; then
+        echo "  the default synthesizer already"
+    else
+        echo "DefaultModule ssi263" >> "$CONF"
+        echo "  made the default synthesizer"
+    fi
 fi
 if [ -n "$SUDO_USER" ] && [ "$CONF" != "/etc/speech-dispatcher/speechd.conf" ]; then
     chown "$SUDO_USER" "$CONF" "$MODCONF/ssi263.conf"
