@@ -78,6 +78,9 @@ AM_API int amv_begin(am_voice *v);
 AM_API int amv_pitch(am_voice *v, int pitch_offset);
 AM_API int amv_text(am_voice *v, const unsigned char *bytes, int n);
 AM_API int amv_end(am_voice *v);
+/* amv_end when the job was cancelled and amv_flush follows: no pitch restored through the card before the flush (the
+   flush says it after the Ctrl-X) -- the restore ran the card through the rest of the text first (#74) */
+AM_API int amv_end_dropped(am_voice *v);
 AM_API int amv_flush(am_voice *v);
 
 /* Index marks (../marks.h).  The Accent-mini has its own (its manual, 3.2.4): after ESC Y X a Ctrl-F (06h) in the
@@ -113,6 +116,7 @@ AM_API int amv_expect(am_voice *v, const ssv_mark *marks, int n_marks);
 /* The line amv_speak_marked would send (as amv_say_bytes), for tests. */
 AM_API int amv_say_bytes_marked(const char *utf8, int numbers, const ssv_mark *marks, int n_marks, char *out, int cap);
 AM_API extern int amv_marks_break;          /* the tests' controls (am_voice.c) */
+AM_API extern int amv_cancel_restore_first;
 
 /* The driver's _accent_pitch: NVDA's pitch 0-100 on the Accent's ESC P 0-9 (50 -> 5). */
 AM_API int amv_pitch_step(int pitch);

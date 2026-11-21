@@ -439,8 +439,9 @@ class SynthDriver(SynthDriver):
         try:
             self._speakItems(items, box)
         finally:
-            # restore the user's pitch only after the capital's audio exists
-            box.end()
+            # restore the user's pitch only after the capital's audio exists; a cancelled job leaves it to the flush
+            # (#74: the restore ran the card through the rest of the text before it)
+            box.end(cancelled=self._cancelFlag.is_set())
 
     def _speakItems(self, items, box):
         for kind, value in (_flow.lines(items) if _flow and FLOW and self._join else items):

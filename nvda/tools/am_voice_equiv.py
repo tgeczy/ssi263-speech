@@ -138,6 +138,12 @@ def driver_side(cases):
 def c_side(cases, dvc):
     ctypes.CDLL(CHIP)                                   # accent_mini.dll imports it: load that copy first
     lib = ctypes.CDLL(LIB)
+    # The reference, 0.7.0's driver, restored a capital's pitch BEFORE its flush, and so ran the card through the rest
+    # of the text first; since #74 the C voice leaves the pitch to the flush (am_cancel_capital.py holds that).  Held
+    # to this reference, the C side runs with the old order: it changes only the cancel during a capital and what
+    # follows it, the card's state after the Ctrl-X.
+    if hasattr(lib, "amv_cancel_restore_first"):
+        ctypes.c_int.in_dll(lib, "amv_cancel_restore_first").value = 1
     lib.amv_create.restype = ctypes.c_void_p
     lib.amv_create.argtypes = [ctypes.c_char_p, ctypes.c_double, ctypes.c_char_p, ctypes.c_int]
     lib.amv_set.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * 6

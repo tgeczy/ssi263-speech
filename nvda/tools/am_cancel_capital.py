@@ -1,16 +1,24 @@
-"""The Accent-mini stops at once when a long utterance is cancelled (the stack slot found with issue #74).
+"""The Accent-mini stops at once when a long utterance is cancelled, at its own pitch or a changed one (issue #74, and
+the stack slot found with it).
 
 The DOS driver takes its text only as its buffer empties, so a text longer than the buffer (about 2,000 characters)
 is still being handed over while it is spoken: a background call.  A cancel ends that call by writing "one character
-left" into the count the client pushed, then sends Ctrl-X.  The slot was taken in the stack segment the DRIVER was on
-when the call was left running (its INT 17h switches to its own, 0800h), not the call's: the write missed, and the
-client went on to the text's end, the card run through all of it (its audio thrown away; the next utterance waited).
+left" into the count the client pushed, then sends Ctrl-X.  Two things made a cancel run the rest of the text through
+the card first (its audio thrown away; the next utterance waited for it):
 
-  plain     a 3,000-character text, cancelled after 4 blocks: the cancel takes under 2 s of the card's time (it took
-            87.8 s; 2,400 characters 42 s), leaves no fault, and the next utterance speaks
+  plain     the slot was taken in the stack segment the DRIVER was on when the call was left running (its INT 17h
+            switches to its own, 0800h), not the call's: the write missed, the client went on to the text's end.
+            A 3,000-character text, cancelled after 4 blocks: 87.8 s of the card's time (2,400: 42 s).
+  capital   at a changed pitch (the phone apps give one whenever a request's pitch is not 100 percent, and NVDA for a
+            capital) amv_cancel restored the user's pitch BEFORE the cancel: ESC P printed through the driver, which
+            takes an option command only once the text before it is spoken -- the same run to the end, up to 30 s,
+            then a fault and a new card.  The flush after the cancel says the pitch again anyway (#74).
+
+Each: the cancel takes under 2 s of the card's time, leaves no fault, and the next utterance speaks.
 
     python am_cancel_capital.py [ssi263speech library]                exit 1 on any failure
-    AM_CANCEL_CAPITAL_BREAK=ss        am_host.c amh_drop_ss_break: the slot in the driver's segment -- must fail
+    AM_CANCEL_CAPITAL_BREAK=ss        am_host.c amh_drop_ss_break: the slot in the driver's segment -- must fail both
+    AM_CANCEL_CAPITAL_BREAK=restore   am_voice.c amv_cancel_restore_first: the restore first -- must fail capital
 """
 import ctypes
 import os
@@ -50,10 +58,12 @@ def main():
     brk = os.environ.get("AM_CANCEL_CAPITAL_BREAK", "")
     if brk == "ss":
         ctypes.c_int.in_dll(lib, "amh_drop_ss_break").value = 1
+    elif brk == "restore":
+        ctypes.c_int.in_dll(lib, "amv_cancel_restore_first").value = 1
     with open(DVC, "rb") as f:
         dvc = f.read()
     bad = 0
-    for label, offset in (("plain", 0),):
+    for label, offset in (("plain", 0), ("capital", 30)):
         err = ctypes.create_string_buffer(256)
         v = lib.amv_create_mem(dvc, len(dvc), float(RATE), err, 256)
         if not v:

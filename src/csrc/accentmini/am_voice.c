@@ -49,6 +49,9 @@ struct am_voice {
 /* the tests' controls (nvda/tools/am_marks.py): 1 every mark with the first block; 2 a Ctrl-F for every mark on
    a word; 3 the marks left after a cancel; 4 the Ctrl-F inside the word it should follow */
 int amv_marks_break = 0;
+/* the tests' control (nvda/tools/am_cancel_capital.py): 1 restores a capital's pitch through the card before the
+   cancel, as amv_cancel did (#74) */
+int amv_cancel_restore_first = 0;
 
 /* ---- _boot ---------------------------------------------------------------------------------------------------- */
 static am_host *boot(const unsigned char *dvc, size_t n, double out_rate, char *err, int errlen)
@@ -441,6 +444,24 @@ AM_API int amv_end(am_voice *v)
     return 0;
 }
 
+/* amv_end for a job that was cancelled, a flush to follow: the job ends without its pitch restore, which would print
+   ESC P through the driver and so run the card through the rest of the text first (#74); amv_flush says the pitch
+   again after the Ctrl-X.  (amv_cancel_restore_first, the test's control: amv_end, as it was.) */
+AM_API int amv_end_dropped(am_voice *v)
+{
+    if (amv_cancel_restore_first)
+        return amv_end(v);
+    v->active = 0;
+    v->job = 0;
+    if (v->fault)
+        return -1;
+    if (v->cur_pitch != v->base_pitch) {
+        v->cur_pitch = v->base_pitch;
+        v->pitch_dirty = 1;
+    }
+    return 0;
+}
+
 static void resend_pitch(am_voice *v)                         /* _resend_pitch */
 {
     ssi263_set_snap_pitch(v->chip, 1);
@@ -591,7 +612,23 @@ AM_API void amv_cancel(am_voice *v)
         v->n_mk = v->n_reached = 0;                          /* no mark of a cancelled text is reported */
     if (!v->active)
         return;
-    if (finish(v) < 0 || amh_cancel(v->h, CANCEL_LIMIT) < 0) {
+    if (amv_cancel_restore_first) {                          /* (the test's control: as it was) */
+        if (finish(v) < 0) {
+            failed(v);
+            return;
+        }
+    } else {
+        /* the text's end without its pitch restore: that prints ESC P through the driver, which takes an option
+           command only once the speech before it is spoken, so the card ran through the rest of the text (its audio
+           thrown away) before the Ctrl-X, up to the host's limit and then a fault and a new card (#74).  The pitch is
+           said again after the flush below */
+        v->active = 0;
+        if (!v->job && v->cur_pitch != v->base_pitch) {
+            v->cur_pitch = v->base_pitch;
+            v->pitch_dirty = 1;
+        }
+    }
+    if (amh_cancel(v->h, CANCEL_LIMIT) < 0) {
         failed(v);
         return;
     }

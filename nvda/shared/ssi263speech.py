@@ -265,9 +265,14 @@ class _Unit:
         p = ctypes.POINTER(_Reach)()
         return [(p[k].id, p[k].sample) for k in range(getattr(self._lib, self._api + "_reached")(self._v, ctypes.byref(p)))]
 
-    def end(self):
-        """_speakJob's finally: the user's pitch again if a capital left it changed"""
-        self._call("end")
+    def end(self, cancelled=False):
+        """_speakJob's finally: the user's pitch again if a capital left it changed.  cancelled: a flush follows
+        (cancel()), and a unit that has <api>_end_dropped leaves the pitch to it -- the Accent-mini's restore printed
+        ESC P through its driver and ran the card through the rest of the text first (#74)"""
+        if cancelled and hasattr(self._lib, self._api + "_end_dropped"):
+            self._call("end_dropped")
+        else:
+            self._call("end")
 
     def cancel(self):
         """_run's flush after a cancelled job (after end()): the unit's flush, the pitch said again if dropped"""

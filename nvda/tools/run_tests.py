@@ -2065,12 +2065,16 @@ if os.path.isfile(os.path.join(SO_LIB, "test_v40_contract.exe")):
                         env={"AM_LONG_TEXT_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^FAIL whole +default: 3000 characters, 29\.\d+ s of audio, fault True$",
                                     r"^accent-mini long text: 2 FAILED$"]))
-    # a cancel while the driver still takes a long text stops at once (the stack slot): its control takes the slot in
-    # the driver's own segment, as it was
-    CHECKS.append(check("am_voice: a cancel during a long text stops at once", [PY, "am_cancel_capital.py"]))
+    # a cancel while the driver still takes a long text stops at once (the stack slot), at a capital's pitch too (#74):
+    # one control takes the slot in the driver's own segment, the other restores the pitch before the cancel
+    CHECKS.append(check("am_voice: a cancel during a long text stops at once, at a changed pitch too (#74)",
+                        [PY, "am_cancel_capital.py"]))
     CHECKS.append(check("am_voice cancel CONTROL (the count slot in the driver's segment, must fail)",
                         [PY, "am_cancel_capital.py"], env={"AM_CANCEL_CAPITAL_BREAK": "ss"}, expect_fail=True,
-                        fail_marks=[r"^FAIL plain ", r"^accent-mini cancel: 1 FAILED$"]))
+                        fail_marks=[r"^FAIL plain ", r"^FAIL capital ", r"^accent-mini cancel: 2 FAILED$"]))
+    CHECKS.append(check("am_voice cancel CONTROL (the pitch restored before the cancel, must fail)",
+                        [PY, "am_cancel_capital.py"], env={"AM_CANCEL_CAPITAL_BREAK": "restore"}, expect_fail=True,
+                        fail_marks=[r"^ok   plain ", r"^FAIL capital ", r"^accent-mini cancel: 1 FAILED$"]))
     # ... and the SmarTalk's (st_voice.h): Ctrl-F after the word before each marked word, the parts cut where they
     # are without marks, the TSR's own count of marks passed
     CHECKS.append(check("st_voice: index marks by the TSR's own Ctrl-F", [PY, "st_marks.py"]))
