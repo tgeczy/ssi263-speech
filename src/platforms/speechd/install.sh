@@ -146,6 +146,10 @@ if [ $MAKE_DEFAULT -eq 1 ]; then
     if grep -q '^DefaultModule ssi263$' "$CONF"; then
         echo "  the default synthesizer already"
     else
+        # on a line of its own: a config whose last line has no newline (a hand-edited one) glued it to the commented
+        # old default, which uninstall.sh then gave back as a DefaultModule naming no module (Brailab's audit, B25).
+        # (SSI263_INSTALL_BREAK=newline, the test's control: appended as it was)
+        [ "${SSI263_INSTALL_BREAK:-}" != newline ] && [ -n "$(tail -c1 "$CONF")" ] && echo >> "$CONF"
         echo "DefaultModule ssi263" >> "$CONF"
         echo "  made the default synthesizer"
     fi

@@ -43,6 +43,11 @@ control "speech-dispatcher installer CONTROL (only the three folders it named, m
 control "speech-dispatcher installer CONTROL (--default twice left our DefaultModule, must fail)" \
     "^ok +--default " "^FAIL --default twice " "^FAIL uninstall \(--default twice\) " \
     "^FAIL uninstall \(earlier --default twice\) " -- env SSI263_INSTALL_BREAK=default sh tools/speechd_install_test.sh
+# --default on a config whose last line has no newline keeps each line whole (Brailab's audit, B25); its control
+# appends as it was
+control "speech-dispatcher installer CONTROL (DefaultModule glued to a last line, must fail)" \
+    "^ok +--default " "^FAIL --default, no final newline " "^FAIL uninstall \(no final newline\) " \
+    "^speechd install: FAILED$" -- env SSI263_INSTALL_BREAK=newline sh tools/speechd_install_test.sh
 B=build/linux
 EMU=$B/blazie_emu
 GTK_EMU=""; [ -x $B/blazie_emu_gtk ] && GTK_EMU=$B/blazie_emu_gtk

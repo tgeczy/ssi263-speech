@@ -14,6 +14,8 @@
 # SSI263_INSTALL_BREAK=folders (a control) copies the three folders it did: "every firmware folder" must fail.
 # SSI263_INSTALL_BREAK=default (a control) puts back --default's commenting of its own line and uninstall.sh's
 # restoring of it: the two "twice" checks must fail.
+# SSI263_INSTALL_BREAK=newline (a control) appends DefaultModule with no check for the last line's newline, as it was:
+# the "no final newline" checks must fail. 
 #   sh tools/speechd_install_test.sh
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -141,6 +143,19 @@ printf '%s' "$STOCK" > "$D/before.conf"
 uninstall
 if cmp -s "$D/before.conf" "$D/etc/speechd.conf"; then ok "uninstall (earlier --default twice)" "the old default back alone"
 else fail "uninstall (earlier --default twice)" "$(diff "$D/before.conf" "$D/etc/speechd.conf" | tr '\n' ' ')"; fi
+
+# 4d. --default on a config whose last line has no newline (a hand-edited one): our line its own, the old default
+# commented whole, and uninstall gives the old default back (Brailab's audit, B25: "DefaultModule espeak-ng" and ours
+# were glued into one line, which uninstall then uncommented as a DefaultModule naming no module)
+run nonewline "$(printf '# speechd.conf, edited by hand\nDefaultLanguage en\nDefaultModule espeak-ng')" --default
+if grep -qx 'DefaultModule ssi263' "$D/etc/speechd.conf" \
+        && grep -qx '# (before ssi263) DefaultModule espeak-ng' "$D/etc/speechd.conf"; then
+    ok "--default, no final newline" "each line whole"
+else fail "--default, no final newline" "$(tr '\n' '|' < "$D/etc/speechd.conf")"; fi
+uninstall
+if grep -qx 'DefaultModule espeak-ng' "$D/etc/speechd.conf" && ! grep -q 'ssi263' "$D/etc/speechd.conf"; then
+    ok "uninstall (no final newline)" "the old default back"
+else fail "uninstall (no final newline)" "$(tr '\n' '|' < "$D/etc/speechd.conf")"; fi
 
 # 5. an install over a module that is running and a library that is there: each put in place by a rename.  A real
 # program stands in for the module (a copy of sleep, running under its name), as speech-dispatcher has the module
