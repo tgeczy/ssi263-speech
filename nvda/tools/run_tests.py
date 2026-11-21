@@ -839,6 +839,16 @@ if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
                             env={"EMU_FACTORY_BREAK": "1"}, expect_fail=True, alone=True,
                             fail_marks=[r"^FAIL question .*Braille Lite 2000 \(English\)", r"^FAIL kept +.*CHANGED",
                                         r"^FAIL reset ", r"^factory after a failed start: 3 FAILED$"]))
+    # #87: the program, its firmware and its APPDATA in folders named beyond the code page: the unit starts and is saved
+    # (the manifest's UTF-8 code page); the control runs blazie_emu_ansi.exe, the program without it
+    if os.path.isfile(os.path.join(EMU, "blazie_emu_ansi.exe")):
+        _UNI_EMU = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "apps", "blazie",
+                                     "test_win_unicode.py"), os.path.join(EMU, "blazie_emu.exe"), ENG]
+        CHECKS.append(check("Blazie emulator: folders named beyond the code page (#87)", _UNI_EMU, alone=True))
+        CHECKS.append(check("Blazie emulator: folders beyond the code page CONTROL (no manifest, must fail)", _UNI_EMU,
+                            env={"TEST_WIN_UNICODE_BREAK": "1"}, expect_fail=True, alone=True,
+                            fail_marks=[r"^FAIL started .*Could not start", r"^FAIL saved +closed: NOTHING saved",
+                                        r"^folders beyond the code page: 2 FAILED$"]))
     # its sound queue (src/apps/blazie/audio_pace.c; Tomi: the emulator's speech stutters, the add-on's doesn't)
     # against a simulated sound card calibrated on this desktop's waveOut: a busy machine and a remote card heard
     # without gaps once the automatic queue has grown, a slow save without gaps; the control puts the 0.7.0 draft's

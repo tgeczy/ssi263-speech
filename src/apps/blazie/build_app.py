@@ -138,7 +138,13 @@ def main():
     # makes a release unit's first state by (bl_state.c, bl_firmware.c)
     recipes = [compile_c(os.path.join(BLAZIE, f + ".c"), BOARD) for f in ("bl_state", "bl_firmware")]
     catalog = compile_c(os.path.join(HERE, "emu_catalog.c"), APP)
-    link("blazie_emu.exe", unit + shell + files + [rescue, catalog] + recipes,
+    # its manifest (blazie_emu.rc): UTF-8 as the program's code page, so its paths may hold any letter (#87);
+    # blazie_emu_ansi.exe, without it, is test_win_unicode.py's control (the program as it was)
+    manifest = os.path.join(obj, "blazie_emu_rc.o")
+    run([os.path.join(bindir, "windres.exe"), "-i", os.path.join(HERE, "blazie_emu.rc"), "-O", "coff", "-o", manifest])
+    link("blazie_emu.exe", unit + shell + files + [rescue, catalog, manifest] + recipes,
+         libs=("-lwinmm", "-lsetupapi", "-lcomdlg32", "-lm"), extra=("-mwindows",))
+    link("blazie_emu_ansi.exe", unit + shell + files + [rescue, catalog] + recipes,
          libs=("-lwinmm", "-lsetupapi", "-lcomdlg32", "-lm"), extra=("-mwindows",))
     link("test_rescue.exe", [compile_c(os.path.join(HERE, "test_rescue.c"), APP), rescue] + unit + files)
     link("test_chords.exe", [compile_c(os.path.join(HERE, "test_chords.c"), APP), chords], libs=())
