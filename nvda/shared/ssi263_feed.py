@@ -32,6 +32,7 @@ THRESHOLD = 32                    # NVDA's 1/1024 of full scale, in 16-bit sampl
 SILENCE = b"\x00\x00"             # one sample of 16-bit mono: enough to start a stopped stream
 HOLD = True                       # (the tests' controls take these away)
 KICK = True
+REPORT_OWED = True
 
 
 def sound_bytes(pcm):
@@ -42,6 +43,20 @@ def sound_bytes(pcm):
             return 2 * (len(view) - k)
     return 0
 
+
+def owed(job, handed):
+    """The indexes of a driver's job, (kind, value) items, that it had not handed on when it stopped: in order, each
+    as many times as the job holds it less the times it was handed (#33: a unit's fault ended the job)."""
+    left = list(handed)
+    out = []
+    for kind, value in job:
+        if kind != "index":
+            continue
+        if value in left:
+            left.remove(value)
+        else:
+            out.append(value)
+    return out
 
 
 class FirstFeed(object):

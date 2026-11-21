@@ -643,6 +643,30 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", Non
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "SILENT_INDEXES_BREAK": "1"}, expect_fail=True,
                             fail_marks=[r"^FAIL spaces +.*MISSING INDEX", r"^FAIL index only ", r"^FAIL after idle ",
                                         r"^ok +sound ", r"^ok +then sound ", r"^silent indexes: 3 FAILED$"]))
+# A unit that faults mid-utterance (issue #33): the driver rebooted it and said done, but never reported the indexes
+# after the fault -- NVDA's last one among them -- nor let its player go idle, so NVDA went quiet until a key press.
+# fault_indexes.py, each driver on the WASAPI stand-in, the unit's say() made to raise once: the utterance still
+# completes with every index, and the next one is spoken on the rebooted unit.  The control takes the report away.
+for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", None, "Speak-Out"),
+                              ("speakout", "soundingboard", "Sounding Board"), ("accent", "mini", "Accent-mini"),
+                              ("accent", "sa", "Accent-PC"), ("mockingboard", None, "Mockingboard"),
+                              ("smartalk", None, "SmarTalk")):
+    _file = {"accent": "accentmini"}.get(_which, _which) + ".py"
+    if not os.path.isfile(os.path.join(_UNITS, _file)) or not os.path.isfile(
+            os.path.join(_UNITS, "_ssi263_" + _which, "ssi263_feed.py")):
+        continue
+    if _voice == "soundingboard" and not os.path.isfile(os.path.join(_UNITS, "_ssi263_speakout", "SBLOAD.COM")):
+        continue
+    _argv = [PY, "fault_indexes.py", _which] + ([_voice] if _voice else [])
+    CHECKS.append(check("a unit's fault mid-utterance leaves NVDA no index owed (#33): %s" % _name, _argv,
+                        env={"SSI263_SYNTH_DRIVERS": _UNITS},
+                        ok=lambda out: len(re.findall(r"^ok +(fault|recovers) ", out, re.M)) == 2
+                        and bool(re.search(r"^fault indexes: all ok$", out, re.M))))
+    if _name in ("Braille Lite", "Sounding Board"):
+        CHECKS.append(check("fault indexes CONTROL (%s: the owed indexes not reported, must fail)" % _name, _argv,
+                            env={"SSI263_SYNTH_DRIVERS": _UNITS, "FAULT_INDEXES_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL fault +.*MISSING INDEX", r"^ok +recovers ",
+                                        r"^fault indexes: 1 FAILED$"]))
 # the Blazie emulator app (src/apps/blazie): its chord logic, and the unit headless (boot greeting heard, a chord
 # answered against the no-chord control, faster than real time)
 EMU = os.path.join(os.path.dirname(HERE), "dist", "blazie-emu")

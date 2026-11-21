@@ -385,10 +385,12 @@ class SynthDriver(SynthDriver):
                     log.error("Accent: could not start %s" % self._model, exc_info=True)
             t_job = time.monotonic()
             self._set_phase("speaking")
+            self._handed = []                # the job's indexes handed on (_report_owed)
             try:
                 self._speakJob(job)
             except Exception:
                 log.error("Accent speech failed; restarting the emulated card", exc_info=True)
+                self._report_owed(job)
                 try:
                     self._boot()
                 except Exception:
@@ -508,7 +510,22 @@ class SynthDriver(SynthDriver):
         except Exception:
             pass
 
+    def _report_owed(self, job):
+        """A fault ended the job (#33): what it had fed is let play (idle() calls the indexes already given and
+        lets NVDA's ducking go), then the indexes it never handed on are reported, so NVDA, which waits for an
+        utterance's last index before it says more, is not left waiting.  Not after a cancel: NVDA wants none."""
+        if self._cancelFlag.is_set() or not _first or not getattr(_first, "REPORT_OWED", False):
+            return
+        try:
+            self._player.idle()
+        except Exception:
+            pass
+        for index in _first.owed(job, getattr(self, "_handed", ())):
+            synthIndexReached.notify(synth=self.notifySynth or self, index=index)
+
     def _notifyIndex(self, index):
+        if getattr(self, "_handed", None) is not None:
+            self._handed.append(index)
         _dbg("index %s queued" % index)
         cb = lambda: synthIndexReached.notify(synth=self.notifySynth or self, index=index)   # noqa: E731
         try:
