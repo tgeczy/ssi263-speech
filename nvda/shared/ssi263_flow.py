@@ -44,13 +44,14 @@ def pause(ms, rate, feed, cancelled):
     NVDA's "Delayed descriptions for characters" puts a second's break before a letter's description, to be heard
     only when the user stops on the letter; every driver dropped it, and the description came at once (#71).  NVDA
     keeps a sequence's leading silence when a BreakCommand puts it there (nvwave.py _onPreSpeak).
-    BREAK_PAUSE_BREAK=1, the tests' control: nothing fed, as it was"""
+    BREAK_PAUSE_BREAK=1, the tests' control: nothing fed, as it was; =nocancel: fed to its end through a cancel"""
     import os
-    if os.environ.get("BREAK_PAUSE_BREAK"):
+    brk = os.environ.get("BREAK_PAUSE_BREAK", "")
+    if brk and brk != "nocancel":
         return
     left = int(rate * max(0, ms) / 1000.0)
     block = max(1, int(rate * 0.03))
-    while left > 0 and not cancelled():
+    while left > 0 and (brk == "nocancel" or not cancelled()):
         n = min(block, left)
         feed(bytes(2 * n))
         left -= n

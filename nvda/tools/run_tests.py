@@ -663,7 +663,13 @@ if os.path.isdir(_BREAK_UNITS):
     for _w in ("blazie", "accent"):
         CHECKS.append(check("NVDA's pause CONTROL (%s: the break dropped, must fail)" % _w, [PY, "break_pause.py", _w],
                             env={"SSI263_SYNTH_DRIVERS": _BREAK_UNITS, "BREAK_PAUSE_BREAK": "1"}, expect_fail=True,
-                            fail_marks=[r"^FAIL pause +%s: .*\(-?0\.00 s more\)" % _w, r"^break pause: 1 FAILED$"]))
+                            fail_marks=[r"^FAIL pause +%s: .*\(-?0\.00 s more\)" % _w, r"^FAIL mid +%s: " % _w,
+                                        r"^break pause: 2 FAILED$"]))
+    # ... and the pause stopped by a cancel (a move on to the next letter): its control feeds it to its end
+    CHECKS.append(check("NVDA's pause CONTROL (accent: fed through a cancel, must fail)", [PY, "break_pause.py", "accent"],
+                        env={"SSI263_SYNTH_DRIVERS": _BREAK_UNITS, "BREAK_PAUSE_BREAK": "nocancel"}, expect_fail=True,
+                        fail_marks=[r"^ok +pause ", r"^ok +mid ", r"^FAIL cancel +accent: .* [1-9]\.\d\d s fed after",
+                                    r"^break pause: 1 FAILED$"]))
 # the stand-in NVDA (say_all_flow.py), the units of the 0.8 add-on from its own folder.  The control takes the
 # drivers' FLOW away: each text a sentence of its own again, "flows" must fail.
 _UNITS = os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "synthDrivers", "_ssi263_unified")
