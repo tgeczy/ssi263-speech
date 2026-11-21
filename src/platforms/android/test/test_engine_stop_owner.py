@@ -60,7 +60,7 @@ def main():
         # service: the render to a file, the settings screen rebuilt 1.5 s in
         def rebuild():
             time.sleep(1.5)                       # inside the render (the client binds first)
-            adb("shell", "cmd", "uimode", "night", "yes" if night == "no" else "no")
+            adb("shell", "cmd", "uimode", "night", "no" if night == "yes" else "yes")
         log = run(["--ez", "ttstest", "true", "--es", "text", LONG] + brk, rebuild)
         adb("shell", "cmd", "uimode", "night", night)
         m = re.search(r"SsiTts.*?: (\d+) samples at \d+ Hz, stopped=(true|false)", log)

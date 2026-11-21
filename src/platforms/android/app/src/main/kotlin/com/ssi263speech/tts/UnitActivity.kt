@@ -116,11 +116,14 @@ class UnitActivity : Activity() {
             // that unit on without touching the screen (TalkBack takes a test's taps).  Never set in normal use.
             // Test hook: `--ez bgbreak true` (test_unit_background.py's control) lets a start that finishes unseen
             // switch the unit on, as before #52.
-            bgBreak = intent?.getBooleanExtra("bgbreak", false) == true
+            // (the hooks: a debug build's, on a fresh start only -- the screen is exported: TestHooks.kt)
+            val hooks = TestHooks.on(applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
+                savedInstanceState == null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0)
+            bgBreak = hooks && intent?.getBooleanExtra("bgbreak", false) == true
             // Test hook: `--ei startdelay <ms>` holds the start that long before the unit's own, as a slow first
             // start does (test_unit_background.py: the screen left during it, every time).
-            startDelay = intent?.getIntExtra("startdelay", 0) ?: 0
-            if (intent?.getBooleanExtra("autostart", false) == true) {
+            startDelay = if (hooks) intent?.getIntExtra("startdelay", 0) ?: 0 else 0
+            if (hooks && intent?.getBooleanExtra("autostart", false) == true) {
                 val want = units.indexOfFirst { it.key == intent.getStringExtra("unit") }
                 if (want >= 0) { selected = want; choice.check(choice.getChildAt(want).id) }
                 switchOn()

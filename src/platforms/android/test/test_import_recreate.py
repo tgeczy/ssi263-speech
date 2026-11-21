@@ -74,7 +74,7 @@ def main():
                 *(["--ez", "recreatebreak", "true"] if a.control else []))
             before = pid()
             time.sleep(0.1)
-            adb("shell", "cmd", "uimode", "night", "yes" if night == "no" else "no")      # the activity rebuilt
+            adb("shell", "cmd", "uimode", "night", "no" if night == "yes" else "yes")      # the activity rebuilt
             time.sleep(8.0)
             after = pid()
             log = adb("logcat", "-d", "-v", "brief")

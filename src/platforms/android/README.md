@@ -300,6 +300,8 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     python src/platforms/android/test/test_unit_background.py --control    # control (--ez bgbreak): must FAIL
     python src/platforms/android/test/test_voice_status.py                 # on the phone: Setup names the voice chosen (#55)
     python src/platforms/android/test/test_voice_status.py --control       # control (--ez voicebreak): must FAIL
+    python src/platforms/android/test/test_hooks_rebuild.py                # on the phone: the intent runs once, not on a rebuild (P40)
+    python src/platforms/android/test/test_hooks_rebuild.py --control      # control (--ez hooksbreak): must FAIL
                                   [--voice accent|braillelite|speakout|accentmini|mockingboard|both|all]
     python src/platforms/android/test/test_import_native.py               # the import's native part, and the states
     SSI263_IMPORT_TEST_BREAK=1 python src/platforms/android/test/test_import_native.py     # control: must FAIL
@@ -316,6 +318,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=smartalk              # control: the SmarTalk's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=flash                 # control: the unit screen's large file must FAIL (#50)
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=dosnames              # control: the DOS-named zips must FAIL (#54)
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=hooks                 # control: the exported screens' hooks must FAIL (P40)
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=voice-order           # control: the Sounding Board under the Speak-Out must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=export                # control: the exported WAV's case must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=unopened              # control: a zip in a zip dropped in silence: must FAIL

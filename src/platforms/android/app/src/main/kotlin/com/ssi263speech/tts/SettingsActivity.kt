@@ -10,6 +10,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -57,7 +58,15 @@ class SettingsActivity : Activity() {
     // Test hook: `--ez recreatebreak true` puts #49 back (test_import_recreate.py's control): the checking dialog
     // dismissed before the screen is looked at, the check never handed to a rebuilt screen, which reads its
     // intent's import again.  Harmless in normal use (the extra is never set).
-    private val recreateBreak get() = intent?.getBooleanExtra("recreatebreak", false) == true
+    // (a debug build's, as hooksBreak: it must hold in the rebuilt screen too, where `hooks` is off)
+    private val recreateBreak get() = debuggable && intent?.getBooleanExtra("recreatebreak", false) == true
+    // The test hooks below (and the controls' *break extras): a debug build's, on a fresh start only -- the screen
+    // is exported, so any app could send them, and a rebuild gets its intent again (TestHooks.kt)
+    private var hooks = false
+    // test_hooks_rebuild.py's control, a debug build's: `--ez hooksbreak true` takes the hooks and the adb route on
+    // every rebuild too, as before
+    private val hooksBreak get() = debuggable && intent?.getBooleanExtra("hooksbreak", false) == true
+    private val debuggable get() = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     private var importBar: ProgressBar? = null
     private var importMessage: TextView? = null
     private var importAnnounced = -1
@@ -109,10 +118,14 @@ class SettingsActivity : Activity() {
         setContentView(root)
         show(savedInstanceState?.getInt("page") ?: 0)
         refreshStatus()
+        // a fresh start: not a rebuild, nor the screen reopened from Recents, which gets its old intent again
+        val fresh = (savedInstanceState == null &&
+            (intent?.flags ?: 0) and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) || hooksBreak
+        hooks = TestHooks.on(debuggable, fresh)
 
         // Test hook: `am start -n com.ssi263speech.tts/.SettingsActivity --ez autospeak true [--es text "..."]`
         // speaks without navigating to the button.  Harmless in normal use (the extra is never set).
-        if (intent?.getBooleanExtra("autospeak", false) == true) {
+        if (hooks && intent?.getBooleanExtra("autospeak", false) == true) {
             intent.getStringExtra("text")?.let { sampleText.setText(it) }
             speak()
         }
@@ -120,7 +133,7 @@ class SettingsActivity : Activity() {
         // 4 Accent-mini, 5 Mockingboard, 6 Mockingboard early, 7 Braille Lite German, 8 Italian, 9 Braille 'n Speak
         // Slovak; -1 forgets the choice, so the default applies), as the Voice button would;
         // test_device_service.py puts it back after.
-        intent?.takeIf { it.hasExtra("setvoice") }?.getIntExtra("setvoice", -1)?.let { v ->
+        intent?.takeIf { hooks && it.hasExtra("setvoice") }?.getIntExtra("setvoice", -1)?.let { v ->
             val p = SsiSettings.prefs(this).edit()
             (if (v < 0) p.remove(SsiSettings.VOICE) else p.putInt(SsiSettings.VOICE, v)).commit()
             Log.i("SsiSettings", "voice set by the test hook: $v -> ${SsiEngine.voiceFor(this, SsiSettings.snapshot(this).voice).name}")
@@ -128,16 +141,16 @@ class SettingsActivity : Activity() {
         }
         // Test hook: `--ei setrunahead <0|1>` sets the Braille Lite's run ahead, as its check box would (-1 forgets it:
         // off, the default); test_device_service.py puts it back after.
-        intent?.takeIf { it.hasExtra("setrunahead") }?.getIntExtra("setrunahead", -1)?.let { v ->
+        intent?.takeIf { hooks && it.hasExtra("setrunahead") }?.getIntExtra("setrunahead", -1)?.let { v ->
             val p = SsiSettings.prefs(this).edit()
             (if (v < 0) p.remove(SsiSettings.RUN_AHEAD) else p.putBoolean(SsiSettings.RUN_AHEAD, v == 1)).commit()
             Log.i("SsiSettings", "run ahead set by the test hook: ${SsiSettings.snapshot(this).runAhead}")
         }
         // Test hook: `--ez stopbreak true` (test_engine_stop_owner.py's control) lets any stop end whatever utterance
         // owns the engine, as before #51.
-        if (intent?.getBooleanExtra("stopbreak", false) == true) SsiEngine.stopBreak = true
+        if (hooks && intent?.getBooleanExtra("stopbreak", false) == true) SsiEngine.stopBreak = true
         // Test hook: the TTS service through Android's client (TtsSelfTest.kt).
-        if (intent?.getBooleanExtra("ttstest", false) == true) {
+        if (hooks && intent?.getBooleanExtra("ttstest", false) == true) {
             TtsSelfTest(this, intent.getStringExtra("text") ?: sampleText.text.toString(),
                 intent.getFloatExtra("rate", 1f), intent.getFloatExtra("pitch", 1f),
                 intent.getBooleanExtra("aloud", false), intent.getIntExtra("stop", 0)).run()
@@ -146,15 +159,24 @@ class SettingsActivity : Activity() {
         // An import already running -- this screen was rebuilt underneath it -- shows its progress again, and a
         // file still being checked its outcome when it comes (#49).  Otherwise, on a fresh start (a rebuilt screen
         // gets its intent again: the same file would be checked twice), the adb route, as outspoken's: `am start
-        // ... --es import /path/to/file` (or a content: URI) imports without the confirm dialog, typing the command
-        // being the consent.  `--ez removefirmware true` removes what was imported.
+        // ... --es import /path/to/file` (or a content: URI) imports -- in a debug build without the confirm dialog,
+        // typing the command being the consent; in a release build, where another app may have sent it, asking
+        // before the file is even read (TestHooks.kt).  `--ez removefirmware true` removes what was imported, a release
+        // build asking first.
         SsiImport.job?.let { attachImport(it) } ?: SsiImport.check?.takeIf { !recreateBreak }?.let { attachCheck(it) }
-            ?: intent?.getStringExtra("import")?.takeIf { savedInstanceState == null || recreateBreak }?.let { arg ->
-            val source = if (arg.startsWith("content:") || arg.startsWith("file:"))
-                SsiImport.source(this, Uri.parse(arg)) else SsiImport.source(File(arg))
-            importFrom(source, confirm = false)
+            ?: intent?.getStringExtra("import")?.takeIf { TestHooks.route(fresh) || recreateBreak }?.let { arg ->
+            fun go() {
+                val source = if (arg.startsWith("content:") || arg.startsWith("file:"))
+                    SsiImport.source(this, Uri.parse(arg)) else SsiImport.source(File(arg))
+                importFrom(source, confirm = TestHooks.confirm(debuggable))
+            }
+            if (!TestHooks.confirm(debuggable)) go()
+            else AlertDialog.Builder(this).setTitle("Import firmware?")          // a release build: asked first
+                .setMessage("Another app asked this app to look for firmware in $arg. Look in it?")
+                .setPositiveButton("Look") { _, _ -> go() }.setNegativeButton("Cancel", null).show()
         }
-        if (intent?.getBooleanExtra("removefirmware", false) == true) removeFirmware(confirm = false)
+        if (TestHooks.route(fresh) &&
+            intent?.getBooleanExtra("removefirmware", false) == true) removeFirmware(confirm = TestHooks.confirm(debuggable))
     }
 
     override fun onResume() {
@@ -749,7 +771,7 @@ class SettingsActivity : Activity() {
                         text = "Voice: " + voices[which].label
                         // the Setup page's "Speaking with" too: it named the previous voice until the screen was
                         // left and resumed (#55).  `--ez voicebreak true`, test_voice_status.py's control: as it was
-                        if (intent?.getBooleanExtra("voicebreak", false) != true) refreshStatus()
+                        if (!(hooks && intent?.getBooleanExtra("voicebreak", false) == true)) refreshStatus()
                     }.setNegativeButton("Cancel", null).show()
             }
         }
