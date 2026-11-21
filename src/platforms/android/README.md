@@ -298,6 +298,8 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     python src/platforms/android/test/test_engine_stop_owner.py --control  # control (--ez stopbreak): must FAIL
     python src/platforms/android/test/test_unit_background.py              # on the phone: a unit never comes on unseen (#52)
     python src/platforms/android/test/test_unit_background.py --control    # control (--ez bgbreak): must FAIL
+    python src/platforms/android/test/test_voice_status.py                 # on the phone: Setup names the voice chosen (#55)
+    python src/platforms/android/test/test_voice_status.py --control       # control (--ez voicebreak): must FAIL
                                   [--voice accent|braillelite|speakout|accentmini|mockingboard|both|all]
     python src/platforms/android/test/test_import_native.py               # the import's native part, and the states
     SSI263_IMPORT_TEST_BREAK=1 python src/platforms/android/test/test_import_native.py     # control: must FAIL

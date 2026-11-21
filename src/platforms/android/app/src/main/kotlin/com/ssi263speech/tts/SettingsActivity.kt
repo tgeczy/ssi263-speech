@@ -747,6 +747,9 @@ class SettingsActivity : Activity() {
                         dialog.dismiss()
                         put(SsiSettings.VOICE, voices[which].index)
                         text = "Voice: " + voices[which].label
+                        // the Setup page's "Speaking with" too: it named the previous voice until the screen was
+                        // left and resumed (#55).  `--ez voicebreak true`, test_voice_status.py's control: as it was
+                        if (intent?.getBooleanExtra("voicebreak", false) != true) refreshStatus()
                     }.setNegativeButton("Cancel", null).show()
             }
         }
