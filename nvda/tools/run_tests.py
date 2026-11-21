@@ -894,6 +894,13 @@ if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
                                         r"^audio: 14 FAILED$"]))
     CHECKS.append(check("Blazie emulator: the unit, headless", [os.path.join(EMU, "test_emu_unit.exe"), "bl",
                         os.path.join(ENG, "BL2ENG.BNS"), os.path.join(ENG, "bl2_2003_warm.state")]))
+    # a bar tapped by the hand (emu_keys_down), as the Windows app sends it since #85, pans the display as the
+    # terminal's does; the control leaves the held bars up
+    CHECKS.append(check("Blazie emulator: bars tapped by the hand CONTROL (held bars left up, must fail)",
+                        [os.path.join(EMU, "test_emu_unit.exe"), "bl", os.path.join(ENG, "BL2ENG.BNS"),
+                         os.path.join(ENG, "bl2_2003_warm.state")], env={"TEST_EMU_HELD_BARS_BREAK": "1"},
+                        expect_fail=True, fail_marks=[r"^ok +back bar ", r"^FAIL bars tapped +advance, advance, back "
+                                                      r"tapped: the display changed no, no, no", r"^FAILED$"]))
     # #37: a save is whole or not at all (emu_save_whole): the control saves straight to the file, as the Windows
     # app did, and a save that cannot finish then changes the last state
     CHECKS.append(check("Blazie emulator: a save whole or not at all CONTROL (saved in place, must fail)",

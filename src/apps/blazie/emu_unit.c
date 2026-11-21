@@ -391,6 +391,7 @@ static int tns_render(emu_unit *u, double seconds, const double **out)
    clears hurry) or after EMU_QUICK_LIMIT_S: a key that brings no speech must not leave the unit fast */
 int emu_restart_break;
 int emu_bars_break;
+int emu_held_bars_break;
 
 static void hurry_check(emu_unit *u)
 {
@@ -600,7 +601,7 @@ void emu_keys_down(emu_unit *u, int bits)
         return;
     u->hold_until = 0;              /* the hand has the keys now: emu_hold_at_start's are not let up under it */
     bh_keys_down(u->host, bits & 0x7F);
-    bars_hold(u, bars_of(bits));
+    bars_hold(u, emu_held_bars_break ? 0 : bars_of(bits));
 }
 
 int emu_hold_break = 0;

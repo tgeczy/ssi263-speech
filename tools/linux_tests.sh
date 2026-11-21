@@ -542,6 +542,10 @@ check "Android: the Braille Lite unit screen's native part (and its control)" \
 control "emulator: advance bars CONTROL (port 40h bit 7, must fail)" "^ok +braille display" "^FAIL advance bar" \
     "^FAIL back bar" "^FAILED$" -- env TEST_EMU_BARS_BREAK=1 ./build/linux/test_emu_unit bl "$DATA/BL2ENG.BNS" \
     "$DATA/bl2_2003_warm.state"
+# a bar tapped by the hand (emu_keys_down: the GTK, input-device and Windows shells) pans as the terminal's does
+control "emulator: bars tapped by the hand CONTROL (held bars left up, must fail)" "^ok +back bar " \
+    "^FAIL bars tapped +advance, advance, back tapped: the display changed no, no, no" "^FAILED$" -- \
+    env TEST_EMU_HELD_BARS_BREAK=1 ./build/linux/test_emu_unit bl "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state"
 # the double-speed upgrade (emu_set_double_speed; the English unit's run above keys its switch): never installed, the
 # unit's own switch must change nothing, so the check must fail
 control "emulator: double-speed upgrade CONTROL (never installed, must fail)" "^ok +quick key response " \

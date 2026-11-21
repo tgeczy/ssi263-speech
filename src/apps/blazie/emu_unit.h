@@ -67,6 +67,9 @@ void emu_keys_down(emu_unit *u, int bits);
 /* the tests' control (an app never sets it): nonzero, emu_key sends a chord's bar as the old shells did -- port 40h
    bit 7, which the firmware never reads, so the bars do nothing */
 extern int emu_bars_break;
+/* the tests' control (an app never sets it): nonzero, emu_keys_down leaves the bars up -- a bar the hand holds does
+   nothing */
+extern int emu_held_bars_break;
 /* Keys held as the unit is switched on: down from now until EMU_HOLD_START_S of the unit's time has passed, then up
    with no chord sent -- a person holding them while switching it on.  Call it right after emu_create (a restart is
    the unit saved, destroyed and created again from what it saved).  One-handed mode, the Braille Lite 2000's and the

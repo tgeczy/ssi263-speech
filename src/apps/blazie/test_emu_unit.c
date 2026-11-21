@@ -269,7 +269,9 @@ static int double_run(const char *fw, const char *st, int upgrade, int *setting)
     return now;
 }
 
-static int bars_run(const char *fw, const char *st, int third, unsigned char at[4][EMU_CELLS], int *model)
+/* held: each bar a quick tap of the hand (emu_keys_down: down, up 30 ms later), as the Windows, GTK and input-device
+   shells send it (#85); else a terminal's chord (emu_key) */
+static int bars_run(const char *fw, const char *st, int third, unsigned char at[4][EMU_CELLS], int *model, int held)
 {
     char err[256];
     emu_unit *u = make(fw, st, err, sizeof err);
@@ -281,10 +283,15 @@ static int bars_run(const char *fw, const char *st, int third, unsigned char at[
     }
     memset(at, 0, 4 * EMU_CELLS);
     for (i = 0; i < 1100; i++) {
-        if (i == 500 || i == 700)
-            emu_key(u, EMU_ADVANCE);
-        if (i == 900)
-            emu_key(u, third);
+        if (i == 500 || i == 700 || i == 900) {
+            int bar = i == 900 ? third : EMU_ADVANCE;
+            if (held)
+                emu_keys_down(u, bar);
+            else
+                emu_key(u, bar);
+        }
+        if (held && (i == 503 || i == 703 || i == 903))
+            emu_keys_down(u, 0);
         if (i == 480 || i == 680 || i == 880 || i == 1080)   /* before each bar, and after the last */
             n = emu_braille(u, at[snap++], EMU_CELLS);
         emu_render(u, buf, block);
@@ -481,8 +488,8 @@ int main(int argc, char **argv)
         int n, i, cells = 0, model;
         if (getenv("TEST_EMU_BARS_BREAK"))
             emu_bars_break = 1;
-        n = bars_run(fw, st, EMU_BACK, back, &model);
-        bars_run(fw, st, EMU_ADVANCE, fwd, NULL);
+        n = bars_run(fw, st, EMU_BACK, back, &model, 0);
+        bars_run(fw, st, EMU_ADVANCE, fwd, NULL, 0);
         emu_bars_break = 0;
         for (i = 0; i < EMU_CELLS; i++)
             cells += back[0][i] != 0;
@@ -500,6 +507,22 @@ int main(int argc, char **argv)
                      memcmp(back[3], back[2], EMU_CELLS) ? "yes" : "no",
                      memcmp(back[3], fwd[3], EMU_CELLS) ? "yes" : "no");
             check("back bar", memcmp(back[3], back[2], EMU_CELLS) && memcmp(back[3], fwd[3], EMU_CELLS), d);
+            {   /* the same presses as quick taps of the hand (#85: the Windows app now sends a bar so, held apart
+                   from the chord): the display pans as from the terminal's.  TEST_EMU_HELD_BARS_BREAK=1, the
+                   control: emu_keys_down leaves the bars up -- must fail */
+                unsigned char tap[4][EMU_CELLS];
+                if (getenv("TEST_EMU_HELD_BARS_BREAK"))
+                    emu_held_bars_break = 1;
+                bars_run(fw, st, EMU_BACK, tap, NULL, 1);
+                emu_held_bars_break = 0;
+                snprintf(d, sizeof d, "advance, advance, back tapped: the display changed %s, %s, %s; as the "
+                         "terminal's: %s", memcmp(tap[0], tap[1], EMU_CELLS) ? "yes" : "no",
+                         memcmp(tap[1], tap[2], EMU_CELLS) ? "yes" : "no",
+                         memcmp(tap[2], tap[3], EMU_CELLS) ? "yes" : "no",
+                         memcmp(tap, back, sizeof tap) ? "no" : "yes");
+                check("bars tapped", memcmp(tap[0], tap[1], EMU_CELLS) && memcmp(tap[1], tap[2], EMU_CELLS)
+                      && memcmp(tap[2], tap[3], EMU_CELLS), d);
+            }
         }
     }
     {   /* the double-speed upgrade (emu_set_double_speed): the English Braille Lite's menu keys switch it, so only its
