@@ -305,7 +305,14 @@ object FirmwareImport {
          * content alone, never by its name or its folder; a zip in it is opened too, one level. */
         fun zip(name: String, data: ByteArray, at: Int, nested: Boolean) {
             try {
-                ZipInputStream(ByteArrayInputStream(data, at, data.size - at)).use { zip ->
+                // A name without the zip's UTF-8 flag in Latin-1, which takes every byte: an older tool's DOS code
+                // page name ("LÉEME.TXT", É as 90h) is no UTF-8, and the one-argument constructor threw on it -- the
+                // whole zip refused as damaged, or a zip inside it cut off in silence (#54).  A flagged name is
+                // UTF-8 either way; firmware is judged by its content, never its name.  (Apple's ZipReader: the same.)
+                // -Pssi263ImportBreak=dosnames, the JVM tests' control: UTF-8 for every name, as it was
+                val stream = ByteArrayInputStream(data, at, data.size - at)
+                (if (CONTROL == "dosnames") ZipInputStream(stream)
+                 else ZipInputStream(stream, Charsets.ISO_8859_1)).use { zip ->
                     while (true) {
                         val e = zip.nextEntry ?: break
                         if (e.isDirectory) continue

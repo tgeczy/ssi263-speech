@@ -189,6 +189,31 @@ class FirmwareImportTest {
             "${d}bl2_2003_warm.state, ${d}bl2spa_fresh.state are state files, not firmware, and are not used"))
     }
 
+    /** a zip whose names an older tool wrote in a DOS code page, without the zip's UTF-8 flag (#54): "LÉEME.TXT" in
+     * code page 437 (É as 90h) is no UTF-8, and the whole zip was refused as damaged, the firmware with it; inside a
+     * zip in the zip, the rest of that zip was dropped in silence */
+    private fun dosZip(vararg entries: Pair<String, ByteArray>): ByteArray {
+        val out = ByteArrayOutputStream()
+        ZipOutputStream(out, java.nio.charset.Charset.forName("IBM437")).use { z ->
+            for ((name, bytes) in entries) { z.putNextEntry(ZipEntry(name)); z.write(bytes); z.closeEntry() }
+        }
+        return out.toByteArray()
+    }
+
+    @Test fun aDosNameDoesNotRefuseTheZip() {
+        val plan = inspect("actualizacion.zip", dosZip("LÉEME.TXT" to "léame".toByteArray(), "BL2SPA.BNS" to bns('S'),
+            "für.txt" to "x".toByteArray(), "BL2ENG.BNS" to bns('E')))
+        assertNull(plan.refusal)
+        assertEquals(listOf(FirmwareImport.SPANISH, FirmwareImport.ENGLISH).sorted(), languages(plan).sorted())
+    }
+
+    @Test fun aDosNameInAZipInTheZipDropsNothingAfterIt() {
+        val inner = dosZip("LÉEME.TXT" to "léame".toByteArray(), "BL2SPA.BNS" to bns('S'))
+        val plan = inspect("todo.zip", zip("dentro.zip" to inner, "BL2ENG.BNS" to bns('E')))
+        assertNull(plan.refusal)
+        assertEquals(listOf(FirmwareImport.SPANISH, FirmwareImport.ENGLISH).sorted(), languages(plan).sorted())
+    }
+
     @Test fun aZipWithNoFirmwareSaysSo() {
         val plan = inspect("photos.zip", zip("a.txt" to "hello".toByteArray(), "b/c.bin" to ByteArray(300)))
         assertTrue(plan.found.isEmpty())

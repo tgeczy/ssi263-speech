@@ -313,6 +313,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=soundingboard         # control: the Sounding Board's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=smartalk              # control: the SmarTalk's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=flash                 # control: the unit screen's large file must FAIL (#50)
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=dosnames              # control: the DOS-named zips must FAIL (#54)
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=voice-order           # control: the Sounding Board under the Speak-Out must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=export                # control: the exported WAV's case must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=unopened              # control: a zip in a zip dropped in silence: must FAIL
