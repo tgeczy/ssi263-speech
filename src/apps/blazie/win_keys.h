@@ -4,7 +4,8 @@
  *
  * A key that goes down without Alt and comes up with Alt held (the thumb still on the space bar while the other goes
  * to Alt for the menu) comes up as WM_SYSKEYUP: it is an up like any other (#84).  Alt with a key going down is the
- * window's (its menu), never the unit's.
+ * window's (its menu), never the unit's.  The advance bars are no part of a chord: held while down, under the dots
+ * of a chord typed meanwhile (the firmware's bar + chord), as bl_keys.c has them (#85).
  */
 #ifndef BLAZIE_WIN_KEYS_H
 #define BLAZIE_WIN_KEYS_H
@@ -15,6 +16,7 @@ enum { WK_KEYDOWN, WK_KEYUP, WK_SYSKEYDOWN, WK_SYSKEYUP };
 
 typedef struct {
     chord_state chord;
+    int bars;                      /* the advance bars held (CHORD_BARS): never part of a chord (#85) */
 } win_keys;
 
 void wk_reset(win_keys *k);

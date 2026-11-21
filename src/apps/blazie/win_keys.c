@@ -6,6 +6,7 @@
 void wk_reset(win_keys *k)
 {
     chord_reset(&k->chord);
+    k->bars = 0;
 }
 
 int wk_message(win_keys *k, int msg, int bit, int *held, int *chord)
@@ -16,10 +17,22 @@ int wk_message(win_keys *k, int msg, int bit, int *held, int *chord)
     if (msg == WK_SYSKEYDOWN || (msg == WK_SYSKEYUP && getenv("WIN_KEYS_BREAK")
                                  && getenv("WIN_KEYS_BREAK")[0] == 's'))
         return -1;
+    /* a bar is no part of a chord: down while held, under the dots of a chord typed meanwhile -- the firmware's bar +
+       chord command -- as bl_keys.c has it for the other shells.  It rode in the chord: nothing went while the bar was
+       down, and bar and dots came up together as an ordinary chord (#85).  WIN_KEYS_BREAK=bars, the test's control:
+       in the chord, as it was */
+    if ((bit & CHORD_BARS) && !(getenv("WIN_KEYS_BREAK") && getenv("WIN_KEYS_BREAK")[0] == 'b')) {
+        if (msg == WK_KEYDOWN)
+            k->bars |= bit & CHORD_BARS;
+        else
+            k->bars &= ~(bit & CHORD_BARS);
+        *held = k->chord.down | k->bars;
+        return 1;
+    }
     if (msg == WK_KEYDOWN)
         chord_down(&k->chord, bit);
     else
         *chord = chord_up(&k->chord, bit);
-    *held = k->chord.down;
+    *held = k->chord.down | k->bars;
     return 1;
 }

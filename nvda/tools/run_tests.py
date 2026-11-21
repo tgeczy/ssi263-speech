@@ -822,6 +822,11 @@ if os.path.isfile(os.path.join(EMU, "test_emu_unit.exe")):
                             [os.path.join(EMU, "test_win_keys.exe")], env={"WIN_KEYS_BREAK": "sysup"},
                             expect_fail=True, fail_marks=[r"^FAIL alt_up +space up with Alt held: keys held after it 40",
                                                           r"^win keys: 1 FAILED$"]))
+        # ... and the advance bars held apart from the chord, the dots sent under them (#85); its control puts them back
+        CHECKS.append(check("Blazie emulator: braille keys CONTROL (the bars in the chord, must fail)",
+                            [os.path.join(EMU, "test_win_keys.exe")], env={"WIN_KEYS_BREAK": "bars"},
+                            expect_fail=True, fail_marks=[r"^ok +alt_up ", r"^FAIL bar_chord .*the bar up: chord 081",
+                                                          r"^win keys: 1 FAILED$"]))
     # the braille display field (src/apps/blazie/brl_win.c): its keys go to the window, the cells as Unicode braille;
     # the control keeps the keys in the field and must fail on exactly those
     if os.path.isfile(os.path.join(EMU, "test_brl_win.exe")):
