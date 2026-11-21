@@ -727,6 +727,12 @@ SSV_API void ssv_cancel(ssv_voice *v)
     v->q_len = v->q_at = v->n_qb = v->qb_at = 0;
 }
 
+SSV_API void ssv_interrupted(ssv_voice *v)
+{
+    if (v->e->cancel == eng_bl_cancel)
+        blv_interrupted((bl_voice *)v->u);
+}
+
 /* ---- a bank ---------------------------------------------------------------------------------------------------------- */
 /* the table's slots 0..8, one per release voice, the Sounding Board's and the SmarTalk's: the last slot + 1.  (It was
    the Sounding Board's + 1 when the SmarTalk came, so the SmarTalk's unit sat past the end of the bank and was never

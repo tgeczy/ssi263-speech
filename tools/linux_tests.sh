@@ -304,6 +304,11 @@ control "speech-dispatcher installer CONTROL (only the three folders it named, m
 control "speech-dispatcher installer CONTROL (--default twice left our DefaultModule, must fail)" \
     "^ok +--default " "^FAIL --default twice " "^FAIL uninstall \(--default twice\) " \
     "^FAIL uninstall \(earlier --default twice\) " -- env SSI263_INSTALL_BREAK=default sh tools/speechd_install_test.sh
+# a STOP between messages lifts the next line, as a cancel does (#46: dropped, "nothing is playing"); its control
+# drops it again
+control "module CONTROL (a STOP between messages dropped, must fail)" "^lift +module .*identical" \
+    "^lift_stp module .*DIFFER" "^$((N - 1)) of $N checks passed" -- env SD_SSI263_TEST_IDLE_STOP=drop \
+    python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
 control "module CONTROL (no cancel, must fail)" "^speak +module .*identical" "^stop +module .*identical" \
     "^after +module .*DIFFER" "^set +module .*DIFFER" "^key +module .*DIFFER" "^spanish +module .*identical" \
     "^ra_stop +module .*identical" "^ra_after +module .*DIFFER" \

@@ -129,6 +129,10 @@ SSV_API int ssv_speak(ssv_voice *v, const ssv_settings *s, const char *utf8, int
 SSV_API int ssv_render(ssv_voice *v, const short **pcm, int *done);
 /* Stops the utterance; the next speak starts clean. */
 SSV_API void ssv_cancel(ssv_voice *v);
+/* The listener interrupted while the voice was saying nothing (a stop between utterances): the next utterance is
+   spoken as after a cancel (the Braille Lite's line-start lift, bl_voice.h blv_interrupted); the unit is left as
+   it is.  Nothing for the other voices. */
+SSV_API void ssv_interrupted(ssv_voice *v);
 
 /* Index marks (marks.h): places in the text a screen reader wants to be told of when speech reaches them.
    ssv_speak_marked: as ssv_speak, with the caller's marks (byte offsets into utf8, in rising order).  With none it

@@ -72,6 +72,8 @@ int sdv_render(int i, const short **pcm, int *done);
 int sdv_reached(int i, const ssv_reach **out);
 /* The unit drops what it has not spoken, so the next message starts clean. */
 void sdv_cancel(int i);
+/* A STOP between messages: the next is spoken as after a cancel (voices.h ssv_interrupted). */
+void sdv_interrupted(int i);
 void sdv_destroy_all(void);
 
 #ifdef __cplusplus

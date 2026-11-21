@@ -482,7 +482,13 @@ int main(int argc, char **argv)
             }
             free(text);
         } else if (!strcmp(cmd, "STOP") || !strcmp(cmd, "CANCEL") || !strcmp(cmd, "PAUSE")) {
-            /* only between messages here (during one, speak() catches it): nothing is playing */
+            /* between messages (during one, speak() catches it): the unit is done, but the listener interrupted --
+               the last message still playing, or a key pressed after it -- so the next is spoken as after a
+               cancel (its line-start lift), as the NVDA driver's cancel() arms it when idle.  It was dropped, and
+               the line moved to came out unlifted (#46; SD_SSI263_TEST_IDLE_STOP=drop, a control: dropped) */
+            const char *b = getenv("SD_SSI263_TEST_IDLE_STOP");
+            if (!b || strcmp(b, "drop"))
+                sdv_interrupted(cur_voice);
         } else if (!strcmp(cmd, "SET")) {
             char *line;
             send_line("202 OK RECEIVING MESSAGE");

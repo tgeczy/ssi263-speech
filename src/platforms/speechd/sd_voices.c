@@ -234,6 +234,11 @@ void sdv_cancel(int i)
     if (units[built[i]]) ssv_cancel(units[built[i]]);
 }
 
+void sdv_interrupted(int i)
+{
+    if (units[built[i]]) ssv_interrupted(units[built[i]]);
+}
+
 void sdv_destroy_all(void)
 {
     int k;

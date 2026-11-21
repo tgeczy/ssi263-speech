@@ -169,6 +169,7 @@ BL_API double (*blv_clock)(void) = monotonic_s;
 
 BL_API void blv_set_line_lift(bl_voice *v, int on) { v->line_lift = on != 0; }
 BL_API int blv_get_line_lift(const bl_voice *v) { return v->line_lift; }
+BL_API void blv_interrupted(bl_voice *v) { v->lift_next = 1; v->play_end = 0.0; }
 BL_API bl_host *blv_host(bl_voice *v) { return v->host; }
 BL_API ssi263 *blv_chip(bl_voice *v) { return v->chip; }
 

@@ -83,6 +83,7 @@ before every word), in a session of their own, counted apart ("index marks: n of
     SD_SSI263_TEST_PAUSE_704=1: a PAUSE answered 704 -- pause_ev must FAIL
     SD_SSI263_TEST_IGNORE_RUN_AHEAD=1: the module drops SSI263RunAhead -- the ra_ checks must FAIL
     SD_SSI263_TEST_IGNORE_LINE_LIFT=1: the module drops SSI263LineLift -- lift must FAIL
+    SD_SSI263_TEST_IDLE_STOP=drop: a STOP between messages is dropped, as it was -- lift_stp must FAIL
     SD_SSI263_TEST_IGNORE_BL_NUMBERS=1: the module drops SSI263BrailleLiteNumbers (the default reaches the unit) --
                                         num_off and num_es_off must FAIL
     SD_SSI263_TEST_IGNORE_ACCENT_INFLECTION=1: the module drops SSI263AccentInflection -- as_infl must FAIL
@@ -111,6 +112,7 @@ lib.blv_cancel.argtypes = [ctypes.c_void_p]
 lib.blv_destroy.argtypes = [ctypes.c_void_p]
 lib.blv_set_run_ahead.argtypes = [ctypes.c_void_p, ctypes.c_int]
 lib.blv_set_line_lift.argtypes = [ctypes.c_void_p, ctypes.c_int]
+lib.blv_interrupted.argtypes = [ctypes.c_void_p]
 lib.blv_set_numbers.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 NUMBERS_FN = ctypes.cast(lib.bl_numbers, ctypes.c_void_p)     # bl_numbers.h: the driver's _numbers in C
 lib.blv_host.restype = ctypes.c_void_p
@@ -680,6 +682,33 @@ lift_q, flat_q = Ref(line_lift=1).say("Is it ready?"), Ref().say("Is it ready?")
 print("lift     \"Is it ready?\": the lifted reference %s the unlifted one" % ("differs from" if lift_q != flat_q
                                                                          else "is IDENTICAL to"))
 results.append(configured("lift", "SSI263LineLift 1\n", None, 22050, line_lift=1) and lift_q != flat_q)
+
+
+# a STOP between messages (the module done rendering, the listener interrupting what is still playing, or a key
+# pressed after it): the next message is lifted, as after a cancel, as the NVDA driver's cancel() arms it when idle.
+# It was dropped ("nothing is playing") and the next line came out unlifted (#46)
+def lift_after_stop():
+    c = Module("SSI263LineLift 1\n", None)
+    c.send("INIT")
+    assert c.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
+    c.speak("Is it ready?")
+    c.send("STOP")
+    pcm, _ev, _n = c.speak("Is it ready?")
+    c.send("QUIT")
+    c.p.wait(timeout=10)
+    r = Ref(line_lift=1)
+    r.say("Is it ready?")
+    lib.blv_interrupted(r.v)                      # the lift armed, the unit left as it is (bl_voice.h)
+    lifted = r.say("Is it ready?")
+    r = Ref(line_lift=1)
+    r.say("Is it ready?")
+    flat = r.say("Is it ready?")                  # straight on, no STOP: not lifted
+    print("lift_stp the second message after a STOP %s the one straight on (%d samples; %d lifted)" % (
+        "differs from" if lifted != flat else "is the SAME as", len(flat) // 2, len(lifted) // 2))
+    return same("lift_stp", pcm, lifted) and lifted != flat
+
+
+results.append(lift_after_stop())
 
 # ---- the Braille Lite's number words: the driver's default, the key, this user's key over the module file's -------
 def driver_numbers_default():

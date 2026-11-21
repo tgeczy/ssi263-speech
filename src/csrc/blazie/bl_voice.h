@@ -72,6 +72,10 @@ BL_API void blv_set_run_ahead(bl_voice *v, int on);
 BL_API extern double (*blv_clock)(void);
 BL_API void blv_set_line_lift(bl_voice *v, int on);
 BL_API int blv_get_line_lift(const bl_voice *v);
+/* The listener interrupted while the voice was saying nothing (a stop between utterances, the last perhaps still
+   playing): the next utterance is lifted as after a cancel, and the unit left as it is (blazie.py's cancel() when
+   idle). */
+BL_API void blv_interrupted(bl_voice *v);
 /* The driver's "Custom number processing" (numberWords; the driver's default is on, this voice's off until set): fn
    rewrites the cleaned text before it is cut into lines, as the driver's _numbers -- bl_numbers.h's bl_numbers is it.
    A function rather than a flag so this file links without the number words (bl.dll has none).  fn gets the text as
