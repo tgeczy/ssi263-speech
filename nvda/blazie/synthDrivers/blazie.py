@@ -75,6 +75,7 @@ PLAYED_POLL_S = 0.005              # while waiting for it: how often an empty fe
 # decay), faded out by CLICK_S so that speech coming just then does not wait behind it.
 CLICK_S = 0.25
 NO_CLICK = False                   # True: no click (a test's control)
+CLICK_SEEN = True                  # click only a click-off the tail saw happen (#70; False: a test's control)
 CLICK_FADE_S = 0.15
 
 
@@ -1035,12 +1036,16 @@ class SynthDriver(SynthDriver):
             return
         gain = MAKEUP * self._volume / 100.0
         rate = float(unit.chip.out_rate)
-        start, fed, clicked = _now(), 0.0, False
+        start, fed, clicked, was_open = _now(), 0.0, False, False
         self._wake.clear()
         while not self._stopped and self._queue.empty() and not self._cancelFlag.is_set():
             if unit.chip.regs[3] == 0:
-                clicked = True           # clicked off: the firmware's own end of the open channel
+                # clicked off: the firmware's own end of the open channel -- if this tail saw it open.  After an
+                # utterance the unit was given nothing for, R3 is still the 00 of the click-off before, and that was
+                # clicked again each time (#70; CLICK_SEEN = False, the test's control: as it was)
+                clicked = was_open or not CLICK_SEEN
                 break
+            was_open = True
             ahead = self._tail_ahead(fed, start)
             if ahead > IDLE_AHEAD_S:
                 # the speech may still be playing: look again soon (the clock may be a test's, sped up)

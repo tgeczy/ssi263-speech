@@ -2319,6 +2319,11 @@ CHECKS.append(check("keep the channel open CONTROL (off, must fail)", [PY, "keep
 CHECKS.append(check("keep the channel open CONTROL (no click, must fail)", [PY, "keep_open_test.py"],
                     env={"KEEP_OPEN_BREAK": "noclick"}, expect_fail=True, alone=True,
                     fail_marks=[r"^ok +A hiss, keep open:", r"^FAIL A2 the click", r"^keep open: 1 FAILED$"]))
+# ... no second click after an utterance that said nothing (#70): its control clicks R3 = 00 seen or not
+CHECKS.append(check("keep the channel open CONTROL (a click-off clicked again, must fail)", [PY, "keep_open_test.py"],
+                    env={"KEEP_OPEN_BREAK": "reclick"}, expect_fail=True, alone=True,
+                    fail_marks=[r"^ok +A2 the click", r"^FAIL G no click after an utterance that said nothing",
+                                r"^keep open: 1 FAILED$"]))
 # ... and with every fed sample silent, each audio check must reject it (Astra, Reply 95: missing sound passed)
 CHECKS.append(check("keep the channel open CONTROL (mute, every audio check fails)", [PY, "keep_open_test.py"],
                     env={"KEEP_OPEN_BREAK": "mute"}))

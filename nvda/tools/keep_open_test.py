@@ -17,6 +17,9 @@ stand-in NVDA; the tail's clock is sped up SPEED times.
     python keep_open_test.py            KEEP_OPEN_BREAK=1: case A runs with keep open off -- the test must fail
                                         KEEP_OPEN_BREAK=mute: every fed sample silent -- passes only if A, B and E/F each fail
                                         KEEP_OPEN_BREAK=noclick: the click left out -- A2 must fail
+                                        KEEP_OPEN_BREAK=reclick: a click-off clicked again (#70) -- G must fail
+
+  G  after the click-off, an utterance the unit is given nothing for (an index alone): no second click (#70)
 """
 import os
 import sys
@@ -33,6 +36,8 @@ drv_mod._now = lambda: _t0 + (time.perf_counter() - _t0) * SPEED
 BREAK = os.environ.get("KEEP_OPEN_BREAK") == "1"
 if os.environ.get("KEEP_OPEN_BREAK") == "noclick":
     drv_mod.NO_CLICK = True
+if os.environ.get("KEEP_OPEN_BREAK") == "reclick":          # (#70) R3 = 00 taken for a click-off, seen or not
+    drv_mod.CLICK_SEEN = False
 if os.environ.get("KEEP_OPEN_BREAK") == "mute":     # the guards' control: silent audio must fail B, E and F
     _feed = d._player.feed
     d._player.feed = lambda data, onDone=None: _feed(bytes(len(data)), onDone)
@@ -115,6 +120,20 @@ low = float(end.min()) if len(end) else 0.0
 check("A2 the click at the click-off", low < -0.7 * want and (not len(body) or float(np.abs(body).max()) < 0.3 * want),
       "lowest %.4f in the tail's last %.2f s (the click's step %.4f); the hiss before it peaks at %.4f"
       % (low, drv_mod.CLICK_S + 0.1, -want, float(np.abs(body).max()) if len(body) else 0.0))
+# G: the channel clicked off (A), then an utterance the unit is given nothing for (an index alone, as NVDA sends): no
+# second click.  The tail took R3 = 00 left from the click-off before for the firmware clicking off just then (#70)
+n_before = fed()
+d.speak([cmds.IndexCommand(7)])
+t = time.time()
+while time.time() - t < 3.0 and ("index", 7) not in list(notified):
+    time.sleep(0.02)
+time.sleep(1.0)
+with d._player.lock:
+    y = np.concatenate(d._player.chunks) if d._player.chunks else np.zeros(0)
+after = y[n_before:]
+low_g = float(after.min()) if len(after) else 0.0
+check("G no click after an utterance that said nothing", low_g > -0.3 * want,
+      "%d samples fed after it, the lowest %.4f (a click's step: %.4f)" % (len(after), low_g, -want))
 
 # B: interrupted by new speech 2 s (tail time) in
 d1 = utter("Hello there.", "hiss", True, wait_tail=False)
