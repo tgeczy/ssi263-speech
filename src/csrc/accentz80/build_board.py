@@ -5,8 +5,8 @@
                        the chip built in)
   az_waiting.exe       the tool that measures a firmware's waiting loops into az_waiting.inc (az_waiting.c)
   x64/accent_sa_z80.dll   a TEST library, never shipped: the unit under the Accent voice (az_voice.c, with
-                       ../accentsa/as_voice.c, the Accents' text rules and the chip), for the completion checks on
-                       this unit (../accentsa/test_as_complete.py with AS_COMPLETE_UNIT=sa)
+                       ../accentpc/as_voice.c, the Accents' text rules and the chip), for the completion checks on
+                       this unit (../accentpc/test_as_complete.py with AS_COMPLETE_UNIT=sa)
 
 The Accent SA is not a shipped voice (README.md says why): ssi263speech.dll does not hold it.
 
@@ -20,7 +20,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 CSRC = os.path.dirname(HERE)
 CPU = os.path.join(CSRC, "cpu")
-PC = os.path.join(CSRC, "accentsa")
+PC = os.path.join(CSRC, "accentpc")
 REPO = os.path.dirname(os.path.dirname(CSRC))
 sys.path.insert(0, REPO)
 from tools import repo_paths  # noqa: E402

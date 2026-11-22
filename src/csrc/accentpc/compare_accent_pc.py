@@ -1,7 +1,7 @@
-"""The Accent-PC host in C (src/csrc/accentsa, MAME's 8085: hosts/accent_sa_c.py) against the Python host
-(hosts/accent_sa.py, the reference), on a scripted session, the same chip model (SSI263C) on both sides.
+"""The Accent-PC host in C (src/csrc/accentpc, MAME's 8085: hosts/accent_pc_c.py) against the Python host
+(hosts/accent_pc.py, the reference), on a scripted session, the same chip model (SSI263C) on both sides.
 
-    python src/csrc/accentsa/compare_accent_sa.py [--quick] [--only greeting|commands|driver]
+    python src/csrc/accentpc/compare_accent_pc.py [--quick] [--only greeting|commands|driver]
 
 The session, in three parts (three units, each from power-on):
   greeting  the "Accent ready." greeting heard out, flushed, then texts with punctuation, numbers and money in 50 ms
@@ -20,15 +20,15 @@ ended the Python host's slice (its vector's instruction ran in the next slice) a
 TRAP raised in EI's shadow (held one instruction by the Python core) against the board's held count.  The Python side
 is counted by instrumenting its I8085.run; the C side by the board.
 
-Reported and classified, not a predicate: the C host with the core's own counting (SSI263_ACCENT_SA_SLICES=chip,
+Reported and classified, not a predicate: the C host with the core's own counting (SSI263_ACCENT_PC_SLICES=chip,
 experimental): which writes move, by how much, and after which counting event.
 
-Must-fail controls: ACCENTSA_COMPARE_FLIP=1 flips one C write's value before comparing; ACCENTSA_COMPARE_SLICES=chip
+Must-fail controls: ACCENTPC_COMPARE_FLIP=1 flips one C write's value before comparing; ACCENTPC_COMPARE_SLICES=chip
 compares the C host on the core's own counting, which the counting predicate must catch (its writes stay identical).
 
 Where the carried acceptances fall depends on the chip's timing (boot() ends when A/R lets it).  If a retune of the chip
 (params.py) moves them out of the commands part, the counting check fails for that reason, not the C host's:
-    python src/csrc/accentsa/compare_accent_sa.py --find-split 300
+    python src/csrc/accentpc/compare_accent_pc.py --find-split 300
 runs the C host (fast) on that many sessions of boot(), then twice a command, 50 ms and a short text, and prints the
 shortest that hold one; put its command and texts in COMMANDS below.
 """
@@ -41,8 +41,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 sys.path.insert(0, os.path.join(REPO, "src"))
 from hosts import i8085 as I  # noqa: E402
-from hosts.accent_sa import AccentSA  # noqa: E402
-from hosts.accent_sa_c import _ESC, AccentSAC, _load  # noqa: E402
+from hosts.accent_pc import AccentPC  # noqa: E402
+from hosts.accent_pc_c import _ESC, AccentPCC, _load  # noqa: E402
 from ssi263.native import SSI263C  # noqa: E402
 
 ROMS = os.path.join(REPO, "firmware", "aicom-accent-sa")
@@ -153,7 +153,7 @@ def run_python(quick, parts):
     try:
         for part in parts:
             chip = SpyChip()
-            host = AccentSA(ROMS, chip=chip, core="python")
+            host = AccentPC(ROMS, chip=chip, core="python")
             host.keep_writes = False
             host.part, host.commands = part, COMMANDS
             _HOST[0] = host
@@ -168,8 +168,8 @@ def run_python(quick, parts):
 def run_c(quick, slices, parts):
     log, blocks, t0, splits, held = [], [], time.perf_counter(), 0, 0
     for part in parts:
-        host = AccentSA(ROMS, chip=SSI263C(), core="c", slices=slices)
-        assert isinstance(host, AccentSAC)
+        host = AccentPC(ROMS, chip=SSI263C(), core="c", slices=slices)
+        assert isinstance(host, AccentPCC)
         host.keep_writes = False
         host.part, host.commands = part, COMMANDS
         host.on_write = lambda t, reg, val, part=part: log.append((part, t, reg, val))
@@ -180,7 +180,7 @@ def run_c(quick, slices, parts):
 
 
 def speech_rule():
-    """accent_sa.py's say(speech=None) against as_host.c's on Latin-1 text: every byte, and ESC commands."""
+    """accent_pc.py's say(speech=None) against as_host.c's on Latin-1 text: every byte, and ESC commands."""
     import random
     lib = _load(SSI263C())
     rng = random.Random(1)
@@ -200,7 +200,7 @@ def find_split(n):
     found = []
     for seed in range(n):
         rng = random.Random(seed)
-        host = AccentSA(ROMS, chip=SSI263C(), core="c")
+        host = AccentPC(ROMS, chip=SSI263C(), core="c")
         host.keep_writes = False
         host.part = "commands"
         host.commands = tuple((rng.choice(cmds), rng.choice(texts)) for _ in range(2))
@@ -225,14 +225,14 @@ def main():
     failed = 0
 
     n, bad = speech_rule()
-    print("%-4s speech rule   %d texts: as_host.c's = accent_sa.py's%s" % ("ok" if not bad else "FAIL", n,
+    print("%-4s speech rule   %d texts: as_host.c's = accent_pc.py's%s" % ("ok" if not bad else "FAIL", n,
                                                                           "" if not bad else ": %r" % bad[:5]))
     failed += bool(bad)
 
     del EVENTS[:]
     pw, pb, pt = run_python(a.quick, parts)
-    cw, cb, ct, splits, held = run_c(a.quick, os.environ.get("ACCENTSA_COMPARE_SLICES", "python"), parts)
-    if os.environ.get("ACCENTSA_COMPARE_FLIP"):
+    cw, cb, ct, splits, held = run_c(a.quick, os.environ.get("ACCENTPC_COMPARE_SLICES", "python"), parts)
+    if os.environ.get("ACCENTPC_COMPARE_FLIP"):
         k = min(100, len(cw) - 1)
         part, t, reg, val = cw[k]
         cw[k] = (part, t, reg, val ^ 0x01)
@@ -287,7 +287,7 @@ def main():
     else:
         k = next((i for i, (x, y) in enumerate(zip(vals_p, vals_x)) if x != y), min(len(pw), len(xw)))
         print(line + " from write %d" % k)
-    print("accent_sa cores: %s" % ("FAILED" if failed else "all identical"))
+    print("accent_pc cores: %s" % ("FAILED" if failed else "all identical"))
     sys.exit(1 if failed else 0)
 
 

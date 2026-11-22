@@ -30,7 +30,7 @@ class SsiLanguagesTest {
 
     /** The voices that can speak with nothing imported (the Accents, the Mockingboards' built-in copies) plus these. */
     private fun with(vararg imported: Int) = known.filter {
-        it.index in setOf(SsiNative.ACCENT_SA, SsiNative.ACCENT_MINI, SsiNative.MOCKINGBOARD,
+        it.index in setOf(SsiNative.ACCENT_PC, SsiNative.ACCENT_MINI, SsiNative.MOCKINGBOARD,
                           SsiNative.MOCKINGBOARD_EARLY) || it.index in imported
     }
 
@@ -61,7 +61,7 @@ class SsiLanguagesTest {
             assertEquals(lang, TextToSpeech.LANG_COUNTRY_AVAILABLE, avail(lang2, country2, v))
             assertEquals(lang, TextToSpeech.LANG_AVAILABLE, avail(lang, "", v))
             assertEquals(setOf("eng-USA", "$lang-$country"), SsiLanguages.tags(v).toSet())
-            assertEquals(voice, SsiLanguages.voiceFor(lang, SsiNative.ACCENT_SA, v)?.index)
+            assertEquals(voice, SsiLanguages.voiceFor(lang, SsiNative.ACCENT_PC, v)?.index)
             // the others stay missing: one unit's firmware offers its language alone
             for (other in listOf("spa", "deu", "ita", "slk").filter { it != lang })
                 assertEquals("$lang, then $other", TextToSpeech.LANG_MISSING_DATA, avail(other, "", v))
@@ -74,13 +74,13 @@ class SsiLanguagesTest {
     @Test fun aRequestInABlazieLanguageGetsItsUnitAndEnglishTheChosenVoice() {
         val v = with(SsiNative.ENGLISH, SsiNative.GERMAN, SsiNative.SLOVAK)
         assertEquals(SsiNative.GERMAN, SsiLanguages.ownLanguageVoice("deu", SsiNative.ENGLISH, v)?.index)
-        assertEquals(SsiNative.SLOVAK, SsiLanguages.ownLanguageVoice("sk", SsiNative.ACCENT_SA, v)?.index)
+        assertEquals(SsiNative.SLOVAK, SsiLanguages.ownLanguageVoice("sk", SsiNative.ACCENT_PC, v)?.index)
         assertNull(SsiLanguages.ownLanguageVoice("ita", SsiNative.ENGLISH, v))        // not imported
         assertNull(SsiLanguages.ownLanguageVoice("eng", SsiNative.GERMAN, v))         // English: the chosen voice
         assertNull(SsiLanguages.ownLanguageVoice(null, SsiNative.GERMAN, v))
         // English's default: the chosen voice when it is English, else the first English one -- never German
         assertEquals(SsiNative.ENGLISH, SsiLanguages.voiceFor("eng", SsiNative.ENGLISH, v)?.index)
-        assertEquals(SsiNative.ACCENT_SA, SsiLanguages.voiceFor("eng", SsiNative.GERMAN, v)?.index)
+        assertEquals(SsiNative.ACCENT_PC, SsiLanguages.voiceFor("eng", SsiNative.GERMAN, v)?.index)
     }
 
     @Test fun theCurrentLanguageIsTheChosenVoices() {
@@ -88,7 +88,7 @@ class SsiLanguagesTest {
         assertArrayEquals(arrayOf("deu", "DEU", ""), SsiLanguages.language(of(SsiNative.GERMAN)))
         assertArrayEquals(arrayOf("ita", "ITA", ""), SsiLanguages.language(of(SsiNative.ITALIAN)))
         assertArrayEquals(arrayOf("slk", "SVK", ""), SsiLanguages.language(of(SsiNative.SLOVAK)))
-        assertArrayEquals(arrayOf("eng", "USA", ""), SsiLanguages.language(of(SsiNative.ACCENT_SA)))
+        assertArrayEquals(arrayOf("eng", "USA", ""), SsiLanguages.language(of(SsiNative.ACCENT_PC)))
     }
 
     @Test fun everyVoiceIsListedOnceWithAnIndexBelowVoices() {

@@ -1,6 +1,6 @@
 /* az_waiting.c -- measures where the Accent SA's firmware waits, and writes az_waiting.inc from it: the table
  * az_board.c counts the firmware's own work against (az_board_take_work), which is how a voice tells a text that has
- * ended from one whose next clause is still being read (../accentsa/as_voice.c, issue #8).  A tool, run by hand when
+ * ended from one whose next clause is still being read (../accentpc/as_voice.c, issue #8).  A tool, run by hand when
  * a firmware is added:
  *
  *   az_waiting <U4 file> <U5 file> [<U5 file> ...]  >  az_waiting.inc

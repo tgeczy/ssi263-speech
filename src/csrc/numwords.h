@@ -1,6 +1,6 @@
 /* numwords.h -- nvda/shared/ssi263_numwords.py in C, the parts a front end without Python needs: text as Python sees
  * it (UTF-8 to code points), currencies() and English normalise() (numbers as words).  Each function names the
- * Python it ports; change them together.  The Accent-PC voice (accentsa/as_voice.c) uses them, and its Android test
+ * Python it ports; change them together.  The Accent-PC voice (accentpc/as_voice.c) uses them, and its Android test
  * holds them to the NVDA driver byte for byte (src/platforms/android/test/test_android_native.py); so does the
  * Speak-Out's (speakout/so_voice.c: currencies, nw_utf8, nw_isalnum; nvda/tools/so_voice_text_equiv.py).
  *

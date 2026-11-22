@@ -1,14 +1,14 @@
 /* as_board.h -- the Aicom Accent-PC around an 8085 core (MAME's, ../cpu/i8085_mame.cpp, through ../cpu/cpu.h), as a
  * library: one instance per unit.
  *
- * The machine is src/hosts/accent_sa.py's, exactly (read from Aicom's code and confirmed by it speaking):
+ * The machine is src/hosts/accent_pc.py's, exactly (read from Aicom's code and confirmed by it speaking):
  *   0000-77FF  u2's lower half (program)             7800-7FFF  RAM, 2 KB (SP = 8000h); ROM writes are ignored
  *   8000-FFFF  a 32 KB window, banked by port 40h bits 0-1: 0 = u2's upper half, 1 = u3, 2 = u4, 3 = nothing (FFh)
  *   ports 03-07  the SSI-263, reversed: 03 = R4, 04 = R3, 05 = R2, 06 = R1, 07 = R0; a read of 07 has A/R in bit 7
  *   ports 20/21  the 8251 (as_usart.h); RxRDY is RST 6.5
  *   port 40      out: the bank (bits 0-1) and bit 4, which gates A/R onto TRAP; in: the option switches
  *   every other port reads 0 and ignores writes (port 80h, the parallel input on RST 5.5, is unused)
- *   TRAP         A/R AND port 40h bit 4, sampled at a slice's start (as_board_trap), as accent_sa.py's _trap()
+ *   TRAP         A/R AND port 40h bit 4, sampled at a slice's start (as_board_trap), as accent_pc.py's _trap()
  *   RST 7.5      a clock the firmware times at power-up; the host pulses it (as_board_rst75) or never (mode 3)
  *
  * The chip is the caller's, through as_chip: a write reaches it at once, inside the slice, and IN 07h reads its A/R
@@ -47,22 +47,22 @@ typedef struct {
     int (*request)(void *ctx);                    /* A/R asserted */
 } as_chip;
 
-/* The three ROMs, copied (the caller may free them).  Exact sizes are required (accent_sa.py fails on shorter ones).
+/* The three ROMs, copied (the caller may free them).  Exact sizes are required (accent_pc.py fails on shorter ones).
    NULL on failure, the reason in err. */
 as_board *as_board_create(const uint8_t *u2, size_t n2, const uint8_t *u3, size_t n3, const uint8_t *u4, size_t n4,
                           const as_chip *chip, char *err, int errlen);
 void as_board_destroy(as_board *b);
 
-/* accent_sa.py's _serial(): one byte into the 8251 when it is free and RTS is up; it raises RST 6.5 */
+/* accent_pc.py's _serial(): one byte into the 8251 when it is free and RTS is up; it raises RST 6.5 */
 void as_board_serial(as_board *b);
-/* accent_sa.py's _trap(): the TRAP line = A/R AND port 40h bit 4, given to the core when it changes */
+/* accent_pc.py's _trap(): the TRAP line = A/R AND port 40h bit 4, given to the core when it changes */
 void as_board_trap(as_board *b);
 void as_board_rst75(as_board *b);          /* one RST 7.5 edge (the power-up clock, when the host has one) */
 /* i8085.py's run(budget): whole steps until at least `budget` T-states, counted as above; returns those counted */
 uint64_t as_board_run(as_board *b, uint64_t budget);
 
 int as_board_send(as_board *b, const uint8_t *bytes, int n);   /* the host's bytes; 1, or 0 when out of memory */
-void as_board_drop_input(as_board *b);     /* the queued bytes, not the loaded one (accent_sa.py's rx.clear()) */
+void as_board_drop_input(as_board *b);     /* the queued bytes, not the loaded one (accent_pc.py's rx.clear()) */
 int as_board_tx(const as_board *b, const uint8_t **bytes);     /* every byte the firmware sent */
 
 /* state, by name: "latch40", "bank", "switches" (settable), "python_slices" (settable), "usart_cmd", "usart_mode_next",

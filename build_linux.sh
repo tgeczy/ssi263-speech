@@ -40,7 +40,7 @@ BOARD="-O3 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -DBL_Z180_MAME
 MAME="-O3 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC"
 # libstdc++ and libgcc inside the .so, their symbols kept there: the library needs only libc and libm on any distro
 SHARED_CXX="-static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL"
-# a library whose chip comes from the one loaded before it (libaccent_sa.so, below): Linux's linker allows the
+# a library whose chip comes from the one loaded before it (libaccent_pc.so, below): Linux's linker allows the
 # undefined symbols; Apple's needs telling
 UNDEF=""
 if [ "$(uname -s)" = Darwin ]; then
@@ -238,32 +238,32 @@ $CXX -o "$OUT/test_i86_contract" "$OUT/obj_i86/test_i86_contract.o" "$OUT/obj_i8
 $CC -O3 -std=gnu89 -fPIC -I$SRC/cpu -c -o "$OUT/obj_i86/pc86.o" "$SRC/pc86/pc86.c"
 $CXX -shared -o "$OUT/libpc86.so" "$OUT/obj_i86/pc86.o" "$OUT/obj_i86/i86_mame.o"
 
-# The Accent-PC (src/csrc/accentsa: its board on MAME's 8085 and accent_sa.py's host in C): the board's tests,
-# as_render (the C API alone, the chip built in) and libaccent_sa.so for src/hosts/accent_sa_c.py.  The .so leaves
+# The Accent-PC (src/csrc/accentpc: its board on MAME's 8085 and accent_pc.py's host in C): the board's tests,
+# as_render (the C API alone, the chip built in) and libaccent_pc.so for src/hosts/accent_pc_c.py.  The .so leaves
 # the chip's functions undefined: they come from the libssi263speech.so that ssi263/native.py loaded, made global by
-# accent_sa_c.py first, so the host drives the caller's chip.  Own folder.
-rm -rf "$OUT/obj_accentsa"; mkdir -p "$OUT/obj_accentsa"
-$CXX $MAMET -fPIC -Wno-sign-compare -c -o "$OUT/obj_accentsa/i8085_mame.o" "$SRC/cpu/i8085_mame.cpp"
+# accent_pc_c.py first, so the host drives the caller's chip.  Own folder.
+rm -rf "$OUT/obj_accentpc"; mkdir -p "$OUT/obj_accentpc"
+$CXX $MAMET -fPIC -Wno-sign-compare -c -o "$OUT/obj_accentpc/i8085_mame.o" "$SRC/cpu/i8085_mame.cpp"
 for f in as_board as_usart as_host; do
-    $CC -O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/accentsa -I$SRC -c -o "$OUT/obj_accentsa/$f.o" "$SRC/accentsa/$f.c"
+    $CC -O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/accentpc -I$SRC -c -o "$OUT/obj_accentpc/$f.o" "$SRC/accentpc/$f.c"
 done
-$CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC/accentsa -c -o "$OUT/test_as_board.o" "$SRC/accentsa/test_as_board.c"
-$CXX -o "$OUT/test_as_board" "$OUT/test_as_board.o" "$OUT/obj_accentsa/as_board.o" "$OUT/obj_accentsa/as_usart.o" "$OUT/obj_accentsa/i8085_mame.o"
-$CC -O2 -std=gnu89 -I$SRC/accentsa -I$SRC -c -o "$OUT/as_render.o" "$SRC/accentsa/as_render.c"
-$CXX -o "$OUT/as_render" "$OUT/as_render.o" "$OUT"/obj_accentsa/*.o $CHIP_OBJS -lm
-$CXX -shared $UNDEF -o "$OUT/libaccent_sa.so" "$OUT"/obj_accentsa/*.o -lm
+$CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC/accentpc -c -o "$OUT/test_as_board.o" "$SRC/accentpc/test_as_board.c"
+$CXX -o "$OUT/test_as_board" "$OUT/test_as_board.o" "$OUT/obj_accentpc/as_board.o" "$OUT/obj_accentpc/as_usart.o" "$OUT/obj_accentpc/i8085_mame.o"
+$CC -O2 -std=gnu89 -I$SRC/accentpc -I$SRC -c -o "$OUT/as_render.o" "$SRC/accentpc/as_render.c"
+$CXX -o "$OUT/as_render" "$OUT/as_render.o" "$OUT"/obj_accentpc/*.o $CHIP_OBJS -lm
+$CXX -shared $UNDEF -o "$OUT/libaccent_pc.so" "$OUT"/obj_accentpc/*.o -lm
 
 # The Accent SA, the stand-alone box (src/csrc/accentz80: its board on MAME's Z80, under the Accent-PC's host above):
 # the board's tests, and az_trace (the C API alone, the chip built in; test_az_firmware.py drives it).  Own folder.
 rm -rf "$OUT/obj_accentz80"; mkdir -p "$OUT/obj_accentz80"
 $CXX $MAMET -fPIC -c -o "$OUT/obj_accentz80/z80_mame.o" "$SRC/cpu/z80_mame.cpp"
 for f in az_board az_host; do
-    $CC -O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/accentsa -I$SRC/accentz80 -I$SRC -c -o "$OUT/obj_accentz80/$f.o" "$SRC/accentz80/$f.c"
+    $CC -O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/accentpc -I$SRC/accentz80 -I$SRC -c -o "$OUT/obj_accentz80/$f.o" "$SRC/accentz80/$f.c"
 done
 $CC -O2 -std=gnu89 -I$SRC/cpu -I$SRC/accentz80 -c -o "$OUT/test_az_board.o" "$SRC/accentz80/test_az_board.c"
-$CXX -o "$OUT/test_az_board" "$OUT/test_az_board.o" "$OUT/obj_accentz80/az_board.o" "$OUT/obj_accentsa/as_usart.o" "$OUT/obj_accentz80/z80_mame.o"
-$CC -O2 -std=gnu89 -I$SRC/accentz80 -I$SRC/accentsa -I$SRC -c -o "$OUT/az_trace.o" "$SRC/accentz80/az_trace.c"
-$CXX -o "$OUT/az_trace" "$OUT/az_trace.o" "$OUT"/obj_accentz80/*.o "$OUT"/obj_accentsa/*.o $CHIP_OBJS -lm   # (before az_voice.o is there)
+$CXX -o "$OUT/test_az_board" "$OUT/test_az_board.o" "$OUT/obj_accentz80/az_board.o" "$OUT/obj_accentpc/as_usart.o" "$OUT/obj_accentz80/z80_mame.o"
+$CC -O2 -std=gnu89 -I$SRC/accentz80 -I$SRC/accentpc -I$SRC -c -o "$OUT/az_trace.o" "$SRC/accentz80/az_trace.c"
+$CXX -o "$OUT/az_trace" "$OUT/az_trace.o" "$OUT"/obj_accentz80/*.o "$OUT"/obj_accentpc/*.o $CHIP_OBJS -lm   # (before az_voice.o is there)
 
 # The speech-dispatcher module (src/platforms/speechd): one program with every voice's engine inside (no .so to
 # install beside it) -- the Braille Lite (the library's objects), the Accent-PC (as_voice on the board above), and
@@ -272,11 +272,11 @@ $CXX -o "$OUT/az_trace" "$OUT/az_trace.o" "$OUT"/obj_accentz80/*.o "$OUT"/obj_ac
 # SSV_HAVE_SPEAKOUT for them.  libsd_voices_ref.so: the same engine objects with the chip and the number words, the
 # test's reference (test_sd_ssi263.py drives the voices directly); never shipped.
 rm -rf "$OUT/obj_voices"; mkdir -p "$OUT/obj_voices"
-VOICE="-O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC -I$SRC/cpu -I$SRC/accentsa -I$SRC/pc86 -I$SRC/speakout -I$SRC/mockingboard"
-VOICE_SRCS="$SRC/accentsa/as_voice.c"            # numwords.o: the library's ($NUM_OBJS)
+VOICE="-O2 -std=gnu89 -ffp-contract=off -fPIC -fvisibility=hidden -Wall -I$SRC -I$SRC/cpu -I$SRC/accentpc -I$SRC/pc86 -I$SRC/speakout -I$SRC/mockingboard"
+VOICE_SRCS="$SRC/accentpc/as_voice.c"            # numwords.o: the library's ($NUM_OBJS)
 [ -f "$SRC/accent_text.c" ] && VOICE_SRCS="$VOICE_SRCS $SRC/accent_text.c"   # the Accents' shared text rules
 SD_DEFS=""
-ENGINE_OBJS="$OUT/obj_accentsa/i8085_mame.o $OUT/obj_accentsa/as_board.o $OUT/obj_accentsa/as_usart.o $OUT/obj_accentsa/as_host.o"
+ENGINE_OBJS="$OUT/obj_accentpc/i8085_mame.o $OUT/obj_accentpc/as_board.o $OUT/obj_accentpc/as_usart.o $OUT/obj_accentpc/as_host.o"
 if [ -f "$SRC/accentmini/am_voice.c" ]; then
     VOICE_SRCS="$VOICE_SRCS $SRC/accentmini/am_voice.c $SRC/accentmini/am_host.c"
     ENGINE_OBJS="$ENGINE_OBJS $OUT/obj_i86/pc86.o $OUT/obj_i86/i86_mame.o"

@@ -1,4 +1,4 @@
-/* az_voice.h -- the Accent SA as a voice: the Accent voice (../accentsa/as_voice.h -- its settings commands, number
+/* az_voice.h -- the Accent SA as a voice: the Accent voice (../accentpc/as_voice.h -- its settings commands, number
  * and currency processing, a capital's pitch, the speak loop, cancel, index marks and the job API) on the stand-alone
  * box's own unit (az_host.h).  What comes back is an as_voice; everything after creation is asv_*.
  *
@@ -11,7 +11,7 @@
 #define AZ_VOICE_H
 
 #include <stddef.h>
-#include "../accentsa/as_voice.h"
+#include "../accentpc/as_voice.h"
 
 #ifdef __cplusplus
 extern "C" {

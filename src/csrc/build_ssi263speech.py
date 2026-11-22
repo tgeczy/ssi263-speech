@@ -45,7 +45,7 @@ def inc(*dirs):
 CHIP = ["-O2", "-std=c99", "-ffp-contract=off"]
 MAME = ["-O3", "-std=c++17", "-fno-exceptions", "-fno-rtti", "-ffp-contract=off", "-w"] + inc("cpu", "")
 BOARD = ["-O3", "-std=gnu89", "-ffp-contract=off", "-w", "-DBL_Z180_MAME"] + inc("blazie", "cpu", "")
-ACCENT = ["-O2", "-std=gnu89", "-ffp-contract=off", "-w"] + inc("cpu", "accentsa", "")
+ACCENT = ["-O2", "-std=gnu89", "-ffp-contract=off", "-w"] + inc("cpu", "accentpc", "")
 FRONT = ["-O2", "-std=c99", "-ffp-contract=off", "-Wall"] + inc("")
 
 
@@ -58,8 +58,8 @@ def units():
     u += [(BOARD, "blazie/%s.c" % n) for n in ("bl_board", "flash29", "bl_serial", "bl_idle", "bl_clock", "bl_rtc6242", "bl_host",
                                                 "bl_voice", "bl_firmware", "bl_state")]
     u += [(FRONT + inc("blazie"), "blazie/bl_numbers.c"), (FRONT, "numwords.c"), (FRONT, "numwords_es.c")]
-    u += [(MAME, "cpu/i8085_mame.cpp")] + [(ACCENT, "accentsa/%s.c" % n) for n in ("as_board", "as_usart", "as_host")]
-    u += [(FRONT + inc("accentsa"), "accentsa/as_voice.c"), (FRONT, "accent_text.c")]   # both Accents' text rules
+    u += [(MAME, "cpu/i8085_mame.cpp")] + [(ACCENT, "accentpc/%s.c" % n) for n in ("as_board", "as_usart", "as_host")]
+    u += [(FRONT + inc("accentpc"), "accentpc/as_voice.c"), (FRONT, "accent_text.c")]   # both Accents' text rules
     have = []
     if os.path.isfile(os.path.join(SRC, "speakout", "so_voice.c")):          # so-voice's sources (so_voice.h)
         so = FRONT + inc("cpu", "speakout")

@@ -9,13 +9,13 @@ Both cores run on the same stub machine, driven tick by tick in lockstep, so a d
 host's timing: one tick is one i8085_step() on the C core (an instruction with any acceptance before it, or one HALT
 slot) and one pass of I8085.run()'s loop body on the Python core (EI's delay, acceptance, then an instruction; nothing
 while halted).  External events come between ticks, by tick number, identically on both sides.
-  - memory and ports: hosts/accent_sa.py's map (u2 low, RAM 7800-7FFF, the 32 KB bank by port 40h);
+  - memory and ports: hosts/accent_pc.py's map (u2 low, RAM 7800-7FFF, the 32 KB bank by port 40h);
   - the SSI-263 is a stub: A/R (port 07 bit 7) rises AR_TICKS ticks after each R0 write, once powered up (an R3
     write with bit 7 clear); TRAP = A/R AND port 40h bit 4 (the host's gate), a level on the C core and its rising
     edge on the Python core (its trap() is edge-only);
   - the 8251: TxRDY/TxEMPTY/DSR; from FEED_TICK, TEXT arrives a byte at a time while the firmware holds RTS, each
     raising RST 6.5 (RxRDY) until port 20h is read;
-  - no RST 7.5 clock (the firmware's mode 3, as accent_sa.py with tick_hz = 0).
+  - no RST 7.5 clock (the firmware's mode 3, as accent_pc.py with tick_hz = 0).
 Normalised phases: registers are compared at each instruction's start, after any acceptance (the C core's boundary
 callback; the Python core just before step()); T-states per instruction and per acceptance, separately.  The C core
 is built from the working tree into a temporary DLL (w64devkit, paths.local W64DEVKIT) unless --dll is given.

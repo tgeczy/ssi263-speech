@@ -14,7 +14,7 @@ What it is made of (plan(), written beside it as MANIFEST.json):
   tree  from this tree: the chip package (src/ssi263) and its ROM data (src/data), since 0.7.6's hard G (params
         hold_release) -- REV's package mirrored ssi263_params as it was, and the C struct has grown; and, not in git,
         the chip (src/ssi263/_bin), nvda/dist's native host and CPU libraries (bl.dll, bl_live_mame.exe, pc86.dll,
-        accent_sa.dll, speakout_v40.dll) and firmware/
+        accent_pc.dll, speakout_v40.dll) and firmware/
   gen   written here: the engine package's __init__, and the Accent-mini's INIT snapshot (SPKEMS.state), made as
         build_accent.py made it, on MAME's 8086, from the files above
   fix   from REV, with FIXES applied: the later driver fixes the native drivers carry on purpose, each one exact
@@ -161,12 +161,14 @@ def _addon(addon):
     elif addon == "accent":
         eng = sd + "/_ssi263_accent"
         items = [(sd + "/accentmini.py", "rev", "nvda/accent/synthDrivers/accentmini.py")] + _engine(eng)
+        # REV's files by REV's names (the Accent-PC's host was accent_sa.py until 0.9.5's rename)
         items += [(eng + "/" + d, "rev", "src/hosts/" + s) for s, d in (
             ("accent.py", "accent_host.py"), ("accent_sa.py", "accent_sa_host.py"), ("accent_sa_c.py", "accent_sa_c.py"),
             ("pc86.py", "pc86.py"), ("x86_api.py", "x86_api.py"))]
         for a in ARCHES:
             items.append((eng + "/bin/%s/pc86.dll" % a, "tree", "nvda/dist/blazie-lib/%s/pc86.dll" % a))
-            items.append((eng + "/bin/%s/accent_sa.dll" % a, "tree", "nvda/dist/accentsa-lib/%s/accent_sa.dll" % a))
+            # this tree's accent_pc.dll under REV's name for it (REV's host loads bin/<arch>/accent_sa.dll)
+            items.append((eng + "/bin/%s/accent_sa.dll" % a, "tree", "nvda/dist/accentpc-lib/%s/accent_pc.dll" % a))
         items += [(eng + "/accent-sa/" + n, "tree", "firmware/aicom-accent-sa/" + n) for n in ("u2.BIN", "u3.BIN", "u4.BIN")]
         items.append((eng + "/SPKEMS.DVC", "tree", "firmware/aicom-accent-mini/SPKEMS.DVC"))
         # the INIT snapshot's own tree: REV's hosts and the same engine (made in a temporary folder, not kept)

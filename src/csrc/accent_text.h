@@ -1,6 +1,6 @@
 /* accent_text.h -- what the two Aicom voices share: nvda/accent/synthDrivers/accentmini.py's text preparation and
  * settings mapping (one driver speaks both the Accent-PC and the Accent-mini), and the Accent's ESC command syntax as
- * the two Python hosts read it (src/hosts/accent.py and accent_sa.py, the same _ESC).  Used by accentsa/as_voice.c
+ * the two Python hosts read it (src/hosts/accent.py and accent_pc.py, the same _ESC).  Used by accentpc/as_voice.c
  * and accentmini/am_voice.c, am_host.c.  Each function names the Python it ports; change them together.  Needs
  * numwords.c.  MIT.
  */
@@ -45,7 +45,7 @@ char *at_say_text(const char *utf8, int numbers);
 char *at_say_marked(const char *utf8, int numbers, const ssv_mark *marks, int n_marks, int *seqs, int *n06, int where,
                     int brk);
 
-/* accent.py's / accent_sa.py's say(speech=None) on Latin-1 bytes: 1 if a letter or digit (str.isalnum) is left
+/* accent.py's / accent_pc.py's say(speech=None) on Latin-1 bytes: 1 if a letter or digit (str.isalnum) is left
    outside the ESC commands (_ESC). */
 int at_is_speech(const unsigned char *bytes, int n);
 

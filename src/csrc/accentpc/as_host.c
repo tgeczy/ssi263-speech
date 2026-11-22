@@ -1,4 +1,4 @@
-/* as_host.c -- src/hosts/accent_sa.py's AccentSA in C, line for line (as_host.h).  Every comparison, every order of
+/* as_host.c -- src/hosts/accent_pc.py's AccentPC in C, line for line (as_host.h).  Every comparison, every order of
  * operations and every rounding is Python's.  MIT.
  */
 #include "as_host.h"
@@ -213,7 +213,7 @@ AS_API ssi263 *ash_chip(as_host *h)
     return h->chip;
 }
 
-/* ---- accent_sa.py ---------------------------------------------------------------------------------------------- */
+/* ---- accent_pc.py ---------------------------------------------------------------------------------------------- */
 
 /* Python's str.isalnum() on chr(0..255) */
 static const unsigned char ALNUM[32] = {
@@ -224,7 +224,7 @@ static int upper(unsigned char c) { return c >= 'A' && c <= 'Z'; }
 static int letter(unsigned char c) { return upper(c) || (c >= 'a' && c <= 'z'); }
 static int digit(unsigned char c) { return c >= '0' && c <= '9'; }
 
-/* accent_sa.py's _ESC, "\x1b(?:[=+\-O][A-Za-z]|[A-Z][0-9A-Z]|\|~[^~]*~)": the length of the command at s, or 0 */
+/* accent_pc.py's _ESC, "\x1b(?:[=+\-O][A-Za-z]|[A-Z][0-9A-Z]|\|~[^~]*~)": the length of the command at s, or 0 */
 static int esc_len(const unsigned char *s, int n)
 {
     int k;

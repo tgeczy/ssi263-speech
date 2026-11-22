@@ -1,4 +1,4 @@
-/* az_host.h -- the Accent SA as a unit: its Z80 board (az_board.h) under the Accent host (../accentsa/as_host.h).
+/* az_host.h -- the Accent SA as a unit: its Z80 board (az_board.h) under the Accent host (../accentpc/as_host.h).
  *
  * The stand-alone Accent runs the same firmware design as the Accent-PC card, on another processor and behind the
  * same serial line, so the host is the same one: its chip-time lockstep, say, busy, boot and cancel (as_host.h) ask
@@ -16,7 +16,7 @@
 #define AZ_HOST_H
 
 #include <stddef.h>
-#include "../accentsa/as_host.h"
+#include "../accentpc/as_host.h"
 
 #ifdef __cplusplus
 extern "C" {

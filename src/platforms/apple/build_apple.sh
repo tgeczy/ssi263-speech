@@ -35,7 +35,7 @@ BOARD="-O3 -std=gnu89 -ffp-contract=off -fvisibility=hidden -DBL_Z180_MAME -w -I
 FRONT="-O2 -std=c99 -ffp-contract=off -fvisibility=hidden -Wall -Wextra -Wno-unused-parameter -I$SRC"
 Z180CXX="-O3 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC"
 MAME="-O2 -std=c++17 -fno-exceptions -fno-rtti -ffp-contract=off -fvisibility=hidden -Wall -Wno-sign-compare -I$SRC/cpu -I$SRC"
-ACCENT="-O2 -std=gnu89 -ffp-contract=off -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/accentsa -I$SRC"
+ACCENT="-O2 -std=gnu89 -ffp-contract=off -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/accentpc -I$SRC"
 SPEAKOUT="-O2 -std=gnu89 -ffp-contract=off -fvisibility=hidden -Wall -I$SRC/cpu -I$SRC/speakout -I$SRC"
 MOCKING="-O2 -std=gnu99 -ffp-contract=off -fvisibility=hidden -w -I$SRC/cpu -I$SRC/mockingboard -I$SRC"
 # the Braille Lite unit tab: the emulator's portable C (src/apps/blazie), as build_linux.sh builds it
@@ -105,9 +105,9 @@ slice() {
     done
     cxx $MAME -c -o "$O/i8085_mame.o" "$SRC/cpu/i8085_mame.cpp"
     for f in as_board as_usart as_host; do
-        cc $ACCENT -c -o "$O/$f.o" "$SRC/accentsa/$f.c"
+        cc $ACCENT -c -o "$O/$f.o" "$SRC/accentpc/$f.c"
     done
-    cc $FRONT -c -o "$O/as_voice.o" "$SRC/accentsa/as_voice.c"
+    cc $FRONT -c -o "$O/as_voice.o" "$SRC/accentpc/as_voice.c"
     cc $FRONT -c -o "$O/numwords.o" "$SRC/numwords.c"
     cc $FRONT -c -o "$O/accent_text.o" "$SRC/accent_text.c"
     cc $FRONT -c -o "$O/numwords_es.o" "$SRC/numwords_es.c"

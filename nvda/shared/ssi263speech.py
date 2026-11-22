@@ -406,7 +406,7 @@ class AccentMiniC(_AccentMarks, _Accent):
                           int(voice))
 
 
-class AccentSAC(_AccentMarks, _Accent):
+class AccentPCC(_AccentMarks, _Accent):
     """Aicom's Accent-PC: its 8085 firmware and ROMs on MAME's 8085 and the NVDA driver's front end (as_voice.h)."""
     _api, _host = "asv", "ash"
 

@@ -21,13 +21,13 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROMS = os.environ.get("SSI263_ACCENT_SA_DIR") or os.path.join(ROOT, "firmware", "aicom-accent-sa")
+ROMS = os.environ.get("SSI263_ACCENT_PC_DIR") or os.path.join(ROOT, "firmware", "aicom-accent-sa")
 
 DRIVER = r'''
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "accentsa/as_voice.h"
+#include "accentpc/as_voice.h"
 
 static unsigned char *slurp(const char *path, size_t *n)
 {

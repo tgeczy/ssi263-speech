@@ -121,7 +121,7 @@ def app_level(label, voice, data, texts, volume, extra=()):
 
 
 def accent(volume):
-    return app_level("accent sa", 2, ".", ACCENT, volume)
+    return app_level("accent pc", 2, ".", ACCENT, volume)
 
 
 def mini(volume):

@@ -391,7 +391,7 @@ The Braille Lite's reference in both is the desktop library the NVDA add-on and 
 from `build_board.py` / `build_native.py`, or `build/linux/libssi263speech.so`), driven the way `sd_ssi263.c` maps
 SSIP: the board on MAME's Z180, as the app's -- a library carrying z180emu is refused as a reference. The Accent-PC's is the NVDA Accent add-on's driver itself (`accent_reference.py`: the built
 `nvda/dist/accent-build` under the stand-in NVDA of `nvda/tools/fake_nvda_driver_test.py`, its "sa" voice on the
-desktop's C host, `accent_sa.dll`), a fresh unit per case, the request's rate and pitch mapped as the app maps them
+desktop's C host, `accent_pc.dll`), a fresh unit per case, the request's rate and pitch mapped as the app maps them
 and the pitch said as a capital's PitchCommand; and its text (currencies, `_clean`, number words) on 22 texts. The
 capitals: a request's 150 %, 120 % and 75 % must differ from 100 %, and 100 % again must be byte-identical to the
 first. The controls put one bug back each: the request's rate dropped (`1`); its pitch dropped (`accent-pitch`); the

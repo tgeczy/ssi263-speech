@@ -16,7 +16,7 @@
 #include "voices_blazie.h"             /* SSV_BLAZIE_RELEASE_VOICES */
 #include "blazie/bl_firmware.h"        /* the release table: blv_release_*; blv_sha256 */
 #include "smartalk/st_host.h"          /* STH_SHA256 */
-#include "accentsa/as_voice.h"
+#include "accentpc/as_voice.h"
 #include "speakout/so_voice.h"
 #ifdef SSV_HAVE_MOCKINGBOARD
 #include "mockingboard/mb_voice.h"
@@ -202,7 +202,7 @@ static ssv_voice *make_unit(ssa_engine *e, int voice, char *err, int errlen)
     ssv_boot b;
     int k;
     memset(&src, 0, sizeof src);
-    if (voice == SSA_ACCENT_SA)
+    if (voice == SSA_ACCENT_PC)
         for (k = 0; k < 3; k++) { src.data[k] = e->rom[k]; src.size[k] = ROM_SIZES[k]; }
     else if (voice == SSA_ACCENT_MINI) {
         src.data[0] = e->mini;
@@ -277,13 +277,13 @@ static void settings_for(const ssa_engine *e, int voice, const ssa_settings *s, 
             o->pack = s->so_short;
         }
         break;
-    case SSA_ACCENT_SA:
+    case SSA_ACCENT_PC:
     case SSA_ACCENT_MINI: {            /* the Accents: as the Accent-PC has always been spoken here */
         int pitch = ssa_accent_pitch(s->pitch, ssa_accent_break == 1 ? 100 : request_pitch);
         o->inflection = e->inflection ? 100 : 0;
         o->volume = s->volume * SSA_ACCENT_LEVEL / 100;
         o->numbers = 1;
-        if (voice == SSA_ACCENT_SA) {
+        if (voice == SSA_ACCENT_PC) {
             o->pitch = ACCENT_PITCH;   /* a fresh unit each time: every pitch said as a capital's, snapped to */
             if (ssa_accent_break == 2) /* the control: the pitch as a setting, glided to */
                 o->pitch = pitch;
@@ -471,7 +471,7 @@ int ssa_set_smartalk(ssa_engine *e, const unsigned char *exe, size_t n)
 int ssa_has_voice(const ssa_engine *e, int voice)
 {
     if (!ssa_voice_built(voice)) return 0;
-    if (voice == SSA_ACCENT_SA) return e->rom[0] && e->rom[1] && e->rom[2];
+    if (voice == SSA_ACCENT_PC) return e->rom[0] && e->rom[1] && e->rom[2];
     if (voice == SSA_ACCENT_MINI) return e->mini != NULL;
     if (is_mb(voice)) return ssa_mockingboard_source(e, voice) != 0;
     if (voice == SSA_SMARTALK) return ssa_smartalk_source(e) != 0;
@@ -496,7 +496,7 @@ int ssa_sample_rate(const ssa_engine *e) { return e->sample_rate; }
 
 int ssa_load(ssa_engine *e, int voice, char *err, int errlen)
 {
-    if (voice == SSA_ACCENT_SA) {
+    if (voice == SSA_ACCENT_PC) {
         if (e->spare) return 0;
         if (!ssa_has_voice(e, voice)) { snprintf(err, (size_t)errlen, "the Accent-PC's ROMs are not set"); return -1; }
         e->spare = make_unit(e, voice, err, errlen);
@@ -535,13 +535,13 @@ static void accent_release(ssa_engine *e)
     }
     e->accent = NULL;
     if (!e->spare)
-        ssa_load(e, SSA_ACCENT_SA, err, sizeof err);
+        ssa_load(e, SSA_ACCENT_PC, err, sizeof err);
 }
 
 void ssa_cancel(ssa_engine *e)
 {
     e->n_reach = 0;                    /* no mark of a cancelled utterance is given */
-    if (e->cur == SSA_ACCENT_SA) {
+    if (e->cur == SSA_ACCENT_PC) {
         if (ssa_accent_break == 3 && e->accent && !e->done)
             ssv_cancel(e->accent);     /* a kept unit must drop what it has not spoken */
         accent_release(e);
@@ -591,20 +591,20 @@ static int start_accent(ssa_engine *e, const char *utf8, const ssa_settings *s, 
     char err[256];
     ssv_settings o;
     int offset;
-    if (ssa_load(e, SSA_ACCENT_SA, err, sizeof err) != 0)
+    if (ssa_load(e, SSA_ACCENT_PC, err, sizeof err) != 0)
         return -1;
     e->accent = e->spare;
     e->spare = NULL;
-    settings_for(e, SSA_ACCENT_SA, s, request_rate, request_pitch, &o, &offset);
+    settings_for(e, SSA_ACCENT_PC, s, request_rate, request_pitch, &o, &offset);
     e->blocks = 0;
     if (say(e->accent, &o, utf8, offset, ats, n_ats) <= 0) {
-        e->cur = SSA_ACCENT_SA;        /* released at once: nothing to say */
+        e->cur = SSA_ACCENT_PC;        /* released at once: nothing to say */
         e->done = 1;
         accent_release(e);
         e->cur = -1;
         return 1;
     }
-    e->cur = SSA_ACCENT_SA;
+    e->cur = SSA_ACCENT_PC;
     e->done = 0;
     return 0;
 }
@@ -625,7 +625,7 @@ int ssa_start_marked(ssa_engine *e, int voice, const char *utf8, const ssa_setti
     __atomic_store_n(&e->stop, 0, __ATOMIC_SEQ_CST);
     e->frames = 0;
     e->n_reach = 0;
-    if (voice == SSA_ACCENT_SA)
+    if (voice == SSA_ACCENT_PC)
         return start_accent(e, utf8, s, request_rate, request_pitch, ats, n_ats);
     if (ssa_load(e, voice, err, sizeof err) != 0)
         return -1;
@@ -644,7 +644,7 @@ int ssa_start_marked(ssa_engine *e, int voice, const char *utf8, const ssa_setti
 /* the next block, and the marks it reached: each at its frame in the utterance's audio */
 static int render(ssa_engine *e)
 {
-    ssv_voice *u = e->cur == SSA_ACCENT_SA ? e->accent : e->units[e->cur];
+    ssv_voice *u = e->cur == SSA_ACCENT_PC ? e->accent : e->units[e->cur];
     const ssv_reach *r;
     int n = ssv_render(u, &e->block, &e->done), k = ssv_reached(u, &r), i;
     if (k > 0 && e->n_reach + k > e->cap_reach) {
@@ -690,7 +690,7 @@ int ssa_pull(ssa_engine *e, short *out, int cap)
         if (e->cur < 0)
             return 0;
         if (e->done) {                 /* finished, and all of it handed over */
-            if (e->cur == SSA_ACCENT_SA)
+            if (e->cur == SSA_ACCENT_PC)
                 accent_release(e);
             e->cur = -1;
             return 0;

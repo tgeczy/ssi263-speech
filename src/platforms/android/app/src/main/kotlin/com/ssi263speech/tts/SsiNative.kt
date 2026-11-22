@@ -26,7 +26,7 @@ object SsiNative {
 
     const val ENGLISH = 0                  // the Braille Lite, English (imported)
     const val SPANISH = 1                   // the Braille Lite, Spanish (imported)
-    const val ACCENT_SA = 2                 // the Aicom Accent-PC (built in)
+    const val ACCENT_PC = 2                 // the Aicom Accent-PC (built in)
     const val SPEAKOUT = 3                  // the GW Micro Speak-Out (imported)
     const val ACCENT_MINI = 4               // the Aicom Accent-mini (built in, when the build carries it)
     const val MOCKINGBOARD = 5              // the Mockingboard, Sweet Micro Systems' (built in; an import replaces it)

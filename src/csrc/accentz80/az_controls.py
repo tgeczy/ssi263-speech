@@ -4,7 +4,7 @@ test inventory) is ../cpu/contract_controls.py's.
 
     python src/csrc/accentz80/az_controls.py
 
-The core (../cpu/z80_mame.cpp) and the 8251 (../accentsa/as_usart.c, whose own rules ../accentsa/as_controls.py
+The core (../cpu/z80_mame.cpp) and the 8251 (../accentpc/as_usart.c, whose own rules ../accentpc/as_controls.py
 undoes) are compiled once: no variant touches them.
 """
 import os
@@ -16,7 +16,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 CSRC = os.path.dirname(HERE)
 CPU = os.path.join(CSRC, "cpu")
-PC = os.path.join(CSRC, "accentsa")
+PC = os.path.join(CSRC, "accentpc")
 REPO = os.path.dirname(os.path.dirname(CSRC))
 sys.path.insert(0, REPO)
 sys.path.insert(0, CPU)

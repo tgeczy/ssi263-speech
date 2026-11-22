@@ -55,7 +55,7 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
   changed, one whose checksums were fixed after the change (another HEX), one cut short, and other files refused;
   a Braille Lite .BNS still the Braille Lite's.
 - The Aicom Accent-PC (the built-in voice): against the NVDA Accent add-on's own driver, its "sa" voice on the
-  desktop's C host (accent_reference.py; the built nvda/dist/accent-build and accentsa-lib), a fresh unit per case as
+  desktop's C host (accent_reference.py; the built nvda/dist/accent-build and accentpc-lib), a fresh unit per case as
   the app has; the request's rate and pitch put on the driver's scales as ssa_map.c does, the pitch as a capital's
   PitchCommand.  Its front end's text (currencies, _clean, number words) is compared on TEXTS as well.  And a capital:
   a request's raised pitch (150 %, and 120 %, which ssa_accent_pitch moves to the next of the Accent's ten steps) and
@@ -986,10 +986,10 @@ def build_into(exe):
     mame = ["-O2", "-std=c++17", "-fno-exceptions", "-fno-rtti", "-ffp-contract=off", "-Wall", "-Wno-sign-compare",
             "-I" + os.path.join(SRC, "cpu"), "-I" + SRC]
     accent = ["-O2", "-std=gnu89", "-ffp-contract=off", "-Wall", "-I" + os.path.join(SRC, "cpu"),
-              "-I" + os.path.join(SRC, "accentsa"), "-I" + SRC]
+              "-I" + os.path.join(SRC, "accentpc"), "-I" + SRC]
     speakout = ["-O2", "-std=gnu89", "-ffp-contract=off", "-Wall", "-I" + os.path.join(SRC, "cpu"),
                 "-I" + os.path.join(SRC, "speakout"), "-I" + SRC]
-    asa, spk = os.path.join(SRC, "accentsa"), os.path.join(SRC, "speakout")
+    asa, spk = os.path.join(SRC, "accentpc"), os.path.join(SRC, "speakout")
     units = [(chip, os.path.join(SRC, "ssi263.c")), (chip, os.path.join(SRC, "ssi263dsp.c")),
              (z180, os.path.join(SRC, "cpu", "z180_mame.cpp")), (z180, os.path.join(SRC, "cpu", "z180_asci.cpp"))] + \
             [(board, os.path.join(SRC, "blazie", n + ".c")) for n in ("bl_board", "flash29", "bl_serial", "bl_idle", "bl_clock", "bl_rtc6242",

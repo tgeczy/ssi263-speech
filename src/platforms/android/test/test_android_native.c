@@ -61,7 +61,7 @@
 #include "ssa_engine.h"
 #include "ssa_import.h"
 #include "ssa_map.h"
-#include "accentsa/as_voice.h"
+#include "accentpc/as_voice.h"
 #include "speakout/so_voice.h"
 #include "accentmini/am_voice.h"
 #include "mockingboard/mb_voice.h"
@@ -214,13 +214,13 @@ static int accent(const char *aicom)
         return 1;
     }
     free(u2); free(u3); free(u4);                      /* the engine keeps its own copy */
-    if (!ssa_has_voice(e, SSA_ACCENT_SA)) { fprintf(stderr, "no Accent-PC\n"); return 1; }
+    if (!ssa_has_voice(e, SSA_ACCENT_PC)) { fprintf(stderr, "no Accent-PC\n"); return 1; }
     c = accent_cases(&n);
     for (i = 0; i < n && !rc; i++) {
         ssa_settings s = {c[i].rate, c[i].pitch, 7, c[i].volume, 1};
         ssa_configure(e, c[i].sample_rate, c[i].inflection, 0);
-        if (ssa_load(e, SSA_ACCENT_SA, err, sizeof err) != 0) { fprintf(stderr, "boot: %s\n", err); rc = 1; break; }
-        if (speak(e, SSA_ACCENT_SA, c[i].text, &s, c[i].req_rate, c[i].req_pitch, c[i].chunk, c[i].stop, &d))
+        if (ssa_load(e, SSA_ACCENT_PC, err, sizeof err) != 0) { fprintf(stderr, "boot: %s\n", err); rc = 1; break; }
+        if (speak(e, SSA_ACCENT_PC, c[i].text, &s, c[i].req_rate, c[i].req_pitch, c[i].chunk, c[i].stop, &d))
             rc = 1;
         else
             report(c[i].name, &d);
@@ -919,7 +919,7 @@ static void estimate_all(int on)                          /* voices.c's switch: 
 static int marks(const char *aicom, const char *dvc)
 {
     static const char *TEXT = "this is a plain line of words, and then it goes on some more, until it ends";
-    static const struct { int voice; const char *name; } V[] = {{SSA_ACCENT_SA, "sa"}, {SSA_ACCENT_MINI, "mini"}};
+    static const struct { int voice; const char *name; } V[] = {{SSA_ACCENT_PC, "sa"}, {SSA_ACCENT_MINI, "mini"}};
     int ats[64], n_ats = 0, pa[128], pb[128], pc[128], i, v, rc = 0;
     for (i = 0; TEXT[i]; i++)
         if (TEXT[i] != ' ' && (i == 0 || TEXT[i - 1] == ' '))
@@ -1035,7 +1035,7 @@ int main(int argc, char **argv)
             || ssa_blazie_voice(BLV_FW_SLOVAK) != SSA_SLOVAK || ssa_blazie_voice(BLV_FW_NONE) != -1
             || ssa_blazie_recipe(SSA_ENGLISH) != BLV_STATE_ENGLISH || ssa_blazie_recipe(SSA_SPANISH) != BLV_STATE_SPANISH
             || ssa_blazie_recipe(SSA_GERMAN) != BLV_STATE_GERMAN || ssa_blazie_recipe(SSA_ITALIAN) != BLV_STATE_ITALIAN
-            || ssa_blazie_recipe(SSA_SLOVAK) != BLV_STATE_ENGLISH || ssa_blazie_recipe(SSA_ACCENT_SA) != -1
+            || ssa_blazie_recipe(SSA_SLOVAK) != BLV_STATE_ENGLISH || ssa_blazie_recipe(SSA_ACCENT_PC) != -1
             || ssa_blazie_recipe(SSA_SPEAKOUT) != -1) {
         fprintf(stderr, "the Blazie languages' voices or recipes are off\n");
         return 1;

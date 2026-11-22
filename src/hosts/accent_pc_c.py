@@ -1,14 +1,14 @@
-"""The Accent-PC host in C, in-process: accent_sa.py's AccentSA with its lockstep, board and 8085 (MAME's) in
-src/csrc/accentsa (accent_sa.dll), and the same constructor, methods and attributes the add-on uses.  The chip stays
-the SSI263C the caller made (accent_sa.dll imports ssi263.dll, so both use the one copy loaded).
+"""The Accent-PC host in C, in-process: accent_pc.py's AccentPC with its lockstep, board and 8085 (MAME's) in
+src/csrc/accentpc (accent_pc.dll), and the same constructor, methods and attributes the add-on uses.  The chip stays
+the SSI263C the caller made (accent_pc.dll imports ssi263.dll, so both use the one copy loaded).
 
-The default backend returned by AccentSA() in accent_sa.py, packaged with its native libraries.
-SSI263_ACCENT_SA_SLICES=chip turns off the Python host's counting (as_board.h: an acceptance that ends a slice, a TRAP
+The default backend returned by AccentPC() in accent_pc.py, packaged with its native libraries.
+SSI263_ACCENT_PC_SLICES=chip turns off the Python host's counting (as_board.h: an acceptance that ends a slice, a TRAP
 in EI's shadow) and runs the core's own semantics -- experimental, for comparison only.
 
-The library is looked for in: SSI263_ACCENT_SA_DLL (the file); bin/<arch>/ beside this file; then the research tree's
-nvda/dist/accentsa-lib/<arch>/ (built by src/csrc/accentsa/build_board.py), found upwards from this file, from
-src/hosts or from a built add-on's engine folder.  On Linux, libaccent_sa.so from build/linux (build_linux.sh), which
+The library is looked for in: SSI263_ACCENT_PC_DLL (the file); bin/<arch>/ beside this file; then the research tree's
+nvda/dist/accentpc-lib/<arch>/ (built by src/csrc/accentpc/build_board.py), found upwards from this file, from
+src/hosts or from a built add-on's engine folder.  On Linux, libaccent_pc.so from build/linux (build_linux.sh), which
 takes the chip's functions from the libssi263speech.so ssi263/native.py loaded (made global here first).
 """
 import ctypes
@@ -20,7 +20,7 @@ from array import array
 
 _D, _I, _P = ctypes.c_double, ctypes.c_int, ctypes.c_void_p
 _lib = None
-_ESC = re.compile("\x1b(?:[=+\\-O][A-Za-z]|[A-Z][0-9A-Z]|\\|~[^~]*~)")   # as accent_sa.py
+_ESC = re.compile("\x1b(?:[=+\\-O][A-Za-z]|[A-Z][0-9A-Z]|\\|~[^~]*~)")   # as accent_pc.py
 
 
 class _Write(ctypes.Structure):
@@ -29,16 +29,16 @@ class _Write(ctypes.Structure):
 
 def _candidates():
     arch = "x64" if struct.calcsize("P") == 8 else "x86"
-    name = "accent_sa.dll" if os.name == "nt" else "libaccent_sa.so"
-    env = os.environ.get("SSI263_ACCENT_SA_DLL")
+    name = "accent_pc.dll" if os.name == "nt" else "libaccent_pc.so"
+    env = os.environ.get("SSI263_ACCENT_PC_DLL")
     if env:
         yield env
     here = os.path.dirname(os.path.abspath(__file__))
     yield os.path.join(here, "bin", arch, name)
     d = here
     for _ in range(6):
-        yield os.path.join(d, "nvda", "dist", "accentsa-lib", arch, name)
-        yield os.path.join(d, "accentsa-lib", arch, name)
+        yield os.path.join(d, "nvda", "dist", "accentpc-lib", arch, name)
+        yield os.path.join(d, "accentpc-lib", arch, name)
         yield os.path.join(d, "build", "linux", name)          # build_linux.sh
         d = os.path.dirname(d)
 
@@ -48,7 +48,7 @@ def _load(chip):
     if _lib is not None:
         return _lib
     if os.name != "nt":
-        # the chip's functions come from the library native.py loaded: made global so libaccent_sa.so binds to it
+        # the chip's functions come from the library native.py loaded: made global so libaccent_pc.so binds to it
         for cls in type(chip).__mro__:                 # SSI263C, or a subclass of it
             chip_lib = getattr(sys.modules.get(cls.__module__), "_lib", None)
             if chip_lib is not None:
@@ -61,7 +61,7 @@ def _load(chip):
             break
         tried.append(path)
     else:
-        raise OSError("the Accent-PC library not found (build it: src/csrc/accentsa/build_board.py); tried %s" % tried)
+        raise OSError("the Accent-PC library not found (build it: src/csrc/accentpc/build_board.py); tried %s" % tried)
     lib.ash_create_dir.restype = _P
     lib.ash_create_dir.argtypes = [ctypes.c_char_p, _P, _D, ctypes.c_char_p, _I]
     lib.ash_destroy.argtypes = [_P]
@@ -114,8 +114,8 @@ def _flag(name):
     return property(get, put)
 
 
-class AccentSAC:
-    """accent_sa.py's AccentSA on the C host.  `writes`, as there, holds (round(chip time, 6), reg, value) while
+class AccentPCC:
+    """accent_pc.py's AccentPC on the C host.  `writes`, as there, holds (round(chip time, 6), reg, value) while
     keep_writes is set; `on_write(t, reg, val)` sees each with its exact chip time (tests)."""
 
     def __init__(self, rom_dir, chip=None, out_rate=44100, cpu_hz=3_072_000, tick_hz=0.0, switches=0x00, turbo=8.0,
@@ -132,14 +132,14 @@ class AccentSAC:
         self._h = self._lib.ash_create_dir(rom_dir.encode("mbcs" if os.name == "nt" else "utf-8"), chip._c,
                                            float(chip.out_rate), err, 256)
         if not self._h:
-            raise RuntimeError("accent_sa: %s" % err.value.decode("latin-1", "replace"))
+            raise RuntimeError("accent_pc: %s" % err.value.decode("latin-1", "replace"))
         self.cpu_hz = cpu_hz
         self.turbo = turbo
         self.tick_hz = tick_hz
         self.switches = switches
-        slices = slices or os.environ.get("SSI263_ACCENT_SA_SLICES", "python")
+        slices = slices or os.environ.get("SSI263_ACCENT_PC_SLICES", "python")
         if slices not in ("python", "chip"):
-            raise ValueError("SSI263_ACCENT_SA_SLICES: python or chip, not %r" % slices)
+            raise ValueError("SSI263_ACCENT_PC_SLICES: python or chip, not %r" % slices)
         self._lib.ash_set_int(self._h, b"python_slices", 1 if slices == "python" else 0)
         self.writes = []
         self._on_write = None
@@ -158,7 +158,7 @@ class AccentSAC:
         except Exception:
             pass
 
-    # ---- accent_sa.py's attributes -----------------------------------------------------------
+    # ---- accent_pc.py's attributes -----------------------------------------------------------
     cpu_hz = _double("cpu_hz")
     turbo = _double("turbo")
     tick_hz = _double("tick_hz")
@@ -225,7 +225,7 @@ class AccentSAC:
                 self._on_write(w.t, w.reg, w.val)
         self._lib.ash_clear_writes(self._h)
 
-    # ---- the host interface (as accent_sa.py) --------------------------------------------------
+    # ---- the host interface (as accent_pc.py) --------------------------------------------------
     def say(self, text, speech=None, background=False):
         data = text.encode("latin-1", "replace")
         if not data:
@@ -233,13 +233,13 @@ class AccentSAC:
         if speech is None:
             speech = any(ch.isalnum() for ch in _ESC.sub("", text))
         if not self._lib.ash_say(self._h, data, len(data), 1 if speech else 0):
-            raise MemoryError("accent_sa: the input was refused (out of memory)")
+            raise MemoryError("accent_pc: the input was refused (out of memory)")
 
     def run(self, seconds, step=0.0005):
         p = ctypes.POINTER(_D)()
         n = self._lib.ash_run(self._h, seconds, step, ctypes.byref(p))
         if n < 0:
-            raise MemoryError("accent_sa: out of memory")
+            raise MemoryError("accent_pc: out of memory")
         out = array("d", bytes(8 * n))
         if n:
             ctypes.memmove(out.buffer_info()[0], p, 8 * n)

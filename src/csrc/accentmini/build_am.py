@@ -6,7 +6,7 @@ on pc86.dll):
   x64/accent_mini.dll  am_voice + am_host + the shared text rules + pc86 + the 8086, for nvda/tools/am_voice_equiv.py
   x86/accent_mini.dll  the same for 32-bit Python
 
-accent_mini.dll links src/ssi263/_bin/<arch>/ssi263.dll (as bl.dll and accent_sa.dll do), so a Python process that
+accent_mini.dll links src/ssi263/_bin/<arch>/ssi263.dll (as bl.dll and accent_pc.dll do), so a Python process that
 loaded the chip library uses the one copy.  Floating point as ssi263.dll's: SSE2 doubles on 32-bit, no fused
 multiply-adds -- the host's time arithmetic must be Python's.
 

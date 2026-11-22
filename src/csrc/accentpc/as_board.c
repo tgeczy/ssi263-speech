@@ -21,7 +21,7 @@ struct as_board {
     as_chip chip;
     as_usart usart;
     i8085 *cpu;
-    int trap_line;                         /* the TRAP line as last given to the core (accent_sa.py's trap_line) */
+    int trap_line;                         /* the TRAP line as last given to the core (accent_pc.py's trap_line) */
     /* counting (as_board_run) */
     int python_slices;
     uint64_t d_cycles;                     /* the core's T-states at the step's D (after any acceptance) */

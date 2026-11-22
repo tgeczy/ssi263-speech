@@ -32,7 +32,7 @@ def fnv(data):
 
 def main():
     cases = json.load(open(sys.argv[1], encoding="utf-8"))
-    os.environ.setdefault("SSI263_ACCENT_SA_CORE", "c")
+    os.environ.setdefault("SSI263_ACCENT_SA_CORE", "c")      # the old driver's own name for it (not 0.9.5's _PC_)
     # 0.7.0's Python driver: since 0.7.5 the add-on's driver speaks through as_voice itself, the code under test here
     # (nvda/tools/native_driver_equiv.py holds the two byte for byte), so the reference stays the Python one
     sys.path.insert(0, os.path.dirname(HARNESS))

@@ -247,24 +247,24 @@ control "symbols CONTROL (the symbols left as they are, must fail)" "^FAIL text 
 # objects (libsd_voices_ref.so: libssi263speech.so has no Accent-PC); its control is the settle off (0.7.5's done)
 # and must name the dialog's early texts
 VOICES_REF="$ROOT/build/linux/libsd_voices_ref.so"
-check "Accent-PC: a text done only when said (issue #8)" python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+check "Accent-PC: a text done only when said (issue #8)" python3 src/csrc/accentpc/test_as_complete.py "$VOICES_REF"
 control "Accent-PC completion CONTROL (the settle off, must fail)" "^EARLY  rate +60 job +'Pitch: slider 50 alt\+p'" \
     "^EARLY  rate +75 say +'Rate: slider 75 alt\+r'" \
     "^checks: done ok, complete [0-9]+ FAILED, audio ok, latency ok, phase [0-9]+ FAILED, replace ok, limit ok$" \
-    "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=1 python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+    "^accent pc completion: FAILED$" -- env AS_COMPLETE_BREAK=1 python3 src/csrc/accentpc/test_as_complete.py "$VOICES_REF"
 control "Accent-PC completion CONTROL (never done, must fail)" \
     "^NOT DONE after 3 render calls  rate +50 job +'Rate: slider 50 alt\+r'" \
     "^checks: done [0-9]+ FAILED, complete ok, audio ok, latency ok, phase ok, replace ok, limit ok$" \
-    "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=never python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+    "^accent pc completion: FAILED$" -- env AS_COMPLETE_BREAK=never python3 src/csrc/accentpc/test_as_complete.py "$VOICES_REF"
 control "Accent-PC completion CONTROL (a wait kept across a cancel, must fail)" \
     "^HELD   rate +60 job +'Pitch: slider 50 alt\+p', cancel while held" \
     "^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace [0-9]+ FAILED, limit ok$" \
-    "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=held python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+    "^accent pc completion: FAILED$" -- env AS_COMPLETE_BREAK=held python3 src/csrc/accentpc/test_as_complete.py "$VOICES_REF"
 control "Accent-PC completion CONTROL (the cap as a plain done, must fail)" \
     "^SILENT LIMIT  rate +60 job +'Pitch: slider 50 alt\+p': done with [0-9]+ of its [0-9]+ samples, and no limit" \
     "^RECOVERY  rate +60 job +'Pitch: slider 50 alt\+p': the next text after the limit had [0-9]+ phonemes" \
     "^checks: done ok, complete ok, audio ok, latency ok, phase ok, replace ok, limit [0-9]+ FAILED$" \
-    "^accent sa completion: FAILED$" -- env AS_COMPLETE_BREAK=limit python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+    "^accent pc completion: FAILED$" -- env AS_COMPLETE_BREAK=limit python3 src/csrc/accentpc/test_as_complete.py "$VOICES_REF"
 # the Accent SA, the stand-alone box (src/csrc/accentz80; not a voice yet): its firmware on its board, through az_trace,
 # and issue #8's completion checks on its unit -- when its two ROMs are in firmware/aicom-accent-sa-z80
 if [ -f firmware/aicom-accent-sa-z80/ACU5_V41.BIN ] && [ -f firmware/aicom-accent-sa-z80/ACU4_V40.BIN ]; then
@@ -280,12 +280,12 @@ if [ -f firmware/aicom-accent-sa-z80/ACU5_V41.BIN ] && [ -f firmware/aicom-accen
         "^FAIL voice " "^FAIL monotone " "^FAIL marks +three Ctrl-Fs: 0 prompts" "^ok +greeting " "^ok +blocks " \
         "^accent sa z80 firmware: FAILED$" -- env AZ_FW_BREAK=nocommands python3 src/csrc/accentz80/test_az_firmware.py
     check "Accent SA: a text done only when said (issue #8's checks on this unit)" \
-        env AS_COMPLETE_UNIT=sa python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+        env AS_COMPLETE_UNIT=sa python3 src/csrc/accentpc/test_as_complete.py "$VOICES_REF"
     control "Accent SA completion CONTROL (the settle off, must fail)" \
         "^EARLY  rate +100 job +'Rate: slider 100 alt\+r'" \
         "^checks: done ok, complete [0-9]+ FAILED, audio ok, latency ok, phase [0-9]+ FAILED, replace ok, limit ok$" \
         "^accent sa z80 completion: FAILED$" \
-        -- env AS_COMPLETE_UNIT=sa AS_COMPLETE_BREAK=1 python3 src/csrc/accentsa/test_as_complete.py "$VOICES_REF"
+        -- env AS_COMPLETE_UNIT=sa AS_COMPLETE_BREAK=1 python3 src/csrc/accentpc/test_as_complete.py "$VOICES_REF"
 else
     echo "skip  Accent SA: its firmware and completion checks: ACU5_V41.BIN and ACU4_V40.BIN are not in firmware/aicom-accent-sa-z80"
 fi

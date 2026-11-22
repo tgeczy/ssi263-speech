@@ -6,7 +6,7 @@
  *
  *   SSA_ENGLISH      Braille Lite 2000          bl_voice.h  <data>/BL2ENG.BNS + bl2_2003_warm.state   (imported)
  *   SSA_SPANISH      Braille Lite 2000 (es)     bl_voice.h  <data>/BL2SPA.BNS + bl2spa_fresh.state    (imported)
- *   SSA_ACCENT_SA    Aicom Accent-PC            as_voice.h  u2, u3, u4 in memory (the APK's assets/aicom)
+ *   SSA_ACCENT_PC    Aicom Accent-PC            as_voice.h  u2, u3, u4 in memory (the APK's assets/aicom)
  *   SSA_SPEAKOUT     GW Micro Speak-Out         so_voice.h  <data>/SPEAKOUT.HEX                       (imported)
  *   SSA_ACCENT_MINI  Aicom Accent-mini          am_voice.h  SPKEMS.DVC in memory (assets/aicom)       (when
  *                                                           voices.c has it: SSV_HAVE_ACCENTMINI, build_android.sh)
@@ -58,7 +58,7 @@ typedef struct ssa_engine ssa_engine;
 
 #define SSA_ENGLISH 0                  /* BL2ENG.BNS + bl2_2003_warm.state */
 #define SSA_SPANISH 1                  /* BL2SPA.BNS + bl2spa_fresh.state */
-#define SSA_ACCENT_SA 2                /* Aicom's u2, u3, u4, from ssa_set_accent_roms */
+#define SSA_ACCENT_PC 2                /* Aicom's u2, u3, u4, from ssa_set_accent_roms */
 #define SSA_SPEAKOUT 3                 /* GW Micro's SPEAKOUT.HEX, imported */
 #define SSA_ACCENT_MINI 4              /* Aicom's SPKEMS.DVC, from ssa_set_accent_mini */
 #define SSA_MOCKINGBOARD 5             /* Sweet Micro Systems' mockingboard-tts-1.1.bin, imported or built in */

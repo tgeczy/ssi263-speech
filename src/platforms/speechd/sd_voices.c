@@ -183,7 +183,7 @@ static void settings_for(int i, const sd_settings *s, int rate, int pitch, int v
         o->line_lift = s->line_lift && !getenv("SD_SSI263_TEST_IGNORE_LINE_LIFT");
         if (!getenv("SD_SSI263_TEST_IGNORE_BL_NUMBERS")) o->numbers = s->numbers;
         break;
-    case SSV_ACCENT_SA:
+    case SSV_ACCENT_PC:
     case SSV_ACCENT_MINI:              /* asv_set / amv_set: inflection, number processing, the mini's voice */
         o->inflection = getenv("SD_SSI263_TEST_IGNORE_ACCENT_INFLECTION") ? 100 : s->accent_inflection;
         o->numbers = s->accent_numbers;

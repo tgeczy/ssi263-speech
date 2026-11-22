@@ -390,7 +390,7 @@ class SettingsActivity : Activity() {
         firmwareList.removeAllViews()
         val releases = FirmwareImport.releases
         // the built-in voices too, so every voice has its line (Tomi): nothing to bring for them
-        if (SsiData.has(this, SsiNative.ACCENT_SA))
+        if (SsiData.has(this, SsiNative.ACCENT_PC))
             firmwareList.addView(ui.body("Aicom Accent-PC: its ROMs — built into this app"))
         if (SsiData.has(this, SsiNative.ACCENT_MINI))
             firmwareList.addView(ui.body("Aicom Accent-mini: SPKEMS.DVC — built into this app"))

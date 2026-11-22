@@ -1,4 +1,4 @@
-/* as_usart.h -- the Accent-PC's 8251 USART as its firmware uses it, reduced exactly as src/hosts/accent_sa.py reduces
+/* as_usart.h -- the Accent-PC's 8251 USART as its firmware uses it, reduced exactly as src/hosts/accent_pc.py reduces
  * it: whole bytes, no baud rate, no framing.
  *
  *   port 20h  in: the received byte (reading it drops RxRDY, and with it RST 6.5); out: a byte sent to the host
@@ -31,8 +31,8 @@ typedef struct {
 void as_usart_init(as_usart *u);
 void as_usart_free(as_usart *u);
 int as_usart_queue(as_usart *u, const uint8_t *bytes, int n);   /* 1, or 0 when out of memory (nothing taken) */
-void as_usart_drop(as_usart *u);           /* the queued bytes (not the loaded one): accent_sa.py's rx.clear() */
-/* accent_sa.py's _serial(): load the next byte when none is loaded, one is queued and RTS is up.  1 if loaded (the
+void as_usart_drop(as_usart *u);           /* the queued bytes (not the loaded one): accent_pc.py's rx.clear() */
+/* accent_pc.py's _serial(): load the next byte when none is loaded, one is queued and RTS is up.  1 if loaded (the
    caller raises RST 6.5). */
 int as_usart_load(as_usart *u);
 /* port 20h or 21h; *rst65_drop is set when the read dropped RxRDY (the caller lowers RST 6.5) */

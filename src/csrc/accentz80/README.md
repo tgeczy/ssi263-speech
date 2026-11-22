@@ -1,7 +1,7 @@
 # src/csrc/accentz80: the Aicom Accent SA, the stand-alone box, on MAME's Z80 core
 
 The true Accent SA: the serial box with a Z80 in it, not the PC card whose voice carried that name until 0.9.5
-(`../accentsa`, the Accent-PC). The machine here is the one Kevin Horton traced from his own unit and wrote down: the
+(`../accentpc`, the Accent-PC). The machine here is the one Kevin Horton traced from his own unit and wrote down: the
 drawing of its board, the equations of its PLD read back from the part, and its memory and I/O maps. The firmware is
 Aicom's, read from that unit by him: 4.1 of 2 October 1996, and 4.0 of 15 February 1991, which runs as well.
 
@@ -22,7 +22,7 @@ It runs, and it speaks as the Accent-PC does. Measured on our own two units, the
   between clauses to the millisecond, and of each text's 50 to 250 pitch values none to six differ.
 - **One difference: it starts sooner.** At each unit's own processor speed the first phoneme comes a median 182 ms
   after the text here against 461 ms on the PC card; as the voices run their units (the host's `turbo`), 28 ms
-  against 61 ms. But the PC card's clock is a guess (`../accentsa/README.md`), and that lead is the host's to give
+  against 61 ms. But the PC card's clock is a guess (`../accentpc/README.md`), and that lead is the host's to give
   either unit.
 
 So a listener would get a second entry that sounds like the first (Tomi listened to both and heard none), with a
@@ -38,8 +38,8 @@ the dictionary. If one does, or someone wants the real box by name, a row in `..
 | File | What it is for |
 |---|---|
 | `az_board.h`, `az_board.c` | The machine: U5 at 0000-6FFF, the 6264's upper half at 7000-7FFF, the window at 8000-FFFF by the latch's MODE (U5's upper half, U4's upper half, U4's lower half, the RAM's lower half mirrored); I/O chosen by the port address's HIGH byte, as the PLD decodes it (the SC-02 at 0xxx with its registers straight on A0-A2, the foot switches at 1xxx, the 8251 at 2xxx, the option switches and the control latch at 4xxx); /NMI = the chip's A/R AND the latch's bit 4, taken on the edge; /INT = the 8251's RxRDY. The header says what is the drawing's, what the firmware was seen to do, and what is a guess. |
-| `az_host.h`, `az_host.c` | The unit: this board under the Accent host (`../accentsa/as_host.h`), 8 MHz. `azh_create` from memory, `azh_create_dir` from a folder; what comes back is an `as_host`. |
-| `az_voice.h`, `az_voice.c` | The voice: the Accent voice (`../accentsa/as_voice.h`) on this unit. `azv_create`; what comes back is an `as_voice`. |
+| `az_host.h`, `az_host.c` | The unit: this board under the Accent host (`../accentpc/as_host.h`), 8 MHz. `azh_create` from memory, `azh_create_dir` from a folder; what comes back is an `as_host`. |
+| `az_voice.h`, `az_voice.c` | The voice: the Accent voice (`../accentpc/as_voice.h`) on this unit. `azv_create`; what comes back is an `as_voice`. |
 | `az_waiting.inc` | Where each firmware waits (its idle loops and the instructions that close an utterance), keyed by U5's FNV-1a: what `az_board_take_work` counts the firmware's own work against, and so how the voice tells a text that has ended from one whose next clause is still being read (issue #8). **Generated**; a U5 that was not measured has no table and its work is not counted. |
 | `az_waiting.c` | The tool that measures it, on the real host: every instruction address in the states where the firmware has, for certain, nothing to read or say. Run by hand when a firmware is added: `az_waiting <U4> <U5> [<U5> ...] > az_waiting.inc`. |
 | `az_trace.c` | The C API alone, no Python: the two ROMs from files, a text down the serial line, every chip write with its chip time (and the audio with `--wav`, the voice's view of each block with `--watch`). For the checks, and for laying a recording of a real unit beside the same text. |
@@ -48,9 +48,9 @@ the dictionary. If one does, or someone wants the real box by name, a row in `..
 | `test_az_firmware.py` | The firmware on the board, through `az_trace`: the greeting it says at power-up, the flush, the ports it reaches, the same writes at any block size, the rate, pitch, voice, monotone and index-mark commands, and 4.0 against 4.1. Three controls (`AZ_FW_BREAK`). Skips, and says so, without the ROMs. |
 | `build_board.py` | Windows build (w64devkit): `nvda/dist/accentz80-lib/` gets `test_az_board.exe`, `az_trace.exe`, `az_waiting.exe` and `x64/accent_sa_z80.dll`, a test library that is never shipped (the unit under the Accent voice, with the chip). Linux: `../../../build_linux.sh`, where the unit goes into the test reference `libsd_voices_ref.so` only. |
 
-The CPU is `../cpu/z80_mame.cpp` (CONTRACT.md 15). The 8251 is the Accent-PC's (`../accentsa/as_usart.c`): this
+The CPU is `../cpu/z80_mame.cpp` (CONTRACT.md 15). The 8251 is the Accent-PC's (`../accentpc/as_usart.c`): this
 firmware programs it with the same mode word and the same two commands. Issue #8's completion checks run on this unit
-too: `../accentsa/test_as_complete.py` with `AS_COMPLETE_UNIT=sa`.
+too: `../accentpc/test_as_complete.py` with `AS_COMPLETE_UNIT=sa`.
 
 ## What the firmware showed on this board
 

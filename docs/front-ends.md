@@ -15,7 +15,7 @@ Since 0.7, every shipping front end runs instead on MAME's extracted CPU cores
 | Speak-Out | MAME's NEC V40 | `speakout/` |
 | Braille Lite 2000 and the other Blazie units | MAME's Z180 | `blazie/` |
 | Accent-mini | MAME's 8086, under a small PC (`pc86/`) | `accentmini/` |
-| Accent-PC | MAME's 8085 | `accentsa/` |
+| Accent-PC | MAME's 8085 | `accentpc/` |
 | Sounding Board | MAME's 8086, under the same small PC | `soundingboard/` |
 | SmarTalk | MAME's 8086, under the same small PC | `smartalk/` |
 | Mockingboard | Fake6502 (public domain, from Jayson Smith's EchoTalk) | `mockingboard/` (see [mockingboard-firmware.md](mockingboard-firmware.md)) |
@@ -164,7 +164,7 @@ document labels.
   Intel 8085 runs Aicom's rules from a 64 KB program ROM ("AICOM CORPORATION COPYRIGHT,
   WORLD, 1986, 1987, 1988, 1989"), with two 32 KB exception dictionaries ("AICOM
   COPYRIGHT1" and "2"; letters stored as ASCII minus 21h).
-- **The machine:** `src/hosts/accent_sa.py`, on `src/hosts/i8085.py`, a plain-Python 8085
+- **The machine:** `src/hosts/accent_pc.py`, on `src/hosts/i8085.py`, a plain-Python 8085
   written for it (it passes the TST8080 and 8080PRE CPU tests; MAME's i8085 was the
   reference for what RIM returns after a TRAP). The map, read from the code and confirmed by
   the firmware speaking:

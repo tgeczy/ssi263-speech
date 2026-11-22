@@ -21,7 +21,7 @@ object SsiEngine {
     private val SOUNDINGBOARD_VOICE =
         VoiceInfo(SsiNative.SOUNDINGBOARD, "en-US-soundingboard", "GW Micro Sounding Board (English)", Locale("en", "US"))
     private val SHIPPED = listOf(
-        VoiceInfo(SsiNative.ACCENT_SA, "en-US-accentsa", "Aicom Accent-PC (English)", Locale("en", "US")),
+        VoiceInfo(SsiNative.ACCENT_PC, "en-US-accentsa", "Aicom Accent-PC (English)", Locale("en", "US")),
         VoiceInfo(SsiNative.ACCENT_MINI, "en-US-accentmini", "Aicom Accent-mini (English)", Locale("en", "US")),
         VoiceInfo(SsiNative.ENGLISH, "en-US-braillelite", "Braille Lite 2000 (English)", Locale("en", "US")),
         VoiceInfo(SsiNative.SPANISH, "es-ES-braillelite", "Braille Lite 2000 (Spanish)", Locale("es", "ES")),
@@ -106,7 +106,7 @@ object SsiEngine {
     /** The voice when the user has chosen none: the Braille Lite once its English firmware is imported, else the
      * Accent-PC (Tomi: the Accent-PC is the default while no Braille Lite firmware is here). */
     fun defaultVoice(ctx: Context): Int =
-        if (SsiData.has(ctx, SsiNative.ENGLISH)) SsiNative.ENGLISH else SsiNative.ACCENT_SA
+        if (SsiData.has(ctx, SsiNative.ENGLISH)) SsiNative.ENGLISH else SsiNative.ACCENT_PC
 
     /** A voice of that language ("en", "deu", ...) can speak now. */
     fun speaks(ctx: Context, lang: String): Boolean = SsiLanguages.voicesOf(lang, voices(ctx)).isNotEmpty()

@@ -15,7 +15,7 @@
  *             DRIVER's start.  Every frame then plays from the IRQ the SSI-263's A/R raises on the second VIA's CA1,
  *             while the 6502 idles; 1Eh is the firmware's busy flag (FFh while it plays).
  *
- * The lockstep is accent_sa.py's: each slice the chip runs (to its next A/R request, at most `step`; or step / 4
+ * The lockstep is accent_pc.py's: each slice the chip runs (to its next A/R request, at most `step`; or step / 4
  * while requesting), then the 6502 runs as many cycles as that chip time holds; A/R goes to the board after every
  * chip slice and every chip write.
  *

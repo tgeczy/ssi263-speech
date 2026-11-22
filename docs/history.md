@@ -592,6 +592,8 @@ that. It runs the Accent-PC's firmware. What that rests on:
 So the names people see say Accent-PC from 0.9.5. Nothing about the sound changed. The voice's internal names
 (`accentmini:sa`, the `accentsa` folder, the firmware folder) stay as they were, so that no saved choice is lost, and
 speech-dispatcher still takes the old name. The true Accent SA is a different machine and would be a voice of its own.
+On 2026-11-22 the code's own names followed (Tomi): the folder `src/csrc/accentsa` became `accentpc`, and the Python
+hosts, the research library, the test switches and the voice constants say Accent-PC; the saved names above stay.
 
 ## Engine versions at a glance
 

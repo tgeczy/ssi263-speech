@@ -7,7 +7,7 @@ too -- no Python host):
   NVDA's process, loaded as DOS would load it, with its rules in emulated expanded memory; the model's A/R request
   is the card's IRQ (src/csrc/accentmini).
 - Accent-PC: the plug-in card's own 8085 firmware (1986-1989) and dictionary ROMs run on MAME's 8085, with text
-  arriving on its serial port and A/R on its TRAP (src/csrc/accentsa).  Its voice key is still "sa": until 0.9.5
+  arriving on its serial port and A/R on its TRAP (src/csrc/accentpc).  Its voice key is still "sa": until 0.9.5
   it was called the Accent SA, and a saved choice must keep its voice.
 Both drive a register-level model of the SSI-263 (Aicom's AI901), so the rules, intonation and timing are Aicom's
 own.  Nothing is recorded or concatenated.  This file keeps NVDA's side: the worker thread, the player, index and
@@ -36,7 +36,7 @@ _ENGINE_DIR = os.path.join(_HERE, "_ssi263_accent")
 # The engine is this add-on's own package, imported relatively and never through sys.path:
 # the other add-ons ship modules of the same names.
 from ._ssi263_accent import ssi263_rates as rates
-from ._ssi263_accent.ssi263speech import AccentMiniC, AccentSAC, dll_path
+from ._ssi263_accent.ssi263speech import AccentMiniC, AccentPCC, dll_path
 try:
     from ._ssi263_accent import ssi263_flow as _flow      # say all's lines as one line to the unit
 except ImportError:                       # an engine from before it: each text a line of its own
@@ -349,7 +349,7 @@ class SynthDriver(SynthDriver):
         t = time.monotonic()
         model = self._model
         if model == "sa":
-            box = AccentSAC(DLL, SA_ROMS, self._out_rate)
+            box = AccentPCC(DLL, SA_ROMS, self._out_rate)
         else:
             box = AccentMiniC(DLL, DRIVER, self._out_rate)     # its INIT runs as DOS would run it
         old, self._box = self._box, box

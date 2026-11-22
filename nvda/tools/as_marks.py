@@ -1,4 +1,4 @@
-"""Index marks in the Accent-PC voice (src/csrc/marks.h, accentsa/as_voice.h asv_speak_marked): the unit's own
+"""Index marks in the Accent-PC voice (src/csrc/marks.h, accentpc/as_voice.h asv_speak_marked): the unit's own
 Ctrl-F at the front of the word a mark stands before, and each mark reported where the unit's prompt for it comes on
 its serial line -- in the audio the voice gives out, which holds some blocks back before it does.
 
@@ -41,7 +41,7 @@ _args = [a for a in sys.argv[1:] if not a.startswith("--")]
 LIB = (_args[0] if _args else os.environ.get("SSI263_VOICES_LIB") or (
     os.path.join(REPO, "build", "win", ARCH, "ssi263speech.dll") if WINDOWS
     else os.path.join(REPO, "build", "linux", "libssi263_voices.so")))
-ROMS = os.environ.get("SSI263_ACCENT_SA_DIR") or os.path.join(REPO, "firmware", "aicom-accent-sa")
+ROMS = os.environ.get("SSI263_ACCENT_PC_DIR") or os.path.join(REPO, "firmware", "aicom-accent-sa")
 BREAK = int(os.environ.get("AS_MARKS_BREAK", "0") or 0)
 RATE = vm.RATE
 MAX_BLOCKS = 3000

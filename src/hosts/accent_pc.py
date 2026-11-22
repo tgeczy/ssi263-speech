@@ -29,8 +29,8 @@ one host liberty is `turbo`, see _cpu):
 The bank map and the TRAP gate are read from the code and confirmed by it speaking ("Accent
 ready." at power-up, then text); the 8085's clock is a GUESS (3.072 MHz, a 6.144 MHz crystal).
 
-AccentSA() returns the C host by default (accent_sa_c.py: src/csrc/accentsa, MAME's 8085).
-SSI263_ACCENT_SA_CORE=python selects the unshipped development reference below.
+AccentPC() returns the C host by default (accent_pc_c.py: src/csrc/accentpc, MAME's 8085).
+SSI263_ACCENT_PC_CORE=python selects the unshipped development reference below.
 """
 import collections
 import os
@@ -49,26 +49,26 @@ _ESC = re.compile("\x1b(?:[=+\\-O][A-Za-z]|[A-Z][0-9A-Z]|\\|~[^~]*~)")   # as ho
 
 def _core():
     """MAME C board by default; python is an explicit development reference."""
-    core = os.environ.get("SSI263_ACCENT_SA_CORE", "").strip().lower() or "c"
+    core = os.environ.get("SSI263_ACCENT_PC_CORE", "").strip().lower() or "c"
     if core not in ("python", "c"):
-        raise ValueError("SSI263_ACCENT_SA_CORE=%s: python or c" % core)
+        raise ValueError("SSI263_ACCENT_PC_CORE=%s: python or c" % core)
     return core
 
 
-class AccentSA:
+class AccentPC:
     def __new__(cls, *args, **kwargs):
         core = kwargs.pop("core", None) or _core()
-        if cls is AccentSA and core == "c":
+        if cls is AccentPC and core == "c":
             try:
-                from .accent_sa_c import AccentSAC
+                from .accent_pc_c import AccentPCC
             except ImportError:
-                from hosts.accent_sa_c import AccentSAC  # noqa: E402
-            return AccentSAC(*args, **kwargs)
+                from hosts.accent_pc_c import AccentPCC  # noqa: E402
+            return AccentPCC(*args, **kwargs)
         return object.__new__(cls)
 
     def __init__(self, rom_dir, chip=None, out_rate=44100, cpu_hz=CPU_HZ, tick_hz=0.0, switches=0x00,
                  turbo=8.0, core=None):
-        from .i8085 import I8085            # development reference only; release constructs AccentSAC
+        from .i8085 import I8085            # development reference only; release constructs AccentPCC
         if chip is None:
             chip = SSI263(out_rate=out_rate)
         self.chip = chip
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     roms = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "firmware", "aicom-accent-sa")
     text = sys.argv[2] if len(sys.argv) > 2 else "Hello, this is the Accent S A."
-    a = AccentSA(roms, chip=_S(dsp="c"))
+    a = AccentPC(roms, chip=_S(dsp="c"))
     a.boot()
     a.say(text + "\r")
     out = [a.run(0.05)]
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     names = a.chip.rom.names
     print("phonemes:", " ".join(names.get(v & 0x3F, "?") for t, r, v in a.writes if r == 0 and v & 0x3F))
     print("%.2f s of audio" % (len(y) / 44100.0))
-    with wave.open("accent_sa_test.wav", "wb") as f:
+    with wave.open("accent_pc_test.wav", "wb") as f:
         f.setnchannels(1)
         f.setsampwidth(2)
         f.setframerate(44100)

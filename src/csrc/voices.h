@@ -50,7 +50,7 @@ extern "C" {
 #define SSV_BLAZIE 0               /* the Braille Lite 2000 (bl_voice.h) */
 #define SSV_SPEAKOUT 1             /* GW Micro's Speak-Out (so_voice.h) */
 #define SSV_ACCENT_MINI 2          /* Aicom's Accent-mini (am_voice.h) */
-#define SSV_ACCENT_SA 3            /* Aicom's Accent-PC (as_voice.h) */
+#define SSV_ACCENT_PC 3            /* Aicom's Accent-PC (as_voice.h) */
 #define SSV_MOCKINGBOARD 4         /* Sweet Micro Systems' Mockingboard (mockingboard/mb_voice.h) */
 #define SSV_SOUNDINGBOARD 5        /* GW Micro's Sounding Board: the Speak-Out's voice on its DOS drivers (so_voice.h) */
 #define SSV_SMARTALK 6             /* Automated Functions' SmarTalk: its DOS text-to-speech (smartalk/st_voice.h) */

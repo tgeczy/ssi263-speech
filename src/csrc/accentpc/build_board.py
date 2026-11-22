@@ -1,16 +1,16 @@
-"""Build the Accent-PC board on MAME's 8085 core (not yet accepted; opt-in only), into nvda/dist/accentsa-lib/:
+"""Build the Accent-PC board on MAME's 8085 core (not yet accepted; opt-in only), into nvda/dist/accentpc-lib/:
 
   test_as_board.exe    the board's own rules on small programs (test_as_board.c); no firmware needed
   as_render.exe        the C API alone: the ROMs from a folder, a text into a WAV (as_render.c; the chip built in)
-  x64/accent_sa.dll    the board and host for src/hosts/accent_sa_c.py (the Python host's SSI263_ACCENT_SA_CORE=c)
-  x86/accent_sa.dll    the same for 32-bit Python (NVDA 2021-2023)
+  x64/accent_pc.dll    the board and host for src/hosts/accent_pc_c.py (the Python host's SSI263_ACCENT_PC_CORE=c)
+  x86/accent_pc.dll    the same for 32-bit Python (NVDA 2021-2023)
 
-accent_sa.dll links src/ssi263/_bin/<arch>/ssi263.dll (as bl.dll does), so the process uses the one chip library
+accent_pc.dll links src/ssi263/_bin/<arch>/ssi263.dll (as bl.dll does), so the process uses the one chip library
 ssi263/native.py loaded, and the SSI263C the caller made is the chip the host drives.  Floating point as ssi263.dll's:
 SSE2 doubles on 32-bit, no fused multiply-adds -- the host's time arithmetic must be Python's.
 
 w64devkit gcc/g++ (paths.local W64DEVKIT, W64DEVKIT_X86); C++17 without exceptions or RTTI for the core, libstdc++
-and libgcc linked statically (no DLLs beside KERNEL32, msvcrt and ssi263.dll).  python src/csrc/accentsa/build_board.py
+and libgcc linked statically (no DLLs beside KERNEL32, msvcrt and ssi263.dll).  python src/csrc/accentpc/build_board.py
 """
 import os
 import subprocess
@@ -23,7 +23,7 @@ REPO = os.path.dirname(os.path.dirname(CSRC))
 sys.path.insert(0, REPO)
 from tools import repo_paths  # noqa: E402
 
-OUT = os.path.join(REPO, "nvda", "dist", "accentsa-lib")
+OUT = os.path.join(REPO, "nvda", "dist", "accentpc-lib")
 CXX = ["-O2", "-std=c++17", "-fno-exceptions", "-fno-rtti", "-ffp-contract=off", "-Wall", "-Wno-sign-compare"]
 CC = ["-O2", "-std=gnu89", "-ffp-contract=off", "-Wall"]
 CHIP = ["-O2", "-std=c99", "-ffp-contract=off", "-Wall", "-Wextra", "-Wno-unused-parameter"]
@@ -73,7 +73,7 @@ def main():
             sys.exit("ssi263.dll not found for %s: build it first (python src/csrc/build_native.py)" % arch)
         os.makedirs(os.path.join(OUT, arch), exist_ok=True)
         subprocess.run([os.path.join(bindir, "g++"), "-shared"] + LINK
-                       + ["-o", os.path.join(OUT, arch, "accent_sa.dll")] + objs + [chip_dll], env=env, check=True)
+                       + ["-o", os.path.join(OUT, arch, "accent_pc.dll")] + objs + [chip_dll], env=env, check=True)
     print("built %s" % OUT)
 
 

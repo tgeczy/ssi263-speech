@@ -46,7 +46,7 @@ object SsiSettings {
     /** Read together once per utterance.  voice: the one chosen, or SsiEngine.defaultVoice when none was. */
     data class Snapshot(val rate: Int = 50, val pitch: Int = 50, val tone: Int = 7, val volume: Int = DEFAULT_VOLUME,
                         val shortPauses: Boolean = true, val inflection: Boolean = true, val whine: Int = 0,
-                        val sampleRate: Int = 22050, val voice: Int = SsiNative.ACCENT_SA,
+                        val sampleRate: Int = 22050, val voice: Int = SsiNative.ACCENT_PC,
                         val overrideVoice: Boolean = true, val runAhead: Boolean = false,
                         val soTone: Int = SO_DEFAULT_TONE, val soJoin: Boolean = true, val soShortPauses: Boolean = true,
                         val numbers: Boolean = true, val lineLift: Boolean = false, val wordMarks: Boolean = false)

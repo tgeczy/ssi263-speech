@@ -35,7 +35,7 @@ object SsiData {
     /** The voice can speak: the Accents' ROMs are in the APK; an imported voice's files are all here; a Mockingboard's
      * file, or the SmarTalk's, is here or in the APK. */
     fun has(ctx: Context, voice: Int): Boolean {
-        if (voice == SsiNative.ACCENT_SA) return accentRoms(ctx) != null
+        if (voice == SsiNative.ACCENT_PC) return accentRoms(ctx) != null
         if (voice == SsiNative.ACCENT_MINI) return accentMini(ctx) != null
         return imported(ctx, voice) || (voice in FirmwareImport.BUILT_IN && builtIn(ctx, voice) != null)
     }

@@ -10,7 +10,7 @@
 #include "blazie/bl_firmware.h"            /* blv_release_of, blv_release_text: a release's own encoding */
 #include "voices_blazie.h"
 #include "blazie/bl_numbers.h"
-#include "accentsa/as_voice.h"
+#include "accentpc/as_voice.h"
 #ifdef SSV_HAVE_SPEAKOUT
 #include "speakout/so_voice.h"
 #endif
@@ -39,7 +39,7 @@ static const ssv_info VOICES[] = {
      {"blazie/spanish/BL2SPA.BNS", "blazie/spanish/bl2spa_fresh.state", NULL}},
     {"speakout:speakout", "Speak-Out", "en", SSV_SPEAKOUT, 2, {"gw-micro-speakout/SPEAKOUT.HEX", NULL}},
     {"accentmini:mini", "Accent-mini", "en", SSV_ACCENT_MINI, 3, {"aicom-accent-mini/SPKEMS.DVC", NULL}},
-    {"accentmini:sa", "Accent-PC", "en", SSV_ACCENT_SA, 3,
+    {"accentmini:sa", "Accent-PC", "en", SSV_ACCENT_PC, 3,
      {"aicom-accent-sa/u2.BIN", "aicom-accent-sa/u3.BIN", "aicom-accent-sa/u4.BIN", NULL}},
     {"mockingboard:mockingboard", "Mockingboard (Sweet Micro Systems)", "en", SSV_MOCKINGBOARD, 4,
      {"sweet-micro-mockingboard/mockingboard-tts-1.1.bin", NULL}},
@@ -401,7 +401,7 @@ static const ssv_engine *engine(int kind)
 #endif
     switch (kind) {
     case SSV_BLAZIE: return &bl;
-    case SSV_ACCENT_SA: return &as;
+    case SSV_ACCENT_PC: return &as;
 #ifdef SSV_HAVE_SPEAKOUT
     case SSV_SPEAKOUT: return &so;
 #endif

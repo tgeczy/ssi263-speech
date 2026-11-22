@@ -3,7 +3,7 @@
  *
  *   as_render <folder with u2.BIN u3.BIN u4.BIN> "text" out.wav [sample rate, default 44100]
  *
- * As accent_sa.py's __main__: power-up (the greeting flushed), the text and a carriage return, then 50 ms blocks until
+ * As accent_pc.py's __main__: power-up (the greeting flushed), the text and a carriage return, then 50 ms blocks until
  * the Accent is no longer busy.  MIT.
  */
 #include <stdio.h>

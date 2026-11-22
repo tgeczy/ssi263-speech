@@ -104,7 +104,7 @@ to discard (`src/csrc/speakout/so_voice.h`).
 ## The Accent-PC: measured
 
 A Ctrl-F at the front of the marked word, after the space before it; the unit is told to prompt (ESC Y X, ESC = Y)
-once, with the first marked text, since it powers up with marks off (`src/csrc/accentsa/as_voice.h`).
+once, with the first marked text, since it powers up with marks off (`src/csrc/accentpc/as_voice.h`).
 
 - A mark before every word of two texts against none, at rates 0, 50 and 100 with the intonation full and flat
   (12 marked utterances): every phoneme load with its R1 to R4 is the unmarked text's, in order. At rates 0 and

@@ -2,7 +2,7 @@
 as_usart.c) in a temporary copy, and exactly that rule's tests must then fail.  The runner guard (exit code, summary
 line, the full test inventory) is ../cpu/contract_controls.py's.  Not in run_tests: seventeen builds.
 
-    python src/csrc/accentsa/as_controls.py
+    python src/csrc/accentpc/as_controls.py
 
 The core (../cpu/i8085_mame.cpp) is compiled once: no variant touches it.
 """

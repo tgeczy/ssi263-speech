@@ -7,7 +7,7 @@
  *     --block S      the size of the host's blocks, seconds (default 0.05)
  *     --tail S       how long to go on after the unit is no longer busy (default 0.5)
  *     --watch        after each block a line "B <seconds> busy <0|1> speaking <0|1> work <instructions>": what a voice
- *                sees when it decides whether the text is done (../accentsa/as_voice.c)
+ *                sees when it decides whether the text is done (../accentpc/as_voice.c)
  *     --wav FILE     the audio too, 16-bit mono
  *     --rate HZ      its sample rate (default 44100)
  *

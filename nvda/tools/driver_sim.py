@@ -416,8 +416,8 @@ if SA:
     # The shipping default is MAME's C host; the Python core is a development reference.
     # A silent fallback would be a failure.
     host = type(d._box).__name__
-    want = "AccentSAC" if (os.environ.get("SSI263_ACCENT_SA_CORE", "").strip().lower() or "c") == "c" else "AccentSA"
-    print("accent sa host: %s (want %s): %s" % (host, want, "ok" if host == want else "FAILED"))
+    want = "AccentPCC" if (os.environ.get("SSI263_ACCENT_PC_CORE", "").strip().lower() or "c") == "c" else "AccentPC"
+    print("accent pc host: %s (want %s): %s" % (host, want, "ok" if host == want else "FAILED"))
     rate_ok = rate_ok and host == want
 
 # the Sample rate combo box: 22 kHz by default; each rate gets its own player and the same speech (length and level)

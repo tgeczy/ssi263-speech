@@ -414,5 +414,5 @@ print("limit: the longest wait the paused texts needed was %.2f s of the 6 s cap
 
 bad = sum(fails.values())
 print("checks: " + ", ".join("%s %s" % (k, "ok" if not n else "%d FAILED" % n) for k, n in fails.items()))
-print("%s completion: %s" % ("accent sa z80" if UNIT == "sa" else "accent sa", "FAILED" if bad else "ok"))
+print("%s completion: %s" % ("accent sa z80" if UNIT == "sa" else "accent pc", "FAILED" if bad else "ok"))
 sys.exit(1 if bad else 0)

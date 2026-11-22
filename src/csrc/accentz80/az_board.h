@@ -20,7 +20,7 @@
  *   matters.
  *   0xxx  the SC-02 (SSI-263): RS0-RS2 are A0-A2, straight (R0 at 0 ... R4 at 4); any read has A/R in bit 7
  *   1xxx  the foot switch inputs on D0-D3, read only.  Not seen read; "foot" (0Fh: a GUESS, none pressed)
- *   2xxx  the 8251 (../accentsa/as_usart.h: the same mode and commands as the Accent-PC's firmware, seen: 4Eh, then
+ *   2xxx  the 8251 (../accentpc/as_usart.h: the same mode and commands as the Accent-PC's firmware, seen: 4Eh, then
  *         15h and 37h as its buffer fills and empties): A0 = 0 data, 1 control.  RxRDY is /INT (mode 1: RST 38h).
  *         Its select is not in the PLD's equations; "20-2F" is Kevin's map, taken as the others are
  *   4xxx  read: the option switches: dips 5, 6, 7, 8 on D1, D2, D3, D7 and two fixed bits, D4 = 1 and D5 = 0

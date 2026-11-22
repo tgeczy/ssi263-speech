@@ -71,7 +71,7 @@ The 0.7 shipping libraries use MAME. Legacy outputs are development references o
 
 MAME's 8085 (the Accent-PC's CPU, to replace `src/hosts/i8085.py`) is built the same way: `test_i8085_contract.exe`
 by `build_board.py`, `test_i8085_contract` by `build_linux.sh`, both gated. The Accent-PC
-board in `../accentsa/` uses it by default.
+board in `../accentpc/` uses it by default.
 
 MAME's 8086 (the Accent-mini's PC, to replace Unicorn under `src/hosts/accent.py`) likewise: `test_i86_contract.exe`
 and `x64/`, `x86/pc86.dll` (`../pc86`) by `build_board.py`, `test_i86_contract` and `libpc86.so` by `build_linux.sh`.
