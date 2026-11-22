@@ -325,6 +325,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=export                # control: the exported WAV's case must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=unopened              # control: a zip in a zip dropped in silence: must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=words                 # control: the marked words' UTF-8 offsets must FAIL
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=owner                 # control: the stale stop's case must FAIL
 
 `test_import_native.py` makes every fixture at test time from the files in the firmware folder (`--firmware`, default
 `$SSI263_FIRMWARE`, else `firmware/blazie`, with `spanish/`, `tns/` and `once2000/` -- ONCE's September 2000
@@ -473,6 +474,7 @@ moves some units' pauses (`docs/index-marks.md`), and nobody has listened to it 
 | `.../SsiImport.kt` | The import on the phone: the source's bytes, the native judgement, the Braille Lite's states made and checked, each unit made to speak, the files moved into place |
 | `.../SsiSettings.kt` | The settings, in device-protected storage, read once per utterance |
 | `.../SsiEngine.kt` | The one engine in the process: opens it, lists the voices (the Accents built in, the Braille Lite and the Speak-Out once imported), the default voice, owns it for one utterance at a time |
+| `.../EngineOwner.kt` | Who owns the engine's utterance, and the stop that ends only its owner's: the check and the stop one step under a small lock (no Android in it, so the JVM tests run it) |
 | `.../SsiTtsService.kt` | The `TextToSpeechService`: voices and languages, the request's voice, rate and pitch, audio streamed block by block, the words reported as they are spoken (when the setting is on), stop |
 | `.../SsiWords.kt` | A request's words for the unit's index marks: each one's place as Android counts it and as the native side does |
 | `.../SsiLanguages.kt` | What Android is told about each language (no Android context in it, so the JVM tests run it): availability, the voice for a request's language, CheckVoiceData's tags |
@@ -486,6 +488,7 @@ moves some units' pauses (`docs/index-marks.md`), and nobody has listened to it 
 | `app/src/test/kotlin/.../FirmwareImportTest.kt` | The JVM tests of `FirmwareImport`, with a fake native side |
 | `app/src/test/kotlin/.../UpdatesTest.kt` | The JVM tests of `Updates`: the version read after `ssi263-speech-` (never the 263), the newest APK not the newest tag, drafts and other projects' APKs passed over (org.json's real library for the JVM) |
 | `app/src/test/kotlin/.../WavExportTest.kt` | The JVM tests of `WavExport`: the suggested names (the unit, another language's tag, the time) and the file read back as a WAV |
+| `app/src/test/kotlin/.../EngineOwnerTest.kt` | The JVM tests of `EngineOwner`: a stop ends its owner's utterance only, also one checked before the next owner's start |
 | `app/src/test/kotlin/.../SsiLanguagesTest.kt` | The JVM tests of `SsiLanguages`: each language with and without its unit |
 | `.../GetSampleTextActivity.kt` | The sample sentence the system's TTS settings speak |
 | `licenses/DISTRIBUTION.txt` | The distribution notice the licences dialog shows first (MIT, MAME's cores, the source, Aicom's ROMs and driver, no Braille Lite or Speak-Out firmware) |
