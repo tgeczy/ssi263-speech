@@ -61,13 +61,16 @@ def main():
         on = "on bl-es" in log
         off_after = on and "off bl-es" in log.split("on bl-es", 1)[1]
         unseen = "not shown" in log
-        ok = not (on and not off_after) and (unseen or not on)
+        # a pass needs the evidence: the screen's own "not shown" line, the start switched off as it came on.  No
+        # outcome in the time, or a start that failed, proves nothing either way (it passed before: a review)
+        ok = unseen and not on
         print("%-4s background  the screen left 1 s into the Spanish unit's first start: %s" % (
             "ok" if ok else "FAIL",
             "switched off unseen, its memory saved" if unseen and not on else
             "came ON in the background and kept running" if on and not off_after else
             "on, then off: the start finished while the screen was shown (the window missed)" if on else
-            "no outcome logged in 120 s"))
+            "the start failed ('would not start' in the log): nothing shown either way" if "would not start" in log else
+            "no outcome logged in 120 s: nothing shown either way"))
         for ln in log.splitlines():
             if "SsiUnit" in ln:
                 print("     " + ln[:170])
