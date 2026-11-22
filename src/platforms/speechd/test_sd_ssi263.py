@@ -85,6 +85,7 @@ before every word), in a session of their own, counted apart ("index marks: n of
     SD_SSI263_TEST_IGNORE_LINE_LIFT=1: the module drops SSI263LineLift -- lift must FAIL
     SD_SSI263_TEST_IDLE_STOP=drop: a STOP between messages is dropped, as it was -- lift_stp must FAIL
     SD_SSI263_TEST_CHAR_SSML=1: CHAR and KEY through the SSML stripper, as they were -- char_lt must FAIL
+    SD_SSI263_TEST_CHAR_SYMBOLS=drop: CHAR's symbol taken out as from running text (#68's guard) -- char_es must FAIL
     SD_SSI263_TEST_LANG_TWO=1: SET language on its first two letters, the first voice, as it was -- lang_ar_ae,
       lang_pt and lang_pt_pt must FAIL
     SD_SSI263_TEST_IGNORE_BL_NUMBERS=1: the module drops SSI263BrailleLiteNumbers (the default reaches the unit) --
@@ -602,6 +603,39 @@ for label, tag, (want, other), text in (("lang_ar_ae", "ar-AE", ARABIC, "Hello, 
 # reference is the same text as SPEAK sends it, "&amp;lt;"
 got, want = first_message("&lt;", cmd="CHAR"), first_message("&amp;lt;")
 results.append(same("char_lt", got, want) and len(want) > 0)
+
+
+# ---- CHAR on a unit that names symbols: the Spanish unit's own name for "<" ("menor que").  #68 takes the symbols
+# such a unit names out of running text, which the screen reader has named already; a CHAR is the one character asked
+# for, and was silent (a review).  The guard still holds for a SPEAK after it: "a < b" said as "a b", each in a fresh
+# module after the same CHAR (two messages in one module differ by the unit's running state alone)
+SPANISH = "Braille Lite 2000 (Spanish)"
+
+
+def after_char(text):
+    """a fresh module on the Spanish unit: CHAR "<", then text as SPEAK; both messages' audio"""
+    s = Module()
+    s.send("INIT")
+    assert s.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
+    s.set(synthesis_voice=SPANISH)
+    ch, sp = s.speak("<", cmd="CHAR")[0], s.speak(text)[0]
+    s.send("QUIT")
+    s.p.wait(timeout=10)
+    return ch, sp
+
+
+if SPANISH not in listed:
+    print("char_es  skipped: %s is not built or its files are not here" % SPANISH)
+else:
+    ch, guarded = after_char("a &lt; b")
+    _ch, plain = after_char("a b")
+    samples = memoryview(ch).cast("h") if len(ch) % 2 == 0 else memoryview(ch[:-1]).cast("h")
+    loud = max((abs(x) for x in samples), default=0)
+    ok = loud > 1000 and len(ch) // 2 > 3000
+    print("char_es  module CHAR \"<\" on the Spanish unit: %d samples, peak %d: %s" % (
+        len(ch) // 2, loud, "said" if ok else "SILENT"))
+    kept = same("char_es2", guarded, plain)                 # the SPEAK after it: "a < b" said as "a b"
+    results.append(ok and kept)
 
 
 # ---- the protocol's corners, as speech-dispatcher 0.11.1's server sends them and its own modules answer them

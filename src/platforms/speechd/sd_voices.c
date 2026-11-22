@@ -239,6 +239,11 @@ void sdv_interrupted(int i)
     if (units[built[i]]) ssv_interrupted(units[built[i]]);
 }
 
+void sdv_literal_next(int i)
+{
+    if (units[built[i]]) ssv_literal_next(units[built[i]]);
+}
+
 void sdv_destroy_all(void)
 {
     int k;

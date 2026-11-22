@@ -424,6 +424,11 @@ static void speak(char *text, int ssml)
     }
     send_line("200 OK SPEAKING");
     send_line("701 BEGIN");
+    /* CHAR and KEY: the one character asked for, named by a unit whose reader names symbols -- #68 takes those out of
+       running text, and a "<" on the Spanish unit was silent (a review; SD_SSI263_TEST_CHAR_SYMBOLS=drop, the
+       control: taken out, as they were) */
+    if (!ssml && !getenv("SD_SSI263_TEST_CHAR_SYMBOLS"))
+        sdv_literal_next(v);
     if (sdv_speak_marked(v, &conf, to100(ssip_rate), to100(ssip_pitch), to100(ssip_volume), text,
                          getenv("SD_SSI263_TEST_NO_MARKS") ? NULL : marks, n_marks, err, sizeof err) < 0)
         done = 1;

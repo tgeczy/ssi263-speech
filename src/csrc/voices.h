@@ -133,6 +133,10 @@ SSV_API void ssv_cancel(ssv_voice *v);
    spoken as after a cancel (the Braille Lite's line-start lift, bl_voice.h blv_interrupted); the unit is left as
    it is.  Nothing for the other voices. */
 SSV_API void ssv_interrupted(ssv_voice *v);
+/* The next utterance is one character or key name, as a screen reader's character command asks for it: a Braille
+   Lite whose reader names symbols (bl_voice.h blv_literal_next) names it, where running text has those symbols taken
+   out.  For that utterance alone; nothing for the other voices. */
+SSV_API void ssv_literal_next(ssv_voice *v);
 
 /* Index marks (marks.h): places in the text a screen reader wants to be told of when speech reaches them.
    ssv_speak_marked: as ssv_speak, with the caller's marks (byte offsets into utf8, in rising order).  With none it

@@ -69,6 +69,8 @@ struct bl_voice {
                                      touching a digit */
     const char *symbols;          /* the ASCII symbols its own reader names with punctuation none
                                      (blv_release_symbols): none of them is sent; NULL or "" none */
+    int literal_next;             /* the next utterance is one character or key name: its symbols kept
+                                     (blv_literal_next) */
     ssv_reach *reached;         /* those the last blv_render's block reached (blv_reached) */
     int n_reached, cap_reached;
 };
@@ -174,6 +176,7 @@ BL_API double (*blv_clock)(void) = monotonic_s;
 BL_API void blv_set_line_lift(bl_voice *v, int on) { v->line_lift = on != 0; }
 BL_API int blv_get_line_lift(const bl_voice *v) { return v->line_lift; }
 BL_API void blv_interrupted(bl_voice *v) { v->lift_next = 1; v->play_end = 0.0; }
+BL_API void blv_literal_next(bl_voice *v) { v->literal_next = 1; }
 BL_API bl_host *blv_host(bl_voice *v) { return v->host; }
 BL_API ssi263 *blv_chip(bl_voice *v) { return v->chip; }
 
@@ -995,6 +998,8 @@ BL_API int blv_speak_marked(bl_voice *v, const char *utf8, const ssv_mark *marks
     int *ords = NULL;
     unsigned char *data;
     const double *y;
+    const char *symbols = v->literal_next ? NULL : v->symbols;   /* (blv_literal_next: this utterance alone) */
+    v->literal_next = 0;
     if (r != v->sent_rate || p != v->sent_pitch || tone != v->sent_tone) {
         char cmd[48];
         int c = snprintf(cmd, sizeof cmd, "\x05%dE\x05%dP\x05%dT", r, p, tone);
@@ -1025,7 +1030,7 @@ BL_API int blv_speak_marked(bl_voice *v, const char *utf8, const ssv_mark *marks
         if (!ords || n_marks > v->cap_mk)
             n_marks = 0;
     }
-    nl = say_bytes(utf8, v->encoding, v->pack, v->numbers, v->commas, v->symbols, marks, n_marks, ords, &n06, &data,
+    nl = say_bytes(utf8, v->encoding, v->pack, v->numbers, v->commas, symbols, marks, n_marks, ords, &n06, &data,
                    &len);
     /* each mark's echo, by its number: the unit echoes its Ctrl-Fs in the order it was sent them, the lines' own
        among them; one after the last word is reached at the utterance's end (ORD_END) */

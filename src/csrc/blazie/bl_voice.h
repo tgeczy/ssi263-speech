@@ -76,6 +76,10 @@ BL_API int blv_get_line_lift(const bl_voice *v);
    playing): the next utterance is lifted as after a cancel, and the unit left as it is (blazie.py's cancel() when
    idle). */
 BL_API void blv_interrupted(bl_voice *v);
+/* The next utterance is one character or key name as a screen reader asks for it (speech-dispatcher's CHAR and
+   KEY): the symbols the release names (blv_release_symbols) are left in it, to be named -- running text has them
+   taken out, the screen reader having named them already (#68).  For that utterance alone. */
+BL_API void blv_literal_next(bl_voice *v);
 /* The driver's "Custom number processing" (numberWords; the driver's default is on, this voice's off until set): fn
    rewrites the cleaned text before it is cut into lines, as the driver's _numbers -- bl_numbers.h's bl_numbers is it.
    A function rather than a flag so this file links without the number words (bl.dll has none).  fn gets the text as

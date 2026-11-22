@@ -74,6 +74,8 @@ int sdv_reached(int i, const ssv_reach **out);
 void sdv_cancel(int i);
 /* A STOP between messages: the next is spoken as after a cancel (voices.h ssv_interrupted). */
 void sdv_interrupted(int i);
+/* the next message is one character or key name (CHAR, KEY): voices.h ssv_literal_next */
+void sdv_literal_next(int i);
 void sdv_destroy_all(void);
 
 #ifdef __cplusplus
