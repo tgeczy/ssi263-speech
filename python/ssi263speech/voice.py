@@ -60,8 +60,10 @@ class BrailleLite:
                 raise FileNotFoundError("ssi263speech: %s not found (the firmware is not included)" % p)
         self._lib = _native.voice_lib()
         err = ctypes.create_string_buffer(256)
-        enc = "mbcs" if os.name == "nt" else "utf-8"
-        self._v = self._lib.blv_create(paths[0].encode(enc), paths[1].encode(enc), codepage,
+        # os.fsencode: UTF-8 on Windows (PEP 529), as the C library's bl_fopen.h reads a path with a high byte; strict
+        # "mbcs" raised on a folder named outside the code page, and handed on ANSI bytes that bl_fopen.h could read
+        # as another name ("Ã©" as "é")
+        self._v = self._lib.blv_create(os.fsencode(paths[0]), os.fsencode(paths[1]), codepage,
                                        float(rate), 1 if inflection else 0, int(idle_noise), err, 256)
         if not self._v:
             raise RuntimeError("ssi263speech: the unit did not boot: %s" % err.value.decode("latin-1", "replace"))

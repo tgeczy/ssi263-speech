@@ -2408,6 +2408,14 @@ if os.path.isfile(os.path.join(LIB, "x64", "bl.dll")):
     CHECKS.append(check("Python wheel CONTROL (rate 70, must fail)", [PY, WHEEL_TEST, "--build", ENG],
                         env={"WHEEL_TEST_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^ok +the chip alone:", r"^FAIL +the Braille Lite:", r"^wheel: 1 FAILED$"]))
+    # its firmware paths as strict "mbcs", as they were: a folder named outside the code page raised, and one whose
+    # ANSI bytes are also UTF-8 was read by bl_fopen.h as another name
+    CHECKS.append(check("Python wheel CONTROL (paths as mbcs, must fail)", [PY, WHEEL_TEST, "--build", ENG],
+                        env={"WHEEL_TEST_BREAK": "mbcs"}, expect_fail=True,
+                        fail_marks=[r"^ok +the Braille Lite: ",
+                                    r"^FAIL the Braille Lite from a folder named '\\u0416.*UnicodeEncodeError",
+                                    r"^FAIL the Braille Lite from a folder named '(?!\\u0416).*did not boot",
+                                    r"^wheel: 2 FAILED$"]))
 # Windows 7 (Tomi: Windows 7 support; the README promises 7 and later): every shipped Windows binary -- the newest
 # built add-ons, the SAPI stage's native files (not its python/ folder) and the Blazie emulator -- imports nothing
 # Windows 7 SP1 lacks (no newer DLL, API set or function; tools/win7_missing_apis.txt, from the SDK headers) and asks
