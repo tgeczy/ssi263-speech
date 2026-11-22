@@ -218,7 +218,7 @@ int wmain(int argc, wchar_t **argv)
     }
     if (!list && !serve) { usage(); return 2; }
     if (!ssi_load(&api, exe, err, sizeof err)) { fprintf(stderr, "%s\n", err); return 1; }
-    if (!ssi_ansi_path(fwdir_w, fwdir, sizeof fwdir)) { fputs("the firmware folder's name cannot be opened\n", stderr); return 1; }
+    if (!ssi_lib_path(fwdir_w, fwdir, sizeof fwdir)) { fputs("the firmware folder's name cannot be opened\n", stderr); return 1; }
     out_h = GetStdHandle(STD_OUTPUT_HANDLE);
     in_h = GetStdHandle(STD_INPUT_HANDLE);
     if (list) {

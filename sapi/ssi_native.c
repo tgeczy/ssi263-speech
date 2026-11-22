@@ -112,12 +112,21 @@ int ssi_ansi_path(const wchar_t *path, char *out, int cap)
     return n > 0 && !lossy;
 }
 
+int ssi_lib_path_break = 0;     /* the development DLL's control: 1 = the ANSI form wherever there is one, as P27 */
+
 int ssi_lib_path(const wchar_t *path, char *out, int cap)
 {
-    /* the ANSI form where there is one (8.3 names, or a name in the code page): every caller of the voices takes it;
-       else UTF-8, which the voices' every firmware open takes too (bl_fopen.h) -- a folder named in another script on
-       a volume without 8.3 names had no form at all, and every voice was silent (Panthera's audit, P27) */
-    if (ssi_ansi_path(path, out, cap))
-        return 1;
+    /* the ANSI form where it is ASCII (8.3 names, or a plain name): there ANSI and UTF-8 are the same bytes; else
+       UTF-8, which the voices' every firmware open takes (bl_fopen.h) -- a folder named in another script on a volume
+       without 8.3 names had no ANSI form at all, and every voice was silent (Panthera's audit, P27).  An ANSI form
+       with a high byte is not handed on: bl_fopen.h takes a high byte as UTF-8 wherever it is valid UTF-8, and
+       Windows-1252's "Ã©" (C3 A9) opened "é" (a review of P27's fix) */
+    if (ssi_ansi_path(path, out, cap)) {
+        const unsigned char *p = (const unsigned char *)out;
+        while (*p && *p < 0x80)
+            p++;
+        if (!*p || ssi_lib_path_break)
+            return 1;
+    }
     return WideCharToMultiByte(CP_UTF8, 0, path, -1, out, cap, NULL, NULL) > 0;
 }

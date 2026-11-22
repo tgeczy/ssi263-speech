@@ -70,8 +70,9 @@ int ssi_voice(const ssi_api *api, const char *id, const char *fwdir);
 /* A folder's name as the C library's fopen takes it (the ANSI code page; its 8.3 name when it has one, so a name
    outside the code page still opens).  1, or 0 when it cannot be said. */
 int ssi_ansi_path(const wchar_t *path, char *out, int cap);
-/* the path for the voices: ANSI where it has an ANSI form, else UTF-8 (bl_fopen.h takes both) */
+/* the path for the voices: its ASCII form where it has one, else UTF-8 (bl_fopen.h reads a high byte as UTF-8) */
 int ssi_lib_path(const wchar_t *path, char *out, int cap);
+extern int ssi_lib_path_break;  /* the development DLL's control (test_install_folder.py's ansi-first) */
 
 /* SAPI's own scales onto NVDA's 0-100, linearly (ssi263_sapi.cpp's, from before): rate -10..10 -> 0..100, the pitch's
    MiddleAdj -10..10 -> 0..100; SAPI zero is the middle of the NVDA slider. */

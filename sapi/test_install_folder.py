@@ -5,14 +5,20 @@ keeps 8.3 short names those are ANSI-safe, but a folder named in another script 
 volume without them has no ANSI form, and every voice was marked failed and silent ("the firmware folder cannot be
 opened").
 
+The second name is in the code page, but its ANSI bytes are also valid UTF-8 -- the characters the code page has at
+C3 A9 ("Ã©" on Windows-1252) -- and bl_fopen.h, which takes a path with a high byte as UTF-8 where it is valid,
+opened "é" instead: the ANSI form, handed on wherever the name had one, was misread (a review of P27's fix).
+
 The case: the development stage (nvda/dist/sapi-dev: both engine DLLs, the harness, the firmware) copied into a folder
-named Жук on a volume where 8.3 names are off, and "Hello there." asked of it: the audio must be the same as from the
-stage where it is built.  Without such a volume here, skipped, and said so.
+of each name on a volume where 8.3 names are off, and "Hello there." asked of it: the audio must be the same as from
+the stage where it is built.  Without such a volume here, skipped, and said so.
 
     python sapi/test_install_folder.py [--arch x64|x86|both]
-    SSI263_SAPI_PATH_BREAK=ansi     the folder as an ANSI path alone, as it was -- must FAIL (the development DLL's
-                                    SSI263_SAPI_TEST_BREAK)
+    SSI263_SAPI_PATH_BREAK=ansi        the folder as an ANSI path alone, as it was -- must FAIL Жук (the development
+                                       DLL's SSI263_SAPI_TEST_BREAK)
+    SSI263_SAPI_PATH_BREAK=ansi-first  the ANSI form wherever there is one, as P27 left it -- must FAIL the second name
 """
+import ctypes
 import os
 import shutil
 import string
@@ -51,12 +57,18 @@ def main():
         print("skip  no volume here keeps 8.3 names off: the short path would make any folder ANSI-safe")
         print("install folder: SKIPPED")
         return 0
-    folder = os.path.join(base, "Жук")                     # Жук
+    names = ["Жук"]                                         # Жук: outside the code page
+    cp = "cp%d" % ctypes.windll.kernel32.GetACP()
+    try:
+        names.append(b"\xc3\xa9".decode(cp) + "voices")     # in it, its ANSI bytes valid UTF-8 ("é")
+    except (UnicodeDecodeError, LookupError):
+        print("skip  the code page (%s) has no characters at C3 A9: the second name is not made" % cp)
     bad = 0
     try:
-        shutil.copytree(tsr.STAGE, folder)
+        for name in names:
+            shutil.copytree(tsr.STAGE, os.path.join(base, name))
         if BREAK:
-            tsr.BREAK = "ansi-path"                                         # the request lines' break field
+            tsr.BREAK = "ansi-path" if BREAK == "ansi" else BREAK           # the request lines' break field
         tmp = tempfile.mkdtemp(prefix="ssi263_sapi_out_")
         try:
             # every voice the stage has: each engine opens its own firmware files (bl_fopen.h)
@@ -66,19 +78,20 @@ def main():
                 for voice in voices:
                     lines = [tsr.req([tsr.S("Hello there.")], voice=voice)]
                     home = tsr.harness(arch, "home", lines, tmp)
-                    stage, tsr.STAGE = tsr.STAGE, folder
-                    try:
-                        moved = tsr.harness(arch, "moved", lines, tmp)
-                    finally:
-                        tsr.STAGE = stage
                     a = home[0]["pcm"] if home else b""
-                    b = moved[0]["pcm"] if moved else b""
-                    ok = len(a) > 0 and a == b
-                    print("%-4s %s %-28s from a folder named %s, no 8.3 names: %s" % (
-                        "ok" if ok else "FAIL", arch, voice, ascii("Жук"),
-                        "as from the stage (%s)" % tsr.secs(len(a)) if ok else
-                        "%s against %s from the stage" % (tsr.secs(len(b)), tsr.secs(len(a)))))
-                    bad += not ok
+                    for name in names:
+                        stage, tsr.STAGE = tsr.STAGE, os.path.join(base, name)
+                        try:
+                            moved = tsr.harness(arch, "moved", lines, tmp)
+                        finally:
+                            tsr.STAGE = stage
+                        b = moved[0]["pcm"] if moved else b""
+                        ok = len(a) > 0 and a == b
+                        print("%-4s %s %-28s from a folder named %s, no 8.3 names: %s" % (
+                            "ok" if ok else "FAIL", arch, voice, ascii(name),
+                            "as from the stage (%s)" % tsr.secs(len(a)) if ok else
+                            "%s against %s from the stage" % (tsr.secs(len(b)), tsr.secs(len(a)))))
+                        bad += not ok
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
     finally:

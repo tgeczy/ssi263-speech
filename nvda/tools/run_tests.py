@@ -508,6 +508,14 @@ if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "sapi-dev", "x86",
                         [PY, SAPI_FOLDER, "--arch", "x64"], env={"SSI263_SAPI_PATH_BREAK": "ansi"}, expect_fail=True,
                         fail_marks=[r"^FAIL x64 blazie:blazie +from a folder", r"^install folder: \d+ FAILED$"],
                         ok=None))
+    # a folder named in the code page whose ANSI bytes are also UTF-8 ("Ã©" on Windows-1252): bl_fopen.h read them
+    # as UTF-8 and opened another name (a review of P27's fix); the control hands on the ANSI form wherever it is
+    CHECKS.append(check("SAPI engine DLL: install folder CONTROL (the ANSI form wherever there is one, must fail)",
+                        [PY, SAPI_FOLDER, "--arch", "x64"], env={"SSI263_SAPI_PATH_BREAK": "ansi-first"},
+                        expect_fail=True,
+                        fail_marks=[r"^ok +x64 blazie:blazie +from a folder named '\\u0416",
+                                    r"^FAIL x64 blazie:blazie +from a folder named '(?!\\u0416)",
+                                    r"^install folder: \d+ FAILED$"], ok=None))
     for brk, what, marks in (
             ("partial-write", "each block written once, what SAPI took not looked at",
              [r"^FAIL x64 writes: at most 1000 bytes of each Write taken", r"^FAIL x64 writes: each block refused twice",

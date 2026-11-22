@@ -233,6 +233,7 @@ static bool voices_ready() {
 #ifdef SSI263_SAPI_DEV
     char pbrk[16]={0}; GetEnvironmentVariableA("SSI263_SAPI_TEST_BREAK",pbrk,sizeof pbrk);
     const bool ansiOnly=!strcmp(pbrk,"ansi-path");     /* a control: the ANSI form alone, as it was (P27) */
+    ssi_lib_path_break=!strcmp(pbrk,"ansi-first");     /* a control: the ANSI form wherever there is one, as P27 left it */
 #else
     const bool ansiOnly=false;
 #endif
