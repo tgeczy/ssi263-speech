@@ -2341,6 +2341,15 @@ if os.path.isfile(os.path.join(ASA_LIB, "test_as_board.exe")):
                             fail_marks=[r"^FAIL counting +the Python host: [1-9]\d* acceptance\(s\) ended a slice, "
                                         r"0 TRAP\(s\) in EI's shadow; the C board: 0 carried, 0 held",
                                         r"^ok +values", r"^ok +times", r"^accent_pc cores: FAILED$"]))
+        # the C host's ROM folder named outside the code page, or with an ANSI name that is also UTF-8 (the wheel's
+        # bug, df3ec8e); the control encodes it as "mbcs", as it was
+        HOST_PATHS = os.path.join(ASA_DIR, "test_host_paths.py")
+        CHECKS.append(check("Accent-PC: C host from folders named outside the code page", [PY, HOST_PATHS]))
+        CHECKS.append(check("Accent-PC: C host paths CONTROL (the folder as mbcs, must fail)", [PY, HOST_PATHS],
+                            env={"ACCENT_PC_PATHS_BREAK": "mbcs"}, expect_fail=True,
+                            fail_marks=[r"^FAIL the Accent-PC host from a folder named '\\u0416.*UnicodeEncodeError",
+                                        r"^FAIL the Accent-PC host from a folder named '(?!\\u0416).*cannot open",
+                                        r"^accent pc host paths: 2 FAILED$"]))
         CHECKS.append(check("driver_sim accentsa on the C host (NVDA 64-bit)",
                             [PY, "-S", "driver_sim.py", "accentsa", NVDA, "rt-c"], env={"SSI263_ACCENT_PC_CORE": "c"}))
         if os.path.isfile(PY37) and os.path.isdir(os.path.join(WIN7, "nvda2023app")):      # the x86 DLL

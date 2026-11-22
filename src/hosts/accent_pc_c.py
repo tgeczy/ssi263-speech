@@ -129,8 +129,10 @@ class AccentPCC:
         self.chip = chip
         self._lib = _load(chip)
         err = ctypes.create_string_buffer(256)
-        self._h = self._lib.ash_create_dir(rom_dir.encode("mbcs" if os.name == "nt" else "utf-8"), chip._c,
-                                           float(chip.out_rate), err, 256)
+        # the folder as os.fsencode gives it: UTF-8 on Windows (PEP 529), which bl_fopen.h opens through _wfopen.
+        # "mbcs" raised on a name outside the code page and turned one whose ANSI bytes are UTF-8 into another name
+        # (test_host_paths.py)
+        self._h = self._lib.ash_create_dir(os.fsencode(rom_dir), chip._c, float(chip.out_rate), err, 256)
         if not self._h:
             raise RuntimeError("accent_pc: %s" % err.value.decode("latin-1", "replace"))
         self.cpu_hz = cpu_hz
