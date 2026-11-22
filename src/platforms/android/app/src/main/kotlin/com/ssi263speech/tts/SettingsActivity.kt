@@ -626,8 +626,9 @@ class SettingsActivity : Activity() {
         val text = sampleText.text.toString().ifBlank { "Hello there." }
         speakButton.isEnabled = false
         status.text = "Speaking…"
+        val req = PreviewPlayer.begin(preview = true)      // here, not in the worker: a stop before it runs reaches it
         Thread({
-            val n = PreviewPlayer.speak(this, text)
+            val n = PreviewPlayer.speak(this, text, req)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 speakButton.isEnabled = true
@@ -659,10 +660,11 @@ class SettingsActivity : Activity() {
         speakButton.isEnabled = false
         exportButton.isEnabled = false
         status.text = "Exporting…"
+        val req = PreviewPlayer.begin(preview = false)
         Thread({
             val result = try {
                 contentResolver.openOutputStream(uri, "wt")!!.use { out ->
-                    val r = PreviewPlayer.export(this, text, out)
+                    val r = PreviewPlayer.export(this, text, out, req)
                     when {
                         r == null -> "The voice could not start: ${SsiNative.nativeError()}"
                         !r.finished -> "Stopped: nothing was exported."

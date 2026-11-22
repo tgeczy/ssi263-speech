@@ -326,6 +326,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=unopened              # control: a zip in a zip dropped in silence: must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=words                 # control: the marked words' UTF-8 offsets must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=owner                 # control: the stale stop's case must FAIL
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=preview               # control: the three early-stop cases must FAIL
 
 `test_import_native.py` makes every fixture at test time from the files in the firmware folder (`--firmware`, default
 `$SSI263_FIRMWARE`, else `firmware/blazie`, with `spanish/`, `tns/` and `once2000/` -- ONCE's September 2000
@@ -482,6 +483,7 @@ moves some units' pauses (`docs/index-marks.md`), and nobody has listened to it 
 | `.../Updates.kt` | "Check for updates" (Panthera Speech's): by hand only, the newest `ssi263-speech-<version>.apk` across the recent releases by its own file name (not the tag; drafts and pre-releases skipped), handed to the browser -- the app asks for no install permission. The only use of the INTERNET permission |
 | `.../SettingsWidgets.kt` | Headings, the accessible slider, radio buttons and check boxes, from outspoken |
 | `.../PreviewPlayer.kt` | The preview: rendered through the engine, played on an AudioTrack, kept as `last-render.wav`; "Export to WAV…" is the same render written to the file chosen in the system's save dialog |
+| `.../PreviewRequests.kt` | The screen's Speaks and exports, each with its own stop, set from the click on and never cleared: Stop ends them all, leaving the screen the Speaks (no Android in it, so the JVM tests run it) |
 | `.../WavExport.kt` | What the export writes (no Android in it, so the JVM tests run it): the suggested name, `speakout-20261018-164533.wav`, and the 16-bit mono WAV |
 | `.../TtsSelfTest.kt` | The service through Android's own client, bound by package name (the default engine untouched): a file render, or a stop |
 | `.../CheckVoiceDataActivity.kt` | Answers the framework's voice-data check: English always (the Accent-PC), Spanish, German, Italian and Slovak once their firmware is imported |
@@ -489,6 +491,7 @@ moves some units' pauses (`docs/index-marks.md`), and nobody has listened to it 
 | `app/src/test/kotlin/.../UpdatesTest.kt` | The JVM tests of `Updates`: the version read after `ssi263-speech-` (never the 263), the newest APK not the newest tag, drafts and other projects' APKs passed over (org.json's real library for the JVM) |
 | `app/src/test/kotlin/.../WavExportTest.kt` | The JVM tests of `WavExport`: the suggested names (the unit, another language's tag, the time) and the file read back as a WAV |
 | `app/src/test/kotlin/.../EngineOwnerTest.kt` | The JVM tests of `EngineOwner`: a stop ends its owner's utterance only, also one checked before the next owner's start |
+| `app/src/test/kotlin/.../PreviewRequestsTest.kt` | The JVM tests of `PreviewRequests`: the screen left before a Speak's worker or render ran, an export begun after a Stop, Stop and leaving the screen |
 | `app/src/test/kotlin/.../SsiLanguagesTest.kt` | The JVM tests of `SsiLanguages`: each language with and without its unit |
 | `.../GetSampleTextActivity.kt` | The sample sentence the system's TTS settings speak |
 | `licenses/DISTRIBUTION.txt` | The distribution notice the licences dialog shows first (MIT, MAME's cores, the source, Aicom's ROMs and driver, no Braille Lite or Speak-Out firmware) |
