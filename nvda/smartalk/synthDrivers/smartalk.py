@@ -411,6 +411,8 @@ class SynthDriver(SynthDriver):
             self._player.idle()
         except Exception:
             pass
+        if self._cancelFlag.is_set() and getattr(_first, "CANCEL_AFTER_IDLE", True):
+            return                       # a cancel came while idle() waited: only this thread clears the flag
         for index in _first.owed(job, getattr(self, "_handed", ())):
             synthIndexReached.notify(synth=self.notifySynth or self, index=index)
 

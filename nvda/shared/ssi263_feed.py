@@ -34,6 +34,7 @@ HOLD = True                       # (the tests' controls take these away)
 KICK = True
 PASS_SET = True
 REPORT_OWED = True
+CANCEL_AFTER_IDLE = True          # _report_owed looks at the cancel again after its idle(): one can come in it
 
 
 def sound_bytes(pcm):

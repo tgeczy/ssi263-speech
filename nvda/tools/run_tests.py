@@ -801,13 +801,19 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", Non
     _argv = [PY, "fault_indexes.py", _which] + ([_voice] if _voice else [])
     CHECKS.append(check("a unit's fault mid-utterance leaves NVDA no index owed (#33): %s" % _name, _argv,
                         env={"SSI263_SYNTH_DRIVERS": _UNITS},
-                        ok=lambda out: len(re.findall(r"^ok +(fault|recovers) ", out, re.M)) == 2
+                        ok=lambda out: len(re.findall(r"^ok +(fault|recovers|cancelled) ", out, re.M)) == 3
                         and bool(re.search(r"^fault indexes: all ok$", out, re.M))))
     if _name in ("Braille Lite", "Sounding Board"):
         CHECKS.append(check("fault indexes CONTROL (%s: the owed indexes not reported, must fail)" % _name, _argv,
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "FAULT_INDEXES_BREAK": "1"}, expect_fail=True,
                             fail_marks=[r"^FAIL fault +.*MISSING INDEX", r"^ok +recovers ",
                                         r"^fault indexes: 1 FAILED$"]))
+        # a cancel while the recovery waits in idle(): the cancel not looked at again after it (a review)
+        CHECKS.append(check("fault indexes CONTROL (%s: a cancel in the recovery's wait not looked at, must fail)"
+                            % _name, _argv,
+                            env={"SSI263_SYNTH_DRIVERS": _UNITS, "FAULT_INDEXES_BREAK": "cancel"}, expect_fail=True,
+                            fail_marks=[r"^ok +fault ", r"^ok +recovers ",
+                                        r"^FAIL cancelled +.*reported after the cancel: \[", r"^fault indexes: 1 FAILED$"]))
 # A cancel right after an utterance was handed over (issue #34): cancel() stopped the player before it emptied the queue,
 # and the stop, a call into NVDA's C library, let the worker take the utterance and clear the flag -- say all read one
 # more chunk after the key that should have silenced it.  cancel_race.py, each driver, the player's stop given 150 ms
