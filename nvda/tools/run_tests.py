@@ -503,7 +503,9 @@ if os.path.isfile(os.path.join(os.path.dirname(HERE), "dist", "sapi-dev", "x86",
     # audit, P27: no ANSI form, every voice silent); skipped where no volume here has them off.  The control passes
     # the ANSI form alone, as it was
     SAPI_FOLDER = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_install_folder.py")
-    CHECKS.append(check("SAPI engine DLL: an install folder named outside the code page", [PY, SAPI_FOLDER]))
+    for _arch in ("x64", "x86"):                # one check each: every voice, from two folder names, in 240 s
+        CHECKS.append(check("SAPI engine DLL: an install folder named outside the code page (%s)" % _arch,
+                            [PY, SAPI_FOLDER, "--arch", _arch]))
     CHECKS.append(check("SAPI engine DLL: install folder CONTROL (the ANSI form alone, must fail)",
                         [PY, SAPI_FOLDER, "--arch", "x64"], env={"SSI263_SAPI_PATH_BREAK": "ansi"}, expect_fail=True,
                         fail_marks=[r"^FAIL x64 blazie:blazie +from a folder", r"^install folder: \d+ FAILED$"],
