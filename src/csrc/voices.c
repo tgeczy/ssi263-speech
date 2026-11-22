@@ -25,8 +25,8 @@
 #endif
 #ifdef SSV_HAVE_SMARTALK
 #include "smartalk/st_voice.h"
-#include "blazie/bl_fopen.h"
 #endif
+#include "blazie/bl_fopen.h"
 
 /* ---- the table ---------------------------------------------------------------------------------------------------- */
 /* the slots after the release voices' (a bank holds one unit per slot: SLOTS below counts them from these) */

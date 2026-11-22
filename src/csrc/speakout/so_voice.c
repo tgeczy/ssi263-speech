@@ -7,9 +7,9 @@
 #include "so_voice.h"
 #include "../numwords.h"
 #include "../translit.h"
+#include "../blazie/bl_fopen.h"
 #ifdef SO_HAVE_SOUNDINGBOARD
 #include "../soundingboard/sb_host.h"
-#include "../blazie/bl_fopen.h"
 #endif
 
 /* the driver's constants */

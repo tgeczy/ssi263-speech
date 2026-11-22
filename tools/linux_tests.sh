@@ -228,6 +228,12 @@ control "commas CONTROL (the commas left as they are, must fail)" "^FAIL text +'
     "^FAIL unit +'1, 2, 3, 4, 5, 6' with the number words off: 6\.[0-9]+, 10\.[0-9]+ s" "^ok +table " \
     "^commas: 2 FAILED$" \
     -- env SSI263_COMMAS_BREAK=1 python3 src/csrc/blazie/test_commas.py --lib "$LIB" --firmware "$DATA"
+# the C core compiles with each optional engine left out (bl_fopen.h behind an #ifdef broke the standalone Speak-Out);
+# its control empties the header, as a guarded include does
+check "C core: compiles with the optional engines left out" python3 tools/check_optional_engines.py
+control "C core: optional engines CONTROL (bl_fopen.h emptied, must fail)" "^FAIL voices\.c +minimal " \
+    "^FAIL speakout/so_voice\.c +minimal " "^optional engines: 4 FAILED$" \
+    -- env OPTIONAL_ENGINES_BREAK=1 python3 tools/check_optional_engines.py
 # the symbol guard (bl_voice.c drop_symbols; bl_languages.txt's symbols, #68): the Spanish unit, which names "(" "-"
 # "%" ... whatever its speech menu says, says them as without their symbols, "$5" with its dollar; the control leaves
 # the symbols as they are

@@ -2600,6 +2600,14 @@ CHECKS.append(check("accented letters: driver CONTROL (the pass off, must fail)"
 # other currencies than the dollar reach every unit as words (a listener: "£2.63" was read "2.63")
 # a number written with leading zeros said digit by digit, the zeros said (#65, Tomi): the Python number words and the
 # C ones (bl_numbers: numwords.c, numwords_es.c); the control builds the integer, as they did
+# the C core compiles with each optional engine left out (bl_fopen.h once sat behind SO_HAVE_SOUNDINGBOARD and
+# SSV_HAVE_SMARTALK: the standalone Speak-Out build broke); the control empties the header, as a guarded include does
+OPTIONAL = os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_optional_engines.py")
+CHECKS.append(check("C core: compiles with the optional engines left out", [PY, OPTIONAL]))
+CHECKS.append(check("C core: optional engines CONTROL (bl_fopen.h emptied, must fail)", [PY, OPTIONAL],
+                    env={"OPTIONAL_ENGINES_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL voices\.c +minimal ", r"^FAIL speakout/so_voice\.c +minimal ",
+                                r"^optional engines: 4 FAILED$"]))
 # currency amounts of thousands of digits said, not dropped with Python's int() limit (Panthera's audit, P28's
 # variant); the control is int() again
 CHECKS.append(check("number words: currency amounts past 4300 digits", [PY, "currency_long.py"]))

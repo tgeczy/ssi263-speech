@@ -33,6 +33,12 @@ control "speech-dispatcher installer CONTROL (0.7.6's AddModule line, must fail)
 control "speech-dispatcher installer CONTROL (a plain copy onto a running module, must fail)" \
     "^ok +stock config unchanged " "^FAIL install over a running module " "^FAIL library replaced, not rewritten " \
     -- env SSI263_INSTALL_BREAK=copy sh tools/speechd_install_test.sh
+# the C core compiles with each optional engine left out (bl_fopen.h behind an #ifdef broke the standalone Speak-Out);
+# its control empties the header, as a guarded include does
+check "C core: compiles with the optional engines left out" python3 tools/check_optional_engines.py
+control "C core: optional engines CONTROL (bl_fopen.h emptied, must fail)" "^FAIL voices\.c +minimal " \
+    "^FAIL speakout/so_voice\.c +minimal " "^optional engines: 4 FAILED$" \
+    -- env OPTIONAL_ENGINES_BREAK=1 python3 tools/check_optional_engines.py
 # every firmware folder the package carries, installed (#44: three were, and 21 voices never appeared); its control
 # copies the three it named
 control "speech-dispatcher installer CONTROL (only the three folders it named, must fail)" \
