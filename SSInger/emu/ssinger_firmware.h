@@ -693,23 +693,29 @@ static void ssinger_cc(ssinger_state_t *s, int voice, int cc, int val)
     }
 }
 
-/* the Rate, Glide and Articulation parameters, applied each block: written only when the parameter itself moved.
+/* the Rate, Glide and Articulation parameters, applied each block: each written only when it itself moved.
    Compared with the live values, CC3's rate and the Patent mod wheel's articulation were put back to the knob's at
-   the next block (#83; ssinger_params_break, the test's control: compared so) */
+   the next block (#83; ssinger_params_break 1, the test's control: compared so); and with one test for Rate and
+   Glide, Glide moved alone put the rate knob's value over CC3's (a review; ssinger_params_break 2: one test) */
 static void ssinger_apply_rate_params(ssinger_state_t *s, int rate, int glide, int art)
 {
     int v, n = s->cfg.nvoices < SG_NVOICES_MAX ? s->cfg.nvoices : SG_NVOICES_MAX;
-    int moved = ssinger_params_break ? (rate != s->cfg.rate || glide != s->cfg.glide)
-                                     : (rate != s->param_rate || glide != s->param_glide);
-    if (moved) {
+    int rate_moved = ssinger_params_break == 1 ? rate != s->cfg.rate : rate != s->param_rate;
+    int glide_moved = ssinger_params_break == 1 ? glide != s->cfg.glide : glide != s->param_glide;
+    if (ssinger_params_break == 2)
+        rate_moved = glide_moved = rate_moved || glide_moved;
+    if (rate_moved) {
         s->param_rate = rate;
-        s->param_glide = glide;
         s->cfg.rate = rate & 15;
+    }
+    if (glide_moved) {
+        s->param_glide = glide;
         s->cfg.glide = glide & 7;
+    }
+    if (rate_moved || glide_moved)
         for (v = 0; v < n; v++)
             ssinger_write_inflection(s, v, s->v[v].inflection);
-    }
-    if (ssinger_params_break ? art != s->cfg.articulation : art != s->param_art) {
+    if (ssinger_params_break == 1 ? art != s->cfg.articulation : art != s->param_art) {
         s->param_art = art;
         s->cfg.articulation = art & 7;
         for (v = 0; v < n; v++)

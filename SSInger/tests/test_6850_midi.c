@@ -1389,7 +1389,8 @@ static void test_routing_change_releases(void)
 
 /* #83: CC3 (rate) and the Patent map's mod wheel (articulation) stay until the parameter itself moves: the block's
    parameter pass put the knob's value back every time.  SSINGER_PARAMS_BREAK=1 (the control): compared with the live
-   value, as it was */
+   value, as it was.  And Glide moved alone leaves CC3's rate (a review: one change test for both put the rate knob
+   back); SSINGER_PARAMS_BREAK=glide, its control: the one test for both, as it was */
 static void test_controllers_survive_params(void)
 {
     ssinger_state_t s;
@@ -1398,7 +1399,7 @@ static void test_controllers_survive_params(void)
     const uint8_t wheel[] = { 0xB0, 1, 127 };
     fw_init(&s, &l);
     if (getenv("SSINGER_PARAMS_BREAK"))
-        ssinger_params_break = 1;
+        ssinger_params_break = strcmp(getenv("SSINGER_PARAMS_BREAK"), "glide") ? 1 : 2;
     s.cfg.ctlmap = SG_MAP_PATENT;
     ssinger_apply_rate_params(&s, 5, s.cfg.glide, 2);        /* the knobs: rate 5, articulation 2 */
     feed(&s, cc3, 3);
@@ -1408,6 +1409,8 @@ static void test_controllers_survive_params(void)
     ssinger_apply_rate_params(&s, 5, s.cfg.glide, 2);        /* the next block, the knobs unmoved */
     CHECK(s.cfg.rate == 15 && s.cfg.articulation == 7,
           "the next block keeps the controllers' rate %d, articulation %d", s.cfg.rate, s.cfg.articulation);
+    ssinger_apply_rate_params(&s, 5, (s.cfg.glide + 3) & 7, 2);    /* Glide moved, the rate knob not */
+    CHECK(s.cfg.rate == 15, "Glide moved alone keeps the controller's rate %d", s.cfg.rate);
     ssinger_apply_rate_params(&s, 9, s.cfg.glide, 3);        /* a knob moved: it wins */
     CHECK(s.cfg.rate == 9 && s.cfg.articulation == 3, "a moved knob wins: rate %d, articulation %d",
           s.cfg.rate, s.cfg.articulation);
