@@ -187,8 +187,9 @@ can't say yet:
   printed it, puts 2 MHz on the chip's clock pin (a 4 MHz oscillator and a flip-flop) with DIV2
   tied high, which the data sheet gives for clocks of 1.5 to 2 MHz: the same as 1 MHz with DIV2
   low, though no recording of that card has confirmed it. Not known: the SynPhonix (a 74HCT161
-  divider, probably from the PC's bus clock; by ear, VEST in the research host at 1 MHz speaks at about a real
-  TransPort's speed, not a measurement), the HX-20 module (a 3.579545 MHz crystal, maybe
+  divider, probably from the PC's bus clock; by ear, VEST in the research host at 1 MHz speaks at a real
+  Mini TransPort's speed, heard side by side, with its pitch higher than the unit's after a reset, which a pitch
+  setting explains and a clock would not: not a measurement), the HX-20 module (a 3.579545 MHz crystal, maybe
   divided), the CPC's Sprechi board, and the Accent-PC's own CPU clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
   against the register values that made it.
 - **Sweet Micro's foreign-language rule tables.** Chip Talk (1987) says Sweet Micro sold
