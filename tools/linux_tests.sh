@@ -336,7 +336,7 @@ control "module CONTROL (a STOP between messages dropped, must fail)" "^lift +mo
 control "module CONTROL (CHAR and KEY taken for SSML, must fail)" "^char +module .*identical" \
     "^char_lt +module .*DIFFER" "^$((N - 1)) of $N checks passed" -- env SD_SSI263_TEST_CHAR_SSML=1 \
     python3 src/platforms/speechd/test_sd_ssi263.py build/linux/sd_ssi263 "$LIB" "$DATA"
-# CHAR on a unit that names symbols: the Spanish unit names "<" (a review: #68's guard silenced it); its control takes
+# CHAR on a unit that names symbols: the Spanish unit names "(" (a review: #68's guard silenced it); its control takes
 # the symbol out as from running text
 control "module CONTROL (CHAR's symbol taken out on the Spanish unit, must fail)" "^char_lt +module .*identical" \
     "^char_es +module CHAR .* SILENT$" "^char_es2 +module .*identical" "^$((N - 1)) of $N checks passed" \

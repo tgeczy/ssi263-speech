@@ -605,20 +605,21 @@ got, want = first_message("&lt;", cmd="CHAR"), first_message("&amp;lt;")
 results.append(same("char_lt", got, want) and len(want) > 0)
 
 
-# ---- CHAR on a unit that names symbols: the Spanish unit's own name for "<" ("menor que").  #68 takes the symbols
+# ---- CHAR on a unit that names symbols: the Spanish unit's own name for "(" ("abre paréntesis").  #68 takes the symbols
 # such a unit names out of running text, which the screen reader has named already; a CHAR is the one character asked
-# for, and was silent (a review).  The guard still holds for a SPEAK after it: "a < b" said as "a b", each in a fresh
-# module after the same CHAR (two messages in one module differ by the unit's running state alone)
+# for, and was silent (a review).  The guard still holds for a SPEAK after it: "a ( b" said as "a b", each in a fresh
+# module after the same CHAR (two messages in one module differ by the unit's running state alone).  "(", not "<":
+# CHAR_SSML's control (#47) silences a "<", and each control must break its own check alone
 SPANISH = "Braille Lite 2000 (Spanish)"
 
 
 def after_char(text):
-    """a fresh module on the Spanish unit: CHAR "<", then text as SPEAK; both messages' audio"""
+    """a fresh module on the Spanish unit: CHAR "(", then text as SPEAK; both messages' audio"""
     s = Module()
     s.send("INIT")
     assert s.reply()[-1] == b"299 OK LOADED SUCCESSFULLY"
     s.set(synthesis_voice=SPANISH)
-    ch, sp = s.speak("<", cmd="CHAR")[0], s.speak(text)[0]
+    ch, sp = s.speak("(", cmd="CHAR")[0], s.speak(text)[0]
     s.send("QUIT")
     s.p.wait(timeout=10)
     return ch, sp
@@ -627,14 +628,14 @@ def after_char(text):
 if SPANISH not in listed:
     print("char_es  skipped: %s is not built or its files are not here" % SPANISH)
 else:
-    ch, guarded = after_char("a &lt; b")
+    ch, guarded = after_char("a ( b")
     _ch, plain = after_char("a b")
     samples = memoryview(ch).cast("h") if len(ch) % 2 == 0 else memoryview(ch[:-1]).cast("h")
     loud = max((abs(x) for x in samples), default=0)
     ok = loud > 1000 and len(ch) // 2 > 3000
-    print("char_es  module CHAR \"<\" on the Spanish unit: %d samples, peak %d: %s" % (
+    print("char_es  module CHAR \"(\" on the Spanish unit: %d samples, peak %d: %s" % (
         len(ch) // 2, loud, "said" if ok else "SILENT"))
-    kept = same("char_es2", guarded, plain)                 # the SPEAK after it: "a < b" said as "a b"
+    kept = same("char_es2", guarded, plain)                 # the SPEAK after it: "a ( b" said as "a b"
     results.append(ok and kept)
 
 
