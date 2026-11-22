@@ -172,15 +172,14 @@ can't say yet:
   BrailleDesk, SQWERT, BraillePad and ErgoBraille) take the TransPort's commands; nothing we have
   read names their chip either. The Mini TransPort's firmware is "user upgradeable via a
   diskette", so an update disk may survive. Settled by: board photos, or that disk.
-- **Artic's text-to-speech on disk.** On the SynPhonix cards the text-to-speech was a DOS program
-  (`SONIX.COM` and `TTS.COM`, `SONIXTTS.COM`, later `VEST.COM`), so it may survive on an ordinary
-  floppy, and it would show how Artic itself drove the chip. We have Artic's Business Vision demo
-  of 1993, a screen reader, but none of these, and they aren't in NFBnet's archive of the time,
-  searched inside its archives. The card's EPROM holds a key the software appears to check.
-  What `SONIX` looked like from outside is in print: the 1986 thesis's listings (see 1986 in
-  the history) give the signature they look for at the kernel's start and six of its entry
-  points.
-  Settled by: a SynPhonix or Business Vision disk.
+- **Artic's older text-to-speech on disk.** On the SynPhonix cards the text-to-speech was a DOS program. The
+  latest, `VEST.COM` 1.60 (1992), has turned up on a Business Vision 3.08 disk and runs in the research host
+  ([front-ends.md](front-ends.md), "Artic SynPhonix 215"), so how Artic drove the chip from 1992 on is now
+  read from its own code. The older programs, `SONIX.COM` and `TTS.COM` and the 210's `SONIXTTS.COM`, are still
+  unseen; they would show whether VEST's rules and frames go back to 1984 or were new. This VEST special release
+  does not install the SONIX interrupt, so whether it keeps SONIX's entry points is not shown either; the 1986
+  thesis's listings (see 1986 in the history) give the signature and six of the entry points a SONIX caller looks
+  for. Settled by: a SynPhonix 200 or 210 disk, or a full VEST release.
 - **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real
   recordings, and 1 MHz on Arctec's Gemini, from its schematic (a 1 MHz crystal on the voice
@@ -188,7 +187,8 @@ can't say yet:
   printed it, puts 2 MHz on the chip's clock pin (a 4 MHz oscillator and a flip-flop) with DIV2
   tied high, which the data sheet gives for clocks of 1.5 to 2 MHz: the same as 1 MHz with DIV2
   low, though no recording of that card has confirmed it. Not known: the SynPhonix (a 74HCT161
-  divider, probably from the PC's bus clock), the HX-20 module (a 3.579545 MHz crystal, maybe
+  divider, probably from the PC's bus clock; by ear, VEST in the research host at 1 MHz speaks at about a real
+  TransPort's speed, not a measurement), the HX-20 module (a 3.579545 MHz crystal, maybe
   divided), the CPC's Sprechi board, and the Accent-PC's own CPU clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
   against the register values that made it.
 - **Sweet Micro's foreign-language rule tables.** Chip Talk (1987) says Sweet Micro sold

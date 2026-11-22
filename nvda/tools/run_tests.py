@@ -2969,6 +2969,31 @@ if os.path.isfile(os.path.join(SV_FW, "SUPERTOK.BIN")):
                         and bool(re.search(r"^ok +the voice as it is -> 12 tests, failing: none$", out, re.M))
                         and len(re.findall(r"^ok +undone: ", out, re.M)) == 22
                         and bool(re.search(r"^controls: all as expected$", out, re.M))))
+# Artic's SynPhonix 215 (src/hosts/synphonix.py, the research host): Artic's VEST.COM on MAME's 8086 (pc86.dll) --
+# it loads and finds its card, speaks its announcement and a sentence with their golden phonemes, finds the card of a
+# copy with another serial, and cuts speech; each control puts one of the host's rules back wrong.  VEST.COM is a
+# local copy (firmware/artic-synphonix, never committed).
+SPX_COM = os.path.join(REPO, "firmware", "artic-synphonix", "VEST.COM")
+SPX_PC86 = os.path.join(os.path.dirname(HERE), "dist", "blazie-lib", "x64", "pc86.dll")
+if os.path.isfile(SPX_COM) and os.path.isfile(SPX_PC86):
+    SPX_CHECK = os.path.join(REPO, "tools", "check_synphonix_host.py")
+    CHECKS.append(check("SynPhonix host: VEST loads, finds its card, speaks, cuts", [PY, SPX_CHECK],
+                        env={"SSI263_PC86_DLL": SPX_PC86}))
+    for brk, what, marks in (
+            ("key", "a key one serial digit off",
+             [r"^FAIL  load: VEST did not load: .*unimplemented OUT 03F2", r"^synphonix host: 5 FAILED$"]),
+            ("rotate", "the chip's bytes not rotated back",
+             [r"^FAIL  load: card key read at 2E0h, start-up writes R2=F1 ", r"^FAIL  announcement: ",
+              r"^FAIL  sentence: ", r"^synphonix host: 5 FAILED$"]),
+            ("eoi", "the specific EOI ignored",
+             [r"^ok    load: ", r"^FAIL  announcement: ", r"^FAIL  sentence: ", r"^synphonix host: 4 FAILED$"]),
+            ("cancel", "a cut by AL=0",
+             [r"^ok    sentence: ", r"^FAIL  cancel: ", r"^synphonix host: 1 FAILED$"]),
+            ("keycache", "the key made once per process",
+             [r"^ok    announcement: ", r"^FAIL  another copy: did not load", r"^synphonix host: 1 FAILED$"])):
+        CHECKS.append(check("SynPhonix host CONTROL (%s, must fail)" % what, [PY, SPX_CHECK],
+                            env={"SSI263_PC86_DLL": SPX_PC86, "SYNPHONIX_HOST_BREAK": brk}, expect_fail=True,
+                            fail_marks=marks))
 GEN_DEFAULTS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "gen_chip_defaults.py")
 CHECKS.append(check("chip defaults header", [PY, GEN_DEFAULTS, "--check"]))
 # and on Python 3.7 (NVDA 2021-2023): the defaults must not depend on the Python version (3.12 changed float sum())

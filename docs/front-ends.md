@@ -267,3 +267,67 @@ is in [`firmware/automated-functions-smartalk/README.txt`](../firmware/automated
   it still spelled single letters and made acronyms worse, so it stays off.
   `tools/check_st_voice.py` checks all of this, with a control (`ST_TEXT_BREAK=1`) that puts the
   old text back.
+
+## Artic SynPhonix 215 (research host)
+
+The host is `src/hosts/synphonix.py`, in Python on MAME's 8086 (`pc86`). It is a research host only: no C port, no
+voice and no front end lists it yet. It runs Artic's own DOS text-to-speech for its internal cards, `VEST.COM`
+("Visions Enhanced Speech Translator", version 1.60 English, the "Special Release For Artic Visions" that Business
+Vision 3.08 loads first), unchanged. `VEST.COM` is not in the repository; its drop-in folder's README
+([`firmware/artic-synphonix/README.txt`](../firmware/artic-synphonix/README.txt)) says what goes there. Its first
+clips were heard on 22 November 2026: at XCK = 1 MHz the speed sounded close to a real TransPort's, whose own VEST
+should be much the same program. That is an ear, not a measurement.
+
+- **The card:** an ISA card with the Artic-263 and little else. The text-to-speech, its letter-to-sound rules,
+  numbers and lexicon are all in `VEST.COM`, a TSR on the PC. Business Vision (`BVISION.COM`) and other programs
+  give it text.
+- **The machine:** the host loads `VEST.COM` as DOS would, with no switches (IRQ 7, as `BV.BAT`), until it goes
+  resident. It hooks INT 8, 9 and the card's IRQ 7. The card, read from VEST's code and confirmed by it speaking
+  (addresses are the `.COM`'s, CS:0100 being the file's first byte):
+
+  | Port | What it is |
+  |---|---|
+  | 2E0h–2E5h | the card's key: "AR" (41h 52h), then four bytes of the card's serial number, each inverted, two decimal digits a byte. VEST takes the first card it finds from 2E0h down to 0E0h in steps of 20h (the MAP jumper) |
+  | 2E8h–2ECh | the chip's R0–R4, eight above the key. Every byte is rotated left one bit before it is written (0D27: `NOP; ROL AL,1; RET`): the card's data lines reach the chip one place over. VEST rotates only when the key's first two digits are 25, a "2X5 type" card |
+  | 2E8h, read | the switch interface's pedals, bits 6 and 7, read only when Business Vision turns its turbo on; the host reads them high (no pedal pressed), a guess |
+  | IRQ 7 | the chip's A/R. The handler (0AFA) sends the next frame, R1 to R4 and then R0, with a delay loop between writes, and ends with a specific EOI (67h). With nothing queued it keeps sending pauses at the slowest rate |
+
+  Before it settles on the ISA card VEST looks for three others: a Micro Channel card through the PS/2 POS
+  registers (adapter ID FF70h), a card at 2F8h on IRQ 3, and a key in an option ROM between C000h and EC00h. Which
+  SynPhonix models these were is not shown; the host offers none of them.
+- **The serial check:** each copy of VEST holds the serial of the card it was sold with, encoded at 09BC. With a key
+  of any other serial it says nothing and sends every write to 3F0h instead. About every 143 interrupts the handler
+  also re-reads one key byte and ends the program if it looks wrong. The host gives the card the key its copy of VEST
+  expects: it finds the comparison's code in the file and reads the encoded serial back, so no serial is written in
+  the repository and another copy finds its own card (`tools/check_synphonix_host.py`, "another copy").
+- **How programs reach it:** this special release does not install the SONIX software interrupt (the user vectors
+  60h–67h). Business Vision instead searches memory, a paragraph at a time from 0100:0, for VEST's signature (words
+  0038h at 01E0, 1D2Dh at 01E2, 7A83h at 012A) and calls far, after PUSHF, the address at 01E4 (0558). AL selects
+  the function:
+
+  | AL | What it does |
+  |---|---|
+  | 7 | speak ES:SI, DI characters, with CH, CL, DH and DL the rate, amplitude, pitch and filter offsets VEST adds to its frames |
+  | 1 | cut speech: the queue emptied and a silent R0 written |
+  | 3 | set those offsets alone |
+  | 4, 5 | send at once, or queue, one frame of five register values |
+  | 6 | queue a pause |
+  | 0 | reset the chip (the queue is left) |
+  | 2, 0Fh | read status |
+
+- **Its start-up:** R2 = F8h, R4 = E9h, R3 = 82h, R0 = EBh, R3 = 52h (mode 3, transitioned inflection), then it
+  speaks its own announcement, "Visions Enhanced Speech Translator. 1 point 6 0", with rate offset 2 and filter E6h.
+  The host's `say()` uses the same offsets by default, and `boot()` lets the announcement play out silently.
+  Typical frames carry articulation 5, amplitude about A, filter E6h and rates B to E.
+- **The other programs on its disk:** `SETVEST.COM` "calibrates VEST for faster computers" with a number from 1 to
+  255, probably the delay between register writes (100 in the file, at 01DE); not checked. `TVISION.COM` is
+  Business Vision for the TransPort on a COM port, and the disk's `TVMOD.EXE` (a plain zip) carries `TPSET.COM`,
+  Artic's 1992 utility for the TransPort's serial settings.
+- **Checks:** `tools/check_synphonix_host.py` (in `nvda/tools/run_tests.py` and `tools/linux_tests.sh` when
+  `VEST.COM` is in its folder): VEST loads and finds its card with its own start-up writes, its announcement and a
+  sentence with numbers and money give their golden phonemes, a copy with another serial finds its own card, and a
+  cut leaves nothing spoken after it. Five must-fail controls (`SYNPHONIX_HOST_BREAK`): a key one digit off, the
+  bytes not rotated back, the specific EOI ignored, a cut by AL=0, and the key made once per process.
+- **Not known or not done:** the SynPhonix's chip clock (see [open-questions.md](open-questions.md), "The clocks");
+  what Business Vision's Rate, Pitch, Volume and Tone settings send as offsets; VEST's PortTalk module, which was
+  not exercised; and Business Vision itself, which was not run.

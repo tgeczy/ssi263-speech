@@ -75,6 +75,29 @@ fi
 # drop-in folder (it is in no checkout and no add-on)
 [ -f "$ROOT/firmware/speech-systems-super-voice/SUPERTOK.BIN" ] && check "Speech Systems Super Voice (1984): host and voice tests and their controls" \
     python3 src/csrc/supervoice/sv_controls.py "$ROOT/firmware/speech-systems-super-voice"
+# Artic's SynPhonix 215 (src/hosts/synphonix.py, the research host: Artic's VEST.COM on MAME's 8086, libpc86.so), when
+# VEST.COM is in its drop-in folder (in no checkout and no add-on); each control puts one of the host's rules back wrong
+if [ -f "$ROOT/firmware/artic-synphonix/VEST.COM" ]; then
+    SPX="env SSI263_PC86_DLL=$ROOT/build/linux/libpc86.so"
+    check "SynPhonix host: VEST loads, finds its card, speaks, cuts" $SPX python3 tools/check_synphonix_host.py
+    control "SynPhonix host CONTROL (a key one serial digit off, must fail)" \
+        "^FAIL  load: VEST did not load: .*unimplemented OUT 03F2" "^synphonix host: 5 FAILED$" -- \
+        $SPX SYNPHONIX_HOST_BREAK=key python3 tools/check_synphonix_host.py
+    control "SynPhonix host CONTROL (the chip's bytes not rotated back, must fail)" \
+        "^FAIL  load: card key read at 2E0h, start-up writes R2=F1 " "^FAIL  announcement: " "^FAIL  sentence: " \
+        "^synphonix host: 5 FAILED$" -- $SPX SYNPHONIX_HOST_BREAK=rotate python3 tools/check_synphonix_host.py
+    control "SynPhonix host CONTROL (the specific EOI ignored, must fail)" \
+        "^ok    load: " "^FAIL  announcement: " "^FAIL  sentence: " "^synphonix host: 4 FAILED$" -- \
+        $SPX SYNPHONIX_HOST_BREAK=eoi python3 tools/check_synphonix_host.py
+    control "SynPhonix host CONTROL (a cut by AL=0, must fail)" \
+        "^ok    sentence: " "^FAIL  cancel: " "^synphonix host: 1 FAILED$" -- \
+        $SPX SYNPHONIX_HOST_BREAK=cancel python3 tools/check_synphonix_host.py
+    control "SynPhonix host CONTROL (the key made once per process, must fail)" \
+        "^ok    announcement: " "^FAIL  another copy: did not load" "^synphonix host: 1 FAILED$" -- \
+        $SPX SYNPHONIX_HOST_BREAK=keycache python3 tools/check_synphonix_host.py
+else
+    echo "skip  SynPhonix host and its controls: no firmware/artic-synphonix/VEST.COM"
+fi
 check "golden, native host (en)" python3 nvda/tools/bns_equiv.py --native "$LIB" \
     --against=nvda/tools/golden/blazie_en.txt
 [ -f "$DATA/BL2SPA.BNS" ] && check "golden, native host (es)" python3 nvda/tools/bns_equiv.py --native --es "$LIB" \
