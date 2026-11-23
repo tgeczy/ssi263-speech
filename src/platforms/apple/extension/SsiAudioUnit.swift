@@ -24,7 +24,8 @@ import AVFoundation
 import os
 
 /// The host-side test's controls (SSI263_EXTENSION_BREAK, ExtensionTests.swift; never set in the extension): `silent`
-/// lets a request that made no sound complete with no frames (#61).
+/// lets a request that made no sound complete with no frames (#61); `whine` forgets that a new engine boots with no
+/// idle sound (#57).
 private let control = ProcessInfo.processInfo.environment["SSI263_EXTENSION_BREAK"] ?? ""
 
 private let log = Logger(subsystem: "com.ssi263speech.app.synth-extension", category: "speech")
@@ -164,8 +165,9 @@ public final class SsiAudioUnit: AVSpeechSynthesisProviderAudioUnit {
             engine = e
             player = ssp_speech_new(e.engine)
             if player == nil { engine = nil }
-            inflection = true                   // SsiEngine boots with inflection on, at the Audio Unit's rate
+            inflection = true                   // SsiEngine boots with inflection on, at the Audio Unit's rate,
             sampleRate = SsiShared.outputRate
+            if control != "whine" { whine = 0 } // and with no idle sound (#57: else Hiss or Whine was never sent)
         }
     }
 

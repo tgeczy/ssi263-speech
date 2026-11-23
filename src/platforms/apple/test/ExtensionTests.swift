@@ -5,9 +5,11 @@
 // played.  Skips, and says so, when BL2ENG.BNS is not in firmware/blazie.
 //
 // - A request that makes no sound, at Pauses Off, still hands over a moment of silence, so the system moves on (#61).
+// - The idle sound (Hiss) survives a firmware change: a request after the stamp is bumped is the same PCM as on an
+//   Audio Unit made with Hiss set, and not the same as without it (#57).
 //
 //     sh src/platforms/apple/test/test_extension.sh
-//     SSI263_EXTENSION_BREAK=silent sh ...      the controls: each must FAIL
+//     SSI263_EXTENSION_BREAK=silent|whine sh ...      the controls: each must FAIL
 import AVFoundation
 
 let repo = URL(fileURLWithPath: CommandLine.arguments[1])
@@ -50,6 +52,10 @@ func audioUnit() -> SsiAudioUnit {
     try! SsiAudioUnit(componentDescription: SsiShared.componentDescription, options: [])
 }
 
+func bumpStamp() {             // what the app does on every import and removal (Registration.firmwareChanged)
+    settings.set(settings.integer(forKey: SsiShared.Key.firmwareStamp) + 1, forKey: SsiShared.Key.firmwareStamp)
+}
+
 /// A request handed over as the system hands it, and the render block pulled 512 frames at a time until it says
 /// Complete: every frame it handed over.
 func say(_ au: SsiAudioUnit, _ ssml: String) -> [Float32] {
@@ -87,6 +93,25 @@ do {
     check("an empty request, at Pauses Off", !empty.isEmpty, "\(empty.count) frame(s)")
 }
 settings.removeObject(forKey: SsiShared.Key.pauseMode)
+
+// #57: Hiss on, a request, then a firmware change while the same Audio Unit lives: the next request is the one an
+// Audio Unit made with Hiss gives, and not the one without it (so the PCM shows the idle sound at all).
+do {
+    let text = "Hello."
+    settings.set(0, forKey: SsiShared.Key.whine)
+    let quiet = say(audioUnit(), text)
+    settings.set(1, forKey: SsiShared.Key.whine)
+    let hiss = say(audioUnit(), text)
+    check("the idle sound is in the PCM", hiss != quiet, "Hiss \(hiss.count) frames, off \(quiet.count)")
+    let au = audioUnit()
+    let before = say(au, text)
+    bumpStamp()
+    let after = say(au, text)
+    check("Hiss before a firmware change", before == hiss, "\(before.count) frames")
+    check("Hiss after a firmware change", after == hiss,
+          "\(after.count) frames, the same as an Audio Unit made with it")
+    settings.removeObject(forKey: SsiShared.Key.whine)
+}
 
 print(failures == 0 ? "the speech extension speaks as the system drives it" : "FAILED: \(failures)")
 finish()

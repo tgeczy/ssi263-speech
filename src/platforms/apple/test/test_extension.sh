@@ -1,7 +1,7 @@
 #!/bin/sh
 # The speech extension's Swift (SsiAudioUnit) as the system drives it, on the Mac, against SSI263Core's macos-arm64
 # slice and the repository's English Braille Lite (ExtensionTests.swift).
-# SSI263_EXTENSION_BREAK=silent puts one bug back (the controls): the run must then FAIL.
+# SSI263_EXTENSION_BREAK=silent|whine puts one bug back (the controls): the run must then FAIL.
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APPLE="$HERE/.."
