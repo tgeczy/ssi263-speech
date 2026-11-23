@@ -173,7 +173,10 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   SC02 speech synthesis chip ..."). Byte's of January 1986 gives the IB at $249 and the AP at $179, a "Newly
   Designed Circuit Board with Advanced SC-02 Speech Chip", four voice patterns set by switches on the board, and
   a "Sophisticated Text-to-Speech Translator Diskette"; it lists the Votalker C-64 among Votrax's other
-  products, with no chip named. The IB's software was Artic's. The National Braille Press's guide to speech
+  products, with no chip named. Byte's bonus edition of June 1987 still advertises the IB, with "the new SC-02
+  Speech Chip": "32 inflections and 4,100 pitch settings", song "in five octaves" and sound effects "in 16
+  amplitudes". The 4,100 is the chip's 12-bit inflection (4,096 steps) and the 16 its 4-bit amplitude; the 32 and
+  the five octaves are the card's software's, not read here. The IB's software was Artic's. The National Braille Press's guide to speech
   software (1987) speaks of "the SONIX and TTS programs which are sold with the internal speech cards", the
   SynPhonix 200 and the Votalker IB, and of PortTalk sold by "Artic Technologies or Votrax, Inc."; it adds that
   Artic's own screen reader works with the Votalker IB, "although the speech sounds slightly different". A 1986

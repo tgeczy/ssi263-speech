@@ -83,7 +83,8 @@
   Heath's ROM files and decoder tables. Micromint's Sweet Talker II and LIS'NER 1000 disks are kept by the Asimov
   Apple II archive, and Speech Systems' Super Voice disk and manual by the Color Computer Archive. Votrax's
   Votalker advertisement (Byte, January 1986) and Heath's voice card schematic (Modern Electronics, April 1988)
-  were read in World Radio History's scans; Raised Dot Computing's BEX disks and programming notes, and the
+  were read in World Radio History's scans, and Votrax's later one in Byte's bonus edition of June 1987
+  ("Application Software Today") in a scan of that issue; Raised Dot Computing's BEX disks and programming notes, and the
   National Federation of the Blind's braille technology evaluation of December 1993, are kept in Duxbury Systems'
   library. Vila and DeKock's report on the Votalker IB (University of Missouri-Rolla, CSc-86-4, 1986) is in the
   university's Scholars' Mine, read in the Internet Archive's copy, and the Sprechi article is kept by CPCrulez. The Internet Archive's scans
