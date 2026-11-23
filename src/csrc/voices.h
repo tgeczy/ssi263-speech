@@ -54,12 +54,13 @@ extern "C" {
 #define SSV_MOCKINGBOARD 4         /* Sweet Micro Systems' Mockingboard (mockingboard/mb_voice.h) */
 #define SSV_SOUNDINGBOARD 5        /* GW Micro's Sounding Board: the Speak-Out's voice on its DOS drivers (so_voice.h) */
 #define SSV_SMARTALK 6             /* Automated Functions' SmarTalk: its DOS text-to-speech (smartalk/st_voice.h) */
+#define SSV_SYNPHONIX 7            /* Artic's SynPhonix 215: Artic's own DOS text-to-speech, VEST (synphonix/sp_voice.h) */
 
 typedef struct {
     const char *id;                /* "blazie:blazie": the NVDA driver module and its voice, as the SAPI tokens carry it */
     const char *name;              /* the NVDA driver's name for it, UTF-8 */
     const char *lang;              /* "en", "es", "de", "it", "sk" */
-    int engine;                    /* SSV_BLAZIE ... SSV_SMARTALK */
+    int engine;                    /* SSV_BLAZIE ... SSV_SYNPHONIX */
     int slot;                      /* voices of one slot share one unit in a bank (the two Accents: one card) */
     const char *files[4];          /* its firmware, relative to the firmware folder, "/"-separated; NULL after the last */
 } ssv_info;

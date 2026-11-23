@@ -84,6 +84,11 @@ def units():
         st = FRONT + inc("cpu", "pc86", "smartalk")
         u += [(st, "smartalk/%s.c" % n) for n in ("st_host", "st_voice")]
         have.append("-DSSV_HAVE_SMARTALK")
+    # the SynPhonix: Artic's VEST.COM, on the same pc86 (sp_voice.h)
+    if "-DSSV_HAVE_ACCENTMINI" in have and os.path.isfile(os.path.join(SRC, "synphonix", "sp_voice.c")):
+        sp = FRONT + inc("cpu", "pc86", "synphonix")
+        u += [(sp, "synphonix/%s.c" % n) for n in ("sp_host", "sp_voice")]
+        have.append("-DSSV_HAVE_SYNPHONIX")
     if os.path.isfile(os.path.join(SRC, "mockingboard", "mb_voice.c")):      # mb-voice's sources (mb_voice.h, 0.8)
         mb = ["-O2", "-std=gnu99", "-ffp-contract=off", "-w"] + inc("cpu", "mockingboard", "")
         u += [(mb, "cpu/m6502.c")] + [(mb, "mockingboard/%s.c" % n)

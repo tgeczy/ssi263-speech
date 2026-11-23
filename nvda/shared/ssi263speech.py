@@ -139,6 +139,22 @@ def load(path):
         _sig(lib, "sth_set_int", None, [_P, _S, _I])
         _sig(lib, "sth_writes", _I, [_P, wl])
         _sig(lib, "sth_clear_writes", None, [_P])
+    if hasattr(lib, "spv_create"):                        # the SynPhonix: sp_voice.h's one-text API
+        _sig(lib, "spv_create", _P, [_S, ctypes.c_size_t, _D] + err)
+        _sig(lib, "spv_destroy", None, [_P])
+        _sig(lib, "spv_set", None, [_P] + [_I] * 5)
+        _sig(lib, "spv_speak", _I, [_P, _S, _I])
+        _sig(lib, "spv_render", _I, [_P, ctypes.POINTER(_SHORTS), ctypes.POINTER(_I)])
+        _sig(lib, "spv_cancel", None, [_P])
+        _sig(lib, "spv_fault", _I, [_P])
+        _sig(lib, "spv_get_int", _I, [_P, _S])
+        _sig(lib, "spv_parts", _I, [_S, _I, _S, _I])
+        _sig(lib, "spv_host", _P, [_P])
+        _sig(lib, "sph_chip", _P, [_P])
+        _sig(lib, "sph_get_double", _D, [_P, _S])
+        _sig(lib, "sph_set_int", None, [_P, _S, _I])
+        _sig(lib, "sph_writes", _I, [_P, wl])
+        _sig(lib, "sph_clear_writes", None, [_P])
     _libs[path] = lib
     return lib
 
@@ -577,6 +593,81 @@ class SmarTalkC:
         v, self._v = self._v, None
         if v:
             self._lib.stv_destroy(v)
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+class SynPhonixC:
+    """Artic's SynPhonix 215: Artic's own DOS text-to-speech (VEST.COM 1.60) on MAME's 8086 and the card, and the
+    voice's text path (synphonix/sp_voice.h).  The SmarTalk's API without a tone (VEST has none) and without index
+    marks of its own: one text at a time (said in parts, the next while VEST still has frames queued), a capital as
+    that text's pitch offset; render() until done."""
+
+    def __init__(self, lib_path, firmware, out_rate):
+        self._lib = load(lib_path)
+        if not hasattr(self._lib, "spv_create"):
+            raise NativeVoiceError("SynPhonixC: this ssi263speech.dll has no SynPhonix")
+        self.out_rate = out_rate
+        self._pcm = _SHORTS()
+        self._done = _I(0)
+        self._v = None
+        data = _read(firmware)
+        err = ctypes.create_string_buffer(300)
+        v = self._lib.spv_create(data, len(data), float(out_rate), err, 300)
+        if not v:
+            raise NativeVoiceError("SynPhonixC: %s" % err.value.decode("latin-1", "replace"))
+        self._v = v
+
+    def set(self, rate, pitch, volume, inflection, numbers):
+        """NVDA's scales (sp_voice.h); used from the next say()"""
+        self._lib.spv_set(self._v, int(rate), int(pitch), int(volume), 1 if inflection else 0, 1 if numbers else 0)
+
+    def say(self, text, pitch_offset=0):
+        """one text item, with a capital's offset; False when there is nothing to say"""
+        data = text.encode("utf-8", "replace")
+        return bool(self._lib.spv_speak(self._v, data, int(pitch_offset or 0)))
+
+    def render(self):
+        """the next 30 ms block: (16-bit PCM bytes, done)"""
+        n = self._lib.spv_render(self._v, ctypes.byref(self._pcm), ctypes.byref(self._done))
+        data = ctypes.string_at(self._pcm, 2 * n) if n > 0 else b""
+        return data, bool(self._done.value)
+
+    def cancel(self):
+        self._lib.spv_cancel(self._v)
+
+    @property
+    def fault(self):
+        """the host faulted or the card stalled: the driver boots a new one"""
+        return bool(self._lib.spv_fault(self._v))
+
+    @property
+    def regs(self):
+        """the chip's five registers, for the tests"""
+        chip = self._lib.sph_chip(self._lib.spv_host(self._v))
+        return [self._lib.ssi263_reg(chip, i) for i in range(5)]
+
+    def log_writes(self, on):
+        """keep every chip write for writes() (the tests)"""
+        self._lib.sph_set_int(self._lib.spv_host(self._v), b"log_writes", 1 if on else 0)
+
+    def writes(self):
+        """the chip writes kept since the last call, as (chip time, register, value)"""
+        h = self._lib.spv_host(self._v)
+        p = ctypes.POINTER(_Write)()
+        n = self._lib.sph_writes(h, ctypes.byref(p))
+        out = [(p[i].t, p[i].reg, p[i].val) for i in range(n)]
+        self._lib.sph_clear_writes(h)
+        return out
+
+    def close(self):
+        v, self._v = self._v, None
+        if v:
+            self._lib.spv_destroy(v)
 
     def __del__(self):
         try:

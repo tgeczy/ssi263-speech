@@ -26,12 +26,16 @@
 #ifdef SSV_HAVE_SMARTALK
 #include "smartalk/st_voice.h"
 #endif
+#ifdef SSV_HAVE_SYNPHONIX
+#include "synphonix/sp_voice.h"
+#endif
 #include "blazie/bl_fopen.h"
 
 /* ---- the table ---------------------------------------------------------------------------------------------------- */
 /* the slots after the release voices' (a bank holds one unit per slot: SLOTS below counts them from these) */
 #define SLOT_SOUNDINGBOARD (9 + SSV_BLAZIE_RELEASE_VOICES)
 #define SLOT_SMARTALK (10 + SSV_BLAZIE_RELEASE_VOICES)
+#define SLOT_SYNPHONIX (11 + SSV_BLAZIE_RELEASE_VOICES)
 static const ssv_info VOICES[] = {
     {"blazie:blazie", "Braille Lite 2000 (June 2003)", "en", SSV_BLAZIE, 0,
      {"blazie/BL2ENG.BNS", "blazie/bl2_2003_warm.state", NULL}},
@@ -65,6 +69,9 @@ static const ssv_info VOICES[] = {
        pc86.  After the Sounding Board, so no earlier voice's index or slot moves */
     {"smartalk:smartalk", "SmarTalk (Automated Functions)", "en", SSV_SMARTALK, SLOT_SMARTALK,
      {"automated-functions-smartalk/S_TALK.EXE", NULL}},
+    /* 0.9.5: Artic's SynPhonix 215, its text-to-speech Artic's own VEST.COM 1.60 (#90's research host, in C), on the
+       Accent-mini's pc86.  After the SmarTalk, so no earlier voice's index or slot moves */
+    {"synphonix:vest", "Artic SynPhonix", "en", SSV_SYNPHONIX, SLOT_SYNPHONIX, {"artic-synphonix/VEST.COM", NULL}},
 };
 #define NVOICES ((int)(sizeof VOICES / sizeof VOICES[0]))
 
@@ -374,6 +381,36 @@ static void eng_st_cancel(void *u) { stv_cancel((st_voice *)u); }
 static void eng_st_destroy(void *u) { stv_destroy((st_voice *)u); }
 #endif
 
+#ifdef SSV_HAVE_SYNPHONIX
+/* the SynPhonix: sp_voice.h (rate, pitch, volume, inflection on or off, number words; no tone, no index marks of its
+   own: VEST has neither) */
+static void *eng_sp_create(const ssv_info *info, const ssv_source *src, const ssv_boot *b, char *err, int errlen)
+{
+    size_t n;
+    unsigned char *owned;
+    const unsigned char *d = source_bytes(src, 0, &n, &owned);
+    sp_voice *v = NULL;
+    if (d)
+        v = spv_create(d, n, (double)b->sample_rate, err, errlen);
+    else
+        snprintf(err, errlen, "could not read the SynPhonix's %s", info->files[0]);
+    free(owned);
+    return v;
+}
+static void eng_sp_set(void *u, const ssv_settings *s)
+{
+    spv_set((sp_voice *)u, s->rate, s->pitch, s->volume, s->inflection >= 50, s->numbers);
+}
+static int eng_sp_speak(void *u, const char *utf8, int pitch_offset)
+{
+    int r = spv_speak((sp_voice *)u, utf8, pitch_offset);
+    return spv_fault((sp_voice *)u) ? -1 : r > 0;
+}
+static int eng_sp_render(void *u, const short **pcm, int *done) { return spv_render((sp_voice *)u, pcm, done); }
+static void eng_sp_cancel(void *u) { spv_cancel((sp_voice *)u); }
+static void eng_sp_destroy(void *u) { spv_destroy((sp_voice *)u); }
+#endif
+
 static const ssv_engine *engine(int kind)
 {
     static const ssv_engine bl = {eng_bl_create, eng_bl_set, eng_bl_speak, eng_bl_render, eng_bl_cancel, eng_bl_destroy,
@@ -399,6 +436,9 @@ static const ssv_engine *engine(int kind)
     static const ssv_engine st = {eng_st_create, eng_st_set, eng_st_speak, eng_st_render, eng_st_cancel, eng_st_destroy,
                                   eng_st_speak_marked, eng_st_reached, eng_st_marks_own};
 #endif
+#ifdef SSV_HAVE_SYNPHONIX
+    static const ssv_engine sp = {eng_sp_create, eng_sp_set, eng_sp_speak, eng_sp_render, eng_sp_cancel, eng_sp_destroy};
+#endif
     switch (kind) {
     case SSV_BLAZIE: return &bl;
     case SSV_ACCENT_PC: return &as;
@@ -416,6 +456,9 @@ static const ssv_engine *engine(int kind)
 #endif
 #ifdef SSV_HAVE_SMARTALK
     case SSV_SMARTALK: return &st;
+#endif
+#ifdef SSV_HAVE_SYNPHONIX
+    case SSV_SYNPHONIX: return &sp;
 #endif
     default: return NULL;
     }
@@ -743,8 +786,8 @@ SSV_API void ssv_literal_next(ssv_voice *v)
 /* ---- a bank ---------------------------------------------------------------------------------------------------------- */
 /* the table's slots 0..8, one per release voice, the Sounding Board's and the SmarTalk's: the last slot + 1.  (It was
    the Sounding Board's + 1 when the SmarTalk came, so the SmarTalk's unit sat past the end of the bank and was never
-   let go on a boot change: the SAPI engine's test caught it.) */
-#define SLOTS (SLOT_SMARTALK + 1)
+   let go on a boot change: the SAPI engine's test caught it.)  The SynPhonix's, after them, is the last now. */
+#define SLOTS (SLOT_SYNPHONIX + 1)
 
 struct ssv_bank {
     char *fwdir;
@@ -764,8 +807,13 @@ SSV_API ssv_bank *ssv_bank_new(const char *fwdir)
 
 static void bank_clear(ssv_bank *k)
 {
-    int s, n = getenv("SSV_BANK_BREAK") ? SLOTS - 1 : SLOTS;   /* the tests' control: the last slot kept, as it was */
-    for (s = 0; s < n; s++) {
+    /* the tests' controls: one slot kept, as the last one was when it sat past the bank's end -- SSV_BANK_BREAK=1 the
+       SmarTalk's (check_st_voice.py), =synphonix the SynPhonix's (check_sp_voice.py) */
+    const char *bb = getenv("SSV_BANK_BREAK");
+    int s, keep = !bb ? -1 : !strcmp(bb, "synphonix") ? SLOT_SYNPHONIX : SLOT_SMARTALK;
+    for (s = 0; s < SLOTS; s++) {
+        if (s == keep)
+            continue;
         ssv_destroy(k->slot[s]);
         k->slot[s] = NULL;
     }

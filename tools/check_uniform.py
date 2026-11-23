@@ -573,6 +573,11 @@ def order_gaps(found):
 # counts them, so no release ships with one.  Remove an entry when its port lands; an entry for a voice the platform
 # now offers is itself reported, so none outlives its port.
 PENDING = {
+    # the Artic SynPhonix (0.9.5, Tomi): in the voice table first, then the NVDA add-on and Tomi's ears, then the rest
+    ("synphonix:vest", "nvda"): "the add-on's driver comes next, then Tomi listens before any other platform",
+    ("synphonix:vest", "sapi"): "after Tomi has heard the NVDA voice",
+    ("synphonix:vest", "linux"): "after Tomi has heard the NVDA voice",
+    ("synphonix:vest", "android"): "after Tomi has heard the NVDA voice",
 }
 
 

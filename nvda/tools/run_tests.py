@@ -322,7 +322,8 @@ CHECKS.append(check("uniform CONTROL (Android lacks the Speak-Out, must fail)", 
                     env={"SSI263_UNIFORM_DROP": "android:speakout:speakout"}, expect_fail=True,
                     fail_marks=[r"^Speak-Out +yes +yes +yes +NO +$",
                                 r"^MISSING  Speak-Out \[speakout:speakout\] on Android$",
-                                r"^ok +NVDA: (\d+) of \1 voices", r"^gap +Android: (\d+) of (?!\1)\d+ voices",
+                                # (NVDA ok, whole or with a port listed in check_uniform.py's PENDING)
+                                r"^ok +NVDA: \d+ of \d+ voices", r"^gap +Android: (\d+) of (?!\1)\d+ voices",
                                 r"^uniform: 1 gap$"]))
 CHECKS.append(check("uniform CONTROL (Linux lacks the Spanish number words, must fail)", UNIFORM,
                     env={"SSI263_UNIFORM_DROP": "linux:blazie:blazie_es:numbers"}, expect_fail=True,
@@ -3002,6 +3003,21 @@ if os.path.isfile(SPX_COM) and os.path.isfile(SPX_PC86):
     CHECKS.append(check("SynPhonix host CONTROL (the reference's chip 1 % fast, must fail)", [PY, SP_HOST],
                         env={"SSI263_PC86_DLL": SPX_PC86, "SP_HOST_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^ok    the C host ran: ", r"^FAIL  every chip write: ", r"^sp host: \d FAILED$"]))
+    # the voice (synphonix/sp_voice.h) through the voice table and the NVDA binding; each control fails its own checks
+    SP_VOICE = os.path.join(REPO, "tools", "check_sp_voice.py")
+    CHECKS.append(check("SynPhonix voice: settings, parts, cancel, text (voice API and binding)", [PY, SP_VOICE]))
+    for env_name, value, what, marks in (
+            ("SPV_PITCH_BREAK", "1", "pitch below 50 as 20h + the step",
+             [r"^FAIL  pitch: 0 lower, 100 higher ", r"^ok    rate: ", r"^sp voice: 1 FAILED$"]),
+            ("SPV_QUEUE_BREAK", "1", "every part at once",
+             [r"^FAIL  a long text: every block short ", r"^ok    a long text in parts, no gap", r"^sp voice: 1 FAILED$"]),
+            ("SPV_TEXT_BREAK", "1", "the apostrophes as they are",
+             [r"^FAIL  text: a possessive after a C", r"^FAIL  text: a quote mark goes",
+              r"^FAIL  Artic's said as Artics", r"^ok    text: contractions kept", r"^sp voice: 3 FAILED$"]),
+            ("SSV_BANK_BREAK", "synphonix", "a bank keeps its unit on a boot change",
+             [r"^FAIL  a bank's unit made again on a boot change", r"^sp voice: 1 FAILED$"])):
+        CHECKS.append(check("SynPhonix voice CONTROL (%s, must fail)" % what, [PY, SP_VOICE],
+                            env={env_name: value}, expect_fail=True, fail_marks=marks))
 GEN_DEFAULTS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "gen_chip_defaults.py")
 CHECKS.append(check("chip defaults header", [PY, GEN_DEFAULTS, "--check"]))
 # and on Python 3.7 (NVDA 2021-2023): the defaults must not depend on the Python version (3.12 changed float sum())

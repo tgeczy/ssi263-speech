@@ -32,6 +32,8 @@
 #define ENTRY_AT 0x1E4             /* in VEST's segment: the entry Business Vision calls ... */
 #define QUEUE_IN 0x190             /* ... the frame queue's write and read pointers (5 bytes a frame, AC1 and D56) ... */
 #define QUEUE_OUT 0x192
+#define QUEUE_START 0x194          /* ... the queue's ring: its first byte and its end (set at load from /B; the queue */
+#define QUEUE_END 0x196            /* routines at 0AC1 and 0D5E wrap there) */
 #define IDLE_FLAG 0x16D            /* ... and 1 once the IRQ handler has found the queue empty (0BAB) */
 #define TEXT_MAX 0x4000
 #define RET_LINEAR ((unsigned long)BIOS_SEG * 16 + RETURN_OFF)
@@ -515,9 +517,10 @@ static double dt_since(const sp_host *h, double before)
 /* ---- loading a .COM as COMMAND.COM would: _exec -------------------------------------------------------------------- */
 static int exec_com(sp_host *h, const unsigned char *image, size_t n, char *err, int errlen)
 {
-    static const char ENV[] = "COMSPEC=C:\\COMMAND.COM\0\0\x01\0C:\\ARTIC\\VISION\\VEST.COM";
+    char env[80];
     uint8_t p[256];
     double waited = 0.0;
+    int k;
     if ((unsigned long)PSP_SEG * 16 + 0x100 + n > (unsigned long)STACK_SEG * 16) {
         snprintf(err, (size_t)errlen, "VEST.COM is too large");
         return -1;
@@ -532,7 +535,9 @@ static int exec_com(sp_host *h, const unsigned char *image, size_t n, char *err,
     p[0x81] = 0x0D;                                     /* no switches (BV.BAT) */
     wrmem(h, (unsigned long)PSP_SEG * 16, p, sizeof p);
     wrmem(h, (unsigned long)PSP_SEG * 16 + 0x100, image, n);
-    wrmem(h, (unsigned long)ENV_SEG * 16, ENV, sizeof ENV);   /* (the drive is the emulated DOS's) */
+    /* the emulated DOS's drive letter passed in (no host path in the source), as st_host.c */
+    k = snprintf(env, sizeof env, "COMSPEC=%c:\\COMMAND.COM%c%c%c%c%c:\\ARTIC\\VISION\\VEST.COM", 'C', 0, 0, 1, 0, 'C');
+    wrmem(h, (unsigned long)ENV_SEG * 16, env, (size_t)k + 1);
     w(h, CS, PSP_SEG);
     w(h, DS, PSP_SEG);
     w(h, ES, PSP_SEG);
@@ -666,7 +671,7 @@ SP_API int sph_call(sp_host *h, int ax, int bx, int cx, int dx)
     return call_(h, ax, REGS, vals, 3);
 }
 
-SP_API void sph_say(sp_host *h, const unsigned char *bytes, int n, int cx, int dx)
+SP_API void sph_say_ah(sp_host *h, const unsigned char *bytes, int n, int ah, int cx, int dx)
 {
     static const int REGS[5] = {ES, SI, DI, CX, DX};
     int vals[5];
@@ -681,7 +686,21 @@ SP_API void sph_say(sp_host *h, const unsigned char *bytes, int n, int cx, int d
     vals[2] = n;
     vals[3] = cx;
     vals[4] = dx;
-    call_(h, 0x0007, REGS, vals, 5);
+    call_(h, ((ah & 0xFF) << 8) | 0x07, REGS, vals, 5);
+}
+
+SP_API void sph_say(sp_host *h, const unsigned char *bytes, int n, int cx, int dx)
+{
+    sph_say_ah(h, bytes, n, 0, cx, dx);
+}
+
+SP_API int sph_queued_frames(const sp_host *h)
+{
+    int in = vword(h, QUEUE_IN), out = vword(h, QUEUE_OUT);
+    int start = vword(h, QUEUE_START), end = vword(h, QUEUE_END), size = end - start;
+    if (size <= 0)
+        return in != out;
+    return ((in - out) % size + size) % size / 5;
 }
 
 SP_API void sph_cancel(sp_host *h)

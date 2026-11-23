@@ -58,6 +58,13 @@ SP_API int sph_card_key(const unsigned char *com, size_t n, unsigned char key[6]
    VEST adds to its frames (SPH_SAY_CX, SPH_SAY_DX: its own).  The call returns once VEST has queued the text; while
    its queue is full the chip runs, and that audio is what the next sph_run returns first. */
 SP_API void sph_say(sp_host *h, const unsigned char *bytes, int n, int cx, int dx);
+/* say with VEST's option byte as well (AH with AL=7): bit 6 flat inflection, bits 0-3 the caller's exception
+   dictionaries (none here), bit 7 queue nothing.  sph_say is sph_say_ah with AH 0.  (Beyond synphonix.py, whose say()
+   passes AH 0: the voice's, sp_voice.h.) */
+SP_API void sph_say_ah(sp_host *h, const unsigned char *bytes, int n, int ah, int cx, int dx);
+/* frames VEST has queued and not yet sent: its own pointers (190h in, 192h out) in its ring (194h start, 196h end:
+   its queue routines at 0AC1 and 0D5E wrap there), 5 bytes a frame.  (Beyond synphonix.py: read, never written.) */
+SP_API int sph_queued_frames(const sp_host *h);
 /* run(): `seconds` of chip time in `step` slices: the chip's audio at out_rate, in an internal buffer valid until the
    next call (what a blocked say made first).  Returns the sample count (-1: a fault). */
 SP_API int sph_run(sp_host *h, double seconds, double step, const double **audio);
