@@ -25,7 +25,7 @@ import os
 
 /// The host-side test's controls (SSI263_EXTENSION_BREAK, ExtensionTests.swift; never set in the extension): `silent`
 /// lets a request that made no sound complete with no frames (#61); `whine` forgets that a new engine boots with no
-/// idle sound (#57).
+/// idle sound (#57); `stop` reads the player for a stop without the lock (#56).
 private let control = ProcessInfo.processInfo.environment["SSI263_EXTENSION_BREAK"] ?? ""
 
 private let log = Logger(subsystem: "com.ssi263speech.app.synth-extension", category: "speech")
@@ -122,14 +122,20 @@ public final class SsiAudioUnit: AVSpeechSynthesisProviderAudioUnit {
     private var busses: AUAudioUnitBusArray!
     private let state = RenderState()
 
-    // The engine and the player belong to the synthesis queue; ssp_speech_stop alone is called from anywhere.
+    // The engine and the player belong to the synthesis queue; ssp_speech_stop alone is called from anywhere, through
+    // stopPlayer, under the lock the synthesis queue frees and replaces them under (#56).
     private let synthesis = DispatchQueue(label: "com.ssi263speech.synthesis", qos: .userInteractive)
+    private let playerLock = OSAllocatedUnfairLock()
     private var engine: SsiEngine?
     private var player: OpaquePointer?
     private var inflection = true
     private var sampleRate = SsiShared.outputRate
     private var whine = 0                               // as SsiEngine.init configured it
     private var firmwareStamp = -1
+
+    /// The host-side test's hook (ExtensionTests.swift, #56), run on the synthesis queue as a firmware change frees
+    /// the player; never set in the extension.
+    var freeing: (() -> Void)?
 
     public override init(componentDescription: AudioComponentDescription,
                          options: AudioComponentInstantiationOptions = []) throws {
@@ -156,15 +162,20 @@ public final class SsiAudioUnit: AVSpeechSynthesisProviderAudioUnit {
     private func ensureEngine() {
         let stamp = SsiShared.defaults()?.integer(forKey: SsiShared.Key.firmwareStamp) ?? 0
         if stamp != firmwareStamp, engine != nil {
+            playerLock.lock()                   // a stop from the system's thread waits: never into a freed player
+            freeing?()
             if let p = player { ssp_speech_free(p) }
             player = nil
             engine = nil
+            playerLock.unlock()
         }
         firmwareStamp = stamp
         if engine == nil, let e = SsiEngine() {
-            engine = e
-            player = ssp_speech_new(e.engine)
-            if player == nil { engine = nil }
+            let p = ssp_speech_new(e.engine)
+            playerLock.lock()
+            engine = p == nil ? nil : e
+            player = p
+            playerLock.unlock()
             inflection = true                   // SsiEngine boots with inflection on, at the Audio Unit's rate,
             sampleRate = SsiShared.outputRate
             if control != "whine" { whine = 0 } // and with no idle sound (#57: else Hiss or Whine was never sent)
@@ -215,7 +226,7 @@ public final class SsiAudioUnit: AVSpeechSynthesisProviderAudioUnit {
 
     public override func synthesizeSpeechRequest(_ request: AVSpeechSynthesisProviderRequest) {
         let generation = state.begin()
-        if let p = player { ssp_speech_stop(p) }          // a request still being made: let go before its next block
+        stopPlayer()                                      // a request still being made: let go before its next block
         let settings = SsiShared.load()
         let ssml = request.ssmlRepresentation
         let identifier = request.voice.identifier
@@ -302,6 +313,18 @@ public final class SsiAudioUnit: AVSpeechSynthesisProviderAudioUnit {
 
     public override func cancelSpeechRequest() {
         state.cancel()
+        stopPlayer()
+    }
+
+    /// The request being made stopped, from the system's thread: the player read under the lock, so a firmware change
+    /// on the synthesis queue never frees it under the stop (#56).
+    private func stopPlayer() {
+        if control == "stop" {
+            if let p = player { ssp_speech_stop(p) }
+            return
+        }
+        playerLock.lock()
+        defer { playerLock.unlock() }
         if let p = player { ssp_speech_stop(p) }
     }
 }

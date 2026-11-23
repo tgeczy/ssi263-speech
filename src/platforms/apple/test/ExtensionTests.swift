@@ -7,9 +7,10 @@
 // - A request that makes no sound, at Pauses Off, still hands over a moment of silence, so the system moves on (#61).
 // - The idle sound (Hiss) survives a firmware change: a request after the stamp is bumped is the same PCM as on an
 //   Audio Unit made with Hiss set, and not the same as without it (#57).
+// - A stop from the system's thread while a firmware change frees the player waits until it is freed (#56).
 //
 //     sh src/platforms/apple/test/test_extension.sh
-//     SSI263_EXTENSION_BREAK=silent|whine sh ...      the controls: each must FAIL
+//     SSI263_EXTENSION_BREAK=silent|whine|stop sh ...      the controls: each must FAIL
 import AVFoundation
 
 let repo = URL(fileURLWithPath: CommandLine.arguments[1])
@@ -77,6 +78,31 @@ func say(_ au: SsiAudioUnit, _ ssml: String) -> [Float32] {
         if flags.contains(.offlineUnitRenderAction_Complete) { break }
     }
     return out
+}
+
+// #56: a stop from the system's thread while a firmware change frees the player.  The Audio Unit's hook runs on the
+// synthesis queue at that moment, and a cancel is started then: it must wait until the old player is gone, or its
+// stop could write into a freed one.  (The thread sanitizer would show the race itself, but on macOS 26.7 with Xcode
+// 26.2 its runtime crashes before main, even for an empty program; the hook holds the window open instead.)
+do {
+    let au = audioUnit()
+    _ = say(au, "Hello.")
+    var waited = false, ran = false
+    let hooked = DispatchSemaphore(value: 0)
+    au.freeing = {
+        ran = true
+        let stopped = DispatchSemaphore(value: 0)
+        Thread { au.cancelSpeechRequest(); stopped.signal() }.start()
+        waited = stopped.wait(timeout: .now() + 0.3) == .timedOut
+        hooked.signal()
+    }
+    bumpStamp()
+    _ = say(au, "Hello.")                   // ends early: the cancel ends the request before it waits for the lock
+    _ = hooked.wait(timeout: .now() + 10)
+    au.freeing = nil
+    check("a stop while a firmware change frees the player", ran && waited,
+          !ran ? "the firmware change was not seen" : waited ? "it waited for the free"
+          : "it went ahead, into the player being freed")
 }
 
 // #61: at Pauses Off a request with text that makes no sound -- a non-breaking space alone, which the SSML counts as
