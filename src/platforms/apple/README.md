@@ -130,7 +130,7 @@ carries no firmware at all (Android's checks, plus Aicom's files). The icon is d
     python src/platforms/apple/test/test_apple_core.py [--simulator]
     SSI263_APPLE_TEST_BREAK=1 python src/platforms/apple/test/test_apple_core.py      control: must FAIL
     python src/platforms/apple/test/test_apple_speech.py
-    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|speech-1|speech-2|import|import-2 python ...   controls: each must FAIL
+    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|ssml-3|speech-1|speech-2|import|import-2 python ...  controls: each FAILs
     sh src/platforms/apple/test/run_swift_tests.sh                                     the import, in Swift
     sh src/platforms/apple/test/test_installer.sh                  the app's import on the real firmware, as the app runs it,
                                                                    then the unit tab's catalog and two units started

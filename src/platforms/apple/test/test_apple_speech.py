@@ -18,8 +18,8 @@
 
     sh src/platforms/apple/build_apple.sh macos            first
     python src/platforms/apple/test/test_apple_speech.py
-    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|speech-1|speech-2|import|import-2 python ...   the controls: each must
-                                                                                           FAIL
+    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|ssml-3|speech-1|speech-2|import|import-2 python ...   the controls:
+                                                                                                each must FAIL
 
 Options: --firmware <folder> (default $SSI263_FIRMWARE, else firmware/blazie), --aicom <folder> (default
 firmware/aicom-accent-sa).
@@ -88,6 +88,17 @@ PARSE = [
     ("unclosed", OFF, "a < b and c", (100, 100, 1.0), [("a < b and c", 0)]),
     ("p-ends", LONG, "<p>One.</p><p>Two.</p>", (100, 100, 1.0), [("One.", 300), ("Two.", 300)]),
 ]
+# Try it's and Export to WAV's typed text (ssp_parse_text, #59): taken as it is, never as SSML -- no tag dropped, no
+# entity decoded -- with its white space collapsed and the request's end pause, as plain text through ssp_parse.
+PARSE_TEXT = [
+    ("text-angles", SHORT, "Press <Enter> to continue", (100, 100, 1.0), [("Press <Enter> to continue", 150)]),
+    ("text-compare", OFF, "if a < b and c > d", (100, 100, 1.0), [("if a < b and c > d", 0)]),
+    ("text-tag-only", SHORT, "<hello>", (100, 100, 1.0), [("<hello>", 150)]),
+    ("text-entities", OFF, "&lt; &amp; &#65; &nbsp;", (100, 100, 1.0), [("&lt; &amp; &#65; &nbsp;", 0)]),
+    ("text-ssml", SHORT, 'A<break time="500ms"/>B <prosody rate="fast">C</prosody>', (100, 100, 1.0),
+     [('A<break time="500ms"/>B <prosody rate="fast">C</prosody>', 150)]),
+    ("text-space", OFF, "Hello\n\n  there", (100, 100, 1.0), [("Hello there", 0)]),
+]
 
 
 SSP_FW_RELEASE = 100                    # ssp_import.h's
@@ -107,7 +118,9 @@ def build():
 
 
 def check_parse(exe, env):
-    stdin = "".join("%d %s\n" % (mode, ssml.encode("utf-8").hex()) for _, mode, ssml, _, _ in PARSE)
+    stdin = "".join("%d %s\n" % (mode, ssml.encode("utf-8").hex()) for _, mode, ssml, _, _ in PARSE) + \
+        "".join("text %d %s\n" % (mode, text.encode("utf-8").hex()) for _, mode, text, _, _ in PARSE_TEXT)
+    cases = PARSE + PARSE_TEXT
     out = subprocess.run([exe, "--parse"], input=stdin, capture_output=True, text=True, env=env, check=True).stdout
     got, cur = [], None
     for line in out.splitlines():
@@ -119,17 +132,17 @@ def check_parse(exe, env):
         elif p[0] == "end":
             got.append(cur)
     bad = 0
-    for (name, _, _, prosody, segs), g in zip(PARSE, got):
+    for (name, _, _, prosody, segs), g in zip(cases, got):
         want = ((prosody[0], prosody[1], round(prosody[2], 3)), segs)
         ok = g == want
         if not ok:
             print("FAIL  parse  %s: %r, want %r" % (name, g, want))
         bad += not ok
-    if len(got) != len(PARSE):
-        print("FAIL  parse  %d of %d requests parsed" % (len(got), len(PARSE)))
+    if len(got) != len(cases):
+        print("FAIL  parse  %d of %d requests parsed" % (len(got), len(cases)))
         bad += 1
-    print("%-5s parse  %d of %d requests as TGSpeechBox's rules make them" % ("ok" if not bad else "FAIL",
-                                                                          len(PARSE) - bad, len(PARSE)))
+    print("%-5s parse  %d of %d requests as TGSpeechBox's rules make them, typed text as it is" % (
+        "ok" if not bad else "FAIL", len(cases) - bad, len(cases)))
     return bad
 
 

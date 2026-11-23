@@ -9,8 +9,8 @@
  *                                               directly with the pauses' zeros between them, on an engine of its own
  *     test_apple_speech --import <file> <out>   ssp_import_firmware's judgement
  *
- * SSI263_APPLE_SPEECH_BREAK puts one bug back (test_apple_speech.py's controls): ssml-1, ssml-2 (ssp_ssml_break),
- * speech-1, speech-2 (ssp_speech_break), import, import-2 (ssp_import_break 1, 2).
+ * SSI263_APPLE_SPEECH_BREAK puts one bug back (test_apple_speech.py's controls): ssml-1, ssml-2, ssml-3
+ * (ssp_ssml_break), speech-1, speech-2 (ssp_speech_break), import, import-2 (ssp_import_break 1, 2).
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,11 +49,11 @@ static int parse(void)
 {
     char line[65536];
     while (fgets(line, sizeof line, stdin)) {
-        int mode;
+        int mode, text = !strncmp(line, "text ", 5);   /* "text <mode> <hex>": typed text, ssp_parse_text */
         char *h, *ssml;
         size_t k = 0;
         ssp_request r;
-        if (sscanf(line, "%d", &mode) != 1 || !(h = strchr(line, ' '))) continue;
+        if (sscanf(line + (text ? 5 : 0), "%d", &mode) != 1 || !(h = strchr(line + (text ? 5 : 0), ' '))) continue;
         h++;
         ssml = (char *)malloc(strlen(h) / 2 + 1);
         while (h[0] && h[1] && h[0] != '\n') {
@@ -63,7 +63,7 @@ static int parse(void)
             h += 2;
         }
         ssml[k] = 0;
-        if (ssp_parse(ssml, mode, &r)) { printf("error\n"); free(ssml); continue; }
+        if ((text ? ssp_parse_text : ssp_parse)(ssml, mode, &r)) { printf("error\n"); free(ssml); continue; }
         printf("request %d %d %.4f %d %d %d\n", r.rate, r.pitch, r.volume, r.n, ssp_has_text(&r),
                ssp_total_pause_ms(&r));
         for (int s = 0; s < r.n; s++) {
@@ -245,6 +245,7 @@ int main(int argc, char **argv)
     if (brk) {
         if (!strcmp(brk, "ssml-1")) ssp_ssml_break = 1;
         else if (!strcmp(brk, "ssml-2")) ssp_ssml_break = 2;
+        else if (!strcmp(brk, "ssml-3")) ssp_ssml_break = 3;
         else if (!strcmp(brk, "speech-1")) ssp_speech_break = 1;
         else if (!strcmp(brk, "speech-2")) ssp_speech_break = 2;
         else if (!strcmp(brk, "import")) ssp_import_break = 1;

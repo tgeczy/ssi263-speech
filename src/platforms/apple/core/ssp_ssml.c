@@ -361,6 +361,28 @@ int ssp_parse(const char *ssml, int pause_mode, ssp_request *out)
     return 0;
 }
 
+int ssp_parse_text(const char *text, int pause_mode, ssp_request *out)
+{
+    buf b = {0};
+    int r;
+    if (ssp_ssml_break == 3) return ssp_parse(text, pause_mode, out);   /* the control: typed text read as SSML */
+    put(&b, "", 0);
+    for (; *text; text++) {                /* escaped, so ssp_parse gives every character back as it was typed */
+        if (*text == '&') put(&b, "&amp;", 5);
+        else if (*text == '<') put(&b, "&lt;", 4);
+        else if (*text == '>') put(&b, "&gt;", 4);
+        else putc_(&b, *text);
+    }
+    if (b.oom) {
+        free(b.p);
+        memset(out, 0, sizeof *out);
+        return -1;
+    }
+    r = ssp_parse(b.p, pause_mode, out);
+    free(b.p);
+    return r;
+}
+
 void ssp_request_free(ssp_request *r)
 {
     if (!r) return;

@@ -61,6 +61,10 @@ int ssp_pause_scale(int pause_mode);
    memory (out then empty).  A request with no text at all keeps its pauses in out->seg (one empty segment): a
    break-only spacer. */
 int ssp_parse(const char *ssml, int pause_mode, ssp_request *out);
+/* A person's typed text (the app's Try it and Export to WAV) as ssp_parse takes plain text: one segment, its white
+   space collapsed, the request's end pause -- but never read as SSML, so "Press <Enter>" keeps its <Enter> and "&lt;"
+   stays as typed (ssp_parse would take the one as a tag and decode the other).  0, or -1 out of memory. */
+int ssp_parse_text(const char *text, int pause_mode, ssp_request *out);
 void ssp_request_free(ssp_request *r);
 
 /* The total text of a request: 1 when any segment has some. */
@@ -69,7 +73,8 @@ int ssp_has_text(const ssp_request *r);
 int ssp_total_pause_ms(const ssp_request *r);
 
 /* The test's control (test_apple_speech.c sets it; the app never does): 1 drops every pause (VoiceOver's boundaries
-   run together, as before TGSpeechBox's fix); 2 ignores the pause mode (every pause at its long length). */
+   run together, as before TGSpeechBox's fix); 2 ignores the pause mode (every pause at its long length); 3 reads
+   ssp_parse_text's typed text as SSML (as Try it did before #59). */
 extern int ssp_ssml_break;
 
 #ifdef __cplusplus

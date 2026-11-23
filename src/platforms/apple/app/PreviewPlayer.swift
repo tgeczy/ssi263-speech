@@ -92,7 +92,7 @@ final class PreviewPlayer: NSObject, AVAudioPlayerDelegate {
         guard let p = ssp_speech_new(e.engine) else { return .failure(Failure(message: "Out of memory.")) }
         defer { ssp_speech_free(p) }
         var request = ssp_request()
-        guard ssp_parse(text, Int32(settings.pauseMode), &request) == 0 else {
+        guard ssp_parse_text(text, Int32(settings.pauseMode), &request) == 0 else {   // typed, never SSML (#59)
             return .failure(Failure(message: "Out of memory."))
         }
         defer { ssp_request_free(&request) }
