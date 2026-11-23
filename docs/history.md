@@ -141,6 +141,9 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   advertisement in PC Magazine (16 October 1984) agrees on the year and names the chip: a "Speech Articulator for
   the IBM & Apple" with an "SSI263 Phoneme Synthesizer" and its SONIX software, at $125, from Auburn Heights,
   Michigan. The card was advertised there by 12 June 1984, with its SONIX-88 speech operating system. We have seen no chip from that first model.
+  Artic's founders included Tim Gargagliano, its founder and president from 1984 to 1999 (his own professional
+  profile), and Dale McDaniel, a founding partner and its vice president of marketing (AccessWorld, September 2000;
+  see 1997 to 2003).
 - **Atari's 1450XLD** (document). A computer with speech built in, never released. Atari's voice handler
   specification of 24 May 1984 says its "speech synthesis hardware ... consists of an SSI-263 speech synthesis chip
   supplied by Silicon Systems Incorporated", "also known as the SC-02", with its five registers in the 6502's
@@ -398,6 +401,13 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   last English Braille Lite 2000 build.
 - **The end of the Accents.** By September 2000, a mailing-list post reports, Aicom had stopped making the Accent SA,
   PC, Messenger and mini.
+- **Artic winds down** (document). AccessWorld's "Is Artic Running Hot or Cold?" (Deborah Kendrick, September 2000)
+  finds the company, by then at 1000 John R. Road in Troy, Michigan, missing from the 1999 conventions of the American
+  Council of the Blind and the National Federation of the Blind, its website not updated since 1998, its staff down
+  from eight to six, and Dale McDaniel, a founding partner, gone. Kathy Gargagliano, its vice president of
+  operations, answered "Artic is not dead": it was still selling synthesizers and notetakers, with no updates under
+  way, and a $999 "talking out of the box" computer, the i-Talk. We have found nothing about Artic after 2000, nor
+  when it closed.
 
 ### Not the SSI-263, though often mixed up
 
@@ -619,6 +629,13 @@ reading. What it rests on, and what is left:
 - At XCK = 1 MHz its speed was heard as close to a real TransPort's, whose resident VEST should be much the same
   program. That is an ear, not a measurement: the SynPhonix's clock is still open.
 - Not yet: a C port, a voice, Business Vision's own settings, and VEST's PortTalk module.
+
+**Who speaks for Artic.** VEST is Artic Technologies' work ("(C)Copyright 1984,85,88,89,90,92 ... All Rights
+Reserved"). Artic sells nothing today and seems to have closed long ago (see 1997 to 2003), and no one we know of
+has taken its programs on. The people who could say yes or no to sharing VEST are its founders, Tim Gargagliano and
+Dale McDaniel (see 1984), and we have written to ask. Until one of them answers, `VEST.COM` is not in this
+repository; `firmware/artic-synphonix/README.txt` says what goes there. If you speak for Artic, please open an issue
+or write to the maintainer: we will do as you ask.
 
 ## Engine versions at a glance
 
