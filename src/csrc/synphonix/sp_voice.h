@@ -2,7 +2,7 @@
  * path and VEST's queue taken care of, for the voice table (../voices.h) -- as st_voice.h is the SmarTalk's.
  *
  * Settings, on NVDA's scales, onto the offsets VEST adds to its frames when it is asked to speak (AL=7; measured on
- * the host, 2026-11-23, G:\git-scratchpad research): VEST has no in-text settings commands.
+ * the host, 2026-11-23): VEST has no in-text settings commands.
  *   rate 0-100        CH, the rate offset: 0-50 onto 0-2 and 50-100 onto 2-5.  50 is 2, VEST's own (its start-up
  *                     announcement's), the speed first heard.  A sentence took 5.4, 4.5, 3.5, 2.8, 2.2 s at 0-4; at 5,
  *                     1.4 s, and VEST makes the pitch flat there by itself; above 5 it is no faster
