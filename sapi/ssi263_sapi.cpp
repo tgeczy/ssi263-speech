@@ -468,16 +468,16 @@ public:
                     int m=g_api.find("mockingboard:mockingboard"),q=g_api.find("mockingboard:early");
                     int de=g_api.find("blazie:blazie_de"),it=g_api.find("blazie:blazie_it"),sk=g_api.find("blazie:blazie_sk");
                     int so=g_api.find("speakout:speakout"),sb=g_api.find("speakout:soundingboard");
-                    int st=g_api.find("smartalk:smartalk");
+                    int st=g_api.find("smartalk:smartalk"),sp=g_api.find("synphonix:vest");
                     if(idx==sb&&so>=0&&g_api.available(so,g_fwdir))idx=so;   /* 0.8.5: the Sounding Board as the
                                                                                  Speak-Out, its sibling */
                     else if(idx==e&&g_api.available(s,g_fwdir))idx=s; else if(idx==s&&g_api.available(e,g_fwdir))idx=e;
-                    else if((idx==m||idx==q||idx==de||idx==it||idx==sk||idx==st
+                    else if((idx==m||idx==q||idx==de||idx==it||idx==sk||idx==st||(sp>=0&&idx==sp)
                              ||!strncmp(g_api.info(idx)->id,"blazie:",7))&&g_api.available(e,g_fwdir))idx=e;
                                                       /* either Mockingboard, 0.8's German, Italian and Slovak
-                                                         units, the SmarTalk and every other Braille Lite voice
-                                                         (the release table's), as ssi_voice's fallback would
-                                                         speak them: the English Braille Lite */
+                                                         units, the SmarTalk, the SynPhonix and every other Braille
+                                                         Lite voice (the release table's), as ssi_voice's fallback
+                                                         would speak them: the English Braille Lite */
                 }
 #endif
                 ssv_boot b; ssi_boot(&o,&b); g_api.bank_boot(g_bank,&b);

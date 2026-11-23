@@ -574,7 +574,8 @@ def order_gaps(found):
 # now offers is itself reported, so none outlives its port.
 PENDING = {
     # the Artic SynPhonix (0.9.5, Tomi): in the voice table and the NVDA add-on first, then Tomi's ears, then the rest
-    ("synphonix:vest", "sapi"): "after Tomi has heard the NVDA voice",
+    ("synphonix:vest", "sapi"): "ported (build.ps1 stages it; --sapi-stage nvda/dist/sapi-dev shows it); the 0.9.2 "
+                                "final stage predates it -- this entry is reported once the 0.9.5 stage is built",
     ("synphonix:vest", "linux"): "after Tomi has heard the NVDA voice",
     ("synphonix:vest", "android"): "after Tomi has heard the NVDA voice",
 }

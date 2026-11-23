@@ -94,7 +94,10 @@ NATIVE_ONLY = ("mockingboard:mockingboard", "mockingboard:early", "blazie:blazie
                "speakout:soundingboard",
                # Automated Functions' SmarTalk (PR 24): no 0.7.0 driver; its host is held to smartalk.py by
                # tools/check_st_host.py
-               "smartalk:smartalk")
+               "smartalk:smartalk",
+               # 0.9.5: Artic's SynPhonix (#90): no 0.7.0 driver; its host is held to synphonix.py by
+               # tools/check_sp_host.py
+               "synphonix:vest")
 # 0.8: and the release table's Braille Lite voices (src/csrc/blazie/bl_languages.txt): no Python server for them --
 # held to the native serve host, as the others above
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "csrc", "blazie"))

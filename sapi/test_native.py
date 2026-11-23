@@ -83,7 +83,7 @@ TEXTS = {
 }
 # the voices with no Python reference, held to themselves (own_checks)
 NATIVE_ONLY = ["mockingboard:mockingboard", "mockingboard:early", "blazie:blazie_de", "blazie:blazie_it",
-               "blazie:blazie_sk", "smartalk:smartalk"]
+               "blazie:blazie_sk", "smartalk:smartalk", "synphonix:vest"]
 OWN_AFTER = {"blazie:blazie_de": "Mein Computer"}   # the text alone and after the cancel (else "OK button")
 OWN = [("default", TEXTS["en"][0], 50, 50), ("numbers and money", TEXTS["en"][1], 50, 50),
        ("faster, higher", TEXTS["en"][0], 75, 60), ("slowest, highest", TEXTS["en"][0], 0, 100),
