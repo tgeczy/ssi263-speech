@@ -15,12 +15,17 @@
 // - a cancel is a generation: a request hands audio over only while it is the current one and was not cancelled;
 // - the render block completes only when the buffer is drained and the request finished, since an empty buffer is
 //   also what a request looks like before its first block arrives; it captures the buffer, not the unit;
-// - an empty request completes with a moment of silence, never a demo phrase.
+// - a request that makes no sound -- an empty one, or text the unit stays silent on -- completes with a moment of
+//   silence, never a demo phrase and never no frames at all.
 //
 // MIT.
 
 import AVFoundation
 import os
+
+/// The host-side test's controls (SSI263_EXTENSION_BREAK, ExtensionTests.swift; never set in the extension): `silent`
+/// lets a request that made no sound complete with no frames (#61).
+private let control = ProcessInfo.processInfo.environment["SSI263_EXTENSION_BREAK"] ?? ""
 
 private let log = Logger(subsystem: "com.ssi263speech.app.synth-extension", category: "speech")
 
@@ -31,6 +36,7 @@ final class RenderState: @unchecked Sendable {
     private var offset = 0
     private var generation = 0
     private var finished = true
+    private var handed = false                          // the request has handed over a frame
 
     /// A new request: everything before it dropped.  Its generation.
     func begin() -> Int {
@@ -39,6 +45,7 @@ final class RenderState: @unchecked Sendable {
         samples.removeAll(keepingCapacity: true)
         offset = 0
         finished = false
+        handed = false
         lock.broadcast()
         return generation
     }
@@ -65,13 +72,20 @@ final class RenderState: @unchecked Sendable {
         let scale = volume / 32768
         samples.reserveCapacity(samples.count + n)
         for i in 0..<n { samples.append(Float32(pcm[i]) * scale) }
+        if n > 0 { handed = true }
         lock.broadcast()
         return true
     }
 
+    /// The request is done.  One that handed over nothing -- text the unit stays silent on, at Pauses Off, or a request
+    /// that could not be spoken -- gets a moment of silence, so the system moves on (#61).
     func finish(_ g: Int) {
         lock.lock(); defer { lock.unlock() }
         guard g == generation else { return }
+        if !handed && control != "silent" {
+            samples.append(0)
+            handed = true
+        }
         finished = true
         lock.broadcast()
     }

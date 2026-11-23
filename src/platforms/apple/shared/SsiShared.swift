@@ -238,7 +238,10 @@ enum SsiShared {
 
     /// A fresh UserDefaults each time: a long-lived one is not guaranteed to see the other process's writes
     /// promptly, which looks exactly like "the app's sliders do nothing" (dt-iPhone).
-    static func defaults() -> UserDefaults? { UserDefaults(suiteName: appGroup) }
+    static func defaults() -> UserDefaults? { defaultsOverride ?? UserDefaults(suiteName: appGroup) }
+
+    /// The host-side tests' settings in place of the App Group's (test/test_extension.sh); never set in the apps.
+    static var defaultsOverride: UserDefaults?
 
     static func load() -> Settings {
         var s = Settings()

@@ -135,6 +135,8 @@ carries no firmware at all (Android's checks, plus Aicom's files). The icon is d
     sh src/platforms/apple/test/test_installer.sh                  the app's import on the real firmware, as the app runs it,
                                                                    then the unit tab's catalog and two units started
     SSI263_UNIT_BREAK=factory sh src/platforms/apple/test/test_installer.sh             control: must FAIL
+    sh src/platforms/apple/test/test_extension.sh                  the speech extension as the system drives it
+    SSI263_EXTENSION_BREAK=silent sh src/platforms/apple/test/test_extension.sh   control: each FAILs
     SSI263_IMPORT_BREAK=1|unopened|state|speakout|accent|release|soundingboard|smartalk|smartalkname|export sh .../run_swift_tests.sh   controls
 
 `test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's
@@ -195,6 +197,7 @@ Windows DLLs: `SSI263_ANDROID_TEST_ONLY=bl,ra,num,so,mini,st,import`.
 | `app/Assets.xcassets`, `tools/make_icon.swift`, `tools/make_icon.sh` | The icon: "263" over a sound wave on deep blue, drawn in code, opaque |
 | `test/test_apple_core.py` | Each runnable slice against the desktop program, byte for byte, with its control |
 | `test/InstallerTests.swift`, `test_installer.sh` | The app's FirmwareInstaller (inspect, then the Job's commit: the Braille Lite's state made and checked, each unit heard) on the repository's firmware against the macos-arm64 slice, in a temporary folder in place of the App Group's |
+| `test/ExtensionTests.swift`, `test_extension.sh` | The speech extension's Audio Unit made directly, its requests rendered until Complete on the English Braille Lite: a request that makes no sound still hands over a frame (#61); the control |
 | `test/FirmwareImportTests.swift`, `run_swift_tests.sh` | The import's layouts and words with a fake native side, the zip forms and the real tools' zips; the controls |
 | `test/test_apple_speech.c`, `.py` | The Apple front end's own C: the SSML and pauses, each voice's requests against their segments' own PCM, a stop, Aicom's files, the releases; the controls |
 | `test/release_voices.py` | The release voices' files for the tests: each .BNS found by content, its state made once and checked against the table |
