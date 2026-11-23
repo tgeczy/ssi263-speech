@@ -2,11 +2,12 @@
 // (SSI263Core's macos-arm64 slice) -- on the repository's own firmware, in a folder of its own in place of the App
 // Group's: each unit's files end up in the unit folder, labelled, and SsiShared sees each voice as installed -- and
 // the Mockingboard from the toolkit's disk image, in MOCKINGBOARD_DISKS (paths.local).  Then the Braille Lite unit
-// tab's catalog on what was imported, and two units started (a release unit's first state made).  Skips what is not
-// there.
+// tab's catalog on what was imported, and two units started (a release unit's first state made); and the tab's unit
+// running on after the system stops its sound (#60).  Skips what is not there.
 //
 //     sh src/platforms/apple/test/test_installer.sh
 //     SSI263_UNIT_BREAK=factory sh ...      the control: a release unit's first state not made, so its start must FAIL
+//     SSI263_UNIT_BREAK=restart sh ...      the control: the tab's sound left stopped when the system stops it
 import Foundation
 
 let repo = URL(fileURLWithPath: CommandLine.arguments[1])
@@ -278,6 +279,31 @@ if let e = entries.first(where: { $0.key == "bl-en" }), let saved = UnitCatalog.
     } catch {
         unitCase("files into the \(e.name)'s flash", false, error.localizedDescription)
     }
+}
+
+// The tab's unit running as the tab runs it (UnitRunner, its sound muted), then its audio engine stopped as the system
+// stops it -- an output device with another rate or channel count stops the engine and posts
+// AVAudioEngineConfigurationChange (its documentation) -- and the unit must run on: it runs only while its sound is
+// pulled (#60).
+if let e = entries.first(where: { $0.key == "bl-en" }) {
+    let runner = UnitRunner()
+    do {
+        try runner.start(e, volume: 0, quick: false, doubleSpeed: false,
+                         idle: UnitRunner.Idle(sound: 0, keepOpen: 0, popClick: false, tick: false))
+        runner.engine.mainMixerNode.outputVolume = 0
+        RunLoop.main.run(until: Date() + 0.5)
+        let ran = runner.rendered
+        runner.engine.stop()
+        NotificationCenter.default.post(name: .AVAudioEngineConfigurationChange, object: runner.engine)
+        RunLoop.main.run(until: Date() + 0.5)
+        let stopped = runner.rendered
+        RunLoop.main.run(until: Date() + 0.5)
+        unitCase("the \(e.name) runs on after the system stops its sound", ran > 0 && runner.rendered > stopped,
+                 "\(ran) frames before, \(runner.rendered - stopped) in the half second after")
+    } catch {
+        unitCase("the \(e.name) runs in the tab", false, error.localizedDescription)
+    }
+    runner.stop()
 }
 
 try? FileManager.default.removeItem(at: root)

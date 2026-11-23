@@ -9,6 +9,8 @@ import AVFoundation
 import Foundation
 import os
 
+private let log = Logger(subsystem: "com.ssi263speech.app", category: "unit")
+
 final class UnitRunner {
     static let rate = 22050.0
 
@@ -18,14 +20,16 @@ final class UnitRunner {
         var unit: OpaquePointer?
         var chord = chord_state()
         var bars: Int32 = 0
+        var rendered = 0                                    // the frames the unit has run
         let pcm = UnsafeMutablePointer<Int16>.allocate(capacity: 1024)
         deinit { pcm.deallocate() }
     }
 
     private let core = Core()
-    private let engine = AVAudioEngine()
+    private(set) var engine = AVAudioEngine()
     private var source: AVAudioSourceNode?
     private(set) var running: UnitCatalog.Entry?
+    private var observers: [NSObjectProtocol] = []
 
     /// The Braille Lite's idle channel, as the GTK shell's Settings menu sets it (emu_set_idle): sound 0 silent, 1
     /// hiss, 2 whine, 3 as the unit (hiss at even volumes, whine at odd); keepOpen 0 off, 1 until the unit clicks off,
@@ -34,7 +38,34 @@ final class UnitRunner {
         var sound: Int32 = 3, keepOpen: Int32 = 1, popClick = true, tick = true
     }
 
-    deinit { stop() }
+    /// The system's word that it stopped the sound, so the sound starts again (#60): the unit runs only while its
+    /// sound is pulled, and otherwise froze, silent, while the tab still said it was on.  An output device with another
+    /// rate or channel count stops the engine and uninitialises it (AVAudioEngineConfigurationChange); on iOS an
+    /// interruption (a call, Siri, an alarm) stops it until it ends, and a media services reset leaves it unusable.
+    init() {
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil,
+                                            queue: .main) { [weak self] note in
+            guard let self = self, note.object as AnyObject? === self.engine else { return }
+            self.restartSound()
+        })
+        #if os(iOS)
+        observers.append(center.addObserver(forName: AVAudioSession.interruptionNotification, object: nil,
+                                            queue: .main) { [weak self] note in
+            let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            if raw.flatMap(AVAudioSession.InterruptionType.init) == .ended { self?.restartSound() }
+        })
+        observers.append(center.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil,
+                                            queue: .main) { [weak self] _ in
+            self?.restartSound(newEngine: true)
+        })
+        #endif
+    }
+
+    deinit {
+        stop()
+        observers.forEach(NotificationCenter.default.removeObserver)
+    }
 
     /// Starts the unit (the one running is saved and stopped first), with the double-speed upgrade fitted or not, and
     /// `hold`'s keys held for its first 2 s (emu_hold_at_start: one-handed mode's dot 6 or dot 3; 0 for none).
@@ -153,10 +184,36 @@ final class UnitRunner {
         return String(String.UnicodeScalarView(cells.prefix(Int(n)).compactMap { Unicode.Scalar(0x2800 + UInt32($0)) }))
     }
 
+    /// How far the unit has run, in frames: it runs only while the audio engine pulls its sound.
+    var rendered: Int {
+        core.lock.lock()
+        defer { core.lock.unlock() }
+        return core.rendered
+    }
+
     private func withUnit(_ body: (OpaquePointer) -> Void) {
         core.lock.lock()
         defer { core.lock.unlock() }
         if let u = core.unit { body(u) }
+    }
+
+    /// The sound started again after the system stopped it, the unit kept as it was; with a new engine after a media
+    /// services reset.  The tests' control (SSI263_UNIT_BREAK=restart) leaves it stopped, as before.
+    private func restartSound(newEngine: Bool = false) {
+        guard running != nil, UnitCatalog.control != "restart", newEngine || !engine.isRunning else { return }
+        if let s = source {
+            if !newEngine {
+                engine.stop()
+                engine.detach(s)
+            }
+            source = nil
+        }
+        if newEngine { engine = AVAudioEngine() }
+        do {
+            try startSound()
+        } catch {
+            log.error("the unit's sound did not start again: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     /// The unit's PCM, pulled by the audio engine at the sound card's pace.
@@ -177,6 +234,7 @@ final class UnitRunner {
                 let n = min(1024, Int(frames) - done)
                 if let u = core.unit {
                     emu_render(u, core.pcm, Int32(n))
+                    core.rendered += n
                     for i in 0..<n { out[done + i] = Float(core.pcm[i]) / 32768 }
                 } else {
                     for i in 0..<n { out[done + i] = 0 }

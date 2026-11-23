@@ -27,8 +27,9 @@ enum UnitCatalog {
             .appendingPathComponent("Braille Lite units", isDirectory: true)
     }
 
-    /// The tests' control (SSI263_UNIT_BREAK=factory; never set in the app): a release unit's first start skips
-    /// making its state, as if it shipped one -- so its start must fail.
+    /// The tests' controls (SSI263_UNIT_BREAK; never set in the app): `factory`, a release unit's first start skips
+    /// making its state, as if it shipped one -- so its start must fail; `restart`, the tab's sound is left stopped
+    /// when the system stops it (UnitRunner, #60).
     static var control = ProcessInfo.processInfo.environment["SSI263_UNIT_BREAK"] ?? ""
 
     /// The units whose firmware is in the unit folder, in the catalog's order.
