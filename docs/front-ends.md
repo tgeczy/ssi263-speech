@@ -267,3 +267,166 @@ is in [`firmware/automated-functions-smartalk/README.txt`](../firmware/automated
   it still spelled single letters and made acronyms worse, so it stays off.
   `tools/check_st_voice.py` checks all of this, with a control (`ST_TEXT_BREAK=1`) that puts the
   old text back.
+
+## Artic SynPhonix 215 (research host)
+
+The host is `src/hosts/synphonix.py`, in Python on MAME's 8086 (`pc86`). It is a research host only: no C port, no
+voice and no front end lists it yet. It runs Artic's own DOS text-to-speech for its internal cards, `VEST.COM`
+("Visions Enhanced Speech Translator", version 1.60 English, the "Special Release For Artic Visions" that Business
+Vision 3.08 loads first), unchanged. `VEST.COM` is not in the repository; its drop-in folder's README
+([`firmware/artic-synphonix/README.txt`](../firmware/artic-synphonix/README.txt)) says what goes there. Its first
+clips were heard on 22 November 2026: at XCK = 1 MHz the speed sounded close to a real TransPort's, whose own VEST
+should be much the same program. That is an ear, not a measurement.
+
+- **The card:** an ISA card with the Artic-263 and little else. The text-to-speech, its letter-to-sound rules,
+  numbers and lexicon are all in `VEST.COM`, a TSR on the PC. Business Vision (`BVISION.COM`) and other programs
+  give it text.
+- **The machine:** the host loads `VEST.COM` as DOS would, with no switches (IRQ 7, as `BV.BAT`), until it goes
+  resident. It hooks INT 8, 9 and the card's IRQ 7. The card, read from VEST's code and confirmed by it speaking
+  (addresses are the `.COM`'s, CS:0100 being the file's first byte):
+
+  | Port | What it is |
+  |---|---|
+  | 2E0h–2E5h | the card's key: "AR" (41h 52h), then four bytes of the card's serial number, each inverted, two decimal digits a byte. VEST takes the first card it finds from 2E0h down to 0E0h in steps of 20h (the MAP jumper) |
+  | 2E8h–2ECh | the chip's R0–R4, eight above the key. Every byte is rotated left one bit before it is written (0D27: `NOP; ROL AL,1; RET`): the card's data lines reach the chip one place over. VEST rotates only when the key's first two digits are 25, a "2X5 type" card |
+  | 2E8h, read | the switch interface's pedals, bits 6 and 7, read only when Business Vision turns its turbo on; the host reads them high (no pedal pressed), a guess |
+  | IRQ 7 | the chip's A/R. The handler (0AFA) sends the next frame, R1 to R4 and then R0, with a delay loop between writes, and ends with a specific EOI (67h). With nothing queued it keeps sending pauses at the slowest rate |
+
+  Before it settles on the ISA card VEST looks for three others: a Micro Channel card through the PS/2 POS
+  registers (adapter ID FF70h), a card at 2F8h on IRQ 3, and a key in an option ROM between C000h and EC00h. Which
+  SynPhonix models these were is not shown; the host offers none of them.
+- **The serial check:** each copy of VEST holds the serial of the card it was sold with, encoded at 09BC. With a key
+  of any other serial it says nothing and sends every write to 3F0h instead. About every 143 interrupts the handler
+  also re-reads one key byte and ends the program if it looks wrong. The host gives the card the key its copy of VEST
+  expects: it finds the comparison's code in the file and reads the encoded serial back, so no serial is written in
+  the repository and another copy finds its own card (`tools/check_synphonix_host.py`, "another copy").
+- **How programs reach it:** this special release does not install the SONIX software interrupt (the user vectors
+  60h–67h). Business Vision instead searches memory, a paragraph at a time from 0100:0, for VEST's signature (words
+  0038h at 01E0, 1D2Dh at 01E2, 7A83h at 012A) and calls far, after PUSHF, the address at 01E4 (0558). AL selects
+  the function:
+
+  | AL | What it does |
+  |---|---|
+  | 7 | speak ES:SI, DI characters, with CH, CL, DH and DL the rate, amplitude, pitch and filter offsets VEST adds to its frames |
+  | 1 | cut speech: the queue emptied and a silent R0 written |
+  | 3 | set those offsets alone |
+  | 4, 5 | send at once, or queue, one frame of five register values |
+  | 6 | queue a pause |
+  | 0 | reset the chip (the queue is left) |
+  | 2 | read status: AH = 1 while idle |
+  | 0Eh | how the switch interface's pedals act (BL, BH: what each pedal does to the rate and amplitude) |
+  | 0Fh | the pedals' last reading |
+  | 10h | whether the text module was stopped mid-call |
+
+  AL=4 and AL=5 are raw frames, the only ones in either program: AH goes to R0, BL to R1, BH to R2, CL to R3 and
+  CH to R4. AL=4 writes them at once; AL=5 queues them behind speech, with the offsets below added. Business
+  Vision itself calls AL=5 (BVISION 5155, not run).
+- **What a caller can change:** VEST has no number processor and no in-text commands but two.
+  - *Numbers* are always read digit by digit; "$" is read "dollars" before the number, "%" "percent", "&" "and".
+    Business Vision's Number Processor is Business Vision's own: the number words ("hundred,", ".- thousand,",
+    ".- .- million,") are in `BVISION.COM` and `TVISION.COM`, not in VEST. A voice on VEST would bring its own
+    number words, as the SmarTalk's does.
+  - *Pitch steps in the text:* a word that is exactly `.+` or `.-` raises or lowers the pitch of what follows by 8
+    on R1 (up to 78h), from the start of each call. Business Vision's number words use them.
+  - *Offsets, with AL=7 or AL=3:* CH is added to R2's rate nibble (saturating at E); CL to the amplitude (saturating
+    at F; 10h and above count down, never below 1); DH, times 8, to R1 (20h and above count down); DL is written as
+    R4, the filter. At a rate offset of 5 or more VEST makes the pitch flat by itself.
+  - *AH, an option byte with AL=7:* bits 0–3 each switch on one of four exception dictionaries, bit 4 another kind
+    of dictionary in the segment passed in BX (its entries not decoded), bit 6 flat inflection (Business Vision's
+    "Inflection Flat"), and bit 7 makes VEST queue nothing. The four dictionaries belong to the caller: it writes
+    their segments into the text module at 110h–116h (Business Vision at BVISION 106B). Each holds a count (word 0),
+    the binary search's first step (word 2), then from index 1 four bytes an entry (the text's offset, the word's
+    length, the replacement's length), the word in capitals followed by its replacement, which VEST reads through
+    its rules. Only the first word of each call is looked up; Business Vision sends one word a call.
+- **Its hooks:** INT 9 cuts speech on Alt (scan code 38h) or Ctrl then X (the words at 1E0h and 1E2h, which
+  Business Vision rewrites with its own keys and also uses to find VEST); `/K-` leaves the keyboard alone. INT 8
+  is a watchdog: after 10 timer ticks with no A/R it restarts the chip with its start-up writes.
+- **Its switches:** `/I=2`, 3, 5 or 7 (the IRQ), `/B=0` to 9 (the queue's size), `/E` (load into EMS), `/K-`, and
+  `/!`. Run a second time, it prints a report of the copy already loaded. Its "PortTalk Module Loaded" line only
+  says that a program has claimed VEST (18Ch–18Eh, set by Business Vision): VEST parses no PortTalk, and a Ctrl-E in
+  its text is dropped.
+
+- **Its start-up:** R2 = F8h, R4 = E9h, R3 = 82h, R0 = EBh, R3 = 52h (mode 3, transitioned inflection), then it
+  speaks its own announcement, "Visions Enhanced Speech Translator. 1 point 6 0", with rate offset 2 and filter E6h.
+  The host's `say()` uses the same offsets by default, and `boot()` lets the announcement play out silently.
+  Typical frames carry articulation 5, amplitude about A, filter E6h and rates B to E.
+- **The TransPort, as TVISION drives it.** `TVISION.COM` was run with an emulated COM1, answering it by hand
+  (`tools/artic/tvision_serial.py`, research only); what it sent:
+  - *Start-up:* 9600 baud, 8 bits (divisor 12, LCR 03h). A space; a BREAK for 5 timer ticks; `^E$ ` (reset);
+    `^EN0 ` (the TransPort's number processor off, Business Vision doing its own); `^E~? `, to which it
+    wants a reply starting "TP" within about a second (an identity: "Artic TransPort is not responding" otherwise);
+    Ctrl-A `Q` and a carriage return; then `^E~*` and three bytes made from the timer tick, a challenge: the
+    TransPort answers with its serial number scrambled by them (16 entries of two nibble bytes, with padding), and
+    TVISION refuses to load unless it matches the serial in TVISION. In the stand-in that comparison was skipped.
+  - *Each utterance:* `^EW ^EIZ ^EQ `, then it waits for one byte back (any but XON or XOFF): by the manuals, wait
+    for the speech before it, set index marker Z and ask for it, so the byte comes once the last utterance is
+    spoken; then `^EZ` and seven
+    characters, three digits (the voice's rate, pitch and volume, in some order), the tone as a letter and two
+    characters of option bits (40h plus the bits); then the text one word at a time, each ended by a carriage
+    return, with its `.+` and `.-` inside.
+  - *Other:* Ctrl-X cuts; `^E%` and a carriage return asks for the switch interface's state, answered ACK, "P" and
+    two hex digits (VEST's AL=0Fh on the card); XON and XOFF pace it.
+  TVISION sends no raw frames and reads no memory.
+- **What Artic's manuals say.** The TransPort's (`TRANSPRT.DOC`, Appendix C, "TransPort Commands", on the
+  Business Vision disk), the Mini TransPort's (`MINIPORT.DOC`, Appendix B, "Mini TransPort Speech Commands"), the
+  TransType's (`TRANSTYP.DOC`) and the TransBook's (`TRANSBOK.DOC`) give one list, "provided for use by software
+  developers". A command is Ctrl-E, a letter and a value, ended by a space or any control character
+  (`PORTTALK.DOC`, PortTalk 88 version 1.10, page 2-9):
+
+  | Command | What it does |
+  |---|---|
+  | R, P, V *n* | rate, pitch, volume, 0 to 9 |
+  | T *letter* | tone, A to Z |
+  | N, F, A, S *n* | number processor, flat pitch, acronyms, spelling: 0 off, 1 on |
+  | H *n* | host time-out, 0 to 9 |
+  | I *letter* | set the speech index marker, A to Z |
+  | Q | query the index marker |
+  | W | wait for speech to complete; "W followed by Q" sends the marker back once the text before it is spoken |
+  | $ | reset |
+  | Ctrl-X | abort speech (instant flush) |
+  | Ctrl-A P | read the turbo port (the pedals) |
+
+  The units also take Accent commands (ESC and letters, as the Accent SA's) with no switch between the two, but
+  power up with other defaults than an Accent ("You must send an Accent reset"). PortTalk 1.10 for the SynPhonix
+  had R, V, P, T, N and also L (line pauses, 0 to 4), not in the TransPort's list. No manual has `^E~?`, `^E~*`,
+  `^EZ`, `^E%` or Ctrl-A Q, nor any phoneme, raw-frame, register or ROM-reading command, nor more about numbers
+  than N on and off. The Mini TransPort's manual says VEST is in the unit: "VEST.COM is a permanent part of Mini
+  TransPort and starts every time you turn it ON" (`MINIPORT.DOC`, Chapter 1, "Controlling Mini TransPort with
+  Business Vision"); the TransPort 615's lists the "VEST Text-to-Speech Algorithm" (`TRANSPRT.DOC`, Appendix D).
+- **A Mini TransPort, over its serial port** (22 November 2026, 9600 baud 8N1, `MPSET.DOC`'s default; every byte
+  back logged, the speech heard by its owner, not recorded). The unit's software version was not read.
+  - `^E~? ` is answered within 60 ms by "TP" and eight digits, with no carriage return. The digits are not written
+    here.
+  - `^EIZ ^EW ^EQ ` after a text is answered "Z" when the text has been spoken: four times "Hello, this is a test of
+    the TransPort." took 2.90 to 2.92 s from its first byte to the "Z". `^EQ` alone answers the last marker set at
+    once; W and IZ alone send nothing and change nothing heard.
+  - "It costs $12.50 for 1995 items." with `^EN1` was heard as "costs twelve point five zero dollars"; with `^EN0`,
+    "dollar one two point five zero", digit by digit with "dollar" first, as VEST reads numbers on the card. How
+    "1995" was read was not noted.
+  - "one .+ two .+ three .- four", one word a line (as TVISION sends it) and on one line, was heard as "one two
+    three four" both times: the marks are not read out. Whether the pitch stepped was not judged.
+  - `^EZ ` with no characters after it made the next sentence take 5.2 s instead of 2.1 s, and the speech stayed
+    slow until `^E$ `. That fits Z carrying the rate (TVISION's three digits) with nothing read as the slowest;
+    Z with digits was not tried.
+  - `^E$ ` brings the rate back; the pitch after it was a little lower than at the start of the session.
+  - Ctrl-A Q and a carriage return is answered ACK "Q+" CR, then ACK "PFF+" CR; Ctrl-A P and a carriage return
+    (the manual's "Read Turbo Port") ACK "PFF+" CR, with nothing pressed. Both are framed as STANDCOM's packets are
+    (Ctrl-A, a letter, a carriage return). `^E%`, ended by a carriage return or a space, is not answered: on the
+    Mini TransPort the pedals are read with Ctrl-A P. Whether a TransPort 615 answers `^E%` was not tried.
+  - Heard against the research host (XCK = 1 MHz, the same sentence, 2.46 s of sound), the speed was the same and
+    the unit's pitch lower, after `^E$ `. A different clock would move the speed and the pitch together, so the
+    lower pitch is most likely the TransPort's default pitch setting, not its clock. That is an ear and a timing
+    through the serial port (which holds the unit's own delays), not a measurement of its audio.
+- **The other programs on its disk:** `SETVEST.COM` "calibrates VEST for faster computers" with a number from 1 to
+  255, probably the delay between register writes (100 in the file, at 01DE); not checked. `TVISION.COM` is
+  Business Vision for the TransPort on a COM port, and the disk's `TVMOD.EXE` (a plain zip) carries `TPSET.COM`,
+  Artic's 1992 utility for the TransPort's serial settings.
+- **Checks:** `tools/check_synphonix_host.py` (in `nvda/tools/run_tests.py` and `tools/linux_tests.sh` when
+  `VEST.COM` is in its folder): VEST loads and finds its card with its own start-up writes, its announcement and a
+  sentence with numbers and money give their golden phonemes, a copy with another serial finds its own card, and a
+  cut leaves nothing spoken after it. Five must-fail controls (`SYNPHONIX_HOST_BREAK`): a key one digit off, the
+  bytes not rotated back, the specific EOI ignored, a cut by AL=0, and the key made once per process.
+- **Not known or not done:** the SynPhonix's chip clock, measured (see [open-questions.md](open-questions.md), "The
+  clocks"; a Mini TransPort's speed by ear matches 1 MHz); what Business Vision's Rate, Pitch, Volume and Tone
+  settings send as offsets; the second dictionary's entries; the order of `^EZ`'s characters and what `~?`'s
+  digits and Ctrl-A Q's "Q+" mean; and Business Vision itself, which was not run.

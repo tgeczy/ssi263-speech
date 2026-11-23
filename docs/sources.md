@@ -71,7 +71,9 @@
   software, manuals and audio from the 1990s and before: the SmarTalk disk and recordings, Telesensory's Screen
   Power, MicroTalk's ASAP manual of 1991, and Artic's Mini TransPort and Spirit manuals). The National Federation of
   the Blind's NFBnet file areas keep Artic's 1997 catalogue and Business Vision demo with its TransPort manual, and
-  the Internet Archive's Wayback Machine keeps Artic's website. The SpeechChips.com museum's SSI-263 exhibit
+  the Internet Archive's Wayback Machine keeps Artic's website. A Business Vision 3.08 disk set (VEST 1.60, the screen
+  reader for the SynPhonix and the TransPort, and the Version 3 manual as a text file) came from a user's copy; it has
+  not been compared with NFBnet's 1993 demo. The SpeechChips.com museum's SSI-263 exhibit
   pointed us to Atari's 1984 voice handler specification (the Atari Museum's archive), Burke & Burke's
   advertisements (the Color Computer Archive), Artic's 1984 advertisement in PC Magazine (the Internet Archive),
   the Trace Center's resource books of 1987 and 1988 (ERIC ED283307 and ED297505) and Silicon Systems' 78A263A

@@ -299,7 +299,9 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 - **Artic's SynPhonix SP-21X** (marking). Revision 3, "COPYRIGHT 1987,91 BY ARTIC TECHNOLOGIES": an ISA card with
   the speaker on the card, treble and volume knobs, and a 15-pin socket for Artic's switches. Two photographed cards
   carry ARTIC 263 dated SA9117 and ARTIC263 dated CD9226 (1992). Its 8 KB EPROM holds only an 8-byte key, repeated,
-  which Artic's software, serialised to each card, appears to check.
+  which Artic's software, serialised to each card, appears to check. VEST (see 1992) does check one: six bytes at the card's
+  I/O address, "AR" and four of serial, against the serial stored in the program. That it reads this EPROM is likely
+  but not shown.
 - **The BrailleMate** (ear, document). Telesensory's hand-held braille notetaker, described in 1991 as a
   computerised Perkins brailler that also kept notes, a calendar and a phone directory. A September 1993 product
   list gives it a braille keyboard and a single 8-dot braille cell, an "optional built-in speech synthesizer", model
@@ -331,6 +333,14 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   Artic's Business Vision screen reader onto a PC from its own ROM. The 611 is the same without Business Vision. An
   owner writing on misc.handicap in October 1992 found its speech indistinguishable from the SynPhonix card's unless
   turned all the way up. It cost $1,295.
+- **Artic's VEST on disk** (firmware). `VEST.COM` 1.60 English, "Visions Enhanced Speech Translator", the "Special
+  Release For Artic Visions" (copyright 1984 to 1992), survives on a Business Vision 3.08 disk (1993), loaded by its
+  `BV.BAT` before the screen reader. It is the whole text-to-speech, rules, numbers and lexicon, resident on the PC;
+  the SynPhonix 215 is the chip and a key. It finds the card by a six-byte key ("AR" and four bytes of serial number)
+  at 2E0h or one of 16 places below it, writes the chip's registers eight above, each byte rotated one bit for the
+  card's wiring, and sends one frame per A/R request on IRQ 7. Each copy holds the serial of the card it was sold
+  with and stays silent on any other. It runs in this project's research host (see
+  [front-ends.md](front-ends.md), "Artic SynPhonix 215").
 
 ### 1993 to 1996
 
@@ -594,6 +604,21 @@ So the names people see say Accent-PC from 0.9.5. Nothing about the sound change
 speech-dispatcher still takes the old name. The true Accent SA is a different machine and would be a voice of its own.
 On 2026-11-22 the code's own names followed (Tomi): the folder `src/csrc/accentsa` became `accentpc`, and the Python
 hosts, the research library, the test switches and the voice constants say Accent-PC; the saved names above stay.
+
+## 2026-11-22: Artic's own VEST speaks
+
+A Business Vision 3.08 disk brought the missing piece for an Artic voice: `VEST.COM` 1.60, the text-to-speech the
+SynPhonix cards ran on the PC. Read from its code, then run on MAME's 8086 with an emulated SynPhonix 215 around it
+(`src/hosts/synphonix.py`), it found the card, spoke its own announcement and then any text, with its own number
+reading. What it rests on, and what is left:
+
+- The card was worked out from VEST alone: the key it looks for and where, the chip eight ports above, each byte
+  rotated one bit, IRQ 7 per request, and the entry Business Vision calls ([front-ends.md](front-ends.md)).
+- VEST refuses any card but the one it was sold with. The host reads the expected serial out of the program and
+  gives the emulated card that key, so the repository holds no serial and any copy of VEST 1.60 finds its card.
+- At XCK = 1 MHz its speed was heard as close to a real TransPort's, whose resident VEST should be much the same
+  program. That is an ear, not a measurement: the SynPhonix's clock is still open.
+- Not yet: a C port, a voice, Business Vision's own settings, and VEST's PortTalk module.
 
 ## Engine versions at a glance
 
