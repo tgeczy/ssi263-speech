@@ -1109,6 +1109,28 @@ test("theWavFileIsTheRenderWithItsHeader") {
     eq((0..<1001).map { Int16(bitPattern: UInt16(u16(44 + 2 * $0))) }, pcm)
 }
 
+// iOS's file exporter (#58): a Cancel only closes it, with no answer, and that is said as "Not exported." -- the export
+// over, so Export works again; a close after the answer says nothing more; a close with nothing open, nothing.
+test("theExportersCancelIsAnExportNotMade") {
+    var x = WavExport.Exporter()
+    x.present()
+    eq(x.open, true)
+    eq(x.closed(), "Not exported.")
+    eq(x.open, false)
+    eq(x.closed(), nil)
+    x.present()
+    eq(x.answer(.success(URL(fileURLWithPath: "/x.wav")), wrote: "Exported 1.0 seconds to the file."),
+       "Exported 1.0 seconds to the file.")
+    eq(x.closed(), nil)
+    x.present()
+    eq(x.answer(.failure(CocoaError(.userCancelled)), wrote: ""), "Not exported.")
+    eq(x.closed(), nil)
+    x.present()
+    eq(x.answer(.failure(CocoaError(.fileWriteNoPermission)), wrote: "").hasPrefix("The file could not be written: "),
+       true)
+    eq(x.closed(), nil)
+}
+
 // ---- run -----------------------------------------------------------------------------------------------------------
 
 for (name, body) in tests {

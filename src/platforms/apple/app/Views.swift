@@ -203,6 +203,7 @@ struct SetupView: View {
         #if os(iOS)
         .fileExporter(isPresented: $model.showExporter, document: model.exportDocument, contentType: .wav,
                       defaultFilename: String(model.exportName.dropLast(4))) { model.exportFinished($0) }
+        .onChange(of: model.showExporter) { shown in if !shown { model.exporterClosed() } }
         #endif
         .onAppear(perform: choosePreviewVoice)
         .onChange(of: model.voices.map { $0.label ?? "" }) { _ in choosePreviewVoice() }

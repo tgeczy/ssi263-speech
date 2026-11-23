@@ -57,4 +57,38 @@ enum WavExport {
         pcm.withUnsafeBufferPointer { d.append($0) }         // every Apple CPU is little-endian
         return d
     }
+
+    /// iOS's file exporter as an export sees it (#58).  SwiftUI calls its onCompletion when the file is written or
+    /// could not be, but a Cancel only closes it: "If the user cancels the operation, isPresented will be set to false
+    /// and onCompletion will not be called" (fileExporter's documentation; its onCancellation came with iOS 17, and
+    /// the app runs on 16).  So the exporter closing with no answer is a cancel.  Plain Swift, so the Mac's tests
+    /// drive it; the control (SSI263_IMPORT_BREAK=exportcancel) lets a close with no answer pass unsaid, as before.
+    struct Exporter {
+        private(set) var open = false
+        private var answered = false
+
+        /// The rendered WAV handed to the exporter.
+        mutating func present() {
+            open = true
+            answered = false
+        }
+
+        /// onCompletion's answer, in the words the app says.
+        mutating func answer(_ r: Result<URL, Error>, wrote: String) -> String {
+            answered = true
+            switch r {
+            case .success: return wrote
+            case .failure(let e as CocoaError) where e.code == .userCancelled: return "Not exported."
+            case .failure(let e): return "The file could not be written: \(e.localizedDescription)"
+            }
+        }
+
+        /// The exporter closed: "Not exported." when no answer came (a Cancel), nil when its answer was said or it
+        /// was not open.
+        mutating func closed() -> String? {
+            defer { open = false }
+            guard open, !answered, WavExport.control != "exportcancel" else { return nil }
+            return "Not exported."
+        }
+    }
 }

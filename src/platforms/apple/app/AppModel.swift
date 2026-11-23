@@ -52,6 +52,7 @@ final class AppModel: ObservableObject {
     @Published var showExporter = false
     @Published private(set) var exportName = ""             // the name the save dialog suggests (WavExport)
     private var exportSeconds = 0.0
+    private var exporter = WavExport.Exporter()               // iOS: the file exporter, open or answered
 
     private var job: FirmwareInstaller.Job?
     private let preview = PreviewPlayer()
@@ -236,6 +237,7 @@ final class AppModel: ObservableObject {
                 }
                 #else
                 self.exportDocument = WavDocument(data: wav)
+                self.exporter.present()
                 self.showExporter = true
                 #endif
             }
@@ -245,10 +247,17 @@ final class AppModel: ObservableObject {
     /// The file exporter's answer (iOS).
     func exportFinished(_ r: Result<URL, Error>) {
         exportDocument = nil
-        switch r {
-        case .success: exported(wrote)
-        case .failure(let e as CocoaError) where e.code == .userCancelled: exported("Not exported.")
-        case .failure(let e): exported("The file could not be written: \(e.localizedDescription)")
+        exported(exporter.answer(r, wrote: wrote))
+    }
+
+    /// The file exporter closed (iOS).  With no answer it was cancelled, which SwiftUI never answers (#58): else Export
+    /// stayed dimmed and "Exporting…" on screen until the app was quit.  Looked at a moment later, so an answer that
+    /// comes just after the close is the one said.
+    func exporterClosed() {
+        Task { @MainActor in
+            guard let s = exporter.closed() else { return }
+            exportDocument = nil
+            exported(s)
         }
     }
 

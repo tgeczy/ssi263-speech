@@ -137,7 +137,7 @@ carries no firmware at all (Android's checks, plus Aicom's files). The icon is d
     SSI263_UNIT_BREAK=factory sh src/platforms/apple/test/test_installer.sh             control: must FAIL
     sh src/platforms/apple/test/test_extension.sh                  the speech extension as the system drives it
     SSI263_EXTENSION_BREAK=silent|whine|stop sh src/platforms/apple/test/test_extension.sh   controls: each FAILs
-    SSI263_IMPORT_BREAK=1|unopened|state|speakout|accent|release|soundingboard|smartalk|smartalkname|export sh .../run_swift_tests.sh   controls
+    SSI263_IMPORT_BREAK=1|unopened|state|state-sizes|speakout|mockingboard|accent|release|soundingboard|smartalk|smartalkname|export|exportcancel sh .../run_swift_tests.sh   controls
 
 `test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's
 `libssi263core.a`, the library the apps link, and requires every case's samples and PCM hash to be the desktop
