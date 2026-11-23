@@ -4,7 +4,7 @@ and the order of the index and done notifications must be equal, and every notif
 was given (NVDA drops one whose synth is not getSynth(): the units' notifySynth).
 
     python unified_driver_equiv.py [braillelite2000 braillelite2000-es speakout accentsa accentmini mockingboard
-                                    mockingboardearly smartalk]
+                                    mockingboardearly smartalk synphonix]
     UNIFIED_EQUIV_BREAK=notify    control: the units report as themselves (notifySynth ignored) -- every case with
                                   a notification must fail on the synth, the PCM still equal
     UNIFIED_EQUIV_BREAK=memory    control: the wrapper does not forward the variant -- the variant cases must DIFFER
@@ -52,6 +52,7 @@ UNITS = {
     "mockingboard": (None, "mockingboard", None, "en"),
     "mockingboardearly": (None, "mockingboard", "early", "en"),
     "smartalk": (None, "smartalk", None, "en"),
+    "synphonix": (None, "synphonix", None, "en"),
 }
 BRAILLE_LITE = [c for c in nde.COMMON if "sr" not in c["settings"]] + [
     case("tone 0", [T("Tone zero, the lowest.")], variant="0"),
@@ -76,6 +77,13 @@ SMARTALK = [c for c in nde.COMMON] + [
     case("long text in parts", [T(nde.LONG + " " + nde.LONG + " And then some more words to say.")]),
 ]
 
+SYNPHONIX = [c for c in nde.COMMON] + [
+    case("inflection off", [T("A monotone sentence, is it not?")], voiceInflection=False),
+    case("numbers off", [T("Room 100, 45000 and $6723.")], numbers=False),
+    case("defaults again", [T("Back to Artic's own inflection.")], voiceInflection=True, numbers=True),
+    case("long text in parts", [T(nde.LONG + " " + nde.LONG + " And then some more words to say.")]),
+]
+
 
 def cases(fw):
     if fw.startswith("braillelite2000"):
@@ -86,6 +94,8 @@ def cases(fw):
         return MOCKINGBOARD
     if fw == "smartalk":
         return SMARTALK
+    if fw == "synphonix":
+        return SYNPHONIX
     return nde.ACCENT
 
 
@@ -265,6 +275,10 @@ def main():
     if not os.path.isfile(st) and "smartalk" in fws:
         fws = [x for x in fws if x != "smartalk"]
         print("note: the build has no S_TALK.EXE: the SmarTalk not compared")
+    sp = os.path.join(DIST, "ssi263-build", "synthDrivers", "_ssi263_unified", "_ssi263_synphonix", "VEST.COM")
+    if not os.path.isfile(sp) and "synphonix" in fws:
+        fws = [x for x in fws if x != "synphonix"]
+        print("note: the build has no VEST.COM: the SynPhonix not compared")
     if BREAK:
         print("CONTROL: %s" % {"notify": "the units report as themselves",
                                "memory": "the wrapper drops the variant"}[BREAK])

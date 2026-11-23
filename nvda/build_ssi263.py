@@ -6,7 +6,9 @@ their staged synthDrivers (each driver and its engine package) are moved whole i
 synthDrivers/_ssi263_unified -- so each unit here is that add-on's, file for file.  The Mockingboard's driver
 (nvda/mockingboard) is staged beside them with its engine: the shared binding, the library, its firmware file when
 the local firmware folder has it (firmware/sweet-micro-mockingboard, never in the repository; without it the voice is
-not staged) and its notices.  So is the SmarTalk's (nvda/smartalk), with Automated Functions' S_TALK.EXE when
+not staged) and its notices.  So is the Artic SynPhonix's (nvda/synphonix), with VEST.COM when firmware/artic-synphonix
+has it -- only the copy whose serial is replaced by 99999999 (SP_SHA256: the archive check refuses any other).  So is
+the SmarTalk's (nvda/smartalk), with Automated Functions' S_TALK.EXE when
 firmware/automated-functions-smartalk has it -- optional in a release too: whether a release carries it is decided for
 the release, never by default here.  GW Micro's Sounding Board drivers (SBLOAD.COM, SB.COM 2.7) go with the Speak-Out's unit,
 as its SPEAKOUT.HEX does (Tomi, 2026-10-18: bundled on the desktop, imported on the phones).
@@ -41,6 +43,7 @@ MB_FILE = os.path.join(REPO, "firmware", "sweet-micro-mockingboard", "mockingboa
 MB_FILE_EARLY = os.path.join(REPO, "firmware", "sweet-micro-mockingboard", "mockingboard-tts-early.bin")
 SB_FILES = [os.path.join(REPO, "firmware", "gw-micro-sounding-board", n) for n in ("SBLOAD.COM", "SB.COM")]
 ST_FILE = os.path.join(REPO, "firmware", "automated-functions-smartalk", "S_TALK.EXE")
+SP_FILE = os.path.join(REPO, "firmware", "artic-synphonix", "VEST.COM")
 # Apple II disk images are never shipped (Tomi, 2026-10-09): the toolkit's disk also carries Apple's DOS 3.3 and
 # Sweet Micro's other programs; only the voice's own file is staged
 DISK_IMAGES = (".dsk", ".do", ".po", ".nib", ".woz", ".2mg")
@@ -61,6 +64,34 @@ from the SmarTalk V1.21 disk (Automated Functions, Inc., Arlington, Virginia). T
 free to share the new version of the SmarTalk software with anyone who needs it." It is not ours; it is here so the
 box can speak again, and it will be removed if its rights holders ask. It is not covered by this add-on's MIT license.
 """
+
+
+SP_NOTICE = """The Artic SynPhonix's text-to-speech -- notice
+
+This add-on carries Artic Technologies' text-to-speech for the SynPhonix cards: VEST.COM, version 1.60 English, the
+"Special Release For Artic Visions" (copyright 1984-1992) from a Business Vision 3.08 disk. Each copy of VEST was sold
+with one card and held that card's serial number; in this copy it is replaced by 99999999 (fourteen bytes: the
+serial check's encoded copy and the banner's), so it names no one's card, and it speaks as the original does. It is not
+ours; Artic Technologies appears to have closed long ago, and we have written to its founder. It is here so the card
+can speak again, and it will be removed if its rights holders ask. It is not covered by this add-on's MIT license.
+"""
+
+
+def stage_synphonix(unified):
+    """the SynPhonix's driver and engine, with VEST.COM and its notice; False (nothing staged) without it"""
+    if not os.path.isfile(SP_FILE):
+        print("note: no %s: the SynPhonix is not staged" % os.path.relpath(SP_FILE, REPO))
+        return False
+    shutil.copy2(os.path.join(HERE, "synphonix", "synthDrivers", "synphonix.py"), unified)
+    eng = os.path.join(unified, "_ssi263_synphonix")
+    os.makedirs(eng)
+    copy_native_binding(eng)
+    shutil.copy2(SP_FILE, eng)
+    lic = os.path.join(eng, "licenses")
+    os.makedirs(lic, exist_ok=True)
+    with open(os.path.join(lic, "SynPhonix-software-notice.txt"), "w", encoding="utf-8") as f:
+        f.write(SP_NOTICE)
+    return True
 
 
 def stage_smartalk(unified):
@@ -105,6 +136,9 @@ def stage_mockingboard(unified):
 
 U = "synthDrivers/_ssi263_unified/"
 ST_SHA256 = "6cef7bc467959960505bfd771d07f387b7bdfad25bad2b51801ae56bb8d78e6c"
+# VEST.COM with its card's serial replaced by 99999999 (SP_NOTICE): the only copy an add-on may carry -- one built with
+# anyone's own copy fails its archive check
+SP_SHA256 = "4d74b00d8541bbe1c8ca4ec21c8bb3632f054c28d6fead97ce452679db0cdb49"
 MB_SHA256 = "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"
 MB_SHA256_EARLY = "c7c049b1b61792719e21e461a2a8c25fc32c12882c81305814a3dc67af6e5835"
 
@@ -141,6 +175,11 @@ def expected_files():
         out[U + "smartalk.py"] = os.path.join(HERE, "smartalk", "synthDrivers", "smartalk.py")
         out[U + "_ssi263_smartalk/S_TALK.EXE"] = ST_SHA256
         out[U + "_ssi263_smartalk/licenses/SmarTalk-software-notice.txt"] = None
+    if os.path.isfile(SP_FILE):              # the SynPhonix, staged when its VEST.COM is here (stage_synphonix)
+        units.append("synphonix")
+        out[U + "synphonix.py"] = os.path.join(HERE, "synphonix", "synthDrivers", "synphonix.py")
+        out[U + "_ssi263_synphonix/VEST.COM"] = SP_SHA256
+        out[U + "_ssi263_synphonix/licenses/SynPhonix-software-notice.txt"] = None
     for unit in units:
         for n in ("ssi263speech.py", "ssi263_rates.py", "ssi263_flow.py", "ssi263_feed.py"):
             out[U + "_ssi263_%s/%s" % (unit, n)] = os.path.join(HERE, "shared", n)
@@ -217,6 +256,7 @@ def main():
         os.remove(os.path.join(unified, "mockingboard.py"))
         rm(os.path.join(unified, "_ssi263_mockingboard"))
     stage_smartalk(unified)
+    stage_synphonix(unified)
     shutil.copy2(os.path.join(HERE, "ssi263", "synthDrivers", "ssi263.py"), sd)
     shutil.copytree(os.path.join(HERE, "ssi263", "globalPlugins"), os.path.join(BUILD, "globalPlugins"),
                     ignore=shutil.ignore_patterns("__pycache__"))
