@@ -2994,6 +2994,14 @@ if os.path.isfile(SPX_COM) and os.path.isfile(SPX_PC86):
         CHECKS.append(check("SynPhonix host CONTROL (%s, must fail)" % what, [PY, SPX_CHECK],
                             env={"SSI263_PC86_DLL": SPX_PC86, "SYNPHONIX_HOST_BREAK": brk}, expect_fail=True,
                             fail_marks=marks))
+    # the host in C (src/csrc/synphonix/sp_host.c) = synphonix.py, write for write: boot, sentences, a cancel; the
+    # control runs the reference's chip 1 % fast
+    SP_HOST = os.path.join(REPO, "tools", "check_sp_host.py")
+    CHECKS.append(check("SynPhonix host in C = synphonix.py, write for write", [PY, SP_HOST],
+                        env={"SSI263_PC86_DLL": SPX_PC86}))
+    CHECKS.append(check("SynPhonix host CONTROL (the reference's chip 1 % fast, must fail)", [PY, SP_HOST],
+                        env={"SSI263_PC86_DLL": SPX_PC86, "SP_HOST_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^ok    the C host ran: ", r"^FAIL  every chip write: ", r"^sp host: \d FAILED$"]))
 GEN_DEFAULTS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "gen_chip_defaults.py")
 CHECKS.append(check("chip defaults header", [PY, GEN_DEFAULTS, "--check"]))
 # and on Python 3.7 (NVDA 2021-2023): the defaults must not depend on the Python version (3.12 changed float sum())
