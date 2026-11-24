@@ -151,11 +151,20 @@ control "as_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^as marks: 1 FAILED$" -- env AS_MARKS_BREAK=3 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
 control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^as marks: 5 FAILED$" -- env AS_MARKS_BREAK=4 python3 nvda/tools/as_marks.py $B/libssi263_voices.so
-# the Accent-PC voice gives back its marks' memory when destroyed (#79), under LeakSanitizer; its control leaves it
+# the Accent-PC voice gives back its marks' memory when destroyed (#79), under LeakSanitizer; its control leaves it.
+# Where gcc has no LeakSanitizer -- 32-bit ARM's has no liblsan at all (the armhf release build, 0.9.5: "cannot find
+# -llsan") -- both are skipped together, saying so; x86-64 and arm64 have it
+lsan_dir="$(mktemp -d)"
+printf 'int main(void) { return 0; }\n' > "$lsan_dir/probe.c"
+if gcc -fsanitize=leak "$lsan_dir/probe.c" -o "$lsan_dir/probe" > /dev/null 2>&1; then
 check "as_voice: a destroyed unit keeps none of its marks' memory (#79)" python3 tools/check_as_marks_leak.py $B/libssi263_voices.so
 control "as_voice marks leak CONTROL (the three arrays left, must fail)" \
     "^FAIL  leaks after three units destroyed: SUMMARY: LeakSanitizer: 384 byte" "^as marks leak: FAILED$" \
     -- env AS_LEAK_BREAK=1 python3 tools/check_as_marks_leak.py $B/libssi263_voices.so
+else
+echo "skip  as_voice marks leak (#79) and its control: this gcc has no LeakSanitizer ($(uname -m))"
+fi
+rm -rf "$lsan_dir"
 # the Accent-mini speaks a long text item whole (#67: cut at 30 s as a stall); its control counts from the call's start
 check "am_voice: a 3,000-character item spoken whole (#67)" python3 nvda/tools/am_long_text.py $B/libssi263_voices.so
 control "am_voice long text CONTROL (30 s from the call's start, must fail)" "^FAIL whole +default: 3000 characters, 29" \

@@ -1004,11 +1004,20 @@ check "Braille Lite below 10 kHz: speech, not a full-scale tone (#81)" python3 n
 control "Braille Lite below 10 kHz CONTROL (the low-pass above Nyquist, must fail)" "^ok +rate 22050 " \
     "^FAIL rate +8000 .*100[.]0 percent of it at full scale" "^low rate: 2 FAILED$" -- env LOW_RATE_BREAK=1 \
     python3 nvda/tools/low_rate.py build/linux/libssi263_voices.so "$DATA/BL2ENG.BNS" "$DATA/bl2_2003_warm.state"
-# the Accent-PC voice gives back its marks' memory when destroyed (#79), under LeakSanitizer; its control leaves it
+# the Accent-PC voice gives back its marks' memory when destroyed (#79), under LeakSanitizer; its control leaves it.
+# Where gcc has no LeakSanitizer -- 32-bit ARM's has no liblsan at all (the armhf release build, 0.9.5: "cannot find
+# -llsan") -- both are skipped together, saying so; x86-64 and arm64 have it
+lsan_dir="$(mktemp -d)"
+printf 'int main(void) { return 0; }\n' > "$lsan_dir/probe.c"
+if gcc -fsanitize=leak "$lsan_dir/probe.c" -o "$lsan_dir/probe" > /dev/null 2>&1; then
 check "as_voice: a destroyed unit keeps none of its marks' memory (#79)" python3 tools/check_as_marks_leak.py build/linux/libssi263_voices.so
 control "as_voice marks leak CONTROL (the three arrays left, must fail)" \
     "^FAIL  leaks after three units destroyed: SUMMARY: LeakSanitizer: 384 byte" "^as marks leak: FAILED$" \
     -- env AS_LEAK_BREAK=1 python3 tools/check_as_marks_leak.py build/linux/libssi263_voices.so
+else
+echo "skip  as_voice marks leak (#79) and its control: this gcc has no LeakSanitizer ($(uname -m))"
+fi
+rm -rf "$lsan_dir"
 # ... and the Accent-mini's (am_voice.h): Ctrl-F after the word before each marked word, the driver's own count of
 # marks passed read from its memory (SPKEMS.DVC is in the repository: it always runs)
 check "am_voice: index marks by the driver's own Ctrl-F" python3 nvda/tools/am_marks.py build/linux/libssi263_voices.so
