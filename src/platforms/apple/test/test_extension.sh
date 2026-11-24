@@ -2,6 +2,8 @@
 # The speech extension's Swift (SsiAudioUnit) as the system drives it, on the Mac, against SSI263Core's macos-arm64
 # slice and the repository's English Braille Lite (ExtensionTests.swift).
 # SSI263_EXTENSION_BREAK=silent|whine|stop puts one bug back (the controls): the run must then FAIL.
+# SSI263_SANITIZE=thread builds it with the thread sanitizer (Xcode 27 on; 26.2's crashed at start): the stop from the
+# system's thread against a firmware change (#56) must then report no race, and with =stop it must report one.
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APPLE="$HERE/.."
@@ -18,5 +20,5 @@ SOURCES="$APPLE/shared/SsiShared.swift $APPLE/app/ZipReader.swift $APPLE/app/Fir
 FLAGS="-import-objc-header $APPLE/shared/BridgingHeader.h -I $APPLE/core -I $ROOT/src/platforms/android/app/src/main/cpp
     -I $ROOT/src/csrc -I $ROOT/src/csrc/blazie -I $ROOT/src/csrc/cpu"
 # shellcheck disable=SC2086
-xcrun swiftc -O $FLAGS -o "$OUT/extension_tests" $SOURCES "$LIB" -lc++
+xcrun swiftc -O ${SSI263_SANITIZE:+-sanitize=$SSI263_SANITIZE} $FLAGS -o "$OUT/extension_tests" $SOURCES "$LIB" -lc++
 "$OUT/extension_tests" "$ROOT"

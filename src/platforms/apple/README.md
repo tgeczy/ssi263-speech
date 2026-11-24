@@ -163,6 +163,7 @@ carries no firmware at all (Android's checks, plus Aicom's files). The icon is d
     SSI263_UNIT_BREAK=factory|restart sh src/platforms/apple/test/test_installer.sh     controls: each FAILs
     sh src/platforms/apple/test/test_extension.sh                  the speech extension as the system drives it
     SSI263_EXTENSION_BREAK=silent|whine|stop sh src/platforms/apple/test/test_extension.sh   controls: each FAILs
+    SSI263_SANITIZE=thread sh .../test_extension.sh   under the thread sanitizer (Xcode 27): no race; with =stop, #56's
     SSI263_IMPORT_BREAK=1|unopened|state|state-sizes|speakout|mockingboard|accent|release|soundingboard|smartalk|smartalkname|synphonix|supervoice|same|export|exportcancel sh .../run_swift_tests.sh   controls
 
 `test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's

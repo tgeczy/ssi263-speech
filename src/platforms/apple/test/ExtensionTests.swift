@@ -7,10 +7,13 @@
 // - A request that makes no sound, at Pauses Off, still hands over a moment of silence, so the system moves on (#61).
 // - The idle sound (Hiss) survives a firmware change: a request after the stamp is bumped is the same PCM as on an
 //   Audio Unit made with Hiss set, and not the same as without it (#57).
-// - A stop from the system's thread while a firmware change frees the player waits until it is freed (#56).
+// - A stop from the system's thread while a firmware change frees the player waits until it is freed (#56); under
+//   the thread sanitizer, stops hammered from another thread through firmware changes, with no hook, for the
+//   sanitizer to see any unsynchronised access.
 //
 //     sh src/platforms/apple/test/test_extension.sh
 //     SSI263_EXTENSION_BREAK=silent|whine|stop sh ...      the controls: each must FAIL
+//     SSI263_SANITIZE=thread sh ...                        with the thread sanitizer (=stop: it must report a race)
 import AVFoundation
 
 let repo = URL(fileURLWithPath: CommandLine.arguments[1])
@@ -53,6 +56,14 @@ func audioUnit() -> SsiAudioUnit {
     try! SsiAudioUnit(componentDescription: SsiShared.componentDescription, options: [])
 }
 
+/// A flag one thread sets and another reads, under a lock (the sanitizer's run must race on nothing of its own).
+final class ManagedAtomicFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+    var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
+    func set() { lock.lock(); value = true; lock.unlock() }
+}
+
 func bumpStamp() {             // what the app does on every import and removal (Registration.firmwareChanged)
     settings.set(settings.integer(forKey: SsiShared.Key.firmwareStamp) + 1, forKey: SsiShared.Key.firmwareStamp)
 }
@@ -82,8 +93,8 @@ func say(_ au: SsiAudioUnit, _ ssml: String) -> [Float32] {
 
 // #56: a stop from the system's thread while a firmware change frees the player.  The Audio Unit's hook runs on the
 // synthesis queue at that moment, and a cancel is started then: it must wait until the old player is gone, or its
-// stop could write into a freed one.  (The thread sanitizer would show the race itself, but on macOS 26.7 with Xcode
-// 26.2 its runtime crashes before main, even for an empty program; the hook holds the window open instead.)
+// stop could write into a freed one.  (The hook orders the two threads, so the sanitizer sees no race in this one;
+// the stress run below is the sanitizer's.)
 do {
     let au = audioUnit()
     _ = say(au, "Hello.")
@@ -103,6 +114,28 @@ do {
     check("a stop while a firmware change frees the player", ran && waited,
           !ran ? "the firmware change was not seen" : waited ? "it waited for the free"
           : "it went ahead, into the player being freed")
+}
+
+// #56 under the thread sanitizer: stops from another thread, as the system sends them, while each request after a
+// stamp bump makes the engine and player again on the synthesis queue.  Without the lock (=stop) the sanitizer
+// reports the race and the run exits non-zero; with it, nothing.  Only with SSI263_SANITIZE=thread: without the
+// sanitizer a race this short is not seen.
+if ProcessInfo.processInfo.environment["SSI263_SANITIZE"] == "thread" {
+    let au = audioUnit()
+    _ = say(au, "Hello.")
+    let done = DispatchSemaphore(value: 0)
+    let stopping = ManagedAtomicFlag()
+    Thread {
+        while !stopping.isSet { au.cancelSpeechRequest(); usleep(200) }
+        done.signal()
+    }.start()
+    for _ in 0..<12 {
+        bumpStamp()
+        _ = say(au, "Hello.")
+    }
+    stopping.set()
+    done.wait()
+    check("stops from another thread through 12 firmware changes", true, "the sanitizer reports any race itself")
 }
 
 // #61: at Pauses Off a request with text that makes no sound -- a non-breaking space alone, which the SSML counts as
