@@ -817,7 +817,15 @@ def sp_import_cases(exe, tmp):
     bad = 0
     out = os.path.join(tmp, "sp.out")
     data = open(SP_COM, "rb").read()
-    other = data.replace(b"S/N 999999", b"S/N 123456")
+    # another card's copy as it really differs: its ENCODED serial -- what the card check reads (sp_host.c sph_card_key)
+    # -- changed as tools/check_synphonix_host.py's other_copy does, and the banner's printed serial too.  The banner
+    # alone, as this was, never changed what the import keys on (the 0.9.5 audit)
+    sys.path.insert(0, os.path.join(REPO, "src", "hosts"))
+    import synphonix
+    image = bytearray(data)
+    at = synphonix._find_serial(image)
+    image[at] = (((image[at] - 0xA7 - 0x30 + 1) % 10) + 0x30 + 0xA7) & 0xFF
+    other = bytes(image).replace(b"S/N 999999", b"S/N 123456")
     for label, b, code in (("VEST.COM", data, 29), ("VEST.COM with another card's serial", other, 29),
                            ("VEST.COM, its banner another version's", data.replace(b"VEST Ver 1.60", b"VEST Ver 1.50"),
                             None),
