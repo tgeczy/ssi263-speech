@@ -446,6 +446,13 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
                                 [PY, SAPI_DP, "--control"], expect_fail=True,
                                 fail_marks=[r"^FAIL  x64: refused without its program",
                                             r"^ok    x64: speaks from its DataPath", r"^sapi datapath: 2 FAILED$"]))
+            # ... a program there that is not the known one refused at the token; no other unit speaking for it
+            for flag, case, what in (("--control-sha", "wrong program refused", "the file's presence alone"),
+                                     ("--control-fallback", "no other unit speaks for it", "another unit taken")):
+                CHECKS.append(check("SAPI DataPath CONTROL (%s, must fail)" % what, [PY, SAPI_DP, flag],
+                                    expect_fail=True,
+                                    fail_marks=[r"^FAIL  x64: %s" % case, r"^FAIL  x86: %s" % case,
+                                                r"^ok    x64: speaks from its DataPath", r"^sapi datapath: 2 FAILED$"]))
     # the stage's firmware list never names a file no package carries (the Super Voice's); its control lists it
     SAPI_STAGE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_stage_files.py")
     CHECKS.append(check("SAPI stage: no never-shipped firmware listed", [PY, SAPI_STAGE]))

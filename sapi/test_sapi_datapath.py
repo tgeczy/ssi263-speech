@@ -5,9 +5,16 @@ HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) when the program is no longer there, s
 voice instead of hearing a Braille Lite under the Super Voice's name.  Through sapi_harness.exe (sapi\\build.ps1 -Dev),
 x64 and x86, a data folder under a name outside the system's code page.
 
-    python sapi/test_sapi_datapath.py [--control]     skips without SUPERTOK.BIN
+    python sapi/test_sapi_datapath.py [--control | --control-sha | --control-fallback]     skips without SUPERTOK.BIN
+
+Also (the 0.9.5 audit): a program there that is not the known one (its sha256) refused at the token too -- it made no
+unit, and every Speak was silent; and a voice with a DataPath never spoken by another unit whose file is in that folder
+when its own program is gone after the voice was chosen (the SynPhonix's VEST.COM there: it spoke under the Super
+Voice's name).
 
 --control: SSI263_SAPI_TEST_BREAK=datapath, the token taken without its program: "refused" fails on both.
+--control-sha: =datasha, the file's presence alone looked at: "wrong program refused" fails on both.
+--control-fallback: =fallback, another unit taken: "no other unit" fails on both.
 """
 import os
 import shutil
@@ -44,6 +51,8 @@ def run(arch, data, brk, tmp, tag):
 
 def main():
     control = "--control" in sys.argv[1:]
+    control_sha = "--control-sha" in sys.argv[1:]
+    control_fallback = "--control-fallback" in sys.argv[1:]
     if not os.path.isfile(BIN):
         print("skip  no SUPERTOK.BIN in firmware/speech-systems-super-voice")
         return 0
@@ -64,6 +73,14 @@ def main():
         shutil.copy2(BIN, os.path.join(root, "speech-systems-super-voice"))
         empty = os.path.join(tmp, "empty")
         os.makedirs(empty)
+        wrong = os.path.join(tmp, "wrong")
+        os.makedirs(os.path.join(wrong, "speech-systems-super-voice"))
+        prog = bytearray(open(BIN, "rb").read())
+        prog[4000] ^= 1
+        with open(os.path.join(wrong, "speech-systems-super-voice", "SUPERTOK.BIN"), "wb") as f:
+            f.write(bytes(prog))
+        other = os.path.join(tmp, "other")
+        shutil.copytree(os.path.join(REPO, "firmware", "artic-synphonix"), os.path.join(other, "artic-synphonix"))
         for arch in ("x64", "x86"):
             ref = ssi263speech.SuperVoiceC(os.path.join(STAGE, arch, "ssi263speech.dll"), BIN, 22050) \
                 if arch == ("x64" if sys.maxsize > 2 ** 32 else "x86") else None
@@ -85,6 +102,12 @@ def main():
             hr, pcm = run(arch, empty, "datapath" if control else None, tmp, "gone")
             ok(hr == "80070002" and not pcm, "%s: refused without its program" % arch,
                "hr=%s, %d bytes spoken" % (hr, len(pcm)))
+            hr, pcm = run(arch, wrong, "datasha" if control_sha else None, tmp, "wrong")
+            ok(hr == "80070002" and not pcm, "%s: wrong program refused" % arch, "hr=%s, %d bytes spoken" % (hr, len(pcm)))
+            # chosen with its program there, then gone (the token check passed by its control's switch, which the
+            # Speak path ignores): the folder holds another unit's file only
+            hr, pcm = run(arch, other, "fallback" if control_fallback else "datapath", tmp, "other")
+            ok(not pcm, "%s: no other unit speaks for it" % arch, "hr=%s, %d bytes spoken" % (hr, len(pcm)))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("sapi datapath: %s" % ("all passed" if not bad else "%d FAILED" % bad))

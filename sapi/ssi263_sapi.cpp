@@ -366,14 +366,25 @@ public:
         if(!dataPath.empty()){
 #ifdef SSI263_SAPI_DEV
             char tb[32]={0}; GetEnvironmentVariableA("SSI263_SAPI_TEST_BREAK",tb,sizeof tb);
-            const bool unchecked=!strcmp(tb,"datapath");
+            const bool unchecked=!strcmp(tb,"datapath")||!strcmp(tb,"fallback");   /* fallback: the Speak path's control */
 #else
             const bool unchecked=false;
 #endif
             std::string id=utf8(token_string(t,L"VoiceId"));
             bool here=false;
-            {CsLock lock(&g_lock); here=voices_ready()&&user_bank(dataPath)&&g_api.find(id.c_str())>=0
-                                         &&g_api.available(g_api.find(id.c_str()),g_userDir);}
+            /* ... and a program there that is not the known one (its sha256: a hand-placed file) is refused too: it
+             * made no unit, so every Speak was silent.  Made here once, the bank keeps it for the first Speak (the
+             * 0.9.5 audit).  The development build's control "datasha" looks at the file's presence alone, as it was */
+#ifdef SSI263_SAPI_DEV
+            const bool presence=!strcmp(tb,"datasha");
+#else
+            const bool presence=false;
+#endif
+            {CsLock lock(&g_lock);
+             char err[256]={0};
+             int vi=-1;                          /* g_api's functions are there only once voices_ready() has loaded them */
+             here=voices_ready()&&user_bank(dataPath)&&(vi=g_api.find(id.c_str()))>=0&&g_api.available(vi,g_userDir)
+                  &&(presence||g_api.bank_voice(g_userBank,vi,err,sizeof err)!=0);}
             if(!here&&!unchecked){logline(L"%hs: its program is not in %ls",id.c_str(),dataPath.c_str());
                                   return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);}
         }
@@ -504,6 +515,13 @@ public:
             const char *dir=dataPath.empty()?g_fwdir:g_userDir;
             if(ok){
                 idx=ssi_voice(&g_api,voiceId.c_str(),dir);
+                /* a voice with a DataPath is its own program or nothing: ssi_voice's fallback, another unit whose file is
+                 * in that folder (NVDA's firmware folder can be the DataPath), spoke under its name once the program
+                 * was gone after the voice was chosen (the 0.9.5 audit).  The control "fallback": taken, as it was */
+                if(!dataPath.empty()&&idx!=g_api.find(voiceId.c_str())&&strcmp(brk,"fallback")){
+                    logline(L"%hs: its program is not in %ls; no other voice speaks for it",voiceId.c_str(),dataPath.c_str());
+                    idx=-1;
+                }
 #ifdef SSI263_SAPI_DEV
                 if(idx>=0&&!strcmp(brk,"voice")){                     /* a control: English and Spanish swapped, */
                     int e=g_api.find("blazie:blazie"),s=g_api.find("blazie:blazie_es");
