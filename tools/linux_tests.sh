@@ -917,6 +917,9 @@ control "SynPhonix voice CONTROL (the apostrophes as they are, must fail)" "^FAI
 control "SynPhonix voice CONTROL (a bank keeps its unit on a boot change, must fail)" \
     "^FAIL  a bank's unit made again on a boot change" "^sp voice: 1 FAILED$" -- \
     env SSV_BANK_BREAK=synphonix python3 tools/check_sp_voice.py build/linux/libssi263_voices.so
+control "SynPhonix voice CONTROL (the cut not played out, must fail)" \
+    "^FAIL  a cancel: the next text starts as after an end " "^ok    a cancel: the next text said whole " \
+    "^sp voice: 1 FAILED$" -- env SPV_CUT_BREAK=1 python3 tools/check_sp_voice.py build/linux/libssi263_voices.so
 # Speech Systems' Super Voice as a voice and its disk reader (tools/check_sv_voice.py), when the program is in its
 # drop-in folder (never committed); its controls, as nvda/tools/run_tests.py's.  And the module's import of it
 # (sd_ssi263 --import) into a stand-in home, the voice then offered; its control: the user's folder never looked in

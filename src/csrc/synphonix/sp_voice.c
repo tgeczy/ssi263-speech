@@ -12,6 +12,7 @@
 #define STEP_S 0.0005
 #define QUIET 0.05                          /* synphonix.py's busy() */
 #define STALL_S 4.0                         /* busy and silent this long: the card has stalled */
+#define CUT_LIMIT 0.5                       /* chip seconds a cut may take to play out (play_out) */
 #define LEAD_THRESHOLD 0.003                /* the silence before the first phoneme left out (am_voice.c's) */
 #define LEAD_PREROLL 220
 #define DEF_RATE 2                          /* VEST's own rate offset: its start-up announcement's (SPH_SAY_CX) */
@@ -497,12 +498,35 @@ SP_API int spv_render(sp_voice *v, const short **pcm, int *done)
     return count > 0 ? count : 0;
 }
 
+/* after a cut: the card run on unheard until VEST is done with it, as sph_boot plays its announcement out.  VEST's cut
+   (AL=1) empties its queue and writes R0 = 00, a pause, while the phoneme it cut still sounds, fading into that pause;
+   then VEST writes its own closing frames.  On a card all that passes in the moment after the key press; here the
+   card's time stands still between texts, so it came at the head of the next one: that text started 33-99 ms late
+   with the cut phoneme's fade heard first ("Down arrow." after a long text cut at four points, MEASURED 2026-11-24;
+   a listener: "the last tail of the previous utterance is still heard", typing and arrowing).  Run on until VEST is
+   idle and the chip quiet (sph_busy), its audio dropped, the next text starts as after a natural end, VEST's writes the
+   same.  A HOST feature: the fade is not heard at all, where a card would have sounded it before NVDA's next text.
+   SPV_CUT_BREAK=1, the tests' control: the cut left as it was */
+static void play_out(sp_voice *v)
+{
+    double t = 0.0, s;
+    if (getenv("SPV_CUT_BREAK"))
+        return;
+    while (t < CUT_LIMIT && sph_busy(v->h, QUIET)) {
+        if ((s = sph_skip(v->h, 0.01, STEP_S)) < 0)
+            return;
+        t += s;
+    }
+}
+
 SP_API void spv_cancel(sp_voice *v)
 {
     free_parts(v);
     v->active = 0;
     if (!v->fault) {
         sph_cancel(v->h);
+        if (!sph_fault(v->h))
+            play_out(v);
         if (sph_fault(v->h))
             v->fault = 1;
     }
