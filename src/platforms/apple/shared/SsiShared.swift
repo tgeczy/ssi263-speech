@@ -105,12 +105,16 @@ enum SsiShared {
     /// The voices after the release table's (ssa_engine.h, 0.8.5: SSA_SOUNDINGBOARD is SSA_VOICES, so no voice
     /// before them moves): GW Micro's Sounding Board, the Speak-Out's voice on the card's own DOS drivers, imported from
     /// sb.zip (its two files: ssa_engine.c's AFTER_RELEASES); then Automated Functions' SmarTalk (0.9.0,
-    /// SSA_SMARTALK), its own DOS text-to-speech S_TALK.EXE on the same emulated PC, imported, never in the app.
+    /// SSA_SMARTALK), its own DOS text-to-speech S_TALK.EXE on the same emulated PC, imported, never in the app; then
+    /// the Artic SynPhonix (0.9.5, SSA_SYNPHONIX), Artic's own DOS text-to-speech VEST.COM 1.60 on the same PC, imported
+    /// as well (the GitHub APK alone carries the repository's copy; the Apple apps never do).
     private static let afterReleases: [Voice] = [
         Voice(index: 27, key: "soundingboard", name: "Sounding Board (GW Micro)", short: "Sounding Board",
               locales: english, files: ["SBLOAD.COM", "SB.COM"], bring: "GW Micro's sb.zip (SBLOAD.COM and SB.COM)"),
         Voice(index: 28, key: "smartalk", name: "SmarTalk (Automated Functions)", short: "SmarTalk",
               locales: english, files: ["S_TALK.EXE"], bring: "S_TALK.EXE 1.21 (36,882 bytes)"),
+        Voice(index: 29, key: "synphonix", name: "Artic SynPhonix", short: "SynPhonix",
+              locales: english, files: ["VEST.COM"], bring: "VEST.COM 1.60 (any card's serial)"),
     ]
 
     /// The release voices, from the release table the library carries (bl_languages.txt; never a list kept here):

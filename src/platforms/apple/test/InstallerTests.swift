@@ -18,11 +18,11 @@ var failures = 0
 
 let disks = CommandLine.arguments.count > 2 ? URL(fileURLWithPath: CommandLine.arguments[2]) : nil
 
-// every voice the library has (ssa_engine.h: 0 ..< SSA_ALL_VOICES, the SmarTalk's 28 last) is one of the app's,
+// every voice the library has (ssa_engine.h: 0 ..< SSA_ALL_VOICES, the SynPhonix's 29 last) is one of the app's,
 // once: the Apple column of tools/check_uniform.py's matrix
 do {
     let indexes = SsiShared.voices.map { Int($0.index) }.sorted()
-    let ok = indexes == Array(0..<Int(SSA_ALL_VOICES)) && SsiShared.voices.last?.key == "smartalk"
+    let ok = indexes == Array(0..<Int(SSA_ALL_VOICES)) && SsiShared.voices.last?.key == "synphonix"
     print("\(ok ? "ok   " : "FAIL ") every voice of the library is the app's, once: \(indexes.count) of \(SSA_ALL_VOICES)")
     if !ok { failures += 1 }
     // listed as the NVDA driver lists them: GW Micro's Sounding Board right under the Speak-Out, its index unchanged
@@ -141,6 +141,53 @@ if var changed = try? Data(contentsOf: stExe) {
     try? changed.write(to: copy)
     refuses("S_TALK.EXE with one byte changed: the copy it runs named", [copy],
             "S_TALK.EXE is not the SmarTalk's S_TALK.EXE 1.21, the copy this voice runs " + stWhich + ".")
+}
+
+// the Artic SynPhonix (0.9.5): the repository's VEST.COM (its serial 99999999) alone, a copy with another card's
+// serial (known by its content, never a hash), then a zip holding it where the NVDA add-on does -- each checked to
+// speak by the commit (ssa_probe), and kept as it came
+let spCom = repo.appendingPathComponent("firmware/artic-synphonix/VEST.COM")
+func spKept(_ label: String, _ want: Data) {
+    let got = SsiShared.unitFolder.flatMap { try? Data(contentsOf: $0.appendingPathComponent("VEST.COM")) }
+    let ok = got == want
+    print("\(ok ? "ok   " : "FAIL ") \(label): VEST.COM kept as it came")
+    if !ok { failures += 1 }
+}
+func spForget() {
+    for f in ["VEST.COM", "VEST.COM.label"] {
+        try? SsiShared.unitFolder.map { try FileManager.default.removeItem(at: $0.appendingPathComponent(f)) }
+    }
+}
+if let com = try? Data(contentsOf: spCom) {
+    run("the SynPhonix's VEST.COM", ["artic-synphonix/VEST.COM"], expect: ["synphonix"],
+        kept: ["VEST.COM", "VEST.COM.label"])
+    spKept("the SynPhonix's VEST.COM", com)
+    spForget()
+    let other = Data(com).replacing(Data("S/N 999999".utf8), with: Data("S/N 123456".utf8))
+    let dir = root.appendingPathComponent("sp-other")
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    try? other.write(to: dir.appendingPathComponent("VEST.COM"))
+    run("a VEST.COM with another card's serial", ["sp-other/VEST.COM"], expect: ["synphonix"],
+        kept: ["VEST.COM", "VEST.COM.label"], from: root)
+    spKept("a VEST.COM with another card's serial", other)
+    spForget()
+    let tree = root.appendingPathComponent("sp-zip/synthDrivers/_ssi263_unified/_ssi263_synphonix")
+    try? FileManager.default.createDirectory(at: tree.appendingPathComponent("licenses"),
+                                             withIntermediateDirectories: true)
+    try? com.write(to: tree.appendingPathComponent("VEST.COM"))
+    try? Data("Artic Technologies' VEST.COM, its notice".utf8)
+        .write(to: tree.appendingPathComponent("licenses/Artic-VEST-notice.txt"))
+    let zip = Process()
+    zip.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+    zip.currentDirectoryURL = root.appendingPathComponent("sp-zip")
+    zip.arguments = ["-qr", "../synphonix.zip", "synthDrivers"]
+    try? zip.run()
+    zip.waitUntilExit()
+    run("the SynPhonix from a zip, in the add-on's folder", ["synphonix.zip"], expect: ["synphonix"],
+        kept: ["VEST.COM", "VEST.COM.label"], from: root)
+    spKept("the SynPhonix from a zip", com)
+} else {
+    print("skip  the SynPhonix: firmware/artic-synphonix/VEST.COM is not there")
 }
 
 // the confirmation's words (Android's): a language update takes a few seconds, and one already here is replaced;

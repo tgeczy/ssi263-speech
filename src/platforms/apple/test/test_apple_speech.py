@@ -13,12 +13,17 @@
   toolkit's disk image (MOCKINGBOARD_DISKS in paths.local) in DOS and ProDOS order, a blank disk and another disk;
   a Braille Lite 2000 release with no shipped voice (a release voice's, and one no voice speaks) as SSP_FW_RELEASE
   plus its row (import-2 drops them).
+- The Artic SynPhonix (0.9.5): the repository's VEST.COM staged into the TEST data folder only (data_folder; the
+  Apple apps never carry it), speaking after the SmarTalk; VEST.COM known by its content (SSA_SYNPHONIX, 29), a copy
+  with another card's serial as well, and written as it came (synphonix drops the imported copy, synphonix-import
+  never knows it).
 - The release voices (release_voices.py: Hungarian, Turkish, ... whose firmware is in the firmware folder, their
   states made once and checked against the table): each one's requests as every voice's, and each one speaks.
 
     sh src/platforms/apple/build_apple.sh macos            first
     python src/platforms/apple/test/test_apple_speech.py
-    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|ssml-3|speech-1|speech-2|import|import-2 python ...   the controls:
+    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|ssml-3|speech-1|speech-2|import|import-2|synphonix|synphonix-import
+        python ...                                                                              the controls:
                                                                                                 each must FAIL
 
 Options: --firmware <folder> (default $SSI263_FIRMWARE, else firmware/blazie), --aicom <folder> (default
@@ -192,6 +197,12 @@ def check_speak(exe, data, aicom, env, releases=()):
         ok = rows.get("st-phrases", (0,))[0] > 0
         print("%-5s speak  the SmarTalk spoke, after the Sounding Board" % ("ok" if ok else "FAIL"))
         bad += not ok
+    # the SynPhonix (voice 29, after the SmarTalk): the repository's VEST.COM, staged by data_folder into this test's
+    # data folder alone -- never the app's
+    if os.path.isfile(os.path.join(data, "VEST.COM")):
+        ok = rows.get("sp-phrases", (0,))[0] > 0
+        print("%-5s speak  the SynPhonix spoke, after the SmarTalk" % ("ok" if ok else "FAIL"))
+        bad += not ok
     print("%-5s speak  %d requests on %d voices: the segments' own PCM with the pauses between, a stop that holds" % (
         "ok" if not bad else "FAIL", cases, len({k.split("-")[0] for k in rows})))
     return bad
@@ -218,6 +229,14 @@ def check_import(exe, data, tmp, env, firmware=None):
         cases.append(("BL2ENG.BNS (the Braille Lite's)", os.path.join(data, "BL2ENG.BNS"), 0))
     if os.path.isfile(tan.SPEAKOUT_HEX):
         cases.append(("SPEAKOUT.HEX (the Speak-Out's)", tan.SPEAKOUT_HEX, 3))
+    # the SynPhonix's VEST.COM, known by its content alone: every copy holds its own card's serial, so another card's
+    # copy is known the same, and both are written as they came
+    if os.path.isfile(tan.SP_COM):
+        com = open(tan.SP_COM, "rb").read()
+        other = os.path.join(tmp, "VEST-other.COM")
+        with open(other, "wb") as f:
+            f.write(com.replace(b"S/N 999999", b"S/N 123456"))
+        cases += [("VEST.COM (the SynPhonix's)", tan.SP_COM, 29), ("VEST.COM with another card's serial", other, 29)]
     # the Mockingboard's file, and the toolkit's disk image (MOCKINGBOARD_DISKS, paths.local; never in the repository)
     # in DOS and ProDOS order, through the Apple build's ssp_import_firmware (ssa_import_mockingboard behind it)
     if os.path.isfile(tan.MB_BIN):

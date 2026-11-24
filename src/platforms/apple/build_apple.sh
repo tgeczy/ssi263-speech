@@ -65,6 +65,13 @@ if [ "$MINI" = 1 ] && [ -f "$SRC/smartalk/st_voice.c" ]; then
     ST=1
     HAVE="$HAVE -DSSV_HAVE_SMARTALK"
 fi
+# the Artic SynPhonix (0.9.5): Artic's VEST.COM on the same pc86 (sp_voice.h; imported, never staged: the repository's
+# copy is the GitHub APK's alone)
+SP=0
+if [ "$MINI" = 1 ] && [ -f "$SRC/synphonix/sp_voice.c" ]; then
+    SP=1
+    HAVE="$HAVE -DSSV_HAVE_SYNPHONIX"
+fi
 
 # slice -> SDK and clang target
 sdk() {
@@ -130,6 +137,11 @@ slice() {
     if [ "$ST" = 1 ]; then                           # the SmarTalk's host and voice, on the same pc86
         for f in st_host st_voice; do
             cc $FRONT -I$SRC/cpu -I$SRC/pc86 -c -o "$O/$f.o" "$SRC/smartalk/$f.c"
+        done
+    fi
+    if [ "$SP" = 1 ]; then                           # the SynPhonix's host and voice, on the same pc86
+        for f in sp_host sp_voice; do
+            cc $FRONT -I$SRC/cpu -I$SRC/pc86 -c -o "$O/$f.o" "$SRC/synphonix/$f.c"
         done
     fi
     # The Mockingboard (the 6502, its board, host and voice, and the disk reader the import uses)

@@ -61,7 +61,8 @@ struct SetupView: View {
                      "(the list below); the Blazie Braille 'n Speak 2000 the same way, in Slovak; the GW Micro " +
                      "Speak-Out, its own firmware on an emulated V40, and GW Micro's Sounding Board, the same voice " +
                      "on the card's own DOS drivers; Automated Functions' SmarTalk, its own DOS text-to-speech on " +
-                     "an emulated PC, in English; the Aicom Accent-PC and Accent-mini; and the " +
+                     "an emulated PC, in English; the Artic SynPhonix, a speech card inside the PC, Artic's own DOS " +
+                     "text-to-speech VEST on an emulated PC, in English; the Aicom Accent-PC and Accent-mini; and the " +
                      "Sweet Micro Systems Mockingboard, the Apple II's speech card, on an emulated 6502. Each " +
                      "language is offered to VoiceOver and the system once its unit is imported.")
             }
@@ -105,7 +106,8 @@ struct SetupView: View {
                      "Braille Lite 2000's and its language updates, GW Micro's Speak-Out's, GW Micro's sb.zip for " +
                      "the Sounding Board (or its SBLOAD.COM and SB.COM together: the voice needs both), the " +
                      "SmarTalk's S_TALK.EXE 1.21, from Automated Functions' SmarTalk V1.21 disk (36,882 bytes), " +
-                     "Aicom's " +
+                     "the SynPhonix's VEST.COM, from a Business Vision or SynPhonix disk, or the NVDA add-on that " +
+                     "has it; your own copy, whatever its serial; Aicom's " +
                      "for the Accent-PC and Accent-mini, and " +
                      "for the Mockingboard, your own copy of the Mockingboard Developers Toolkit disk.")
             }
@@ -350,7 +352,8 @@ struct VoiceSettingsView: View {
                 Text("Tone").accessibilityAddTraits(.isHeader)
             } footer: {
                 Text("The Blazie units' tone setting, 0 to 26. 7 is the factory tone. The Speak-Out has its own, " +
-                     "below; the SmarTalk keeps its program's own, and the Accents and the Mockingboards have none.")
+                     "below; the SmarTalk and the SynPhonix keep their programs' own, and the Accents and the " +
+                     "Mockingboards have none.")
             }
 
             Section {
@@ -368,16 +371,17 @@ struct VoiceSettingsView: View {
             Section {
                 Toggle("Voice inflection", isOn: $inflection)
                 Text("The unit's own intonation. Off, questions stay flat: the Braille Lite's status-menu setting, " +
-                     "and the Accent-PC's and the SmarTalk's monotone.").font(.footnote)
+                     "and the Accent-PC's, the SmarTalk's and the SynPhonix's monotone.").font(.footnote)
                 Toggle("Short pauses", isOn: $shortPauses)
                 Text("The Blazie units only: sentences packed onto one line from the second on, as the NVDA " +
                      "add-on's default.").font(.footnote)
                 Toggle("Read numbers as words", isOn: $numbers)
-                Text("The English and Spanish Braille Lite, the Mockingboards and the SmarTalk, on by default, as " +
+                Text("The English and Spanish Braille Lite, the Mockingboards, the SmarTalk and the SynPhonix, on " +
+                     "by default, as " +
                      "the NVDA add-on's custom number processing: 1,234,567 as one number, read in words, and the " +
                      "Spanish voice in Spain's way (1.234.567, and 3,5 as tres coma cinco). Off, the unit's own " +
                      "firmware reads them (the Mockingboard's digit by digit, the SmarTalk's digit by digit from " +
-                     "three digits on). The Accents keep their own add-on's number processing on; the German, " +
+                     "three digits on, the SynPhonix's every digit one by one). The Accents keep their own add-on's number processing on; the German, " +
                      "Italian and Slovak units always read their own, as in the NVDA add-on.").font(.footnote)
                 Toggle("Run the unit ahead (experimental: with short pauses)", isOn: $runAhead)
                 Text("The English and Spanish Braille Lite only, experimental and off by default, as in the NVDA " +

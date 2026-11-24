@@ -119,6 +119,11 @@ let sbCom = bytes("SBCOM") + filled(740) { UInt8(($0 * 9) & 0xFF) }
 let sTalk = bytes("SMARTALKEX") + filled(2500) { UInt8(($0 * 13) & 0xFF) }
 let sTalkLabel = "SmarTalk: Automated Functions' S_TALK.EXE 1.21"
 
+/// A made-up VEST.COM: the native side knows the real one by its content (its banner and its serial check), any
+/// card's serial.
+func vest(_ serial: String) -> Data { bytes("VESTCOM S/N " + serial) + filled(2900) { UInt8(($0 * 11) & 0xFF) } }
+let vestLabel = "Artic SynPhonix: Artic's VEST.COM 1.60"
+
 /// A made-up state: the size every state has, whatever is in it.
 func state() -> Data { filled(FirmwareImport.stateSize) { UInt8(($0 * 13) & 0xFF) } }
 
@@ -156,6 +161,10 @@ struct Fake: FirmwareImport.Identify {
         if text.hasPrefix("SMARTALKEX") {
             try? data.write(to: out)
             return (FirmwareImport.smartalk, sTalkLabel)
+        }
+        if text.hasPrefix("VESTCOM") {
+            try? data.write(to: out)
+            return (FirmwareImport.synphonix, vestLabel)
         }
         if text.hasPrefix("AICOM ") {
             let which = String(text.dropFirst(6).prefix(while: { $0 != "\n" }))
@@ -801,7 +810,7 @@ for (label, tool) in [("ditto (Finder's Compress)", ["/usr/bin/ditto", "-c", "-k
 
 test("theWordsNameEveryUnit") {
     eq(FirmwareImport.noFirmwareFile, "This file does not contain Braille Lite, Braille 'n Speak, Speak-Out, " +
-        "Sounding Board, SmarTalk, Mockingboard or Accent firmware.")
+        "Sounding Board, SmarTalk, SynPhonix, Mockingboard or Accent firmware.")
     check(FirmwareImport.whatToChoose.contains("Lite2000.BNS (German, Italian)"), "")
     check(FirmwareImport.whatToChoose.contains("For the Slovak Braille 'n Speak 2000: BS2SLL.BNS"), "")
     check(FirmwareImport.whatToChoose.contains("your own copy of Mockingboard disk 1"), "")
@@ -942,6 +951,39 @@ test("theSmarTalkIsNamedForTheFileToBring") {
     eq(FirmwareImport.order.filter { $0 == SB || $0 == ST }, [SB, ST])
     eq(FirmwareImport.files[ST], "S_TALK.EXE")
     eq(FirmwareImport.name(of: ST), "SmarTalk")
+}
+
+// ---- the Artic SynPhonix: VEST.COM, one file, any card's copy, or the NVDA add-on that carries it (0.9.5) ---------
+
+let SP = FirmwareImport.synphonix
+
+test("theSynPhonixsVestComIsItsVoice") {
+    // known by its content, whatever its serial and its name; no state
+    for (name, com) in [("VEST.COM", vest("99999999")), ("vest.com", vest("12345678")), ("MYCARD.COM", vest("1"))] {
+        let plan = inspect(name, com)
+        eq(plan.refusal, nil)
+        eq(kinds(plan), [SP])
+        eq(plan.found.first?.label, vestLabel)
+        eq(plan.found.first.flatMap { try? Data(contentsOf: $0.firmware) }, com)
+    }
+    eq(FirmwareImport.keptAs(SP, Fake())?.file, "VEST.COM")
+    check(FirmwareImport.keptAs(SP, Fake())?.state == nil, "the SynPhonix has a state")
+    eq(FirmwareImport.order.filter { $0 == ST || $0 == SP }, [ST, SP])
+    eq(FirmwareImport.name(of: SP), "Artic SynPhonix")
+    check(FirmwareImport.whatToChoose.contains("For the Artic SynPhonix: Artic's VEST.COM 1.60, from a Business " +
+                                               "Vision or SynPhonix disk, your own copy, whatever its serial."), "")
+}
+
+test("theAddOnBringsTheSynPhonixItCarries") {
+    // the add-on carries VEST.COM beside the SynPhonix's driver, its notice in licenses/: one import brings it with
+    // the SmarTalk
+    let u = "synthDrivers/_ssi263_unified/"
+    let plan = inspect("ssi263-speech.nvda-addon", zip([("manifest.ini", bytes("name = ssi263")),
+        (u + "_ssi263_smartalk/S_TALK.EXE", sTalk), (u + "_ssi263_synphonix/VEST.COM", vest("99999999")),
+        (u + "_ssi263_synphonix/licenses/Artic-VEST-notice.txt", bytes("Artic Technologies"))]))
+    eq(plan.refusal, nil)
+    eq(kinds(plan), [ST, SP])
+    eq(plan.found.last?.from, u + "_ssi263_synphonix/VEST.COM")
 }
 
 // ---- any folder of a zip, and a zip in it (Android's 0.8.5 import, 2026-10-18) ------------------------------------

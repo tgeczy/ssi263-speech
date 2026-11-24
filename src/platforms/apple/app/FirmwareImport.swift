@@ -33,6 +33,7 @@ enum FirmwareImport {
     static let sbLoad = 90                  // files -- SBLOAD.COM (ssa_import.h SSA_FW_SBLOAD) and
     static let sbCom = 91                   // SB.COM (SSA_FW_SB): found apart, imported only together
     static let smartalk = 28                // Automated Functions' SmarTalk (SSA_SMARTALK; 0.9.0): its S_TALK.EXE
+    static let synphonix = 29               // the Artic SynPhonix (SSA_SYNPHONIX; 0.9.5): Artic's VEST.COM
     static let release = 100                // + a release's row (ssp_import.h's SSP_FW_RELEASE): no shipped voice
     static let none = -1                    // no firmware in the bytes
     static let refused = -2                 // Blazie firmware, but another unit's: not one the voice can run
@@ -50,7 +51,7 @@ enum FirmwareImport {
                                        mockingboardEarly: "mockingboard-tts-early.bin",
                                        accentU2: "u2.BIN", accentU3: "u3.BIN", accentU4: "u4.BIN",
                                        accentMini: "SPKEMS.DVC", soundingboard: "SBLOAD.COM",
-                                       smartalk: "S_TALK.EXE"]
+                                       smartalk: "S_TALK.EXE", synphonix: "VEST.COM"]
     /// A voice of two files (the Sounding Board's drivers): each file's kind as the native side finds it, and the
     /// names they are kept under, in the same order (the first is `files`').
     static let parts: [Int: [Int]] = [soundingboard: [sbLoad, sbCom]]
@@ -62,7 +63,7 @@ enum FirmwareImport {
     /// The order an import takes them in (Android's IMPORTED, with the Sounding Board after the Speak-Out as Setup lists
     /// them, then Aicom's).
     static let order = [english, spanish, german, italian, slovak, speakout, soundingboard, mockingboard,
-                        mockingboardEarly, smartalk, accentU2, accentU3, accentU4, accentMini]
+                        mockingboardEarly, smartalk, synphonix, accentU2, accentU3, accentU4, accentMini]
     /// The Blazie units: a state made from each one's firmware.
     static let blazie: Set<Int> = [english, spanish, german, italian, slovak]
     static let accentRoms = [accentU2, accentU3, accentU4]
@@ -78,9 +79,9 @@ enum FirmwareImport {
     static let maxInner = 32 << 20          // a zip in the source: the add-on (5.5 MB in 0.8.0), anyone's own archive
 
     static let noFirmwareZip = "This zip does not contain Braille Lite, Braille 'n Speak, Speak-Out, Sounding Board, " +
-        "SmarTalk, Mockingboard or Accent firmware."
+        "SmarTalk, SynPhonix, Mockingboard or Accent firmware."
     static let noFirmwareFile = "This file does not contain Braille Lite, Braille 'n Speak, Speak-Out, Sounding " +
-        "Board, SmarTalk, Mockingboard or Accent firmware."
+        "Board, SmarTalk, SynPhonix, Mockingboard or Accent firmware."
     /// Tomi's words, for a state picked on its own.
     static let stateFile = "This is a state file, not firmware. Please import only firmware files, or zips " +
         "containing them, with this tool."
@@ -92,7 +93,8 @@ enum FirmwareImport {
         "2000: BS2SLL.BNS. For the Speak-Out: GW Micro's SPEAKOUT.HEX, or the speakout.zip holding it. For the " +
         "Sounding Board: GW Micro's sb.zip, or the SBLOAD.COM and SB.COM inside it (both are needed). For the " +
         "SmarTalk: Automated Functions' S_TALK.EXE 1.21 (36,882 bytes), from the SmarTalk V1.21 disk, or a zip " +
-        "holding it. For the Mockingboard: your own copy of the Mockingboard Developers Toolkit disk, as its image " +
+        "holding it. For the Artic SynPhonix: Artic's VEST.COM 1.60, from a Business Vision or SynPhonix disk, " +
+        "your own copy, whatever its serial. For the Mockingboard: your own copy of the Mockingboard Developers Toolkit disk, as its image " +
         "(.dsk, .do or .po), or the mockingboard-tts-1.1.bin made from it; for the early Mockingboard, your own copy " +
         "of Mockingboard disk 1, or the mockingboard-tts-early.bin made from it. For the Accents: Aicom's u2.BIN, " +
         "u3.BIN and u4.BIN for the Accent-PC and SPKEMS.DVC for the Accent-mini. A .zip or .nvda-addon package " +
@@ -121,7 +123,8 @@ enum FirmwareImport {
     /// states;
     /// `speakout` drops what the native side says is the Speak-Out's; `mockingboard` both Mockingboards'; `accent`
     /// drops Aicom's files; `release` the releases with no shipped voice; `soundingboard` the Sounding Board's two
-    /// drivers; `smartalk` the SmarTalk's S_TALK.EXE; `smartalkname` the words for another file called S_TALK.EXE.
+    /// drivers; `smartalk` the SmarTalk's S_TALK.EXE; `smartalkname` the words for another file called S_TALK.EXE;
+    /// `synphonix` the SynPhonix's VEST.COM.
     static var control = ProcessInfo.processInfo.environment["SSI263_IMPORT_BREAK"] ?? ""
 
     /// What the native side says about some bytes: the app's NativeIdentify, a fake in the tests.
@@ -172,6 +175,7 @@ enum FirmwareImport {
         case accentMini: return "Accent-mini"
         case soundingboard: return "Sounding Board"
         case smartalk: return "SmarTalk"
+        case synphonix: return "Artic SynPhonix"
         default: return "unit"
         }
     }
@@ -187,6 +191,7 @@ enum FirmwareImport {
         case mockingboardEarly: return "early Mockingboard"
         case soundingboard: return "Sounding Board"
         case smartalk: return "SmarTalk"
+        case synphonix: return "Artic SynPhonix"
         default: return "English"
         }
     }
@@ -328,7 +333,8 @@ enum FirmwareImport {
                 || (control == "accent" && (accentU2...accentMini).contains(kind))
                 || (control == "release" && isRelease(kind))
                 || (control == "soundingboard" && (kind == sbLoad || kind == sbCom))
-                || (control == "smartalk" && kind == smartalk) {
+                || (control == "smartalk" && kind == smartalk)
+                || (control == "synphonix" && kind == synphonix) {
                 kind = FirmwareImport.none
                 text = ""
             }
