@@ -86,6 +86,10 @@ def load(path):
     _sig(lib, "amv_say_bytes", _I, [_S, _I, _S, _I])
     _sig(lib, "amv_host", _P, [_P])
     _sig(lib, "amv_fault", _I, [_P])
+    # a cancelled utterance's end (2c3da41).  Declared, or ctypes passes the unit as a 32-bit int: a handle above 2^31
+    # on 64-bit Python raised ArgumentError and restarted the card (nvda/tools/binding_sigs.py)
+    if hasattr(lib, "amv_end_dropped"):
+        _sig(lib, "amv_end_dropped", _I, [_P])
     _sig(lib, "asv_create", _P, [_S, ctypes.c_size_t] * 3 + [_D] + err)
     _sig(lib, "asv_set", None, [_P] + [_I] * 5)
     _sig(lib, "asv_set_voice", None, [_P, _I])
