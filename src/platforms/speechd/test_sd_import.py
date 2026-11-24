@@ -44,6 +44,11 @@ def main():
         changed = os.path.join(tmp, "changed.bin")
         with open(changed, "wb") as f:
             f.write(prog[:100] + bytes([prog[100] ^ 1]) + prog[101:])
+        # --import with no file: how it is used, at once (it waited on stdin, taken for a config file's name: the 0.9.5
+        # audit; SD_SSI263_TEST_IMPORT_BREAK=1, the control, as it was -- with stdin closed here it ends, exit 1)
+        r = subprocess.run([module, "--import"], env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                           timeout=30)
+        ok(r.returncode == 2 and "usage" in r.stderr, "usage", "exit %d: %s" % (r.returncode, r.stderr.strip()[:90]))
         r = subprocess.run([module, "--import", changed], env=env, capture_output=True, text=True)
         ok(r.returncode != 0 and not os.path.exists(dest), "refused", r.stderr.strip()[:100])
         r = subprocess.run([module, "--import", disk], env=env, capture_output=True, text=True)

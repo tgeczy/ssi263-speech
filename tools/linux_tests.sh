@@ -952,6 +952,9 @@ if [ -f "$ROOT/firmware/speech-systems-super-voice/SUPERTOK.BIN" ]; then
     control "Super Voice import CONTROL (the user's folder never looked in, must fail)" \
         "^ok    imported" "^FAIL  offered" "^sd import: 1 FAILED$" -- \
         env SD_SSI263_TEST_NO_USER_DIR=1 python3 src/platforms/speechd/test_sd_import.py build/linux/sd_ssi263
+    control "Super Voice import CONTROL (--import with no file taken for a config, must fail)" \
+        "^FAIL  usage +exit 1" "^ok    imported" "^sd import: 1 FAILED$" -- \
+        env SD_SSI263_TEST_IMPORT_BREAK=1 python3 src/platforms/speechd/test_sd_import.py build/linux/sd_ssi263
 else
     echo "skip  Super Voice voice and import: no firmware/speech-systems-super-voice/SUPERTOK.BIN"
 fi

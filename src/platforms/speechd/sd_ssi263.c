@@ -504,6 +504,12 @@ int main(int argc, char **argv)
         for (i = 0; i < sdv_count(); i++) printf("%s\t%s\t%s\n", sdv_engine(i), sdv_language(i), sdv_name(i));
         return 0;
     }
+    /* --import with no file said how it is used: it was taken for a config file's name, and the module then waited on
+       stdin for speech-dispatcher (the 0.9.5 audit).  SD_SSI263_TEST_IMPORT_BREAK, the tests' control: as it was */
+    if (argc == 2 && !strcmp(argv[1], "--import") && !getenv("SD_SSI263_TEST_IMPORT_BREAK")) {
+        fprintf(stderr, "usage: sd_ssi263 --import SUPERV.DSK|SUPERTOK.BIN (the Super Voice's disk or program)\n");
+        return 2;
+    }
     if (argc > 2 && !strcmp(argv[1], "--import")) {  /* the Super Voice's program into this user's data folder */
         char msg[1500];
         int r = sdv_import(argv[2], msg, sizeof msg);
