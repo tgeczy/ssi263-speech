@@ -3220,6 +3220,10 @@ if os.path.isfile(SPX_COM) and os.path.isfile(SPX_PC86):
             ("SSV_BANK_BREAK", "synphonix", "a bank keeps its unit on a boot change",
              [r"^FAIL  a bank's unit made again on a boot change", r"^sp voice: 1 FAILED$"]),
             # the cut left as it was: the next text after a cancel 33-99 ms late, the cut phoneme's fade at its head
+            # the fault of spv_speak's own cancel looked at once more: the text said on a fresh unit (the 0.9.5 audit)
+            ("SPV_SPEAK_FAULT_BREAK", "1", "a speak's own cancel faulting, the text lost",
+             [r"^FAIL  a cancel that faults: the next text said whole ", r"^ok    a cancel: the next text said whole ",
+              r"^sp voice: 2 FAILED$"]),
             ("SPV_CUT_BREAK", "1", "the cut not played out",
              [r"^FAIL  a cancel: the next text starts as after an end ", r"^ok    a cancel: the next text said whole ",
               r"^sp voice: 1 FAILED$"])):

@@ -68,6 +68,7 @@ struct sp_host {
     int n_pend, cap_pend, n_buf, cap_buf;
     long long insns;
     int log_on;
+    int fail_cancel;                                      /* tests: the next cancel raises (sph_set_int) */
     sph_write *wl;
     int n_wl, cap_wl;
 };
@@ -705,6 +706,11 @@ SP_API int sph_queued_frames(const sp_host *h)
 
 SP_API void sph_cancel(sp_host *h)
 {
+    if (h->fail_cancel) {                                  /* a test's: this cancel faults (sp_voice's recovery) */
+        h->fail_cancel = 0;
+        raise_(h, "a test: the cancel faulted");
+        return;
+    }
     call_(h, h->brk_cancel ? 0x0000 : 0x0001, NULL, NULL, 0);
 }
 
@@ -918,6 +924,8 @@ SP_API void sph_set_int(sp_host *h, const char *name, int v)
 {
     if (!strcmp(name, "log_writes"))
         h->log_on = v != 0;
+    else if (!strcmp(name, "fail_cancel"))                /* tests: the next cancel faults */
+        h->fail_cancel = v != 0;
 }
 
 SP_API int sph_writes(const sp_host *h, const sph_write **writes)

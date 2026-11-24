@@ -411,6 +411,10 @@ SP_API int spv_speak(sp_voice *v, const char *utf8, int pitch_offset)
         return 0;
     if (v->active || sph_busy(v->h, QUIET))
         spv_cancel(v);
+    /* ... and once more after that cancel: one that faults left say_next on a dead host, and the text was lost (the
+       0.9.5 audit).  SPV_SPEAK_FAULT_BREAK=1, the tests' control: not looked at again, as it was */
+    if (spv_fault(v) && !getenv("SPV_SPEAK_FAULT_BREAK") && !restart(v))
+        return 0;
     free_parts(v);
     n = make_parts(utf8, v->numbers, &p);
     if (n <= 0) {

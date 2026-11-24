@@ -17,6 +17,7 @@ Controls (each must fail its own checks, and only them):
   SPV_TEXT_BREAK=1     the apostrophes as they are: the possessive and quote-mark checks fail
   SPV_CUT_BREAK=1      the cut left as it was, not played out (sp_voice.c play_out): "a cancel: the next text starts
                        as after an end" fails
+  SPV_SPEAK_FAULT_BREAK=1    spv_speak's fault not looked at again after its own cancel: "a cancel that faults" fails
   SSV_BANK_BREAK=synphonix   a bank keeps the SynPhonix's unit on a boot change: the bank check fails
 """
 import ctypes
@@ -264,6 +265,19 @@ def main():
     _p, wa, _n = v.say("Said after the cancel, whole.")
     ok(said(wa) == said(wh), "a cancel: the next text said whole", "%d phonemes against %d" % (
         len(said(wa)), len(said(wh))))
+    # ... and when the cancel spv_speak makes itself faults (sp_host's test hook "fail_cancel"), the text it was given
+    # is still said, on a fresh unit: the fault was looked at before that cancel only, and say_next ran on a dead host
+    # (the 0.9.5 audit; SPV_SPEAK_FAULT_BREAK=1, the control, fails this alone)
+    lib = v.v._lib                                   # (spv_host, sph_set_int: declared by the binding)
+    v.say(sentence * 4, blocks=20)                   # still talking: spv_speak cancels it itself
+    lib.sph_set_int(lib.spv_host(v.v._v), b"fail_cancel", 1)
+    v.v.writes()
+    pf, _w, _n = v.say("Said after the cancel, whole.")
+    lib.sph_set_int(lib.spv_host(v.v._v), b"log_writes", 1)   # (a fresh unit logs nothing until asked: by audio here)
+    v.v.writes()
+    ph, _w, _n = v.say("Said after the cancel, whole.")
+    ok(len(ph) > 0 and abs(len(pf) - len(ph)) <= 0.2 * len(ph), "a cancel that faults: the next text said whole",
+       "%.2f s against %.2f s" % (len(pf) / 2.0 / RATE, len(ph) / 2.0 / RATE))
     # ... and started as after a natural end: its first phoneme at once, VEST's writes the same, none of the cut text's
     # sound at its head.  VEST's cut leaves the chip on a pause with the cut phoneme fading into it and its own closing
     # frames to come, and the card's time stands still between texts, so those came at the next text's head: it started

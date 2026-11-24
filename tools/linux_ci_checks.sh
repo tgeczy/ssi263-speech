@@ -131,6 +131,9 @@ control "SynPhonix voice CONTROL (the apostrophes as they are, must fail)" "^FAI
 control "SynPhonix voice CONTROL (a bank keeps its unit on a boot change, must fail)" \
     "^FAIL  a bank's unit made again on a boot change" "^sp voice: 1 FAILED$" -- \
     env SSV_BANK_BREAK=synphonix python3 tools/check_sp_voice.py $B/libssi263_voices.so
+control "SynPhonix voice CONTROL (a speak's own cancel faulting, the text lost, must fail)" \
+    "^FAIL  a cancel that faults: the next text said whole " "^ok    a cancel: the next text said whole " \
+    "^sp voice: 2 FAILED$" -- env SPV_SPEAK_FAULT_BREAK=1 python3 tools/check_sp_voice.py $B/libssi263_voices.so
 control "SynPhonix voice CONTROL (the cut not played out, must fail)" \
     "^FAIL  a cancel: the next text starts as after an end " "^ok    a cancel: the next text said whole " \
     "^sp voice: 1 FAILED$" -- env SPV_CUT_BREAK=1 python3 tools/check_sp_voice.py $B/libssi263_voices.so

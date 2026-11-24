@@ -27,6 +27,7 @@ Checks (both need `VEST.COM` in its drop-in folder and skip without it; Windows,
   Speak-Out, each setting, a capital, a long text in parts (no gap, every block short), a cancel and the text after
   it (said whole, and started as after a natural end: none of the cut phoneme's fade at its head), the text rules,
   the number words. Its controls: `SPV_PITCH_BREAK`, `SPV_QUEUE_BREAK`, `SPV_TEXT_BREAK`, `SSV_BANK_BREAK=synphonix`,
-  `SPV_CUT_BREAK` (the cut not played out).
+  `SPV_CUT_BREAK` (the cut not played out), `SPV_SPEAK_FAULT_BREAK` (a fault of `spv_speak`'s own cancel not looked at again:
+  the text lost; `sph_set_int(h, "fail_cancel", 1)` is the host's test hook that makes the next cancel fault).
 
 The platforms come after Tomi has heard the voice in NVDA (`tools/check_uniform.py` lists them as pending).
