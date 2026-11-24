@@ -196,6 +196,15 @@ control "voice table marks CONTROL (the audio rendered ahead returned from its s
     "^FAIL accentmini:mini +audio " "^FAIL smartalk:smartalk +audio " "^ssv marks: [0-9]+ FAILED$" \
     -- env SSV_MARKS_ESTIMATE=1 SSV_MARKS_BREAK=queue python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
 control "voice table marks CONTROL (the unit's own mark inside a word, must fail)" \n    "^FAIL accentmini:mini +audio " "^FAIL smartalk:smartalk +audio " "^ok +accentmini:sa +once " \n    "^ssv marks: [0-9]+ FAILED$" \n    -- env SSV_MARKS_SAME_BREAK=1 python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
+# after a cancel, every voice's next text is only itself (tools/check_cancel_head.py): the marks folder above and the
+# SynPhonix's VEST.COM from the repository; its control: the lockstep cancel as it was, the Braille Lite's kept line not
+# released (3-4 s of the cut text before the next one, 0.9.5)
+ln -sfn "$ROOT/firmware/artic-synphonix" $MFW/artic-synphonix
+check "voice table: after a cancel the next text is only itself, every voice here" python3 tools/check_cancel_head.py \
+    build/linux/libssi263_voices.so --firmware $MFW
+control "voice table cancel CONTROL (the Braille Lite's kept line not released, must fail)" \
+    "^FAIL  blazie:blazie +ms after a cut at block .* LEAK" "^cancel head: [0-9]+ FAILED$" \
+    -- env BL_KEPT_LINE_BREAK=1 python3 tools/check_cancel_head.py build/linux/libssi263_voices.so --firmware $MFW
 # ... and never early: past each first done the same unit runs on 1.5 s and must not speak again (Astra, Reply 248)
 check "no-echo end: every done final (the units that never echo)" python3 src/csrc/blazie/test_no_echo_end.py \
     --lib "$LIB" --firmware "$DATA"

@@ -654,13 +654,14 @@ BL_API double bh_skip(bl_host *h, double seconds)
    text (measured, the English Braille Lite: a second ^X changes nothing; a lone CR has the unit work for 0.44-0.63 s,
    echo ^F and speak the whole line).  The lockstep unit is seldom caught so (2 of 271 cancel times over a 300-
    character text); the unit run ahead has read on while the listener is mid-line, and was at 50 of 268.  So, after
-   the cut, when the cancelled run-ahead utterance still owed lines: a lone CR; then the unit is watched.  With no
+   the cut, when the cancelled utterance still owed lines: a lone CR; then the unit is watched.  With no
    line kept its CPU never works for more than 22 ms without waiting for an interrupt; with one kept it starts on the
    line within 102 ms and works without a break until it speaks, 0.45-0.77 s after the CR (measured over rates 25-100
    and a text of short lines, 1421 cancel times, 256 of them with a line kept).  So HELD_BUSY_S of unbroken work
    within HELD_WATCH_S says a line is kept, and the moment the unit loads a spoken phoneme the line is cut as any
    speech is.  The CR's own empty line is then the one kept: it has no ^F, so nothing is owed for it.  The sound of
-   all this is skipped, never heard. */
+   all this is skipped, never heard.  Since 0.9.5 the lockstep cancel does the same (bh_cancel): four languages' units
+   kept a line at most cuts. */
 #define HELD_WATCH_S 0.18
 #define HELD_BUSY_S 0.05
 #define HELD_CAP_S 1.5
@@ -748,6 +749,11 @@ BL_API double bh_cancel(bl_host *h, double limit, double quiet, double cut)
                 h->cancel_settled, h->cancel_dropped);
         }
         h->ar_hold = (h->cancel_settle & 2) != 0;
+        /* ... and a line the lockstep unit kept is released and cut too.  The English unit is seldom caught so (2 of 271,
+           above), but the French, Greek, Norwegian and Swedish units were caught at most cuts of a long text: 3.0-3.6 s
+           of the cut text said before the next one (tools/check_cancel_head.py, every voice; the same on 0.9.2's
+           library).  BL_KEPT_LINE_BREAK=1, the check's control: the lockstep cancel as it was */
+        ra_cut = !getenv("BL_KEPT_LINE_BREAK");
     }
     /* the explicit recovery from a fault (Reply 112 item 2): the utterance, its held input and a failed script are
        abandoned here (ra_reset), the unit gets its ^X below */

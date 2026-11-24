@@ -821,6 +821,33 @@ for _which, _voice, _name in (("blazie", None, "Braille Lite"), ("speakout", Non
                             env={"SSI263_SYNTH_DRIVERS": _UNITS, "FIRST_FEED_BREAK": "set"}, expect_fail=True,
                             fail_marks=[r"^ok +starts ", r"^FAIL paced +a [\d.]+ s sentence cancelled 0\.3 s in, "
                                         r"paced: [\d.]+ s of it fed", r"^first feed: 1 FAILED$"]))
+# After a cancel, the next utterance through each NVDA driver is only itself (nvda_cancel_head.py; the voice table's
+# check_cancel_head.py as NVDA drives the units): a long text cut at four points, then "Down arrow." no longer than
+# after a natural end plus 300 ms, on every voice of every driver -- a new driver or voice is checked the day it is
+# added.  The Braille Lite's 22 voices in three parallel groups.  Its control: the unit never told to cancel (the
+# Braille Lite: 9-12 s of the cut text leak).  The Speak-Out's driver drops a cancelled utterance's audio itself, so
+# that control cannot fail there; the Braille Lite is where it proves the measurement
+_BL_GROUPS = ("blazie,blazie_es,blazie_de,blazie_it,blazie_sk,blazie_ar,blazie_ar_ae,blazie_pt_br",
+              "blazie_pt,blazie_hr,blazie_cs,blazie_da,blazie_fr,blazie_el,blazie_he",
+              "blazie_hu,blazie_ko,blazie_no,blazie_pl,blazie_sv,blazie_tr,blazie_ru")
+for _which, _voices, _name in ([("blazie", g, "Braille Lite %d" % (k + 1)) for k, g in enumerate(_BL_GROUPS)]
+                               + [("speakout", "speakout,soundingboard", "Speak-Out, Sounding Board"),
+                                  ("accent", "mini,sa", "Accents"), ("mockingboard", None, "Mockingboards"),
+                                  ("smartalk", None, "SmarTalk"), ("synphonix", None, "SynPhonix"),
+                                  ("supervoice", None, "Super Voice")]):
+    if not os.path.isfile(os.path.join(_UNITS, {"accent": "accentmini"}.get(_which, _which) + ".py")):
+        continue
+    _argv = [PY, "nvda_cancel_head.py", _which] + ([_voices] if _voices else [])
+    CHECKS.append(check("NVDA: after a cancel the next utterance is only itself: %s" % _name, _argv,
+                        env={"SSI263_SYNTH_DRIVERS": _UNITS},
+                        ok=lambda out: bool(re.search(r"^nvda cancel head \w+: all [1-9]\d* voices ok$", out, re.M))
+                        or bool(re.search(r"^skip ", out, re.M))))
+if os.path.isfile(os.path.join(_UNITS, "blazie.py")):
+    CHECKS.append(check("NVDA cancel CONTROL (the Braille Lite's unit never cancelled, must fail)",
+                        [PY, "nvda_cancel_head.py", "blazie", "blazie"],
+                        env={"SSI263_SYNTH_DRIVERS": _UNITS, "NVDA_CANCEL_HEAD_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL  blazie +ms of 'Down arrow\.' after a cut at .* LEAK",
+                                    r"^nvda cancel head blazie: 1 FAILED$"]))
 # An utterance that makes no sound (issue #32): NVDA's WASAPI player calls an onDone only while its stream plays, and
 # after a stop or NVDA's idle check nothing started it -- the indexes of text NVDA left as spaces, or of an index alone,
 # were never called, and NVDA said nothing more until a key press.  silent_indexes.py, each driver through the stand-in
@@ -2653,6 +2680,18 @@ CHECKS.append(check("voice table marks CONTROL (the unit's own mark inside a wor
                     env={"SSV_MARKS_SAME_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^FAIL accentmini:mini +audio ", r"^FAIL smartalk:smartalk +audio ",
                                 r"^ok +accentmini:sa +once ", r"^ssv marks: [0-9]+ FAILED$"]))
+# After a cancel, every voice's next text is only itself (check_cancel_head.py): a long text cut at four points, then a
+# short one no longer than after a natural end, plus 300 ms.  Every voice in the table, so a new one is checked the day
+# it is added (the kept line, #30, came back in lockstep on several languages: 3-4 s of the cut text, 0.9.5).  Its
+# control: the lockstep cancel as it was, the Braille Lite's kept line not released
+CANCEL_HEAD = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_cancel_head.py")]
+CHECKS.append(check("voice table: after a cancel the next text is only itself, every voice here", CANCEL_HEAD,
+                    ok=lambda out: bool(re.search(r"^cancel head: all \d+ voices passed$", out, re.M))))
+if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "blazie", "BL2ENG.BNS")):
+    CHECKS.append(check("voice table cancel CONTROL (the Braille Lite's kept line not released, must fail)",
+                        CANCEL_HEAD, env={"BL_KEPT_LINE_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL  blazie:blazie +ms after a cut at block .* LEAK",
+                                    r"^ok    speakout:speakout ", r"^cancel head: \d+ FAILED$"]))
 if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "blazie", "spanish", "BL2SPA.BNS")):
     CHECKS.append(check("voice table marks CONTROL (an unmeasured release's marks taken for its own, must fail)",
                         SSV_MARKS, env={"SSV_MARKS_OWN_BREAK": "1"}, expect_fail=True,

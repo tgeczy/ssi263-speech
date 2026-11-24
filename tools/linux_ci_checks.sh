@@ -204,6 +204,10 @@ control "am_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^am marks: 1 FAILED$" -- env AM_MARKS_BREAK=3 python3 nvda/tools/am_marks.py $B/libssi263_voices.so
 control "am_voice marks CONTROL (the Ctrl-F inside the word before, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^am marks: 8 FAILED$" -- env AM_MARKS_BREAK=4 python3 nvda/tools/am_marks.py $B/libssi263_voices.so
+# after a cancel, every voice's next text is only itself (tools/check_cancel_head.py), on the voices whose firmware the
+# repository holds; its control needs the Braille Lite's (tools/linux_tests.sh)
+check "voice table: after a cancel the next text is only itself, the voices in the repository" \
+    python3 tools/check_cancel_head.py $B/libssi263_voices.so --firmware "$ROOT/firmware"
 check "voice table: index marks, on the voices in the repository" python3 tools/check_ssv_marks.py \
     $B/libssi263_voices.so --firmware "$ROOT/firmware"
 check "voice table: index marks, estimated, on the voices in the repository" env SSV_MARKS_ESTIMATE=1 \
