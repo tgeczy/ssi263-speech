@@ -198,6 +198,12 @@ is a state file, not firmware. Please import only firmware files, or zips contai
 words); in a zip beside firmware (the add-on), it is left out and said so. Refusals are shown in a dialog, kept on
 the Setup page and announced to TalkBack.
 
+A unit already here is left as it is (0.9.5): its firmware the same bytes as the copy kept (or, none imported, as the
+copy built into the APK), and a Blazie unit's state there and the one its release makes (`blv_state_check`). So the
+add-on imported a second time prepares nothing again; the confirmation names only what is new, and when nothing is,
+"Everything in ... is already here, unchanged" says so. Another release, or another card's VEST.COM, replaces the one
+here; a missing or wrong state is prepared again.
+
 The unit's battery-backed state (it holds what the firmware wrote, so it cannot ship either) is made on the phone
 from the firmware (`bl_state.c`): the bns.c runs that made the shipped states, replayed on MAME's Z180, and checked
 on the phone against the list's hash for that release (MAME-made: the same bytes on the phone, the desktop and Linux;
@@ -333,6 +339,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=soundingboard         # control: the Sounding Board's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=smartalk              # control: the SmarTalk's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=synphonix             # control: the SynPhonix's cases must FAIL
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=same                  # control: a unit already here taken again: must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=flash                 # control: the unit screen's large file must FAIL (#50)
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=dosnames              # control: the DOS-named zips must FAIL (#54)
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=hooks                 # control: the exported screens' hooks must FAIL (P40)

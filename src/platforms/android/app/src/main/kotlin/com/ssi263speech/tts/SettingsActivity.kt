@@ -489,7 +489,16 @@ class SettingsActivity : Activity() {
             try { importStatus.announceForAccessibility(refusal) } catch (e: Throwable) {}
             return
         }
-        Log.i("SsiImport", "plan for ${source.name}: ${plan.found.size} found")
+        if (plan.found.isEmpty()) {         // every unit in it already here as it is: nothing to do
+            val said = FirmwareImport.nothingNew(source.name, plan)
+            importStatus.text = "Nothing imported: everything in ${source.name} is already here."
+            Log.i("SsiImport", "nothing new in ${source.name}: ${plan.here.size} already here")
+            AlertDialog.Builder(this).setTitle("Already imported").setMessage(said)
+                .setPositiveButton("Close", null).show()
+            try { importStatus.announceForAccessibility(importStatus.text) } catch (e: Throwable) {}
+            return
+        }
+        Log.i("SsiImport", "plan for ${source.name}: ${plan.found.size} found, ${plan.here.size} already here")
         confirmImport(plan, confirm)
     }
 

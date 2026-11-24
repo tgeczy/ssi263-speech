@@ -891,4 +891,93 @@ class FirmwareImportTest {
         assertEquals("This is a state file, not firmware. Please import only firmware files, or zips containing " +
             "them, with this tool.", FirmwareImport.STATE_FILE)
     }
+
+    // ---- a unit already here (0.9.5): left as it is, never prepared again -----------------------------------------
+    // The control, -Pssi263ImportBreak=same, takes every unit again as before: the cases that leave one alone FAIL.
+
+    /** The fake's judgement with a folder of kept units beside it, as SsiImport.Here's; `sound`: what the state check
+     * says of a kept state; `built`: the copies built into the app. */
+    private class Kept(val dir: File, val sound: Boolean = true, val built: Map<Int, ByteArray> = emptyMap()) :
+        FirmwareImport.Identify by Fake {
+        override fun kept(name: String): File? = File(dir, name).takeIf { it.isFile }
+        override fun builtIn(voice: Int): ByteArray? = built[voice]
+        override fun stateSound(firmware: File, state: File) = sound
+    }
+
+    /** A folder holding `files` as an earlier import left them. */
+    private fun keptFolder(vararg files: Pair<String, ByteArray>): File {
+        val dir = temp.newFolder()
+        for ((name, bytes) in files) File(dir, name).also { it.parentFile.mkdirs() }.writeBytes(bytes)
+        return dir
+    }
+
+    private fun inspectWith(id: FirmwareImport.Identify, name: String, data: ByteArray): FirmwareImport.Plan {
+        FirmwareImport.releases = RELEASES
+        return FirmwareImport.inspect(name, data, temp.newFolder(), id)
+    }
+
+    private fun addOn() = zip("manifest.ini" to "name = blazie".toByteArray(),
+        "synthDrivers/_ssi263_blazie/BL2ENG.BNS" to bns('E'), "synthDrivers/_ssi263_blazie/BL2SPA.BNS" to bns('S'))
+
+    @Test fun theAddOnImportedAgainPreparesNothing() {
+        val id = Kept(keptFolder("BL2ENG.BNS" to image('E'), "bl2_2003_warm.state" to state(),
+                                 "BL2SPA.BNS" to image('S'), "bl2spa_fresh.state" to state()))
+        val plan = inspectWith(id, "blazie.nvda-addon", addOn())
+        assertNull(plan.refusal)
+        assertEquals(emptyList<Int>(), languages(plan))
+        assertEquals(listOf(FirmwareImport.ENGLISH, FirmwareImport.SPANISH), plan.here.map { it.language })
+        assertEquals("Everything in blazie.nvda-addon is already here, unchanged: English June 2003 and Spanish " +
+            "September 2000. Nothing was imported.", FirmwareImport.nothingNew("blazie.nvda-addon", plan))
+    }
+
+    @Test fun onlyTheUnitNotHereIsImported() {
+        val id = Kept(keptFolder("BL2ENG.BNS" to image('E'), "bl2_2003_warm.state" to state()))
+        val plan = inspectWith(id, "blazie.nvda-addon", addOn())
+        assertEquals(listOf(FirmwareImport.SPANISH), languages(plan))
+        assertEquals(listOf(FirmwareImport.ENGLISH), plan.here.map { it.language })
+        assertTrue(plan.notes.toString(),
+            plan.notes.contains("English June 2003 is already here, unchanged, so it is left as it is."))
+    }
+
+    @Test fun anotherReleaseReplacesTheOneHere() {
+        // the older English release kept; the June 2003 one brought: a change, so it is imported
+        val id = Kept(keptFolder("BL2ENG.BNS" to image('e'), "bl2_2003_warm.state" to state()))
+        val plan = inspectWith(id, "BL2ENG.BNS", bns('E'))
+        assertEquals(listOf(FirmwareImport.ENGLISH), languages(plan))
+        assertEquals(emptyList<FirmwareImport.Found>(), plan.here)
+    }
+
+    @Test fun aUnitWhoseStateIsMissingOrWrongIsPreparedAgain() {
+        val noState = Kept(keptFolder("BL2ENG.BNS" to image('E')))
+        assertEquals(listOf(FirmwareImport.ENGLISH), languages(inspectWith(noState, "BL2ENG.BNS", bns('E'))))
+        val wrong = Kept(keptFolder("BL2ENG.BNS" to image('E'), "bl2_2003_warm.state" to state()), sound = false)
+        assertEquals(listOf(FirmwareImport.ENGLISH), languages(inspectWith(wrong, "BL2ENG.BNS", bns('E'))))
+    }
+
+    @Test fun theCopyInUseDecidesForAVoiceTakenAsItIs() {
+        val other = "VESTCOM160".toByteArray() + ByteArray(2500) { (it * 3).toByte() }  // another card's serial
+        // none imported: the same as the copy built in is here; another card's copy is imported
+        val built = Kept(keptFolder(), built = mapOf(FirmwareImport.SYNPHONIX to vest))
+        assertEquals(listOf(FirmwareImport.SYNPHONIX), inspectWith(built, "VEST.COM", vest).here.map { it.language })
+        assertEquals(listOf(FirmwareImport.SYNPHONIX), languages(inspectWith(built, "VEST.COM", other)))
+        // one imported: it is the copy in use, so bringing the built-in one's bytes again replaces it
+        val mine = Kept(keptFolder("VEST.COM" to other), built = mapOf(FirmwareImport.SYNPHONIX to vest))
+        assertEquals(listOf(FirmwareImport.SYNPHONIX), languages(inspectWith(mine, "VEST.COM", vest)))
+        assertEquals(listOf(FirmwareImport.SYNPHONIX), inspectWith(mine, "VEST.COM", other).here.map { it.language })
+    }
+
+    @Test fun aTwoFileVoiceIsHereOnlyWithBothFiles() {
+        val sb = zip("SBLOAD.COM" to sbLoad, "SB.COM" to sbCom)
+        val both = Kept(keptFolder("SBLOAD.COM" to sbLoad, "SB.COM" to sbCom))
+        assertEquals(listOf(FirmwareImport.SOUNDINGBOARD), inspectWith(both, "sb.zip", sb).here.map { it.language })
+        val half = Kept(keptFolder("SBLOAD.COM" to sbLoad))
+        assertEquals(listOf(FirmwareImport.SOUNDINGBOARD), languages(inspectWith(half, "sb.zip", sb)))
+    }
+
+    @Test fun aUnitScreenReleaseHereIsLeftAlone() {
+        val id = Kept(keptFolder("units/bns640_en_2003_06.BNS" to image('6')))
+        val plan = inspectWith(id, "BSPENG.BNS", bns('6'))
+        assertEquals(emptyList<Int>(), languages(plan))
+        assertEquals("Braille 'n Speak 640 English June 2003", plan.here.single().label)
+    }
 }

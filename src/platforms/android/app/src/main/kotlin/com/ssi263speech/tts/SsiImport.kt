@@ -26,6 +26,17 @@ object SsiImport {
             SsiNative.nativeReleaseRow(row)?.split("\t")?.let { FirmwareImport.UnitRelease(it[0], it[1]) }
     }
 
+    /** The native side's judgement with this phone's own units beside it, so a unit already here is told apart. */
+    class Here(private val ctx: Context) : FirmwareImport.Identify by NativeIdentify {
+        override fun kept(name: String): File? = File(SsiData.dir(ctx), name).takeIf { it.isFile }
+
+        override fun builtIn(voice: Int): ByteArray? =
+            if (voice in FirmwareImport.BUILT_IN) SsiData.builtIn(ctx, voice) else null
+
+        override fun stateSound(firmware: File, state: File): Boolean =
+            SsiNative.nativeStateCheck(firmware.absolutePath, state.absolutePath)
+    }
+
     class Source(val name: String, val size: Long, val open: () -> InputStream)
 
     /** A file by path: the adb route. */
@@ -69,7 +80,7 @@ object SsiImport {
         "Speak-Out or Mockingboard firmware, an update for it or the NVDA add-on."
 
     fun inspect(ctx: Context, source: Source): FirmwareImport.Plan =
-        FirmwareImport.inspect(source.name, read(source), SsiData.staging(ctx), NativeIdentify)
+        FirmwareImport.inspect(source.name, read(source), SsiData.staging(ctx), Here(ctx))
 
     /** What the import's check says, in the unit's language (test_android_native's LANGS probe the same words). */
     fun probeText(language: Int) = when (language) {

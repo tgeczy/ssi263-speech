@@ -131,7 +131,8 @@ object FirmwareImport {
      * the release voices out of the import, so their tests must fail; `units` drops a release no voice speaks (the
      * 640, Japanese) as before 0.8.5, so the unit screen's import tests must fail; `soundingboard` drops what the native
      * side says are the Sounding Board's two drivers, so its tests must fail; `smartalk` the same for the SmarTalk's
-     * S_TALK.EXE; `synphonix` the same for the SynPhonix's VEST.COM; `voice-order` lists the Sounding Board after the release voices again, not under the Speak-Out
+     * S_TALK.EXE; `synphonix` the same for the SynPhonix's VEST.COM; `same` takes a unit already here again, as before
+     * 0.9.5, so the already-here tests must fail; `voice-order` lists the Sounding Board after the release voices again, not under the Speak-Out
      * (SsiEngine's voices, [imported]). */
     internal val CONTROL = System.getProperty("ssi263.import.break") ?: ""
 
@@ -182,6 +183,16 @@ object FirmwareImport {
 
         /** A [UNIT_RELEASE] row, by the release table's words; null for none. */
         fun unitRelease(row: Int): UnitRelease? = null
+
+        /** The file kept under `name` in the imported voices' folder ([FILES]' names, a [UnitRelease]'s file), or
+         * null when there is none: what a unit found is compared with, to tell one already here. */
+        fun kept(name: String): File? = null
+
+        /** The copy of a [BUILT_IN] voice this app carries, in use while none is imported; null when none. */
+        fun builtIn(voice: Int): ByteArray? = null
+
+        /** A Blazie unit's kept state is the one its kept release makes (blv_state_check). */
+        fun stateSound(firmware: File, state: File): Boolean = false
     }
 
     fun languageName(language: Int) = release(language)?.language ?: when (language) {
@@ -220,8 +231,40 @@ object FirmwareImport {
     )
 
     /** Either `refusal` says why nothing can be imported, in words for the person holding the phone, or `found`
-     * lists what will be.  `notes` are things worth saying either way. */
-    class Plan(val found: List<Found>, val refusal: String?, val notes: List<String> = emptyList())
+     * lists what will be.  `notes` are things worth saying either way.  `here` are the units found that are already
+     * here as they are, left alone: when `found` is empty and `here` is not, there is nothing new to import. */
+    class Plan(val found: List<Found>, val refusal: String?, val notes: List<String> = emptyList(),
+               val here: List<Found> = emptyList())
+
+    /** What an import says when everything it found is already here ([Plan.here]), then its notes. */
+    fun nothingNew(name: String, plan: Plan): String =
+        (listOf("Everything in $name is already here, unchanged: ${plan.here.joinToString(" and ") { it.label }}. " +
+            "Nothing was imported.") + plan.notes).joinToString("\n\n")
+
+    /** A unit found that is here already: its firmware (each of a two-file voice's files) the same, byte for byte, as
+     * the copy kept -- or, none imported, as the copy built into this app -- and a Blazie unit's state kept beside it
+     * the one its release makes.  An import of it again would only do the same work again: importing the NVDA
+     * add-on a second time prepared every unit in it again (Spanish's for a minute).  A unit whose state is missing or
+     * not its release's is not here: importing it again prepares it again, a repair. */
+    private fun alreadyHere(f: Found, id: Identify): Boolean {
+        val unit = f.unit
+        if (unit != null) return same(f.firmware, id.kept(unit.file))
+        val files = files(f.language) ?: return false
+        if (isBlazie(f.language)) {
+            val bns = id.kept(files[0]) ?: return false
+            val state = id.kept(files[1]) ?: return false
+            return same(f.firmware, bns) && id.stateSound(bns, state)
+        }
+        val mine = listOf(f.firmware) + f.parts
+        if (mine.size != files.size) return false
+        val kept = files.map { id.kept(it) }
+        if (kept.all { it != null }) return mine.indices.all { same(mine[it], kept[it]) }
+        if (kept.any { it != null }) return false           // half a two-file voice: imported again, whole
+        val built = id.builtIn(f.language) ?: return false
+        return mine.size == 1 && f.firmware.readBytes().contentEquals(built)
+    }
+
+    private fun same(a: File, b: File?) = b != null && a.length() == b.length() && a.readBytes().contentEquals(b.readBytes())
 
     /** What a finished import says: the voices that speak now, and the units kept for the unit screen alone said to
      * be no voice (Tomi, 2026-10-18: a Braille 'n Speak 640 imported alone is "not a voice", never "the voice speaks
@@ -385,9 +428,20 @@ object FirmwareImport {
                         "${f.from} (${f.label}) is imported, as the unit holds one ${languageName(c.language)} " +
                         "release at a time.")
             }
+            // the units already here as they are, left alone (Tomi, 2026-11-23); the `same` control takes them all
+            val here = if (CONTROL == "same") emptyList() else found.filter { alreadyHere(it, id) }
+            found.removeAll(here)
+            for (f in here) (listOf(f.firmware) + f.parts).forEach { it.delete() }
+            if (found.isNotEmpty() && here.isNotEmpty())
+                notes.add(if (here.size == 1) "${here[0].label} is already here, unchanged, so it is left as it is."
+                          else "Already here, unchanged, and left as they are: ${here.joinToString(" and ") { it.label }}.")
             for (from in unknown) notes.add("$from is Braille Lite 2000 firmware of a release this app does not " +
                 "know; it is left out.")
             for ((from, why) in otherHex + withReason) notes.add("$from is $why; it is left out.")
+            if (found.isEmpty() && here.isNotEmpty()) {       // nothing new: what was left out still said
+                if (unopened.isNotEmpty()) notes.add(UNOPENED.format(unopened.joinToString(", ")))
+                return Plan(emptyList(), null, notes, here)
+            }
             if (states.size > 3) notes.add("${states.size} state files (${states[0]} and others) are not firmware, " +
                 "and are not used: this phone prepares each unit's state itself from its firmware.")
             else if (states.isNotEmpty()) notes.add("${states.joinToString(", ")} ${if (states.size == 1) "is a state " +
@@ -395,7 +449,7 @@ object FirmwareImport {
                 "used: this phone prepares the unit's state itself from the firmware.")
             // a zip inside a zip in the source, beside what was taken: said, never dropped in silence
             if (found.isNotEmpty() && unopened.isNotEmpty()) notes.add(UNOPENED.format(unopened.joinToString(", ")))
-            if (found.isNotEmpty()) return Plan(found, null, notes)
+            if (found.isNotEmpty()) return Plan(found, null, notes, here)
 
             if (states.isNotEmpty() && unknown.isEmpty() && refused.isEmpty() && unopened.isEmpty() && otherHex.isEmpty() &&
                 withReason.isEmpty())
