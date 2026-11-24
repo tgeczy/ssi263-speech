@@ -27,7 +27,8 @@
 # The tests (sapi\test_sapi_data.py) isolate the registry and the folders: SSI263_SAPI_DATA_KEY (an HKCU subkey in
 # place of the user's) and SSI263_SAPI_DATA_MACHINE_KEY (an HKCU subkey in place of the machine's), APPDATA and
 # ProgramData set by the test.  Their controls, SSI263_SAPI_DATA_BREAK (never set otherwise): "onepass" takes the first
-# folder that exists, files or not; "movenvda" plans NVDA's folder as movable; "nozip" looks into no zip.
+# folder that exists, files or not; "movenvda" plans NVDA's folder as movable; "nozip" looks into no zip; "zipall" lets
+# one unreadable member end the zip's reading, as it was.
 
 $DataUserKey = 'HKCU:\Software\SSI-263 SAPI'
 if ($env:SSI263_SAPI_DATA_KEY) { $DataUserKey = 'HKCU:\' + $env:SSI263_SAPI_DATA_KEY }
@@ -171,33 +172,44 @@ public static class SsiData {
     }
     static int U16(byte[] b, int at) { return b[at] | (b[at + 1] << 8); }
     static int U32(byte[] b, int at) { return U16(b, at) | (U16(b, at + 2) << 16); }
-    // a zip's members (stored or deflated) of at most cap bytes, through its central directory; none when it is no zip
-    public static List<byte[]> ZipMembers(byte[] z, int cap) {
-        List<byte[]> outList = new List<byte[]>();
+    // a zip's members (stored or deflated) of at most cap bytes, through its central directory; none when it is no zip.
+    // One at a time (the caller stops at the first that is the program), at most 256, every size checked as a long (a
+    // size past 2 GB read as an int went negative and past the checks), and a member that cannot be read -- a broken
+    // deflate stream, a method other than these two -- skipped, not the whole zip: every member used to be read first,
+    // and one bad member threw the import away (the 0.9.5 audit).  stopAtBad, the tests' control ("zipall"): as it was.
+    public static IEnumerable<byte[]> ZipMembers(byte[] z, int cap, bool stopAtBad) {
         int end = -1;
         for (int i = z.Length - 22; i >= 0 && i >= z.Length - 65557; i--)
             if (z[i] == 0x50 && z[i + 1] == 0x4B && z[i + 2] == 5 && z[i + 3] == 6) { end = i; break; }
-        if (end < 0) return outList;
-        int count = U16(z, end + 10), at = U32(z, end + 16);
-        for (int k = 0; k < count && at + 46 <= z.Length && U32(z, at) == 0x02014B50; k++) {
-            int method = U16(z, at + 10), csize = U32(z, at + 20), usize = U32(z, at + 24);
-            int nlen = U16(z, at + 28), xlen = U16(z, at + 30), clen = U16(z, at + 32), local = U32(z, at + 42);
-            at += 46 + nlen + xlen + clen;
+        if (end < 0) yield break;
+        long count = U16(z, end + 10), at = (uint)U32(z, end + 16);
+        for (long k = 0; k < count && k < 256 && at + 46 <= z.Length && U32(z, (int)at) == 0x02014B50; k++) {
+            int h = (int)at;
+            int method = U16(z, h + 10);
+            long csize = (uint)U32(z, h + 20), usize = (uint)U32(z, h + 24), local = (uint)U32(z, h + 42);
+            at += 46L + U16(z, h + 28) + U16(z, h + 30) + U16(z, h + 32);
             if (usize > cap || local + 30 > z.Length) continue;
-            int data = local + 30 + U16(z, local + 26) + U16(z, local + 28);
+            long data = local + 30 + U16(z, (int)local + 26) + U16(z, (int)local + 28);
             if (data + csize > z.Length) continue;
-            if (method == 0) { byte[] m = new byte[csize]; Array.Copy(z, data, m, 0, csize); outList.Add(m); }
-            else if (method == 8) {
-                using (DeflateStream d = new DeflateStream(new MemoryStream(z, data, csize), CompressionMode.Decompress)) {
-                    byte[] m = new byte[usize]; int got = 0, r;
-                    while (got < usize && (r = d.Read(m, got, usize - got)) > 0) got += r;
-                    if (got == usize) outList.Add(m);
+            byte[] m = null;
+            try {
+                if (method == 0) {
+                    if (csize != usize) continue;
+                    m = new byte[csize]; Array.Copy(z, data, m, 0, csize);
+                } else if (method == 8) {
+                    using (DeflateStream d = new DeflateStream(new MemoryStream(z, (int)data, (int)csize), CompressionMode.Decompress)) {
+                        byte[] b = new byte[usize]; int got = 0, r;
+                        while (got < usize && (r = d.Read(b, got, (int)usize - got)) > 0) got += r;
+                        if (got == usize) m = b;
+                    }
                 }
+            } catch (Exception) {
+                if (stopAtBad) throw;
+                m = null;
             }
+            if (m != null) yield return m;
         }
-        return outList;
-    }
-}
+    }}
 '@
 $DataNativeLoaded = $false
 function Initialize-DataNative([string]$stage) {
@@ -216,7 +228,7 @@ function Get-SuperVoiceProgram([string]$stage, [byte[]]$data) {
     $prog = [SsiData]::Program($data, [ref]$why)
     if ($prog) { return ,$prog }
     if ((Get-DataBreak) -ne 'nozip') {
-        foreach ($m in [SsiData]::ZipMembers($data, 4 * 161280)) {
+        foreach ($m in [SsiData]::ZipMembers($data, 4 * 161280, ((Get-DataBreak) -eq 'zipall'))) {
             $w = $null
             $p = [SsiData]::Program($m, [ref]$w)
             if ($p) { return ,$p }

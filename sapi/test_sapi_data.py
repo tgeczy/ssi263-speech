@@ -13,10 +13,12 @@ Cases:
   plans       per-user -> migrate (to %ProgramData%); NVDA's -> nvda; %ProgramData%'s -> done; a chosen one -> chosen;
               an empty one -> none
   extract     the program from itself, from a disk image, and from a zip holding the disk; a changed one refused
+  zipbad      a zip whose first member cannot be inflated, the disk after it: the disk taken
   register    the Register button hands register.ps1 this person's data root while it holds the program (elevated,
               register.ps1 may be another account, whose folders are not this person's), the bare -Register otherwise
   download    the first source not its pinned file, the second taken
-Controls (SSI263_SAPI_DATA_BREAK, each must fail exactly these): onepass -> twopass; movenvda -> plans; nozip -> extract.
+Controls (SSI263_SAPI_DATA_BREAK, each must fail exactly these): onepass -> twopass; movenvda -> plans; nozip -> extract,
+zipbad; zipall -> zipbad.
 SSI263_SAPI_SETTINGS_BREAK=register-root (settings.ps1: the bare -Register it was) -> register.
 """
 import hashlib
@@ -160,6 +162,22 @@ def main():
                              text.strip()))
             ok = outs[0][1] and outs[1][1] and outs[2][1] and not outs[3][1] and "sha256" in outs[3][2]
             check("extract", ok, "; ".join("%s %s" % (n, "taken" if t else "refused") for n, t, _x in outs))
+
+            # a zip whose first member cannot be inflated (its stream's first block of a reserved type) and the disk
+            # after it: the disk is still taken -- one bad member threw the import away (the 0.9.5 audit)
+            zb = io.BytesIO()
+            with zipfile.ZipFile(zb, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("A README.TXT", b"the disk is the next member " * 20)
+                zf.writestr("Super Voice (Speech Systems)/SUPERV.DSK", disk)
+            bad = bytearray(zb.getvalue())
+            bad[30 + len("A README.TXT")] = 0xFF               # BFINAL 1, BTYPE 11: no such block
+            with open(os.path.join(tmp, "bad.zip"), "wb") as f:
+                f.write(bytes(bad))
+            out = os.path.join(tmp, "out_bad.zip")
+            code, text = ps("-ExtractFrom", os.path.join(tmp, "bad.zip"), "-ExtractTo", out)
+            took = code == 0 and os.path.isfile(out) and open(out, "rb").read() == prog
+            check("zipbad", took, "a member that cannot be inflated first: %s" % (
+                "taken" if took else "refused: " + text.strip()[:90]))
 
             sha = lambda b: hashlib.sha256(b).hexdigest()  # noqa: E731
             bad = os.path.join(tmp, "bad.zip")

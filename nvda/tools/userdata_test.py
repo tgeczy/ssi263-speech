@@ -12,8 +12,9 @@ Cases:
   pinned      a download that is not its pinned file is refused, and nothing is written
   mirror      the first source failing, the second's disk is used
   verified    an imported program with one byte changed is refused by the library, and nothing is written
+  zipbad      a zip whose first member cannot be read, the disk after it: the disk taken
 Controls (SSI263_USERDATA_BREAK, each must fail exactly these): appdata -> portable, hash -> pinned,
-nomirror -> mirror, noverify -> verified and download (the disk itself is then written as the program).
+nomirror -> mirror, noverify -> verified and download (the disk itself is then written as the program), zipall -> zipbad.
 
 Everything is written under one temporary folder, %APPDATA% too: the appdata control names %APPDATA%\\nvda, and up to
 0.9.5's draft that was the person's REAL folder -- the test wrote and deleted SUPERTOK.BIN there, and the suite took
@@ -137,6 +138,21 @@ def main():
             check("verified", False, "a changed program was written")
         except userfw.FirmwareError as e:
             check("verified", not userfw.has_supervoice() and "sha256" in str(e), str(e)[:110])
+
+        # a zip whose first member cannot be read (its CRC broken) and the disk after it: the disk is still taken.  Every
+        # member was read under one try, and one bad member lost the zip (the 0.9.5 audit)
+        os.remove(userfw.supervoice_path()) if userfw.has_supervoice() else None
+        z3 = io.BytesIO()
+        with zipfile.ZipFile(z3, "w", zipfile.ZIP_STORED) as zf:
+            zf.writestr("A README.TXT", b"x" * 64)
+            zf.writestr("Super Voice (Speech Systems)/SUPERV.DSK", disk)
+        bad = bytearray(z3.getvalue())
+        bad[30 + len("A README.TXT") + 10] ^= 0xFF            # inside the first member's stored data: its CRC fails
+        try:
+            state = userfw.install_supervoice(bytes(bad), extract)
+            check("zipbad", state == "installed" and userfw.has_supervoice(), "a damaged member first: %s" % state)
+        except userfw.FirmwareError as e:
+            check("zipbad", False, "refused: %s" % str(e)[:100])
     finally:
         sys.modules.pop("globalVars", None)
         if real_appdata is None:

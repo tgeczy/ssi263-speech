@@ -205,7 +205,8 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
         CHECKS.append(check("0.8 user firmware: the Super Voice's download and import", [PY, "userdata_test.py"],
                             ok=lambda out: bool(re.search(r"^user data: all passed$", out, re.M))))
         for brk, cases in (("appdata", ["portable"]), ("hash", ["pinned"]), ("nomirror", ["mirror"]),
-                           ("noverify", ["download", "verified"])):
+                           ("noverify", ["download", "verified"]),
+                           ("zipall", ["zipbad"])):
             CHECKS.append(check("0.8 user firmware CONTROL (%s, must fail)" % brk, [PY, "userdata_test.py"],
                                 env={"SSI263_USERDATA_BREAK": brk}, expect_fail=True,
                                 fail_marks=[r"^FAIL  %s " % c for c in cases]
@@ -424,10 +425,12 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
     if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "nvda", "dist", "sapi-dev", "x64",
                                    "sapi_harness.exe")):
         CHECKS.append(check("SAPI data folders: order, two passes, moves, the program read", [PY, SAPI_DATA]))
-        for brk, case in (("onepass", "twopass"), ("movenvda", "plans")) + ((("nozip", "extract"),) if _sv_bin else ()):
+        for brk, cases in ((("onepass", ["twopass"]), ("movenvda", ["plans"]))
+                           + ((("nozip", ["extract", "zipbad"]), ("zipall", ["zipbad"])) if _sv_bin else ())):
             CHECKS.append(check("SAPI data folders CONTROL (%s, must fail)" % brk, [PY, SAPI_DATA],
                                 env={"SSI263_SAPI_DATA_BREAK": brk}, expect_fail=True,
-                                fail_marks=[r"^FAIL  %s " % case, r"^ok    order ", r"^sapi data: 1 FAILED$"]))
+                                fail_marks=[r"^FAIL  %s " % c for c in cases]
+                                + [r"^ok    order ", r"^sapi data: %d FAILED$" % len(cases)]))
         # "Move voices for all users": register.ps1's real -MigrateData block on temporary folders (test_sapi_move.py)
         SAPI_MOVE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_sapi_move.py")
         CHECKS.append(check("SAPI move: into an empty folder, nothing moved refused, links refused", [PY, SAPI_MOVE],

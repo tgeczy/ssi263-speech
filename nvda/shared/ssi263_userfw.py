@@ -129,17 +129,38 @@ def download_disk(fetch=_get):
     raise FirmwareError("The Super Voice's disk could not be downloaded. " + " ".join(problems))
 
 
+MAX_MEMBERS = 256                 # a zip's members tried at most: the archive's holds one disk
+
+
 def candidates(data):
     """the byte strings in a file the user picked worth asking the library about: the file itself, and each member of
-    a zip (one level, as the phones' import) small enough to be the disk or the program"""
-    out = [data]
-    if data[:4] == b"PK\x03\x04":
-        try:
-            with zipfile.ZipFile(io.BytesIO(data)) as z:
-                out += [z.read(i) for i in z.infolist() if not i.is_dir() and i.file_size <= 4 * DISK_SIZE]
-        except zipfile.BadZipFile:
-            pass
-    return out
+    a zip (one level, as the phones' import) small enough to be the disk or the program -- one at a time, so the caller
+    stops at the first that is the Super Voice, and a member that cannot be read (damaged, encrypted, an unknown method)
+    skipped, not the whole zip.  Every member used to be read first, under one try: a 64 MB zip of small members asked
+    for gigabytes inside NVDA, and one unreadable member lost a disk that was readable (the 0.9.5 audit).
+    SSI263_USERDATA_BREAK=zipall, the tests' control: as it was"""
+    yield data
+    if data[:4] != b"PK\x03\x04":
+        return
+    try:
+        z = zipfile.ZipFile(io.BytesIO(data))
+    except (zipfile.BadZipFile, ValueError, OSError):
+        return
+    with z:
+        members = [i for i in z.infolist() if not i.is_dir() and i.file_size <= 4 * DISK_SIZE][:MAX_MEMBERS]
+        if _break() == "zipall":
+            try:
+                for b in [z.read(i) for i in members]:
+                    yield b
+            except zipfile.BadZipFile:
+                pass
+            return
+        for i in members:
+            try:
+                b = z.read(i)
+            except Exception:                 # BadZipFile (a CRC), RuntimeError (encrypted), NotImplementedError, zlib
+                continue
+            yield b
 
 
 def install_supervoice(data, extract):
