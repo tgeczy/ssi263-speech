@@ -426,7 +426,8 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
                                    "sapi_harness.exe")):
         CHECKS.append(check("SAPI data folders: order, two passes, moves, the program read", [PY, SAPI_DATA]))
         for brk, cases in ((("onepass", ["twopass"]), ("movenvda", ["plans"]))
-                           + ((("nozip", ["extract", "zipbad"]), ("zipall", ["zipbad"])) if _sv_bin else ())):
+                           + ((("nozip", ["extract", "zipbad"]), ("zipall", ["zipbad"]), ("hash", ["download"]))
+                              if _sv_bin else ())):
             CHECKS.append(check("SAPI data folders CONTROL (%s, must fail)" % brk, [PY, SAPI_DATA],
                                 env={"SSI263_SAPI_DATA_BREAK": brk}, expect_fail=True,
                                 fail_marks=[r"^FAIL  %s " % c for c in cases]

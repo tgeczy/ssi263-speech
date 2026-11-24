@@ -18,7 +18,7 @@ Cases:
               register.ps1 may be another account, whose folders are not this person's), the bare -Register otherwise
   download    the first source not its pinned file, the second taken
 Controls (SSI263_SAPI_DATA_BREAK, each must fail exactly these): onepass -> twopass; movenvda -> plans; nozip -> extract,
-zipbad; zipall -> zipbad.
+zipbad; zipall -> zipbad; hash -> download.
 SSI263_SAPI_SETTINGS_BREAK=register-root (settings.ps1: the bare -Register it was) -> register.
 """
 import hashlib
@@ -190,7 +190,10 @@ def main():
             out = os.path.join(tmp, "out_download")
             code, text = ps("-DownloadTo", out)
             del os.environ["SSI263_SAPI_DATA_TEST_SOURCES"]
-            check("download", code == 0 and os.path.isfile(out) and open(out, "rb").read() == prog, text.strip()[:110])
+            # taken from the SECOND source: the first holds the disk too, but is not its pinned file (the case could not
+            # fail with the pin taken out: the 0.9.5 audit; SSI263_SAPI_DATA_BREAK=hash, the control, takes the first)
+            check("download", code == 0 and os.path.isfile(out) and open(out, "rb").read() == prog
+                  and text.strip() == "extracted from test2", text.strip()[:110])
     finally:
         for k in (ukey, mkey):
             subprocess.run(["reg", "delete", "HKCU\\" + k, "/f"], capture_output=True)

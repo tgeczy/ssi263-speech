@@ -26,8 +26,9 @@ $registerScript = Join-Path $stage 'register.ps1'
 . (Join-Path $stage 'dataroot.ps1')    # where the voices no package carries find their files (Panthera's system)
 $userVoices = Get-UserDataVoices $stage
 if ($env:SSI263_SAPI_DATA_TEST_SOURCES) {
+    $n = 0
     $SuperVoiceSources = @(foreach ($s in $env:SSI263_SAPI_DATA_TEST_SOURCES.Split(';')) {
-        $f = $s.Split('|'); ,@('test', $f[0], [int]$f[1], $f[2], $f[3]) })
+        $f = $s.Split('|'); $n++; ,@(('test' + $n), $f[0], [int]$f[1], $f[2], $f[3]) })
 }
 if ($ShowDataPlan) {
     $root = Resolve-DataRoot $userVoices
@@ -39,10 +40,11 @@ if ($ShowDataPlan) {
 }
 if ($ExtractFrom -or $DownloadTo) {
     try {
-        if ($DownloadTo) { $data = (Get-SuperVoiceDisk $null).Bytes; $ExtractTo = $DownloadTo }
+        $from = ''
+        if ($DownloadTo) { $disk = Get-SuperVoiceDisk $null; $data = $disk.Bytes; $from = ' from ' + $disk.Where; $ExtractTo = $DownloadTo }
         else { $data = [System.IO.File]::ReadAllBytes($ExtractFrom) }
         [System.IO.File]::WriteAllBytes($ExtractTo, (Get-SuperVoiceProgram $stage $data))
-        Write-Output 'extracted'
+        Write-Output ('extracted' + $from)
         exit 0
     } catch { Write-Output ('refused: ' + $_.Exception.Message); exit 1 }
 }

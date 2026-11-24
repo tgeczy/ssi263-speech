@@ -28,7 +28,7 @@
 # place of the user's) and SSI263_SAPI_DATA_MACHINE_KEY (an HKCU subkey in place of the machine's), APPDATA and
 # ProgramData set by the test.  Their controls, SSI263_SAPI_DATA_BREAK (never set otherwise): "onepass" takes the first
 # folder that exists, files or not; "movenvda" plans NVDA's folder as movable; "nozip" looks into no zip; "zipall" lets
-# one unreadable member end the zip's reading, as it was.
+# one unreadable member end the zip's reading, as it was; "hash" takes a download whatever its size and sha256.
 
 $DataUserKey = 'HKCU:\Software\SSI-263 SAPI'
 if ($env:SSI263_SAPI_DATA_KEY) { $DataUserKey = 'HKCU:\' + $env:SSI263_SAPI_DATA_KEY }
@@ -209,7 +209,8 @@ public static class SsiData {
             }
             if (m != null) yield return m;
         }
-    }}
+    }
+}
 '@
 $DataNativeLoaded = $false
 function Initialize-DataNative([string]$stage) {
@@ -254,7 +255,7 @@ function Get-SuperVoiceDisk($fetch) {
                 $wc.Headers.Add('User-Agent', 'ssi263-sapi-settings')
                 $bytes = $wc.DownloadData($s[1])
             }
-            if ($bytes.Length -ne $s[2] -or (Get-DataSha256 $bytes) -ne $s[3]) {
+            if ((Get-DataBreak) -ne 'hash' -and ($bytes.Length -ne $s[2] -or (Get-DataSha256 $bytes) -ne $s[3])) {
                 throw ("the download is not the file it should be ({0} bytes)" -f $bytes.Length)
             }
             return New-Object PSObject -Property @{ Bytes = $bytes; Where = $s[0] }
