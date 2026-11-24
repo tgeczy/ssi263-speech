@@ -219,6 +219,16 @@ control "package refusal CONTROL (paths split at spaces, as it was, must fail)" 
 # repository holds; its control needs the Braille Lite's (tools/linux_tests.sh)
 check "voice table: after a cancel the next text is only itself, the voices in the repository" \
     python3 tools/check_cancel_head.py $B/libssi263_voices.so --firmware "$ROOT/firmware"
+# sentence marks alone are not a stall (tools/check_marks_alone.py), the voices in the repository; the Accents' and the
+# SynPhonix's controls (the Braille Lite's needs its firmware: tools/linux_tests.sh)
+check "voice table: sentence marks alone are not a stall, the voices in the repository" \
+    python3 tools/check_marks_alone.py $B/libssi263_voices.so --firmware "$ROOT/firmware"
+control "voice table marks alone CONTROL (the SynPhonix's stall judged by silence, must fail)" \
+    "^FAIL  synphonix:vest " "^marks alone: 1 FAILED$" -- env SPV_STALL_BREAK=1 \
+    python3 tools/check_marks_alone.py $B/libssi263_voices.so --firmware "$ROOT/firmware" --only synphonix:vest,accentmini:sa
+control "voice table marks alone CONTROL (the Accents' stall judged by silence, must fail)" \
+    "^FAIL  accentmini:mini " "^FAIL  accentmini:sa " "^marks alone: 2 FAILED$" -- env ACCENT_STALL_BREAK=1 \
+    python3 tools/check_marks_alone.py $B/libssi263_voices.so --firmware "$ROOT/firmware" --only accentmini:mini,accentmini:sa
 check "voice table: index marks, on the voices in the repository" python3 tools/check_ssv_marks.py \
     $B/libssi263_voices.so --firmware "$ROOT/firmware"
 check "voice table: index marks, estimated, on the voices in the repository" env SSV_MARKS_ESTIMATE=1 \

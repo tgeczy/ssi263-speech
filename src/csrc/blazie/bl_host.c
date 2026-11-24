@@ -575,7 +575,14 @@ static int no_echo_finished(const bl_host *h)
 BL_API int bh_busy(const bl_host *h, double quiet, double patience)
 {
     double now = ssi263_time(h->chip);
-    double since = h->say_time > h->last_speech ? h->say_time : h->last_speech;   /* max(say_time, last_speech) */
+    /* patience counts from the last phoneme LOADED, PA included, as blazie.py's busy: a unit loading pause after pause
+       is at work.  Counted from the last speech, a run of lone periods at rate 0 -- each a long pause, no speech -- ran
+       out of patience with lines still owed: done was said, the unit kept the rest ("there" of "Hi . . . there."),
+       and the next text came out silent (the four releases that echo ^F: English, Danish, Norwegian, Swedish;
+       tools/check_marks_alone.py, 0.9.5).  At a real end no line is owed; after a lost echo the loads stop too.
+       BL_PATIENCE_BREAK=1, the tests' control: from the last speech, as it was */
+    double from = getenv("BL_PATIENCE_BREAK") ? h->last_speech : h->last_load;
+    double since = h->say_time > from ? h->say_time : from;   /* max(say_time, last_load) */
     if (blocked(h))
         return -1;                                         /* a fault, before anything else: held input included */
     if (h->ra.brk == RA_BRK_COMPLETION && (h->ra.active || h->ra.outcome == RA_COMPLETE))

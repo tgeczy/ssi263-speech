@@ -2725,6 +2725,20 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware
                         CANCEL_HEAD, env={"BL_KEPT_LINE_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^FAIL  blazie:blazie +ms after a cut at block .* LEAK",
                                     r"^ok    speakout:speakout ", r"^cancel head: \d+ FAILED$"]))
+# Sentence marks alone are not a stall (check_marks_alone.py): "Hi" + 40 lone periods + "there." at rate 0 said whole,
+# and the next text after it, on every voice -- a voice that took a run of pauses for a stalled card cut the text
+# (the SynPhonix, the Accents: "busy and silent 4 s"), and the Braille Lite releases that echo ^F ran out of patience
+# counted from the last speech (0.9.5).  A control per rule
+MARKS_ALONE = [PY, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_marks_alone.py")]
+CHECKS.append(check("voice table: sentence marks alone are not a stall, every voice here", MARKS_ALONE,
+                    ok=lambda out: bool(re.search(r"^marks alone: all \d+ voices passed$", out, re.M))))
+for _env, _ids, _what in (("SPV_STALL_BREAK", ["synphonix:vest"], "the SynPhonix's stall judged by silence"),
+                          ("ACCENT_STALL_BREAK", ["accentmini:mini", "accentmini:sa"], "the Accents' stall judged by silence"),
+                          ("BL_PATIENCE_BREAK", ["blazie:blazie"], "the Braille Lite's patience from the last speech")):
+    CHECKS.append(check("voice table marks alone CONTROL (%s, must fail)" % _what,
+                        MARKS_ALONE + ["--only", ",".join(_ids + ["speakout:speakout"])], env={_env: "1"},
+                        expect_fail=True, fail_marks=[r"^FAIL  %s " % i for i in _ids]
+                        + [r"^ok    speakout:speakout ", r"^marks alone: %d FAILED$" % len(_ids)]))
 if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "blazie", "spanish", "BL2SPA.BNS")):
     CHECKS.append(check("voice table marks CONTROL (an unmeasured release's marks taken for its own, must fail)",
                         SSV_MARKS, env={"SSV_MARKS_OWN_BREAK": "1"}, expect_fail=True,

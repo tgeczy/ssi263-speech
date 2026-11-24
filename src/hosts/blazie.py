@@ -280,8 +280,8 @@ class Blazie:
 
     def busy(self, quiet=0.1, patience=3.0):
         """Still speaking: a phoneme within `quiet` s, or a line's ^F echo still owed.
-        `patience` bounds only SILENT waiting for that echo, counted from the last speech
-        or echo.  Counted from the last echo alone (0.3.4 and before), one line longer
+        `patience` bounds only SILENT waiting for that echo, counted from the last phoneme
+        loaded (PA included: since 0.9.5) or echo.  Counted from the last echo alone (0.3.4 and before), one line longer
         than it -- 8.4 s, a spelled-out Mastodon handle -- ended the utterance just before
         its echo, and the unit's remaining lines came out only with the next utterance."""
         if (self.chip.time - self.last_speech) < quiet:
@@ -304,7 +304,11 @@ class Blazie:
             if self.chip.request and not (self.ar and self.last_load < self.ar_time
                                           and self.chip.time - self.ar_time >= UNANSWERED_S):
                 return True
-        return self.owed() > 0 and (self.chip.time - max(self.say_time, self.last_speech)) < patience
+        # patience counts from the last phoneme LOADED, PA included: a unit loading pause after pause is at work.  From
+        # the last speech, a run of lone periods at rate 0 (each a long pause, no speech) ran out of it with lines owed:
+        # done was said and the unit kept the rest (0.9.5, tools/check_marks_alone.py).  BL_PATIENCE_BREAK=1: as it was
+        last = self.last_speech if os.environ.get("BL_PATIENCE_BREAK") else self.last_load
+        return self.owed() > 0 and (self.chip.time - max(self.say_time, last)) < patience
 
     def cancel(self, limit=3.0, quiet=None, cut=None):
         """Silence and flush.  ^X cuts the word being spoken and flushes the unit's

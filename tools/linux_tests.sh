@@ -210,6 +210,19 @@ check "voice table: after a cancel the next text is only itself, every voice her
 control "voice table cancel CONTROL (the Braille Lite's kept line not released, must fail)" \
     "^FAIL  blazie:blazie +ms after a cut at block .* LEAK" "^cancel head: [0-9]+ FAILED$" \
     -- env BL_KEPT_LINE_BREAK=1 python3 tools/check_cancel_head.py build/linux/libssi263_voices.so --firmware $MFW
+# sentence marks alone are not a stall (tools/check_marks_alone.py), the same folder; a control per rule: the
+# SynPhonix's and the Accents' stall judged by silence, the Braille Lite's patience counted from the last speech
+check "voice table: sentence marks alone are not a stall, every voice here" python3 tools/check_marks_alone.py \
+    build/linux/libssi263_voices.so --firmware $MFW
+control "voice table marks alone CONTROL (the SynPhonix's stall judged by silence, must fail)" \
+    "^FAIL  synphonix:vest " "^ok    speakout:speakout " "^marks alone: 1 FAILED$" -- env SPV_STALL_BREAK=1 \
+    python3 tools/check_marks_alone.py build/linux/libssi263_voices.so --firmware $MFW --only synphonix:vest,speakout:speakout
+control "voice table marks alone CONTROL (the Accents' stall judged by silence, must fail)" \
+    "^FAIL  accentmini:mini " "^FAIL  accentmini:sa " "^marks alone: 2 FAILED$" -- env ACCENT_STALL_BREAK=1 \
+    python3 tools/check_marks_alone.py build/linux/libssi263_voices.so --firmware $MFW --only accentmini:mini,accentmini:sa,speakout:speakout
+control "voice table marks alone CONTROL (the Braille Lite's patience from the last speech, must fail)" \
+    "^FAIL  blazie:blazie " "^marks alone: 1 FAILED$" -- env BL_PATIENCE_BREAK=1 \
+    python3 tools/check_marks_alone.py build/linux/libssi263_voices.so --firmware $MFW --only blazie:blazie,speakout:speakout
 # ... and never early: past each first done the same unit runs on 1.5 s and must not speak again (Astra, Reply 248)
 check "no-echo end: every done final (the units that never echo)" python3 src/csrc/blazie/test_no_echo_end.py \
     --lib "$LIB" --firmware "$DATA"
