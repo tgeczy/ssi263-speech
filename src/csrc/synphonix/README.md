@@ -14,7 +14,7 @@ written here.
 | File | What it does |
 |---|---|
 | `sp_host.h`, `sp_host.c` | The host: `synphonix.py`'s `SynPhonix` in C, line for line, on `../pc86` (MAME's 8086). The bare PC (BIOS, the DOS services VEST asks for, the PIC), the card (the key at 2E0h, the chip eight above with each byte rotated back, A/R on IRQ 7 and VEST's specific EOI), loading `VEST.COM` until it stays resident, finding its entry as Business Vision does, and the far calls: say (AL=7, with VEST's rate, amplitude, pitch and filter offsets), cancel (AL=1) and any other. `SYNPHONIX_HOST_BREAK` (`key`, `rotate`, `eoi`, `cancel`) puts the Python host's must-fail controls back here too. |
-| `sp_voice.h`, `sp_voice.c` | The voice, for the voice table (`synphonix:vest`, "Artic SynPhonix"): NVDA's rate, pitch and inflection onto the offsets VEST adds to its frames (measured; its own at 50, the pitch both ways), its amplitude near its top and the volume as PCM gain, the shared text path and number words, VEST's own contractions kept and its two misreadings changed ("Artic's", a quote mark), and a long text fed in parts while VEST still talks. The header says every mapping and what it rests on. |
+| `sp_voice.h`, `sp_voice.c` | The voice, for the voice table (`synphonix:vest`, "Artic SynPhonix"): NVDA's rate, pitch and inflection onto the offsets VEST adds to its frames (measured; its own at 50, the pitch both ways), its amplitude near its top and the volume as PCM gain, the shared text path and number words, VEST's own contractions kept and its two misreadings changed ("Artic's", a quote mark), a long text fed in parts while VEST still talks, and a cut played out unheard (the next text then starts as after a natural end, not behind the cut phoneme's fade). The header says every mapping and what it rests on. |
 | `test_sp_host.c` | The C host driven as `tools/check_sp_host.py` drives the Python one: every chip write printed, for the comparison. |
 
 Checks (both need `VEST.COM` in its drop-in folder and skip without it; Windows, built with w64devkit):
@@ -24,7 +24,9 @@ Checks (both need `VEST.COM` in its drop-in folder and skip without it; Windows,
   `SP_HOST_BREAK=1`, its control: the reference's chip runs 1 % fast, and the writes differ.
 - `tools/check_synphonix_host.py`: the Python host's own check and its five controls.
 - `tools/check_sp_voice.py`: the voice through the voice table and the NVDA binding: listed and made, as loud as the
-  Speak-Out, each setting, a capital, a long text in parts (no gap, every block short), a cancel, the text rules, the
-  number words. Its controls: `SPV_PITCH_BREAK`, `SPV_QUEUE_BREAK`, `SPV_TEXT_BREAK`, `SSV_BANK_BREAK=synphonix`.
+  Speak-Out, each setting, a capital, a long text in parts (no gap, every block short), a cancel and the text after
+  it (said whole, and started as after a natural end: none of the cut phoneme's fade at its head), the text rules,
+  the number words. Its controls: `SPV_PITCH_BREAK`, `SPV_QUEUE_BREAK`, `SPV_TEXT_BREAK`, `SSV_BANK_BREAK=synphonix`,
+  `SPV_CUT_BREAK` (the cut not played out).
 
 The platforms come after Tomi has heard the voice in NVDA (`tools/check_uniform.py` lists them as pending).

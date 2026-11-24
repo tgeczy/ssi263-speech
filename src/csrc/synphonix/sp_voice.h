@@ -58,7 +58,8 @@ SP_API int spv_speak(sp_voice *v, const char *utf8, int pitch_offset);
    before the first phoneme left out.  *done = 1 once every part has been said and the card is idle (or it failed:
    spv_fault). */
 SP_API int spv_render(sp_voice *v, const short **pcm, int *done);
-/* Stops at once: the parts not said are dropped, VEST's cut (AL=1) empties its queue. */
+/* Stops at once: the parts not said are dropped, VEST's cut (AL=1) empties its queue, and the card runs on unheard
+   until VEST is done with the cut (sp_voice.c play_out), so the next text starts as after a natural end. */
 SP_API void spv_cancel(sp_voice *v);
 /* nonzero once the host has faulted or the card stalled (busy, silent for 4 s), until the next speak boots a new one */
 SP_API int spv_fault(const sp_voice *v);

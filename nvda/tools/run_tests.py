@@ -3133,7 +3133,11 @@ if os.path.isfile(SPX_COM) and os.path.isfile(SPX_PC86):
              [r"^FAIL  text: a possessive after a C", r"^FAIL  text: a quote mark goes",
               r"^FAIL  Artic's said as Artics", r"^ok    text: contractions kept", r"^sp voice: 3 FAILED$"]),
             ("SSV_BANK_BREAK", "synphonix", "a bank keeps its unit on a boot change",
-             [r"^FAIL  a bank's unit made again on a boot change", r"^sp voice: 1 FAILED$"])):
+             [r"^FAIL  a bank's unit made again on a boot change", r"^sp voice: 1 FAILED$"]),
+            # the cut left as it was: the next text after a cancel 33-99 ms late, the cut phoneme's fade at its head
+            ("SPV_CUT_BREAK", "1", "the cut not played out",
+             [r"^FAIL  a cancel: the next text starts as after an end ", r"^ok    a cancel: the next text said whole ",
+              r"^sp voice: 1 FAILED$"])):
         CHECKS.append(check("SynPhonix voice CONTROL (%s, must fail)" % what, [PY, SP_VOICE],
                             env={env_name: value}, expect_fail=True, fail_marks=marks))
 GEN_DEFAULTS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "src", "csrc", "gen_chip_defaults.py")

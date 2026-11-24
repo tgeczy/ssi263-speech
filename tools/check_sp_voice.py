@@ -2,9 +2,10 @@
 the NVDA driver's binding (nvda/shared/ssi263speech.py SynPhonixC): listed, available only with VEST.COM, made,
 speaking with the silence before its first phoneme left out, as loud as the Speak-Out; each setting reaching the chip
 through VEST's own offsets (rate, pitch both ways, inflection; volume the PCM gain only, the chip's writes the same);
-a capital's pitch for its text only; a long text said in parts with no gap between them; a cancel that stops at once;
-VEST's own contractions kept, its two misreadings changed ("Artic's", a quote mark), its pitch steps never coming from
-the text; the number words, dollars and percent.
+a capital's pitch for its text only; a long text said in parts with no gap between them; a cancel that stops at once,
+the next text starting as after a natural end (none of the cut text's tail at its head); VEST's own contractions
+kept, its two misreadings changed ("Artic's", a quote mark), its pitch steps never coming from the text; the number
+words, dollars and percent.
 
     python tools/check_sp_voice.py [library]     (default build/win/x64/ssi263speech.dll); skips without VEST.COM
 
@@ -14,6 +15,8 @@ Controls (each must fail its own checks, and only them):
   SPV_QUEUE_BREAK=1    every part at once: past VEST's queue its call waits, and "a long text: every block short"
                        fails (the first block holds what the waiting call made)
   SPV_TEXT_BREAK=1     the apostrophes as they are: the possessive and quote-mark checks fail
+  SPV_CUT_BREAK=1      the cut left as it was, not played out (sp_voice.c play_out): "a cancel: the next text starts
+                       as after an end" fails
   SSV_BANK_BREAK=synphonix   a bank keeps the SynPhonix's unit on a boot change: the bank check fails
 """
 import ctypes
@@ -261,6 +264,33 @@ def main():
     _p, wa, _n = v.say("Said after the cancel, whole.")
     ok(said(wa) == said(wh), "a cancel: the next text said whole", "%d phonemes against %d" % (
         len(said(wa)), len(said(wh))))
+    # ... and started as after a natural end: its first phoneme at once, VEST's writes the same, none of the cut text's
+    # sound at its head.  VEST's cut leaves the chip on a pause with the cut phoneme fading into it and its own closing
+    # frames to come, and the card's time stands still between texts, so those came at the next text's head: it started
+    # 33-99 ms late with the fade heard first (a listener, typing and arrowing: "the last tail of the previous utterance
+    # is still heard").  Cut at four points; against the same text said again after its end (SPV_CUT_BREAK=1, the cut
+    # left as it was, fails this check alone)
+    word = "Down arrow."
+    v.say(word)
+    _p, wd, _n = v.say(word)
+
+    def start(writes):
+        """(ms from the text's first write to its first phoneme, its (register, value) writes)"""
+        p = phonemes(writes)
+        return (1000.0 * (p[0][0] - writes[0][0]) if p else -1.0), [(r, x) for _t, r, x in writes]
+    d_end, regs_end = start(wd)
+    rows, good = [], True
+    for cut in (2, 5, 12, 20):
+        v.say(sentence * 2, blocks=cut)
+        v.v.cancel()
+        v.v.writes()
+        pc, wc, _n = v.say(word)
+        d, regs = start(wc)
+        head = max((abs(x) for x in samples(pc)[:int(0.002 * RATE)]), default=0)
+        good = good and 0.0 <= d <= d_end + 1.0 and regs == regs_end and head < 300
+        rows.append("%d: %.1f ms%s, head %d" % (cut, d, "" if regs == regs_end else " WRITES DIFFER", head))
+    ok(good, "a cancel: the next text starts as after an end", "cut at blocks %s (after its end: %.1f ms)" % (
+        "; ".join(rows), d_end))
 
     # the text: VEST's own contractions kept; its two misreadings changed; its pitch steps never from the text
     out = ctypes.create_string_buffer(600)
