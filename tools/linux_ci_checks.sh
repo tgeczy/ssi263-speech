@@ -207,6 +207,11 @@ control "am_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^am marks: 1 FAILED$" -- env AM_MARKS_BREAK=3 python3 nvda/tools/am_marks.py $B/libssi263_voices.so
 control "am_voice marks CONTROL (the Ctrl-F inside the word before, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^am marks: 8 FAILED$" -- env AM_MARKS_BREAK=4 python3 nvda/tools/am_marks.py $B/libssi263_voices.so
+# the package's last refusal (tools/package_linux.sh never_shipped): the Super Voice's program and disk under a folder
+# named with spaces found too (the old loop split such paths); its control puts that loop back
+check "package refusal: the Super Voice's files found under any path" sh tools/test_package_scan.sh
+control "package refusal CONTROL (paths split at spaces, as it was, must fail)" "^FAIL  named: " \
+    "^ok    clean: " "^package scan: [12] FAILED$" -- env PACKAGE_SCAN_BREAK=split sh tools/test_package_scan.sh
 # after a cancel, every voice's next text is only itself (tools/check_cancel_head.py), on the voices whose firmware the
 # repository holds; its control needs the Braille Lite's (tools/linux_tests.sh)
 check "voice table: after a cancel the next text is only itself, the voices in the repository" \

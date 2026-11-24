@@ -28,6 +28,34 @@
 # Output: build/ssi263-speech-<version>-linux-<arch>.tar.gz
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# never shipped: the Super Voice's program and its disk (voices.h SSV_USER_DATA), by name or by content -- each file
+# below $1 that is, one per line.  read line by line: `for f in $(find ...)` split a path at its spaces, and a staged
+# file under such a path was never looked at (the 0.9.5 audit).  PACKAGE_SCAN_BREAK=split, the tests' control: as it was
+never_shipped() {
+    if [ "${PACKAGE_SCAN_BREAK:-}" = split ]; then
+        for f in $(find "$1" -type f); do
+            [ -f "$f" ] || continue
+            case "$(basename "$f")" in SUPERTOK.BIN|SUPERV.DSK) echo "$f"; continue;; esac
+            case "$(sha256sum "$f" | cut -c1-64)" in
+                4de0d8f369cf3b0cc4f0b01cfc6061f4882118098158a4bca233ce8fbe86155c|7dda3902a42cdc189096e023a0ad27ca6f3aba50c76a38a883892f969987b784) echo "$f";;
+            esac
+        done
+        return 0
+    fi
+    find "$1" -type f | while IFS= read -r f; do
+        case "$(basename "$f")" in SUPERTOK.BIN|SUPERV.DSK) echo "$f"; continue;; esac
+        case "$(sha256sum "$f" | cut -c1-64)" in
+            4de0d8f369cf3b0cc4f0b01cfc6061f4882118098158a4bca233ce8fbe86155c|7dda3902a42cdc189096e023a0ad27ca6f3aba50c76a38a883892f969987b784) echo "$f";;
+        esac
+    done
+}
+# --scan DIR: that scan alone, exit 1 when it finds one (tools/test_package_scan.sh)
+if [ "${1:-}" = --scan ]; then
+    found="$(never_shipped "$2")"
+    if [ -n "$found" ]; then printf 'never shipped, found:\n%s\n' "$found"; exit 1; fi
+    echo "none found"; exit 0
+fi
 FW="$(cd "$1" && pwd)"
 VERSION="${2:-0.9.5}"
 ARCH="$(uname -m)"
@@ -317,13 +345,11 @@ cp "$ROOT/LICENSE" "$STAGE/LICENSE"
 cp "$ROOT/src/csrc/cpu/mame_z180/LICENSE-BSD-3-Clause.txt" "$STAGE/licenses/MAME-Z180-core-BSD-3-Clause.txt"
 cp "$ROOT/third_party/casso/LICENSE" "$STAGE/licenses/Casso-MIT.txt"
 chmod +x "$STAGE/install.sh" "$STAGE/uninstall.sh" "$STAGE/bin/sd_ssi263"
-# never shipped: the Super Voice's program and its disk (voices.h SSV_USER_DATA), by name or by content
-for f in $(find "$STAGE" -type f); do
-    case "$(basename "$f")" in SUPERTOK.BIN|SUPERV.DSK) echo "package_linux.sh: $f must never ship" >&2; exit 1;; esac
-    case "$(sha256sum "$f" | cut -c1-64)" in
-        4de0d8f369cf3b0cc4f0b01cfc6061f4882118098158a4bca233ce8fbe86155c|7dda3902a42cdc189096e023a0ad27ca6f3aba50c76a38a883892f969987b784)
-            echo "package_linux.sh: $f is the Super Voice's program or disk, which must never ship" >&2; exit 1;;
-    esac
-done
+# never shipped: the Super Voice's program and its disk (never_shipped, above)
+found="$(never_shipped "$STAGE")"
+if [ -n "$found" ]; then
+    printf 'package_linux.sh: the Super Voice'"'"'s program or disk, which must never ship:\n%s\n' "$found" >&2
+    exit 1
+fi
 (cd "$ROOT/build/package" && tar -czf "$ROOT/build/$NAME.tar.gz" "$NAME")
 echo "packaged build/$NAME.tar.gz"

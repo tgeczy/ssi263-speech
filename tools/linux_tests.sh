@@ -196,6 +196,11 @@ control "voice table marks CONTROL (the audio rendered ahead returned from its s
     "^FAIL accentmini:mini +audio " "^FAIL smartalk:smartalk +audio " "^ssv marks: [0-9]+ FAILED$" \
     -- env SSV_MARKS_ESTIMATE=1 SSV_MARKS_BREAK=queue python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
 control "voice table marks CONTROL (the unit's own mark inside a word, must fail)" \n    "^FAIL accentmini:mini +audio " "^FAIL smartalk:smartalk +audio " "^ok +accentmini:sa +once " \n    "^ssv marks: [0-9]+ FAILED$" \n    -- env SSV_MARKS_SAME_BREAK=1 python3 tools/check_ssv_marks.py build/linux/libssi263_voices.so --firmware $MFW
+# the package's last refusal (tools/package_linux.sh never_shipped): the Super Voice's program and disk under a folder
+# named with spaces found too (the old loop split such paths); its control puts that loop back
+check "package refusal: the Super Voice's files found under any path" sh tools/test_package_scan.sh
+control "package refusal CONTROL (paths split at spaces, as it was, must fail)" "^FAIL  named: " \
+    "^ok    clean: " "^package scan: [12] FAILED$" -- env PACKAGE_SCAN_BREAK=split sh tools/test_package_scan.sh
 # after a cancel, every voice's next text is only itself (tools/check_cancel_head.py): the marks folder above and the
 # SynPhonix's VEST.COM from the repository; its control: the lockstep cancel as it was, the Braille Lite's kept line not
 # released (3-4 s of the cut text before the next one, 0.9.5)
