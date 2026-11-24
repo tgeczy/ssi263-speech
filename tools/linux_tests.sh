@@ -75,8 +75,8 @@ fi
 # drop-in folder (it is in no checkout and no add-on)
 [ -f "$ROOT/firmware/speech-systems-super-voice/SUPERTOK.BIN" ] && check "Speech Systems Super Voice (1984): host and voice tests and their controls" \
     python3 src/csrc/supervoice/sv_controls.py "$ROOT/firmware/speech-systems-super-voice"
-# Artic's SynPhonix 215 (src/hosts/synphonix.py, the research host: Artic's VEST.COM on MAME's 8086, libpc86.so), when
-# VEST.COM is in its drop-in folder (in no checkout and no add-on); each control puts one of the host's rules back wrong
+# Artic's SynPhonix 215 (src/hosts/synphonix.py, the research host: Artic's VEST.COM on MAME's 8086, libpc86.so);
+# VEST.COM is in the repository, its serial 99999999; each control puts one of the host's rules back wrong
 if [ -f "$ROOT/firmware/artic-synphonix/VEST.COM" ]; then
     SPX="env SSI263_PC86_DLL=$ROOT/build/linux/libpc86.so"
     check "SynPhonix host: VEST loads, finds its card, speaks, cuts" $SPX python3 tools/check_synphonix_host.py
@@ -902,6 +902,21 @@ control "SmarTalk voice CONTROL (the bank's last slot kept on a boot change, mus
 control "SmarTalk voice CONTROL (the contractions as they are, must fail)" "^FAIL  said as: don't +\"don't\"$" \
     "^FAIL  said as: I'm " "^FAIL  don't: said as one word, no letter T " "^ok    said as: rock 'n roll " \
     "^st voice: 6 FAILED$" -- env ST_TEXT_BREAK=1 python3 tools/check_st_voice.py build/linux/libssi263_voices.so
+# the Artic SynPhonix as a voice (tools/check_sp_voice.py; VEST.COM is in the repository, its serial 99999999, so it
+# always runs), on the same library; its controls, as nvda/tools/run_tests.py's
+check "SynPhonix voice: settings, parts, cancel, text (voice API and binding)" python3 tools/check_sp_voice.py \
+    build/linux/libssi263_voices.so
+control "SynPhonix voice CONTROL (pitch below 50 as 20h + the step, must fail)" "^FAIL  pitch: 0 lower, 100 higher " \
+    "^ok    rate: " "^sp voice: 1 FAILED$" -- env SPV_PITCH_BREAK=1 python3 tools/check_sp_voice.py build/linux/libssi263_voices.so
+control "SynPhonix voice CONTROL (every part at once, must fail)" "^FAIL  a long text: every block short " \
+    "^ok    a long text in parts, no gap" "^sp voice: 1 FAILED$" -- \
+    env SPV_QUEUE_BREAK=1 python3 tools/check_sp_voice.py build/linux/libssi263_voices.so
+control "SynPhonix voice CONTROL (the apostrophes as they are, must fail)" "^FAIL  text: a possessive after a C" \
+    "^FAIL  text: a quote mark goes" "^FAIL  Artic's said as Artics" "^ok    text: contractions kept" \
+    "^sp voice: 3 FAILED$" -- env SPV_TEXT_BREAK=1 python3 tools/check_sp_voice.py build/linux/libssi263_voices.so
+control "SynPhonix voice CONTROL (a bank keeps its unit on a boot change, must fail)" \
+    "^FAIL  a bank's unit made again on a boot change" "^sp voice: 1 FAILED$" -- \
+    env SSV_BANK_BREAK=synphonix python3 tools/check_sp_voice.py build/linux/libssi263_voices.so
 control "SmarTalk voice CONTROL (\$.00 dropped, must fail)" "^FAIL  said as: [$][.]00 +''$" \
     "^FAIL  said as: [$][.]00% +'percent'$" "^st voice: 2 FAILED$" \
     -- env ST_DOLLAR_BREAK=1 python3 tools/check_st_voice.py build/linux/libssi263_voices.so
@@ -1029,6 +1044,12 @@ if ./build/linux/sd_ssi263 --voices | grep -q '^smartalk'; then
     check "the SmarTalk in the package, with its notices" sh -c "tar -tzf build/ssi263-speech-*-linux-$(uname -m).tar.gz | \
         grep -c -E '/(share/ssi263-speech/automated-functions-smartalk/S_TALK\.EXE|licenses/MAME-8086-core-BSD-3-Clause\.txt|licenses/SmarTalk-software-notice\.txt)\$' | \
         grep -qx 3 && echo 'S_TALK.EXE, its notice, MAME 8086 BSD-3-Clause: in the package'"
+fi
+# Artic's SynPhonix: VEST.COM is in the repository (its serial 99999999), so the package always carries it with its notice
+if ./build/linux/sd_ssi263 --voices | grep -q '^synphonix'; then
+    check "the SynPhonix in the package, with its notices" sh -c "tar -tzf build/ssi263-speech-*-linux-$(uname -m).tar.gz | \
+        grep -c -E '/(share/ssi263-speech/artic-synphonix/VEST\.COM|licenses/MAME-8086-core-BSD-3-Clause\.txt|licenses/Artic-VEST-notice\.txt)\$' | \
+        grep -qx 3 && echo 'VEST.COM, its notice, MAME 8086 BSD-3-Clause: in the package'"
 fi
 check "no-GPL audit: comments and MAME compatibility names are not evidence" python3 tools/check_no_gpl.py \
     --clean-sample

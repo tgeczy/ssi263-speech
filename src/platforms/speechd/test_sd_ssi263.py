@@ -231,7 +231,8 @@ TO100 = lambda s: max(0, min(100, (s + 100) // 2))      # noqa: E731  (sd_ssi263
 FW_DIRS = {"aicom-accent-sa": ("u2.BIN", "u3.BIN", "u4.BIN"), "aicom-accent-mini": ("SPKEMS.DVC",),
            "gw-micro-speakout": ("SPEAKOUT.HEX",),
            "sweet-micro-mockingboard": ("mockingboard-tts-1.1.bin", "mockingboard-tts-early.bin"),
-           "automated-functions-smartalk": ("S_TALK.EXE",)}       # in the repository: always here
+           "automated-functions-smartalk": ("S_TALK.EXE",),       # in the repository: always here
+           "artic-synphonix": ("VEST.COM",)}                      # in the repository too (its serial 99999999)
 FW_EACH = {"sweet-micro-mockingboard"}      # folders whose files are separate voices: each file found on its own
 
 
@@ -284,7 +285,8 @@ def _api(prefix, create_args, set_args):
 # Each voice: its name, its engine's prefix, how its unit is made, and its settings from the config's defaults (or
 # the keys given) -- the calls sd_voices.c makes.
 ENGINES = {"as": ("Accent-PC",), "am": ("Accent-mini",), "so": ("Speak-Out",), "mb": ("Mockingboard",),
-           "mbe": ("Mockingboard, early",), "st": ("SmarTalk (Automated Functions)",)}
+           "mbe": ("Mockingboard, early",), "st": ("SmarTalk (Automated Functions)",),
+           "sp": ("Artic SynPhonix",)}
 
 
 class EngineRef:
@@ -319,6 +321,12 @@ class EngineRef:
             with open(os.path.join(VDATA, "automated-functions-smartalk", "S_TALK.EXE"), "rb") as fh:
                 self.image = fh.read()
             self.v = self.f("create")(self.image, len(self.image), float(rate), err, 256)
+        elif key == "sp":
+            # from the file's bytes (spv_create, as voices.c makes it)
+            self.f = _api("spv_", [_S, ctypes.c_size_t, _D, _S, _I], 5)
+            with open(os.path.join(VDATA, "artic-synphonix", "VEST.COM"), "rb") as fh:
+                self.image = fh.read()
+            self.v = self.f("create")(self.image, len(self.image), float(rate), err, 256)
         else:
             self.f = _api("sov_", [_S, _D, _S, _I], 6)
             self.v = self.f("create")(os.path.join(VDATA, "gw-micro-speakout", "SPEAKOUT.HEX").encode(),
@@ -336,6 +344,8 @@ class EngineRef:
             self.f("set")(self.v, r, p, v, 1)
         elif self.key == "st":      # stv_set(rate, pitch, tone I, volume, inflection, numbers): its defaults
             self.f("set")(self.v, r, p, 8, v, 1, 1)
+        elif self.key == "sp":      # spv_set(rate, pitch, volume, inflection, numbers): its defaults
+            self.f("set")(self.v, r, p, v, 1, 1)
         else:                       # sov_set(rate, pitch, tone I, volume, join, short pauses)
             self.f("set")(self.v, r, p, 8, v, 1, 1)
 
@@ -514,6 +524,8 @@ EXPECTED += [(r["vname"], r["tag"], ("bl2000/" + r["file"], "bl2000/%s.state" % 
              for r in gen_languages.rows()[0] if r["voice"].startswith("blazie_")]
 # then Automated Functions' SmarTalk (sd_voices.c, last), its S_TALK.EXE in the data folder
 EXPECTED += [("SmarTalk (Automated Functions)", "en-US", ("automated-functions-smartalk/S_TALK.EXE",))]
+# and the Artic SynPhonix (0.9.5, sd_voices.c, last), its VEST.COM in the data folder
+EXPECTED += [("Artic SynPhonix", "en-US", ("artic-synphonix/VEST.COM",))]
 want = ["200-%s\t%s\t" % (n, lang) for n, lang, files in EXPECTED       # the variant empty: no "MALE1" (PR 29)
         if n in BUILT_NAMES and all(os.path.isfile(os.path.join(VDATA, f)) for f in files)] + ["249 OK VOICES LISTED"]
 ok = voices == want and "Accent-PC" in listed and set(BUILT_NAMES) <= {e[0] for e in EXPECTED}
@@ -895,10 +907,10 @@ def voice_session(key):
     return ok
 
 
-# the Accent-mini's, the Speak-Out's, the two Mockingboards' and the SmarTalk's checks are counted apart, so the
-# controls' counts (tools/linux_tests.sh) hold whether or not those voices are built in
+# the Accent-mini's, the Speak-Out's, the two Mockingboards', the SmarTalk's and the SynPhonix's checks are counted
+# apart, so the controls' counts (tools/linux_tests.sh) hold whether or not those voices are built in
 others = []
-for key in ("as", "am", "so", "mb", "mbe", "st"):
+for key in ("as", "am", "so", "mb", "mbe", "st", "sp"):
     if ENGINES[key][0] in listed:
         (results if key == "as" else others).extend(voice_session(key))
     else:

@@ -14,6 +14,7 @@ rules, number reading and inflection are the firmware's own, live. Nothing is re
 | Mockingboard | English | Sweet Micro Systems' Apple II speech card, its text-to-speech version 1.1 on an emulated 6502 (when the package has it) |
 | Mockingboard, early | English | the same card, the earlier text-to-speech of Mockingboard disk 1 with its own rules (when the package has it) |
 | SmarTalk (Automated Functions) | English | Automated Functions' 1995 parallel-port box, its own DOS text-to-speech on an emulated PC |
+| Artic SynPhonix | English | Artic Technologies' internal speech card, its own DOS text-to-speech VEST on an emulated PC |
 
 This is a speech-dispatcher module, so Orca and anything else that speaks through speech-dispatcher can use it.
 Each voice is the same voice as in its NVDA add-on.
@@ -79,6 +80,11 @@ not ours; they are here so the card can speak again, and they will be removed if
 The package carries Automated Functions' own software for the SmarTalk, `S_TALK.EXE` version 1.21, unchanged. It is
 Copyright 1995, Automated Functions, Inc., not under the MIT licence; its disk says "Please feel free to share the new
 version of the SmarTalk software with anyone who needs it" (`licenses/SmarTalk-software-notice.txt`).
+
+The package carries Artic Technologies' own software for the SynPhonix, `VEST.COM` version 1.60, with the card serial
+every copy holds set to 99999999. It is Artic's, all rights reserved, not under the MIT licence, and no licence to
+share it has been granted: Artic seems to have closed long ago, and no one we know of speaks for it. It is here so the
+card can speak again, and it will be removed if its rights holders ask (`licenses/Artic-VEST-notice.txt`).
 
 The program and library are MIT (`LICENSE`; the chip model draws on Casso's, also MIT:
 `licenses/Casso-MIT.txt`), except the CPU cores, which are MAME's and keep their BSD-3-Clause licences

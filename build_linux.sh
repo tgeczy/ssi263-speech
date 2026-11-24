@@ -295,10 +295,15 @@ if [ -f "$SRC/soundingboard/sb_host.c" ] && [ -f "$SRC/speakout/so_voice.c" ] &&
 fi
 # the SmarTalk: Automated Functions' S_TALK.EXE on the same pc86 (st_voice.h); its sources are C99, as the Windows and
 # Android builds compile them
-ST_SRCS=""
+C99_SRCS=""
 if [ -f "$SRC/smartalk/st_voice.c" ] && [ -f "$SRC/accentmini/am_voice.c" ]; then
-    ST_SRCS="$SRC/smartalk/st_host.c $SRC/smartalk/st_voice.c"
+    C99_SRCS="$SRC/smartalk/st_host.c $SRC/smartalk/st_voice.c"
     SD_DEFS="$SD_DEFS -DSSV_HAVE_SMARTALK"
+fi
+# the Artic SynPhonix (0.9.5): Artic's VEST.COM on the same pc86 (sp_voice.h), C99 as well
+if [ -f "$SRC/synphonix/sp_voice.c" ] && [ -f "$SRC/accentmini/am_voice.c" ]; then
+    C99_SRCS="$C99_SRCS $SRC/synphonix/sp_host.c $SRC/synphonix/sp_voice.c"
+    SD_DEFS="$SD_DEFS -DSSV_HAVE_SYNPHONIX"
 fi
 if [ -f "$SRC/mockingboard/mb_voice.c" ]; then     # the Mockingboard (0.8): Fake6502, the board, the host, the voice
     VOICE_SRCS="$VOICE_SRCS $SRC/cpu/m6502.c $SRC/mockingboard/mb_board.c $SRC/mockingboard/mb_host.c $SRC/mockingboard/mb_voice.c $SRC/mockingboard/mb_dsk.c"
@@ -307,7 +312,7 @@ fi
 for f in $VOICE_SRCS; do
     $CC $VOICE -I"$(dirname "$f")" -c -o "$OUT/obj_voices/$(basename "$f" .c).o" "$f"
 done
-for f in $ST_SRCS; do
+for f in $C99_SRCS; do
     $CC $VOICE -std=gnu99 -c -o "$OUT/obj_voices/$(basename "$f" .c).o" "$f"
 done
 ENGINE_OBJS="$ENGINE_OBJS $OUT/obj_voices/*.o"

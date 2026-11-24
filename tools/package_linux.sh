@@ -17,6 +17,8 @@
 #     folder's gw-micro-sounding-board/ or firmware/gw-micro-sounding-board/, with their notice;
 #   the SmarTalk's S_TALK.EXE (Automated Functions', in the repository) from firmware/automated-functions-smartalk/,
 #     with its notice;
+#   the Artic SynPhonix's VEST.COM (Artic's, in the repository, its serial 99999999) from firmware/artic-synphonix/,
+#     with its notice;
 #   the Speak-Out's (GW Micro's, never in the repository), when the module has the Speak-Out: SPEAKOUT.HEX from the
 #     firmware folder, its gw-micro-speakout/ or ../speakout-firmware/, or firmware/gw-micro-speakout/;
 #   the Mockingboard's (Sweet Micro Systems', never in the repository), when the module has the Mockingboard:
@@ -126,6 +128,14 @@ if has smartalk; then
     mkdir -p "$STAGE/share/ssi263-speech/automated-functions-smartalk"
     cp "$ST/S_TALK.EXE" "$STAGE/share/ssi263-speech/automated-functions-smartalk/"
     cp "$ST/README.txt" "$STAGE/licenses/SmarTalk-software-notice.txt"
+    cp "$ROOT/src/csrc/cpu/mame_i86/LICENSE-BSD-3-Clause.txt" "$STAGE/licenses/MAME-8086-core-BSD-3-Clause.txt"
+fi
+# Artic's SynPhonix: VEST.COM, in the repository with its serial set to 99999999, under its own notice (Tomi, 2026-11-23)
+if has synphonix; then
+    SP="$ROOT/firmware/artic-synphonix"
+    mkdir -p "$STAGE/share/ssi263-speech/artic-synphonix"
+    cp "$SP/VEST.COM" "$STAGE/share/ssi263-speech/artic-synphonix/"
+    cp "$SP/README.txt" "$STAGE/licenses/Artic-VEST-notice.txt"
     cp "$ROOT/src/csrc/cpu/mame_i86/LICENSE-BSD-3-Clause.txt" "$STAGE/licenses/MAME-8086-core-BSD-3-Clause.txt"
 fi
 if has mockingboard; then

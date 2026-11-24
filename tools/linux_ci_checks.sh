@@ -116,6 +116,21 @@ control "SmarTalk voice CONTROL (the bank's last slot kept on a boot change, mus
 control "SmarTalk voice CONTROL (the contractions as they are, must fail)" "^FAIL  said as: don't +\"don't\"$" \
     "^FAIL  said as: I'm " "^FAIL  don't: said as one word, no letter T " "^ok    said as: rock 'n roll " \
     "^st voice: 6 FAILED$" -- env ST_TEXT_BREAK=1 python3 tools/check_st_voice.py $B/libssi263_voices.so
+# the Artic SynPhonix as a voice (tools/check_sp_voice.py; VEST.COM is in the repository, its serial 99999999, so it
+# always runs), on the same library; its controls, as nvda/tools/run_tests.py's
+check "SynPhonix voice: settings, parts, cancel, text (voice API and binding)" python3 tools/check_sp_voice.py \
+    $B/libssi263_voices.so
+control "SynPhonix voice CONTROL (pitch below 50 as 20h + the step, must fail)" "^FAIL  pitch: 0 lower, 100 higher " \
+    "^ok    rate: " "^sp voice: 1 FAILED$" -- env SPV_PITCH_BREAK=1 python3 tools/check_sp_voice.py $B/libssi263_voices.so
+control "SynPhonix voice CONTROL (every part at once, must fail)" "^FAIL  a long text: every block short " \
+    "^ok    a long text in parts, no gap" "^sp voice: 1 FAILED$" -- \
+    env SPV_QUEUE_BREAK=1 python3 tools/check_sp_voice.py $B/libssi263_voices.so
+control "SynPhonix voice CONTROL (the apostrophes as they are, must fail)" "^FAIL  text: a possessive after a C" \
+    "^FAIL  text: a quote mark goes" "^FAIL  Artic's said as Artics" "^ok    text: contractions kept" \
+    "^sp voice: 3 FAILED$" -- env SPV_TEXT_BREAK=1 python3 tools/check_sp_voice.py $B/libssi263_voices.so
+control "SynPhonix voice CONTROL (a bank keeps its unit on a boot change, must fail)" \
+    "^FAIL  a bank's unit made again on a boot change" "^sp voice: 1 FAILED$" -- \
+    env SSV_BANK_BREAK=synphonix python3 tools/check_sp_voice.py $B/libssi263_voices.so
 # index marks (src/csrc/marks.h, docs/index-marks.md), what needs no firmware of them: the bytes the Braille Lite voice
 # would send its unit for a marked text, and the voice table's marks on the voices whose files are in the repository
 # (the Accents, the SmarTalk: estimated); controls as linux_tests.sh's
