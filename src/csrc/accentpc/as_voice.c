@@ -17,7 +17,7 @@
 #define CANCEL_LIMIT 0.6
 #define QUIET 0.03
 #define PATIENCE 1.5
-#define STALL_S 4.0                     /* the driver's watchdog: busy, speaking, and silent this long */
+#define STALL_S 4.0                     /* the driver's watchdog: busy, speaking, and writing nothing this long */
 /* Issue #8: between two clauses of one text (after "Rate:", a comma, a full stop) the firmware can empty its phoneme
    queue, drop its speaking flag (port 40h bit 4) and read the next clause, at its own pace, before it speaks again:
    nothing on the serial line and no phoneme, ash_busy() false.  The text was called done there, and the rest stayed
@@ -500,7 +500,11 @@ static int render_block(as_voice *v, const short **pcm, int *done)
         finish(v);
         *done = 1;
     } else {
-        double last = ash_get_double(v->h, "last_speech");
+        /* the card stalls when it writes nothing to the chip for STALL_S -- not when it says nothing: a text of sentence
+           marks alone (a row of dots, a table of contents' leaders) has the card write pauses, speaking none, and past 4 s
+           the text was cut and the card restarted (measured with the SynPhonix's same rule, 0.9.5).  ACCENT_STALL_BREAK=1,
+           the tests' control: silence counted, as it was */
+        double last = ash_get_double(v->h, getenv("ACCENT_STALL_BREAK") ? "last_speech" : "last_write");
         double quiet = ash_get_double(v->h, "time") - (last > v->t_start ? last : v->t_start);
         if (ash_speaking(v->h) && quiet > STALL_S) {          /* "card stalled": the driver restarts the card */
             stop(v);

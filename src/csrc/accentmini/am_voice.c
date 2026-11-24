@@ -18,7 +18,7 @@
 #define CANCEL_LIMIT 0.6
 #define QUIET 0.03
 #define PATIENCE 1.5
-#define STALL_S 4.0                     /* the driver's watchdog: busy, speaking, and silent this long */
+#define STALL_S 4.0                     /* the driver's watchdog: busy, speaking, and writing nothing this long */
 
 struct am_voice {
     am_host *h;
@@ -595,7 +595,11 @@ static int render_block(am_voice *v, const short **pcm, int *done, int *ran, int
             failed(v);
         *done = 1;
     } else {
-        double last = amh_get_double(v->h, "last_speech");
+        /* the card stalls when it writes nothing to the chip for STALL_S -- not when it says nothing: a text of sentence
+           marks alone (a row of dots, a table of contents' leaders) has the driver write pauses, speaking none, and past
+           4 s the text was cut and the card restarted (measured with the SynPhonix's same rule, 0.9.5).  ACCENT_STALL_BREAK=1,
+           the tests' control: silence counted, as it was */
+        double last = amh_get_double(v->h, getenv("ACCENT_STALL_BREAK") ? "last_speech" : "last_write");
         double quiet = amh_get_double(v->h, "time") - (last > v->t_start ? last : v->t_start);
         if (amh_speaking(v->h) && quiet > STALL_S) {          /* "card stalled": the driver restarts it */
             failed(v);

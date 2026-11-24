@@ -61,6 +61,7 @@ struct am_host {
     /* the card and the PIC */
     int data_latch, pic_mask[2], in_service, irq_latched, last_request, control;
     double last_speech, say_time;
+    double last_write;                         /* any chip write: the card at work (am_voice.c's stall) */
     int preparing;
     int stopped;                                          /* self.stopped: a reason, for this call */
     int fault;                                            /* something raised: the host is dead */
@@ -587,6 +588,7 @@ static void on_out(void *user, int port, int value)
         if ((value & 0x18) == 0x10) {
             int reg = value & 7, v = h->data_latch;
             ssi263_write(h->chip, reg, v);
+            h->last_write = ssi263_time(h->chip);
             if (h->log_on && grow((void **)&h->wl, &h->cap_wl, h->n_wl + 1, sizeof *h->wl)) {
                 h->wl[h->n_wl].t = ssi263_time(h->chip);
                 h->wl[h->n_wl].reg = reg;
@@ -1126,6 +1128,7 @@ AM_API am_host *amh_create(const unsigned char *dvc, size_t n, ssi263 *chip, dou
     /* the card */
     h->pic_mask[0] = h->pic_mask[1] = 0xFF;
     h->last_speech = -1.0;
+    h->last_write = -1.0;
     memcpy(m + (unsigned long)IDLE_SEG * 16, idle, sizeof idle);
     h->lpt = m[(unsigned long)LOAD_SEG * 16 + 0x53];    /* the driver answers INT 17h for this printer */
     /* its count of index marks passed is the byte at 0800:06E3 (found by watching memory while marked text was
@@ -1207,6 +1210,7 @@ AM_API double amh_get_double(const am_host *h, const char *name)
 {
     if (!strcmp(name, "cpu_ips")) return h->cpu_ips;
     if (!strcmp(name, "last_speech")) return h->last_speech;
+    if (!strcmp(name, "last_write")) return h->last_write;
     if (!strcmp(name, "say_time")) return h->say_time;
     if (!strcmp(name, "time")) return ssi263_time(h->chip);
     return -1.0;

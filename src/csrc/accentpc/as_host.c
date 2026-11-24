@@ -23,6 +23,7 @@ struct as_host {
     double cpu_hz, turbo, tick_hz, tick_acc;
     int preparing;
     double last_speech, say_time;
+    double last_write;                         /* any chip write: the card at work (as_voice.c's stall) */
     long work;                         /* instructions the firmware ran outside its waiting loops in the last ash_run */
     ash_reply rp[ASH_REPLIES];         /* the last ash_run's (ash_replies) */
     int n_rp, tx_seen;                 /* tx_seen: the bytes of as_board_tx already looked at */
@@ -39,6 +40,7 @@ AS_API void ash_chip_write(void *ctx, int reg, int val)
 {
     as_host *h = (as_host *)ctx;
     ssi263_write(h->chip, reg, val);
+    h->last_write = ssi263_time(h->chip);
     if (h->log_on) {
         if (h->n_wl == h->cap_wl) {
             int cap = h->cap_wl ? h->cap_wl * 2 : 1024;
@@ -90,6 +92,7 @@ AS_API as_host *ash_create_bare(ssi263 *chip, double out_rate, double cpu_hz, ch
     h->cpu_hz = cpu_hz;
     h->turbo = ASH_TURBO;
     h->last_speech = -1.0;
+    h->last_write = -1.0;
     return h;
 }
 
@@ -423,6 +426,7 @@ AS_API double ash_get_double(const as_host *h, const char *name)
     if (!strcmp(name, "turbo")) return h->turbo;
     if (!strcmp(name, "tick_hz")) return h->tick_hz;
     if (!strcmp(name, "last_speech")) return h->last_speech;
+    if (!strcmp(name, "last_write")) return h->last_write;
     if (!strcmp(name, "say_time")) return h->say_time;
     if (!strcmp(name, "time")) return ssi263_time(h->chip);
     return -1.0;
