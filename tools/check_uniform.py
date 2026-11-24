@@ -585,11 +585,6 @@ def order_gaps(found):
 # counts them, so no release ships with one.  Remove an entry when its port lands; an entry for a voice the platform
 # now offers is itself reported, so none outlives its port.
 PENDING = {
-    # the Artic SynPhonix (0.9.5, Tomi): in the voice table and the NVDA add-on first, then Tomi's ears, then the rest
-    ("synphonix:vest", "sapi"): "ported (build.ps1 stages it; --sapi-stage nvda/dist/sapi-dev shows it); the 0.9.2 "
-                                "final stage predates it -- this entry is reported once the 0.9.5 stage is built",
-    ("supervoice:supertok", "sapi"): "ported (its token from a data folder; --sapi-stage nvda/dist/sapi-dev shows "
-                                     "it); the 0.9.2 final stage predates it -- reported once the 0.9.5 stage is built",
 }
 
 
