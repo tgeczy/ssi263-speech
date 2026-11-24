@@ -416,6 +416,9 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 
 - **Sweet Micro's Speech I and Sound/Speech I** (1982): the Votrax SC-01-A (dated 8311 on the photographed
   board), the chip MAME emulates.
+- **Votrax's Type 'n Talk and Personal Speech System:** the SC-01-A, in MAME's drivers for both. Sinclair Answers'
+  second issue (about 1985) reviews them with the Spectrum and gives the Type 'n Talk a Z80; MAME's driver has
+  an MC6802, and the Z80 is the Personal Speech System's.
 - **The Braille Lite M20 and M40:** a DoubleTalk.
 - **Aicom's Accent Messenger** (1993): an NEC µPD77P25 signal processor running a software synthesizer, not an AI901.
 - **The Echo:** a TMS5220, a linear-prediction chip.
