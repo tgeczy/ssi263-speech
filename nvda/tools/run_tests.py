@@ -1816,6 +1816,22 @@ if os.path.isfile(ANDROID_TEST):
               r"an imported one over it \(source 2 then 2\)", r"^FAILED: 22 case\(s\) differ$"]),
             ("smartalk-builtin-ignored", "SmarTalk: the built-in copy ignored",
              [r"^FAIL +desktop +st-builtin +got \(0, ", r"^ok +desktop +st-default ", r"^FAILED: 2 case\(s\) differ$"]),
+            # the Artic SynPhonix (0.9.5; its VEST.COM is in the repository, so these always run), as the SmarTalk's:
+            # never known by content (any serial); a capital's pitch dropped; its number words dropped; the imported
+            # copy ignored; the built-in one (the GitHub APK's assets/synphonix) ignored
+            ("import-sp", "SynPhonix import: its VEST.COM never known",
+             [r"^FAIL +import +VEST\.COM \(the SynPhonix's\): import -1 ",
+              r"^FAIL +import +VEST\.COM with another card's serial \(the SynPhonix's\): import -1 ",
+              r"^ok +import +VEST\.COM, its banner another version's", r"^FAILED: 2 case\(s\) differ$"]),
+            ("synphonix-pitch", "SynPhonix: the request's pitch dropped",
+             [r"^FAIL +desktop +sp-pitch-150 +got ", r"^ok +desktop +sp-pitch-100 ", r"^FAILED: 9 case\(s\) differ$"]),
+            ("synphonix-numbers", "SynPhonix: number words dropped",
+             [r"^FAIL +desktop +sp-num +got ", r"^ok +desktop +sp-default ", r"^FAILED: 5 case\(s\) differ$"]),
+            ("synphonix-import-ignored", "SynPhonix: the imported copy ignored",
+             [r"^FAIL +desktop +sp-default +got None", r"^FAIL +desktop +sp: its built-in copy used with no import, "
+              r"an imported one over it \(source 2 then 2\)", r"^FAILED: 22 case\(s\) differ$"]),
+            ("synphonix-builtin-ignored", "SynPhonix: the built-in copy ignored",
+             [r"^FAIL +desktop +sp-builtin +got \(0, ", r"^ok +desktop +sp-default ", r"^FAILED: 2 case\(s\) differ$"]),
             # index marks (ssa_start_marked, ssa_reached: the service's words): a mark's frame counted from its block's
             # start; marks sent to a voice that would estimate them (rendered ahead of the listener)
             ("marks-frames", "index marks: a mark's frame counted from its block",
@@ -1871,6 +1887,8 @@ if os.path.isfile(ANDROID_TEST):
                 "import-lang": "import", "import-release": "import", "import-units": "import", "import-sb": "import",
                 "import-st": "import", "smartalk-pitch": "st", "smartalk-numbers": "st",
                 "smartalk-import-ignored": "st", "smartalk-builtin-ignored": "st",
+                "import-sp": "import", "synphonix-pitch": "sp", "synphonix-numbers": "sp",
+                "synphonix-import-ignored": "sp", "synphonix-builtin-ignored": "sp",
                 "marks-frames": "marks", "marks-estimate": "marks"}.get(
                     brk, "mb" if brk.startswith("mockingboard-") else "accent")
         CHECKS.append(check("Android engine CONTROL (%s, must fail)" % what, [PY, ANDROID_TEST],
@@ -1985,6 +2003,31 @@ if os.path.isfile(ANDROID_TEST):
                          "--synthetic"], expect_fail=True,
                         fail_marks=[r"^synthetic\.apk: \d+ entries, FIRMWARE: ",
                                     r"unit\.dat: the SmarTalk's S_TALK\.EXE outside assets/smartalk/"]))
+    # the SynPhonix's VEST.COM, the repository's copy (its serial 99999999; the GitHub APK carries it, Tomi 2026-11-23),
+    # passes by sha256 in assets/synphonix with its notice; one byte changed, the notice gone, the file anywhere else,
+    # or a copy with another card's serial (known by its banner) must fail
+    CHECKS.append(check("Android APK check: the SynPhonix's VEST.COM passes, with its notice",
+                        [PY, APK_CHECK, "--synthetic"],
+                        ok=lambda out: bool(re.search(r"^synthetic\.apk: the SynPhonix's file allowed: 1 "
+                                                      r"\(VEST\.COM\), with its notice$", out, re.M))))
+    CHECKS.append(check("Android APK check CONTROL (the SynPhonix's file changed, must fail)",
+                        [PY, APK_CHECK, "--control-synphonix-flipped", "--synthetic"], expect_fail=True,
+                        fail_marks=[r"assets/synphonix/VEST\.COM: in assets/synphonix/ but not the repository's VEST\.COM",
+                                    r"^synthetic\.apk: the SynPhonix's file allowed: 0$"]))
+    CHECKS.append(check("Android APK check CONTROL (the SynPhonix's file without its notice, must fail)",
+                        [PY, APK_CHECK, "--control-no-synphonix-notice", "--synthetic"], expect_fail=True,
+                        fail_marks=[r"^synthetic\.apk: \d+ entries, no firmware; ",
+                                    r"the SynPhonix's file allowed: 1 .*WITHOUT its notice$",
+                                    r"^synthetic\.apk: licences WRONG: .*Artic-VEST-notice\.txt"]))
+    CHECKS.append(check("Android APK check CONTROL (the SynPhonix's file outside assets/synphonix, must fail)",
+                        [PY, APK_CHECK, "--control", os.path.join(ROOT_FW, "artic-synphonix", "VEST.COM"),
+                         "--synthetic"], expect_fail=True,
+                        fail_marks=[r"^synthetic\.apk: \d+ entries, FIRMWARE: ",
+                                    r"unit\.dat: the SynPhonix's VEST\.COM outside assets/synphonix/"]))
+    CHECKS.append(check("Android APK check CONTROL (a VEST.COM with another card's serial, must fail)",
+                        [PY, APK_CHECK, "--control-synphonix-serial", "--synthetic"], expect_fail=True,
+                        fail_marks=[r"^synthetic\.apk: \d+ entries, FIRMWARE: ",
+                                    r"unit\.dat: a copy of Artic's VEST\.COM that is not the repository's"]))
 # ... its firmware import (src/csrc/blazie/bl_firmware.c, bl_state.c): files found and refused by content, only the
 # releases on the list taken, and the states made from the firmware alone = the listed ones (MAME-made, 0.7), byte
 # for byte, the z180emu-made shipped states refused; one control holds the wrong chord at the English warm reset and

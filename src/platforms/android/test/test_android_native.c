@@ -37,6 +37,12 @@
  *                                           again at a new sample rate; stdin: "<name> <sample rate> <rate> <pitch>
  *                                           <tone> <volume> <inflection> <numbers> <pitch offset> <blocks before a
  *                                           cancel> <text, hex>" per case
+ *     test_android_native --sp-direct <VEST.COM>
+ *                                           the SynPhonix's reference: sp_voice driven directly (spv_create, spv_set,
+ *                                           spv_speak, spv_render, spv_cancel), one unit as the app keeps one, made
+ *                                           again at a new sample rate; stdin: "<name> <sample rate> <rate> <pitch>
+ *                                           <volume> <inflection> <numbers> <pitch offset> <blocks before a cancel>
+ *                                           <text, hex>" per case
  *     test_android_native --import <file> <out>
  *                                           the import's judgement (ssa_import_voice, as nativeImportFirmware):
  *                                           "import <code> <message>"
@@ -48,9 +54,10 @@
  * ssa_engine.h's ssa_accent_break 1, 2, 3 and 4; speakout-pitch, speakout-settings, run-ahead, numbers,
  * mockingboard-pitch, mockingboard-numbers, mockingboard-import-ignored, mockingboard-builtin-ignored and
  * mockingboard-variant its ssa_voice_break 1 to 9, line-lift, smartalk-pitch, smartalk-numbers,
- * smartalk-import-ignored and smartalk-builtin-ignored its 10 to 14;
- * import-hash, import-dsk, import-lang, import-release, import-units, import-sb and import-st ssa_import.h's
- * ssa_import_break 1 to 7.
+ * smartalk-import-ignored and smartalk-builtin-ignored its 10 to 14, trillions its 17, synphonix-pitch,
+ * synphonix-numbers, synphonix-import-ignored and synphonix-builtin-ignored its 18 to 21;
+ * import-hash, import-dsk, import-lang, import-release, import-units, import-sb, import-st and import-sp ssa_import.h's
+ * ssa_import_break 1 to 8.
  *
  * Built by the desktop compiler (test_android_native.py) and by build_android.sh --test (static, for a device).
  */
@@ -66,6 +73,7 @@
 #include "accentmini/am_voice.h"
 #include "mockingboard/mb_voice.h"
 #include "smartalk/st_voice.h"
+#include "synphonix/sp_voice.h"
 #include "blazie/bl_firmware.h"
 #include "blazie/bl_numbers.h"
 #include "blazie/bl_state.h"
@@ -850,6 +858,150 @@ static int st_direct(const char *file)
     return 0;
 }
 
+/* ---- the Artic SynPhonix (0.9.5): imported, and built in -------------------------------------------------------- */
+
+static const char *HELLO_SP = "Hello there. This is the Artic SynPhonix, speaking on a phone.";
+
+/* test_android_native.py's SP_CASES, in the same order: as the SmarTalk's */
+static const mb_case *sp_cases(int *n)
+{
+    static mb_case c[24];
+    int k = 0;
+#define B(nm, tx, r, p, rr, rp, v, nu, sr, ch, st) \
+    do { mb_case x = {nm, tx, r, p, rr, rp, v, nu, sr, ch, st}; c[k++] = x; } while (0)
+    B("sp-default", HELLO_SP, 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("sp-default-97", HELLO_SP, 50, 50, 100, 100, 100, 1, 22050, 97, 0);
+    B("sp-fast", HELLO_SP, 50, 50, 200, 100, 100, 1, 22050, 4096, 0);
+    B("sp-sliders", HELLO_SP, 70, 80, 100, 100, 100, 1, 22050, 4096, 0);
+    B("sp-pitch-100", "B", 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("sp-pitch-150", "B", 50, 50, 100, 150, 100, 1, 22050, 4096, 0);
+    B("sp-pitch-75", "B", 50, 50, 100, 75, 100, 1, 22050, 4096, 0);
+    B("sp-pitch-120", "B", 50, 50, 100, 120, 100, 1, 22050, 4096, 0);
+    B("sp-pitch-100-again", "B", 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("sp-num", NUM_EN, 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("sp-num-off", NUM_EN, 50, 50, 100, 100, 100, 0, 22050, 4096, 0);
+    B("sp-stopped", LONG, 50, 50, 100, 100, 100, 1, 22050, 4096, 8);
+    B("sp-after-stop", "Next message.", 50, 50, 100, 100, 100, 1, 22050, 4096, 0);
+    B("sp-volume-150", HELLO_SP, 50, 50, 100, 100, 150, 1, 22050, 4096, 0);
+    B("sp-11k", HELLO_SP, 50, 50, 100, 100, 100, 1, 11025, 4096, 0);
+#undef B
+    *n = k;
+    return c;
+}
+
+/* The SynPhonix's cases, its VEST.COM imported in the data folder */
+static int synphonix(const char *data)
+{
+    ssa_engine *e = ssa_new(data);
+    const mb_case *c;
+    char err[256];
+    digest d;
+    int n, i, rc = 0;
+    if (!e) return 1;
+    if (!ssa_has_voice(e, SSA_SYNPHONIX)) { ssa_free(e); return 0; }  /* no VEST.COM: no cases (said by the .py) */
+    c = sp_cases(&n);
+    for (i = 0; i < n && !rc; i++) {
+        ssa_settings s;
+        ssa_default_settings(&s);
+        s.rate = c[i].rate; s.pitch = c[i].pitch; s.volume = c[i].volume; s.numbers = c[i].numbers;
+        ssa_configure(e, c[i].sample_rate, 1, 0);
+        if (ssa_load(e, SSA_SYNPHONIX, err, sizeof err) != 0) { fprintf(stderr, "boot: %s\n", err); rc = 1; break; }
+        if (speak(e, SSA_SYNPHONIX, c[i].text, &s, c[i].req_rate, c[i].req_pitch, c[i].chunk, c[i].stop, &d))
+            rc = 1;
+        else
+            report(c[i].name, &d);
+    }
+    ssa_free(e);
+    return rc;
+}
+
+/* The SynPhonix's built-in copy (the APK's assets/synphonix), the data folder's VEST.COM -- the repository's -- handed
+   over in memory: an engine on a folder with no import speaks its "Hello." from it ("sp-builtin"); where the file
+   comes from, built in alone and beside the imported copy in data ("sp-source <builtin> <imported>": 2, then 1 -- the
+   import wins); and a copy with one byte changed refused ("sp-refused <1 when refused>"): only that copy is built in */
+static int synphonix_builtin(const char *data)
+{
+    size_t n;
+    unsigned char *com = slurp(data, SSA_SYNPHONIX_FILE, &n);
+    ssa_engine *e, *f;
+    ssa_settings s;
+    digest d;
+    int rc = 0;
+    if (!com) return 0;                      /* no VEST.COM: no cases (said by the .py) */
+    e = ssa_new("no-such-folder");
+    f = ssa_new(data);
+    com[100] ^= 1;
+    printf("sp-refused %d\n", !ssa_set_synphonix(e, com, n));
+    com[100] ^= 1;
+    ssa_default_settings(&s);
+    if (!ssa_set_synphonix(e, com, n) || !ssa_set_synphonix(f, com, n)) {
+        fprintf(stderr, "the SynPhonix refused its own built-in VEST.COM\n");
+        rc = 1;
+    } else {
+        printf("sp-source %d %d\n", ssa_synphonix_source(e), ssa_synphonix_source(f));
+        if (speak(e, SSA_SYNPHONIX, "Hello.", &s, 100, 100, 4096, 0, &d))
+            d.samples = 0;                     /* it could not speak: reported as silence, which the .py refuses */
+        report("sp-builtin", &d);
+    }
+    ssa_free(e);
+    ssa_free(f);
+    free(com);
+    return rc;
+}
+
+/* --sp-direct: the reference -- sp_voice itself, driven as sp_voice.h says, with the settings the .py computed */
+static int sp_direct(const char *file)
+{
+    char line[16384], name[64], texthex[8192], text[4096], err[256];
+    sp_voice *v = NULL;
+    int cur_rate = 0;
+    size_t fn = 0;
+    unsigned char *com = slurp(".", file, &fn);
+    if (!com) {                              /* an absolute path: slurp joins it to "." */
+        FILE *f = fopen(file, "rb");
+        long len;
+        if (f) {
+            fseek(f, 0, SEEK_END); len = ftell(f); fseek(f, 0, SEEK_SET);
+            com = (unsigned char *)malloc(len > 0 ? (size_t)len : 1);
+            fn = com ? fread(com, 1, (size_t)len, f) : 0;
+            fclose(f);
+        }
+    }
+    if (!com) { fprintf(stderr, "cannot read %s\n", file); return 1; }
+    while (fgets(line, sizeof line, stdin)) {
+        int sr, rate, pitch, volume, infl, numbers, offset, stop, done = 0, blocks = 0, n;
+        const short *pcm;
+        digest d = {1469598103934665603ULL, 0};
+        texthex[0] = 0;
+        if (sscanf(line, "%63s %d %d %d %d %d %d %d %d %8191s", name, &sr, &rate, &pitch, &volume, &infl, &numbers,
+                   &offset, &stop, texthex) < 9)
+            continue;
+        unhex(texthex, text, sizeof text);
+        if (!v || sr != cur_rate) {          /* the app boots a new unit at a new sample rate (ssa_configure) */
+            spv_destroy(v);
+            v = spv_create(com, fn, (double)sr, err, sizeof err);
+            if (!v) { fprintf(stderr, "spv_create: %s\n", err); free(com); return 1; }
+            cur_rate = sr;
+        }
+        spv_set(v, rate, pitch, volume, infl, numbers);
+        if (spv_speak(v, text, offset) > 0)
+            while (!done) {
+                n = spv_render(v, &pcm, &done);
+                if (n > 0) {
+                    add(&d, pcm, n);
+                    if (stop > 0 && ++blocks == stop && !done) {
+                        spv_cancel(v);
+                        break;
+                    }
+                }
+            }
+        report(name, &d);
+    }
+    spv_destroy(v);
+    free(com);
+    return 0;
+}
+
 /* ---- index marks (ssa_start_marked, ssa_reached) ----------------------------------------------------------------- */
 /* a new engine with the Accent-PC's ROMs and, when there, the Accent-mini's driver: every run on a unit of its own,
    so that two runs can be held to each other (a kept unit does not say a text twice with the same samples) */
@@ -1001,11 +1153,13 @@ int main(int argc, char **argv)
                     : !strcmp(brk, "smartalk-import-ignored") ? 13 : !strcmp(brk, "smartalk-builtin-ignored") ? 14
                     : !strcmp(brk, "marks-frames") ? 15 : !strcmp(brk, "marks-estimate") ? 16
                     : !strcmp(brk, "trillions") ? 17
+                    : !strcmp(brk, "synphonix-pitch") ? 18 : !strcmp(brk, "synphonix-numbers") ? 19
+                    : !strcmp(brk, "synphonix-import-ignored") ? 20 : !strcmp(brk, "synphonix-builtin-ignored") ? 21
                     : 0;
     ssa_import_break = !brk ? 0 : !strcmp(brk, "import-hash") ? 1 : !strcmp(brk, "import-dsk") ? 2
                      : !strcmp(brk, "import-lang") ? 3 : !strcmp(brk, "import-release") ? 4
                      : !strcmp(brk, "import-units") ? 5 : !strcmp(brk, "import-sb") ? 6
-                     : !strcmp(brk, "import-st") ? 7 : 0;
+                     : !strcmp(brk, "import-st") ? 7 : !strcmp(brk, "import-sp") ? 8 : 0;
     if (argc >= 2 && !strcmp(argv[1], "--texts")) return texts();
     if (argc >= 6 && !strcmp(argv[1], "--level"))
         return level(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), argc >= 7 ? argv[6] : NULL);
@@ -1013,6 +1167,7 @@ int main(int argc, char **argv)
     if (argc >= 3 && !strcmp(argv[1], "--am-direct")) return am_direct(argv[2]);
     if (argc >= 3 && !strcmp(argv[1], "--mb-direct")) return mb_direct(argv[2]);
     if (argc >= 3 && !strcmp(argv[1], "--st-direct")) return st_direct(argv[2]);
+    if (argc >= 3 && !strcmp(argv[1], "--sp-direct")) return sp_direct(argv[2]);
     if (argc >= 4 && !strcmp(argv[1], "--import")) return import(argv[2], argv[3]);
     if (argc >= 4 && !strcmp(argv[1], "--marks")) return marks(argv[2], argv[3]);
     if (argc < 2) { fprintf(stderr, "usage: test_android_native <data folder> [<aicom folder>] | --texts\n"); return 2; }
@@ -1023,6 +1178,7 @@ int main(int argc, char **argv)
         return 1;
     if (argc >= 5 && block("mb") && mockingboard_builtin(argv[1], argv[4])) return 1;
     if (block("st") && (smartalk(argv[1]) || smartalk_builtin(argv[1]))) return 1;
+    if (block("sp") && (synphonix(argv[1]) || synphonix_builtin(argv[1]))) return 1;
     /* the mapping itself: Android 100% is the slider; a doubling is SSIP 50 */
     if (ssa_rate(50, 100) != 50 || ssa_pitch(50, 50) != 25 || ssa_pitch(50, 400) != 100
             || ssa_ssip_from_percent(200) != 50 || ssa_to100(-100) != 0) {
@@ -1246,6 +1402,19 @@ int main(int argc, char **argv)
             n = ssa_probe(argv[1], SSA_SMARTALK, "Hello.", &h, err, sizeof err);
             if (n <= 0) { fprintf(stderr, "SmarTalk probe: %ld %s\n", n, err); return 1; }
             printf("st-probe %ld %016llx\n", n, h);
+        }
+    }
+    if (block("sp")) {                       /* the SynPhonix's import check: its "Hello." on a unit of its own */
+        unsigned long long h;
+        long n;
+        int has;
+        e = ssa_new(argv[1]);
+        has = e && ssa_has_voice(e, SSA_SYNPHONIX);
+        ssa_free(e);
+        if (has) {
+            n = ssa_probe(argv[1], SSA_SYNPHONIX, "Hello.", &h, err, sizeof err);
+            if (n <= 0) { fprintf(stderr, "SynPhonix probe: %ld %s\n", n, err); return 1; }
+            printf("sp-probe %ld %016llx\n", n, h);
         }
     }
     return 0;

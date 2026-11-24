@@ -45,6 +45,10 @@ typedef struct {
 #define SPH_SAY_CX 0x0200                  /* VEST's own announcement's offsets (9EB5): rate +2 ... */
 #define SPH_SAY_DX 0x00E6                  /* ... and filter E6h: say()'s defaults */
 #define SPH_FILE "artic-synphonix/VEST.COM"
+/* the repository's copy (firmware/artic-synphonix: its serial set to 99999999), the one the GitHub Android APK may
+   carry; any other copy of VEST 1.60 is imported by its content (its banner and its serial check), never by a hash */
+#define SPH_SHA256 "4d74b00d8541bbe1c8ca4ec21c8bb3632f054c28d6fead97ce452679db0cdb49"
+#define SPH_BANNER "VEST Ver 1.60 ENGLISH"
 
 /* VEST.COM's bytes; NULL with the reason in err */
 SP_API sp_host *sph_create(const unsigned char *com, size_t n, ssi263 *chip, double out_rate, char *err, int errlen);

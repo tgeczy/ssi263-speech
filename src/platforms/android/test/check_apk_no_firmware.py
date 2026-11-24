@@ -16,7 +16,11 @@ assets/sweet-micro/, with Sweet Micro's notice among the licences:
     mockingboard-tts-1.1.bin    88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae   (text-to-speech 1.1)
     mockingboard-tts-early.bin  c7c049b1b61792719e21e461a2a8c25fc32c12882c81305814a3dc67af6e5835   (disk 1's, earlier)
 
-Refused, in any file, an archive's members included: a Braille Lite ROM image by content (F3 C3 xx xx FF
+and the SmarTalk's S_TALK.EXE in assets/smartalk/ and the Artic SynPhonix's VEST.COM in assets/synphonix/ (the
+repository's copy, its serial set to 99999999), each by its sha256 and with its notice.
+
+Refused, in any file, an archive's members included: any other copy of VEST.COM, by its banner (each holds a card's
+serial); a Braille Lite ROM image by content (F3 C3 xx xx FF
 "COPYRIGHT"); a unit's state by content (one of the four sizes a state has, 786432 bytes at first, alone or with a
 clock's 64 bytes after it: it holds what the firmware wrote); the
 Speak-Out's SPEAKOUT.HEX by its sha256, and any Intel HEX image by content; any Apple II disk image, by name (.dsk
@@ -38,6 +42,9 @@ the six above; and anything in assets/aicom/ or assets/sweet-micro/ that is not 
     --control-aicom-flipped <apk>                   assets/aicom/u2.BIN with one byte changed: not an allowed file
     --control-mockingboard-flipped <apk>            assets/sweet-micro/mockingboard-tts-1.1.bin with one byte changed
     --control-no-sweet-notice <apk>                 the Mockingboards' files without Sweet Micro's notice
+    --control-synphonix-flipped <apk>               assets/synphonix/VEST.COM with one byte changed
+    --control-no-synphonix-notice <apk>             the SynPhonix's VEST.COM without its notice
+    --control-synphonix-serial <apk>                a VEST.COM with another card's serial added under a bland name
     --control-gpl <apk>                             z180emu's GPL text added among the licences (0.6's APK had it)
     python check_apk_no_firmware.py --states        a made-up state of every size, alone and with each clock's tail,
                                                     in the synthetic APK: each must be refused.  Its control,
@@ -125,6 +132,17 @@ SMARTALK = {"6cef7bc467959960505bfd771d07f387b7bdfad25bad2b51801ae56bb8d78e6c": 
 SMARTALK_NOTICE = "SmarTalk-software-notice.txt"
 SMARTALK_NOTICE_SRC = os.path.join("firmware", "automated-functions-smartalk", "README.txt")
 SMARTALK_EXE = os.path.join(REPO, "firmware", "automated-functions-smartalk", "S_TALK.EXE")
+# Artic's VEST.COM (0.9.5): the GitHub APK carries the repository's copy, its serial set to 99999999 (Tomi, 2026-11-23),
+# in SYNPHONIX_DIR only, with its notice.  Every other copy holds a real card's serial, so any file with VEST's banner
+# that is not that copy is refused, wherever it is.  The Apple apps carry none (check_archive_no_firmware.py)
+SYNPHONIX_DIR = "assets/synphonix/"
+SYNPHONIX = {"4d74b00d8541bbe1c8ca4ec21c8bb3632f054c28d6fead97ce452679db0cdb49": "VEST.COM"}
+SYNPHONIX_NOTICE = "Artic-VEST-notice.txt"
+SYNPHONIX_NOTICE_SRC = os.path.join("firmware", "artic-synphonix", "README.txt")
+SYNPHONIX_COM = os.path.join(REPO, "firmware", "artic-synphonix", "VEST.COM")
+# VEST's own banner as the program holds it, its serial and a DOS box-drawing bar before the version (b3h): no text
+# file, the notice that names the version included, has it
+VEST_COPY = re.compile(rb"S/N [0-9]{6} \xb3 VEST Ver ")
 # the Mockingboards' files (Sweet Micro's: the GitHub APK carries them, Tomi 2026-10-10), in SWEET_DIR only, with
 # Sweet Micro's notice; build_android.sh takes them from FIRMWARE_MB (local copies, never committed)
 SWEET_DIR = "assets/sweet-micro/"
@@ -166,6 +184,16 @@ def scan(label, data, hits, allowed, depth=0, name="", sweet=None):
         hits.append("%s: in %s but not the SmarTalk's S_TALK.EXE (sha256 %s...)" % (label, SMARTALK_DIR, digest[:12]))
     if digest in SMARTALK:
         hits.append("%s: the SmarTalk's S_TALK.EXE outside %s" % (label, SMARTALK_DIR))
+    if depth == 1 and name == SYNPHONIX_DIR + "VEST.COM" and digest in SYNPHONIX:
+        if sweet is not None:
+            sweet.append(SYNPHONIX[digest])
+        return
+    if depth == 1 and name.startswith(SYNPHONIX_DIR):
+        hits.append("%s: in %s but not the repository's VEST.COM (sha256 %s...)" % (label, SYNPHONIX_DIR, digest[:12]))
+    if digest in SYNPHONIX:
+        hits.append("%s: the SynPhonix's VEST.COM outside %s" % (label, SYNPHONIX_DIR))
+    elif VEST_COPY.search(data):
+        hits.append("%s: a copy of Artic's VEST.COM that is not the repository's (a card's serial in it)" % label)
     if depth == 1 and name.startswith(AICOM_DIR):
         hits.append("%s: in %s but not one of the Aicom ROMs (sha256 %s...)" % (label, AICOM_DIR, digest[:12]))
     if depth == 1 and name.startswith(SWEET_DIR):
@@ -218,6 +246,10 @@ def synthetic():
         if os.path.isfile(SMARTALK_EXE):
             z.writestr(SMARTALK_DIR + "S_TALK.EXE", open(SMARTALK_EXE, "rb").read())
             z.writestr("assets/licenses/" + SMARTALK_NOTICE, open(os.path.join(REPO, SMARTALK_NOTICE_SRC), "rb").read())
+        if os.path.isfile(SYNPHONIX_COM):
+            z.writestr(SYNPHONIX_DIR + "VEST.COM", open(SYNPHONIX_COM, "rb").read())
+            z.writestr("assets/licenses/" + SYNPHONIX_NOTICE,
+                       open(os.path.join(REPO, SYNPHONIX_NOTICE_SRC), "rb").read())
     return out.getvalue()
 
 
@@ -226,7 +258,8 @@ def licence_hits(label, data, sweet=()):
     z180emu, GPL or Unicorn find (tools/check_no_gpl.py)."""
     names = set(zipfile.ZipFile(io.BytesIO(data)).namelist())
     need = list(LICENSES) + ([SWEET_NOTICE] if set(sweet) & set(SWEET.values()) else []) + \
-        ([SMARTALK_NOTICE] if set(sweet) & set(SMARTALK.values()) else [])
+        ([SMARTALK_NOTICE] if set(sweet) & set(SMARTALK.values()) else []) + \
+        ([SYNPHONIX_NOTICE] if set(sweet) & set(SYNPHONIX.values()) else [])
     hits = ["%s: no assets/licenses/%s" % (label, n) for n in need if "assets/licenses/" + n not in names]
     check_no_gpl.scan(label, data, hits, 0)
     return hits
@@ -276,6 +309,7 @@ def main():
     if args == ["--states"]:
         return states()
     control = flipped = gpl = mb_flipped = no_notice = st_flipped = no_st_notice = None
+    sp_flipped = no_sp_notice = sp_serial = None
     if args[:1] == ["--control-gpl"]:        # z180emu's GPL text among the licences: this run must FAIL
         gpl, args = True, args[1:]
     elif args[:1] == ["--control"]:            # --control <a firmware or state file> <apk>: this run must FAIL
@@ -290,6 +324,12 @@ def main():
         st_flipped, args = True, args[1:]
     elif args[:1] == ["--control-no-smartalk-notice"]:
         no_st_notice, args = True, args[1:]
+    elif args[:1] == ["--control-synphonix-flipped"]:
+        sp_flipped, args = True, args[1:]
+    elif args[:1] == ["--control-no-synphonix-notice"]:
+        no_sp_notice, args = True, args[1:]
+    elif args[:1] == ["--control-synphonix-serial"]:
+        sp_serial, args = True, args[1:]
     bad = 0
     for apk in args:
         hits, allowed, sweet = [], [], []
@@ -309,6 +349,13 @@ def main():
             data = flip(data, SMARTALK_DIR + "S_TALK.EXE", 0x100)
         if no_st_notice:
             data = with_file(data, "assets/licenses/" + SMARTALK_NOTICE, None, replace=True)
+        if sp_flipped:
+            data = flip(data, SYNPHONIX_DIR + "VEST.COM", 0x100)
+        if no_sp_notice:
+            data = with_file(data, "assets/licenses/" + SYNPHONIX_NOTICE, None, replace=True)
+        if sp_serial:                          # a copy with another card's serial in its banner, under a bland name
+            com = open(SYNPHONIX_COM, "rb").read()
+            data = with_file(data, "assets/data/unit.dat", com.replace(b"S/N 999999", b"S/N 123456"))
         if gpl:
             data = with_file(data, "assets/licenses/z180emu-GPL-2.0.txt",
                              open(os.path.join(REPO, "third_party", "z180emu", "COPYING"), "rb").read())
@@ -325,6 +372,9 @@ def main():
             else "WITHOUT its notice")))
         print("%s: the SmarTalk's file allowed: %d%s" % (label, len(st), "" if not st else " (%s), %s" % (
             ", ".join(st), "with its notice" if not any(SMARTALK_NOTICE in h for h in lic) else "WITHOUT its notice")))
+        sp = [f for f in sweet if f in SYNPHONIX.values()]
+        print("%s: the SynPhonix's file allowed: %d%s" % (label, len(sp), "" if not sp else " (%s), %s" % (
+            ", ".join(sp), "with its notice" if not any(SYNPHONIX_NOTICE in h for h in lic) else "WITHOUT its notice")))
         print("%s: licences %s" % (label, "MIT (ours, Casso's), MAME's BSD-3-Clause (Z180, 8085, V40, 8086), Aicom's%s; "
                                    "no GPL or Unicorn" % (", Fake6502's and EchoTalk's" if MOCKINGBOARD else "")
                                    if not lic else "WRONG: " + "; ".join(lic[:5])))

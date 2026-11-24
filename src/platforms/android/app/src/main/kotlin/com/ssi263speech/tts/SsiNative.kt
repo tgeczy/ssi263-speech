@@ -40,7 +40,9 @@ object SsiNative {
                                             // 0.8.5), after the release voices so no saved voice moves
     const val SMARTALK = 28                 // ssa_engine.h's SSA_SMARTALK: Automated Functions' SmarTalk (imported),
                                             // after the Sounding Board
-    const val ALL_VOICES = 29               // ssa_engine.h's SSA_ALL_VOICES: every index is below it
+    const val SYNPHONIX = 29                // ssa_engine.h's SSA_SYNPHONIX: the Artic SynPhonix (imported or built in;
+                                            // 0.9.5), after the SmarTalk
+    const val ALL_VOICES = 30               // ssa_engine.h's SSA_ALL_VOICES: every index is below it
 
     /** Open the engine on the folder holding the unit's files (once per process; later calls keep it). */
     external fun nativeOpen(dataDir: String): Boolean
@@ -58,6 +60,10 @@ object SsiNative {
     /** The SmarTalk's built-in S_TALK.EXE (the APK's assets/smartalk), copied into the open engine; an imported copy
      * wins.  False when it is not S_TALK.EXE 1.21 (by its sha256) or this build has no SmarTalk. */
     external fun nativeSmarTalk(exe: ByteArray): Boolean
+
+    /** The SynPhonix's built-in VEST.COM (the APK's assets/synphonix), copied into the open engine; an imported copy
+     * wins.  False when it is not the repository's copy (by its sha256) or this build has no SynPhonix. */
+    external fun nativeSynPhonix(com: ByteArray): Boolean
 
     /** This build carries the voice's engine (no engine need be open): every voice but the Accent-mini and the
      * Mockingboards always. */

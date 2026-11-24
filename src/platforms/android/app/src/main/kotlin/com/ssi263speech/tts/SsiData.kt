@@ -6,8 +6,9 @@
 // SSI263_ANDROID_BUNDLE_FIRMWARE=1 carries the Braille Lite's as assets, copied in once per installed version.  The
 // Accents': Aicom's ROMs (and the Accent-mini's SPKEMS.DVC, in a build that has that voice), in the APK
 // (assets/aicom), handed over in memory; the Mockingboards' too, from assets/sweet-micro (Tomi, 2026-10-10: the
-// GitHub APK carries them until a store build exists), and the SmarTalk's S_TALK.EXE from assets/smartalk (Tomi,
-// 2026-10-24), an imported copy winning.
+// GitHub APK carries them until a store build exists), the SmarTalk's S_TALK.EXE from assets/smartalk (Tomi,
+// 2026-10-24) and the SynPhonix's VEST.COM, the repository's copy, from assets/synphonix (Tomi, 2026-11-23), an
+// imported copy winning.
 package com.ssi263speech.tts
 
 import android.content.Context
@@ -56,7 +57,8 @@ object SsiData {
     /** Each built-in voice's asset folder. */
     private val BUILT_IN_DIR = mapOf(FirmwareImport.MOCKINGBOARD to "sweet-micro",
                                      FirmwareImport.MOCKINGBOARD_EARLY to "sweet-micro",
-                                     FirmwareImport.SMARTALK to "smartalk")
+                                     FirmwareImport.SMARTALK to "smartalk",
+                                     FirmwareImport.SYNPHONIX to "synphonix")
     private val builtIn = HashMap<Int, ByteArray?>()
 
     /** A built-in voice's file from the APK's assets, read once; null when this APK has none (a build made without the

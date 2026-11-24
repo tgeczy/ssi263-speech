@@ -50,9 +50,11 @@ object SsiEngine {
             } + (if (FirmwareImport.CONTROL == "voice-order") listOf(SOUNDINGBOARD_VOICE) else emptyList()) +
             AFTER_RELEASES
 
-    /** The voices after the release table's: Automated Functions' SmarTalk, imported or built in (its S_TALK.EXE). */
+    /** The voices after the release table's: Automated Functions' SmarTalk and the Artic SynPhonix (0.9.5), each
+     * imported or built in (S_TALK.EXE, VEST.COM). */
     private val AFTER_RELEASES = listOf(
-        VoiceInfo(SsiNative.SMARTALK, "en-US-smartalk", "SmarTalk (Automated Functions)", Locale("en", "US")))
+        VoiceInfo(SsiNative.SMARTALK, "en-US-smartalk", "SmarTalk (Automated Functions)", Locale("en", "US")),
+        VoiceInfo(SsiNative.SYNPHONIX, "en-US-synphonix", "Artic SynPhonix", Locale("en", "US")))
 
     /** Every voice this app has, whether or not it can speak now (SsiLanguages: a language whose firmware is not here
      * is missing data, not unsupported). */
@@ -75,8 +77,11 @@ object SsiEngine {
                 if (!SsiNative.nativeAccentMini(dvc)) Log.e("SsiEngine", "the Accent-mini's SPKEMS.DVC was refused")
             }
             for (voice in FirmwareImport.BUILT_IN) SsiData.builtIn(ctx, voice)?.let { bin ->
-                val ok = if (voice == FirmwareImport.SMARTALK) SsiNative.nativeSmarTalk(bin)
-                         else SsiNative.nativeMockingboard(voice, bin)
+                val ok = when (voice) {
+                    FirmwareImport.SMARTALK -> SsiNative.nativeSmarTalk(bin)
+                    FirmwareImport.SYNPHONIX -> SsiNative.nativeSynPhonix(bin)
+                    else -> SsiNative.nativeMockingboard(voice, bin)
+                }
                 if (!ok) Log.e("SsiEngine", "the built-in file of voice $voice was refused")
             }
             opened = true

@@ -577,7 +577,6 @@ PENDING = {
     ("synphonix:vest", "sapi"): "ported (build.ps1 stages it; --sapi-stage nvda/dist/sapi-dev shows it); the 0.9.2 "
                                 "final stage predates it -- this entry is reported once the 0.9.5 stage is built",
     ("synphonix:vest", "linux"): "after Tomi has heard the NVDA voice",
-    ("synphonix:vest", "android"): "after Tomi has heard the NVDA voice",
 }
 
 

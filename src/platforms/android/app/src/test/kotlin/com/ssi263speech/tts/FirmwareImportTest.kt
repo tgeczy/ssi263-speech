@@ -105,6 +105,10 @@ class FirmwareImportTest {
                 out.writeBytes(data)
                 return FirmwareImport.SB_COM to "GW Micro Sounding Board 2.7: SB.COM"
             }
+            if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "VESTCOM160") {   // by content there
+                out.writeBytes(data)
+                return FirmwareImport.SYNPHONIX to "Artic SynPhonix: Artic's VEST.COM 1.60"
+            }
             if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "SMARTALKEX") {   // by sha256 there
                 out.writeBytes(data)
                 return FirmwareImport.SMARTALK to "SmarTalk: Automated Functions' S_TALK.EXE 1.21"
@@ -531,7 +535,7 @@ class FirmwareImportTest {
     @Test fun theMockingboardHasNoStateToMake() {
         assertTrue(FirmwareImport.MOCKINGBOARD_EARLY in FirmwareImport.NO_STATE)
         assertEquals(FirmwareImport.BUILT_IN, setOf(FirmwareImport.MOCKINGBOARD, FirmwareImport.MOCKINGBOARD_EARLY,
-                                                    FirmwareImport.SMARTALK))
+                                                    FirmwareImport.SMARTALK, FirmwareImport.SYNPHONIX))
         assertTrue(FirmwareImport.MOCKINGBOARD in FirmwareImport.NO_STATE)
         assertEquals(listOf("mockingboard-tts-1.1.bin"), FirmwareImport.FILES[FirmwareImport.MOCKINGBOARD])
         assertTrue(FirmwareImport.MOCKINGBOARD in FirmwareImport.IMPORTED)
@@ -655,6 +659,34 @@ class FirmwareImportTest {
         assertNull(plan.refusal)
         assertEquals(setOf(FirmwareImport.SPEAKOUT, FirmwareImport.SMARTALK), languages(plan).toSet())
         assertEquals(sTalk.toList(), plan.found.single { it.language == FirmwareImport.SMARTALK }.firmware.readBytes()
+            .toList())
+    }
+
+    // ---- the Artic SynPhonix (0.9.5): VEST.COM, one file, from a Business Vision or SynPhonix disk or the add-on -------
+
+    private val vest = "VESTCOM160".toByteArray() + ByteArray(2500) { (it * 7).toByte() }
+
+    @Test fun theVestComIsItsVoice() {
+        val plan = inspect("VEST.COM", vest)
+        assertNull(plan.refusal)
+        val f = plan.found.single()
+        assertEquals(FirmwareImport.SYNPHONIX, f.language)
+        assertEquals(vest.toList(), f.firmware.readBytes().toList())
+        assertEquals(listOf("VEST.COM"), FirmwareImport.files(f.language))
+        assertTrue(f.language in FirmwareImport.NO_STATE)
+        assertTrue(f.language in FirmwareImport.BUILT_IN)
+    }
+
+    @Test fun theAddOnBringsTheSynPhonixItCarries() {
+        // the add-on carries VEST.COM beside the SynPhonix's driver (nvda/build_ssi263.py stage_synphonix), with its
+        // notice: one import brings it with the SmarTalk's
+        val u = "synthDrivers/_ssi263_unified/"
+        val plan = inspect("ssi263-speech.nvda-addon", zip("manifest.ini" to "name = ssi263".toByteArray(),
+            u + "_ssi263_smartalk/S_TALK.EXE" to sTalk, u + "_ssi263_synphonix/VEST.COM" to vest,
+            u + "_ssi263_synphonix/licenses/SynPhonix-software-notice.txt" to "Artic Technologies".toByteArray()))
+        assertNull(plan.refusal)
+        assertEquals(setOf(FirmwareImport.SMARTALK, FirmwareImport.SYNPHONIX), languages(plan).toSet())
+        assertEquals(vest.toList(), plan.found.single { it.language == FirmwareImport.SYNPHONIX }.firmware.readBytes()
             .toList())
     }
 

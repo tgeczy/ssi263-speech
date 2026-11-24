@@ -59,9 +59,11 @@ The Accent-mini's driver (`SPKEMS.DVC`, Aicom's: `firmware/aicom-accent-mini`) i
 the Speak-Out does, and takes a request's pitch as the driver takes a capital's (below).
 
 The GitHub APK carries Aicom's content and Sweet Micro's (Tomi, 2026-10-10: until a Play Store flavor exists), and
-the SmarTalk's S_TALK.EXE (Tomi, 2026-10-24): `check_apk_no_firmware.py` lets exactly the three ROMs, the
-Accent-mini's driver, the two Mockingboard files and S_TALK.EXE through, by sha256, each in its own folder with its
-notice, and refuses any Blazie or Speak-Out firmware or state and any Apple II disk image.
+the SmarTalk's S_TALK.EXE (Tomi, 2026-10-24) and the repository's copy of Artic's VEST.COM, its serial set to 99999999
+(Tomi, 2026-11-23): `check_apk_no_firmware.py` lets exactly the three ROMs, the Accent-mini's driver, the two
+Mockingboard files, S_TALK.EXE and that VEST.COM through, by sha256, each in its own folder with its notice, and
+refuses any Blazie or Speak-Out firmware or state, any Apple II disk image, and any other copy of VEST (by its banner:
+each holds a real card's serial).
 
 ## The Mockingboards: built in, or imported
 
@@ -113,6 +115,16 @@ It takes:
   add-on (`_ssi263_smartalk/`) -- wins over it. `check_apk_no_firmware.py` lets exactly that file through, in
   `assets/smartalk` with its notice; the Apple apps carry none. The sliders set its rate, pitch and volume, the
   Inflection switch its inflection, and "Read numbers as words" its number words; its tone is the TSR's own, I.
+- The Artic SynPhonix (0.9.5): Artic's `VEST.COM` 1.60. The voice, **Artic SynPhonix**, is the card's own DOS
+  text-to-speech on the Accent-mini's 8086 (`synphonix/sp_voice.h`), after the SmarTalk (`SSA_SYNPHONIX`, 29). The
+  GitHub APK carries the repository's copy, its serial set to 99999999 (Tomi, 2026-11-23): `build_android.sh` stages
+  it in `assets/synphonix` with its notice (`assets/licenses/Artic-VEST-notice.txt`), and `ssa_set_synphonix` takes
+  it in memory (by its sha256 only). An imported copy wins over it, and is known by its content, never a hash, since
+  every copy holds its own card's serial: VEST 1.60's banner and the serial check the host reads the card's key from
+  (`ssa_import_synphonix`, `sph_card_key`), from a Business Vision or SynPhonix disk or the NVDA add-on
+  (`_ssi263_synphonix/`). The sliders set its rate, pitch and volume (VEST's own offsets, thirteen pitch steps), the
+  Inflection switch its inflection (off: VEST's flat), and "Read numbers as words" its number words. The Apple apps
+  carry none.
 
 ### The Mockingboards: Sweet Micro's text-to-speech, one file each
 
@@ -290,6 +302,8 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     SSI263_ANDROID_TEST_BREAK=mockingboard-import-ignored|mockingboard-builtin-ignored|mockingboard-variant ...
     SSI263_ANDROID_TEST_BREAK=smartalk-pitch|smartalk-numbers|import-st ...              # the SmarTalk's: must FAIL
     SSI263_ANDROID_TEST_BREAK=smartalk-import-ignored|smartalk-builtin-ignored ...       # its built-in copy's: FAIL
+    SSI263_ANDROID_TEST_BREAK=synphonix-pitch|synphonix-numbers|import-sp ...            # the SynPhonix's: must FAIL
+    SSI263_ANDROID_TEST_BREAK=synphonix-import-ignored|synphonix-builtin-ignored ...     # its built-in copy's: FAIL
     python src/platforms/android/test/test_volume_headroom.py              # the default volume, every voice
     python src/platforms/android/test/test_device_service.py [--rate 2.0] [--aloud]
     python src/platforms/android/test/test_import_recreate.py              # on the phone: the screen rebuilt mid-check (#49)
@@ -318,6 +332,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=units                 # control: the unit screen's releases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=soundingboard         # control: the Sounding Board's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=smartalk              # control: the SmarTalk's cases must FAIL
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=synphonix             # control: the SynPhonix's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=flash                 # control: the unit screen's large file must FAIL (#50)
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=dosnames              # control: the DOS-named zips must FAIL (#54)
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=hooks                 # control: the exported screens' hooks must FAIL (P40)

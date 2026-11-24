@@ -111,6 +111,12 @@ if [ "$MINI" = 1 ] && [ -f "$SRC/smartalk/st_voice.c" ]; then
     ST=1
     HAVE="$HAVE -DSSV_HAVE_SMARTALK"
 fi
+# the Artic SynPhonix (0.9.5): Artic's VEST.COM on the same pc86 (sp_voice.h); imported, or the repository's copy built in
+SP=0
+if [ "$MINI" = 1 ] && [ -f "$SRC/synphonix/sp_voice.c" ]; then
+    SP=1
+    HAVE="$HAVE -DSSV_HAVE_SYNPHONIX"
+fi
 
 target() {
     case "$1" in
@@ -183,6 +189,11 @@ objects() {
     if [ "$ST" = 1 ]; then                           # the SmarTalk's host and voice, on the same pc86
         for f in st_host st_voice; do
             cc --target="$TARGET" $FRONT -I$SRC/cpu -I$SRC/pc86 -c -o "$O/$f.o" "$SRC/smartalk/$f.c"
+        done
+    fi
+    if [ "$SP" = 1 ]; then                           # the SynPhonix's host and voice, on the same pc86
+        for f in sp_host sp_voice; do
+            cc --target="$TARGET" $FRONT -I$SRC/cpu -I$SRC/pc86 -c -o "$O/$f.o" "$SRC/synphonix/$f.c"
         done
     fi
     # The Mockingboard (the 6502, src/csrc/mockingboard's board, host and voice, and the disk reader the import uses),
@@ -266,6 +277,13 @@ stage_assets() {
         mkdir -p "$A/smartalk"
         cp "$ROOT/firmware/automated-functions-smartalk/S_TALK.EXE" "$A/smartalk/"
     fi
+    # Artic's VEST.COM, the repository's copy (its serial set to 99999999, under its own notice: Tomi, 2026-11-23), the
+    # same way; an imported copy wins.  check_apk_no_firmware.py lets exactly it through, in assets/synphonix with its
+    # notice.  (A store build would not carry it; the Apple apps never do.)
+    if [ "$SP" = 1 ]; then
+        mkdir -p "$A/synphonix"
+        cp "$ROOT/firmware/artic-synphonix/VEST.COM" "$A/synphonix/"
+    fi
     # No firmware: the app is where it can NOT ship, so its users import their own (SettingsActivity).  A developer
     # build may carry it, by asking: SSI263_ANDROID_BUNDLE_FIRMWARE=1 (never a release).
     if [ "${SSI263_ANDROID_BUNDLE_FIRMWARE:-0}" = 1 ]; then
@@ -314,6 +332,9 @@ stage_assets() {
     fi
     if [ "$ST" = 1 ]; then                           # the SmarTalk's notice, its README in the repository
         cp "$ROOT/firmware/automated-functions-smartalk/README.txt" "$A/licenses/SmarTalk-software-notice.txt"
+    fi
+    if [ "$SP" = 1 ]; then                           # the SynPhonix's notice, its README in the repository
+        cp "$ROOT/firmware/artic-synphonix/README.txt" "$A/licenses/Artic-VEST-notice.txt"
     fi
     cp "$ROOT/third_party/casso/LICENSE" "$A/licenses/Casso-MIT.txt"
     ls -R "$A" | head -20

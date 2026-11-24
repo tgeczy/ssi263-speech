@@ -8,6 +8,7 @@
 #include "mockingboard/mb_dsk.h"       /* mb_firmware_from_dsk, MB_DSK_SIZE */
 #include "soundingboard/sb_host.h"     /* SBH_SBLOAD_SHA256, SBH_SB_SHA256 */
 #include "smartalk/st_host.h"          /* STH_SHA256 */
+#include "synphonix/sp_host.h"         /* SPH_BANNER, sph_card_key */
 #include "ssa_engine.h"                /* ssa_voice_built */
 #include "ssa_import.h"
 
@@ -106,6 +107,38 @@ int ssa_import_smartalk(const unsigned char *data, long n, const char *out, char
     }
     snprintf(msg, (size_t)msglen, "%s", SSA_SMARTALK_LABEL);
     return SSA_SMARTALK;
+}
+
+int ssa_import_synphonix(const unsigned char *data, long n, const char *out, char *msg, int msglen)
+{
+#ifdef SSV_HAVE_SYNPHONIX
+    static const char BANNER[] = SPH_BANNER;
+    unsigned char key[6];
+    char why[160];
+    long i, b = (long)sizeof BANNER - 1;
+    int found = 0;
+    FILE *f;
+    if (!data || n <= b || n > 65536)                  /* VEST.COM 1.60 is 41,920 bytes */
+        return BLV_FW_NONE;
+    for (i = 0; i + b <= n && !found; i++)             /* its banner ... */
+        found = !memcmp(data + i, BANNER, (size_t)b);
+    /* ... and its serial check, as the host finds it to give the card its key: any copy, whatever its serial */
+    if (!found || sph_card_key(data, (size_t)n, key, why, sizeof why) != 0 || ssa_import_break == 8)
+        return BLV_FW_NONE;            /* (8: the control, never known: ssa_import.h) */
+    if (out) {
+        if (!(f = fopen(out, "wb")) || fwrite(data, 1, (size_t)n, f) != (size_t)n) {
+            if (f) fclose(f);
+            remove(out);
+            return fail(msg, msglen, BLV_FW_WRITE, "could not write the SynPhonix's VEST.COM");
+        }
+        fclose(f);
+    }
+    snprintf(msg, (size_t)msglen, "%s", SSA_SYNPHONIX_LABEL);
+    return SSA_SYNPHONIX;
+#else
+    (void)data; (void)n; (void)out; (void)msg; (void)msglen;
+    return BLV_FW_NONE;
+#endif
 }
 
 int ssa_import_speakout(const unsigned char *data, long n, const char *out, char *msg, int msglen)
@@ -306,6 +339,8 @@ int ssa_import_firmware(const unsigned char *data, long n, const char *out, char
         r = ssa_import_soundingboard(data, n, out, msg, msglen);
     if (r == BLV_FW_NONE && ssa_voice_built(SSA_SMARTALK))       /* the SmarTalk's S_TALK.EXE */
         r = ssa_import_smartalk(data, n, out, msg, msglen);
+    if (r == BLV_FW_NONE && ssa_voice_built(SSA_SYNPHONIX))      /* the SynPhonix's VEST.COM (0.9.5) */
+        r = ssa_import_synphonix(data, n, out, msg, msglen);
     if (r == BLV_FW_NONE)
         return ssa_import_speakout(data, n, out, msg, msglen);
     if (r != SSA_FW_MB_DISK)

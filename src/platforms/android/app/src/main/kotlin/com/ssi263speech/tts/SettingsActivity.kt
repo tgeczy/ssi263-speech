@@ -260,8 +260,10 @@ class SettingsActivity : Activity() {
             "coming with this app; the Aicom Accent-mini, its DOS driver on an emulated PC, when this copy of the " +
             "app carries it; and the Sweet Micro Systems Mockingboard, the Apple II's speech card, its own " +
             "text-to-speech on an emulated 6502 -- version 1.1 from the Developers Toolkit, and the early one from " +
-            "Mockingboard disk 1 -- when this copy carries them; and Automated Functions' SmarTalk, a parallel-port " +
-            "box, its own DOS text-to-speech on an emulated PC. They speak English, and the Accent-PC is the voice " +
+            "Mockingboard disk 1 -- when this copy carries them; Automated Functions' SmarTalk, a parallel-port " +
+            "box, its own DOS text-to-speech on an emulated PC; and the Artic SynPhonix, a speech card inside the " +
+            "PC, Artic's own DOS text-to-speech VEST on an emulated PC. They speak English, and the Accent-PC is " +
+            "the voice " +
             "you hear until you import a Braille Lite."))
         root.addView(ui.body(
             "\nTo add: the Blazie Braille Lite 2000 in speech-box mode, its own firmware on an emulated Z180, " +
@@ -292,7 +294,9 @@ class SettingsActivity : Activity() {
             "Board, choose GW Micro's sb.zip, or its SBLOAD.COM and SB.COM together: the voice needs both, and the " +
             "rest of the zip is its documentation. The SmarTalk's S_TALK.EXE comes with this app (Automated " +
             "Functions let it be shared); a copy you import, from the SmarTalk's disk or the NVDA add-on, is used " +
-            "instead. The Mockingboards " +
+            "instead. The SynPhonix's VEST.COM comes with this app as well (Artic is long gone, and no one we know " +
+            "of speaks for it; its card's serial number is set to 99999999); your own copy, from a Business Vision " +
+            "or SynPhonix disk or the NVDA add-on, whatever its serial, is used instead. The Mockingboards " +
             "can be imported too, in place of the copies built in, or when this copy of the app has none: the " +
             "Mockingboard Developers Toolkit's disk image (.dsk) or the mockingboard-tts-1.1.bin made from it, and " +
             "Mockingboard disk 1's image or mockingboard-tts-early.bin for the early one; each is checked and ready " +

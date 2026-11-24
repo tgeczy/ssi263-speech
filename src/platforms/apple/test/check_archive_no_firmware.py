@@ -34,6 +34,9 @@ AICOM = dict(apk.ALLOWED)
 # the SmarTalk's S_TALK.EXE: the GitHub APK carries it (apk.SMARTALK, in assets/smartalk only), the Apple apps never
 # (Tomi, 2026-10-24: import only there), wherever it sits
 SMARTALK = dict(apk.SMARTALK)
+# Artic's VEST.COM: the GitHub APK carries the repository's copy (apk.SYNPHONIX), the Apple apps never (Tomi,
+# 2026-11-23: import only there); every other copy is refused by its banner already (apk.scan)
+SYNPHONIX = dict(apk.SYNPHONIX)
 
 
 def judge(label, data, name):
@@ -47,6 +50,10 @@ def judge(label, data, name):
         hits = [h for h in hits if not h.endswith(" outside " + apk.SMARTALK_DIR)]
         hits.append("%s: the SmarTalk's %s, by its sha256 (the Apple apps carry no firmware)" % (label,
                                                                                                SMARTALK[digest]))
+    if digest in SYNPHONIX:
+        hits = [h for h in hits if not h.endswith(" outside " + apk.SYNPHONIX_DIR)]
+        hits.append("%s: the SynPhonix's %s, by its sha256 (the Apple apps carry no firmware)" % (label,
+                                                                                                 SYNPHONIX[digest]))
     hits += ["%s: Aicom's %s inside it (the Apple apps carry no firmware)" % (label, a) for a in allowed
              if a not in [AICOM.get(digest)]]
     return hits
@@ -119,6 +126,10 @@ def synthetic(tmp):
         controls.append(("Aicom's u2.BIN", open(aicom, "rb").read()))
     if os.path.isfile(apk.SMARTALK_EXE):
         controls.append(("the SmarTalk's S_TALK.EXE", open(apk.SMARTALK_EXE, "rb").read()))
+    if os.path.isfile(apk.SYNPHONIX_COM):
+        com = open(apk.SYNPHONIX_COM, "rb").read()
+        controls += [("the SynPhonix's VEST.COM", com),
+                     ("a VEST.COM with another card's serial", com.replace(b"S/N 999999", b"S/N 123456"))]
     for label, content in controls:
         d = tempfile.mkdtemp(dir=tmp)
         print("control: %s added" % label)

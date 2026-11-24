@@ -105,6 +105,21 @@ JNIEXPORT jboolean JNICALL FN(nativeSmarTalk)(JNIEnv *env, jclass cls, jbyteArra
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
+/* The SynPhonix's built-in VEST.COM (the APK's assets/synphonix), copied into the engine; an imported copy wins. */
+JNIEXPORT jboolean JNICALL FN(nativeSynPhonix)(JNIEnv *env, jclass cls, jbyteArray jcom)
+{
+    jbyte *p;
+    jsize n;
+    int ok;
+    (void)cls;
+    if (!g_engine || !jcom) return JNI_FALSE;
+    n = (*env)->GetArrayLength(env, jcom);
+    if (!(p = (*env)->GetByteArrayElements(env, jcom, NULL))) return JNI_FALSE;
+    ok = ssa_set_synphonix(g_engine, (const unsigned char *)p, (size_t)n);
+    (*env)->ReleaseByteArrayElements(env, jcom, p, JNI_ABORT);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+
 /* This build carries the voice's engine (no engine needs to be open). */
 JNIEXPORT jboolean JNICALL FN(nativeVoiceBuilt)(JNIEnv *env, jclass cls, jint voice)
 {

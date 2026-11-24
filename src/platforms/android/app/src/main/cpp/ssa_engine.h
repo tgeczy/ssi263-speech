@@ -80,7 +80,10 @@ typedef struct ssa_engine ssa_engine;
 /* Automated Functions' SmarTalk: its own DOS text-to-speech, S_TALK.EXE 1.21, on the Accent-mini's 8086 (st_voice.h),
    imported -- right after the Sounding Board, so no voice saved before it moves (checked when compiled). */
 #define SSA_SMARTALK 28
-#define SSA_ALL_VOICES (SSA_SMARTALK + 1)
+/* 0.9.5: the Artic SynPhonix: Artic's own DOS text-to-speech for its internal cards, VEST.COM 1.60, on the
+   Accent-mini's 8086 (sp_voice.h), imported or built in -- right after the SmarTalk (checked when compiled). */
+#define SSA_SYNPHONIX 29
+#define SSA_ALL_VOICES (SSA_SYNPHONIX + 1)
 /* A release voice's row in the release table (bl_firmware.h blv_release_*), or -1; and back: a row's voice, or -1
    (a release that names no new voice: a shipped voice's, or the emulator's only). */
 int ssa_voice_release(int voice);
@@ -97,6 +100,7 @@ int ssa_voice_file(int voice, int i, char *out, int cap);
 #define SSA_MOCKINGBOARD_FILE "mockingboard-tts-1.1.bin"
 #define SSA_MOCKINGBOARD_EARLY_FILE "mockingboard-tts-early.bin"
 #define SSA_SMARTALK_FILE "S_TALK.EXE"
+#define SSA_SYNPHONIX_FILE "VEST.COM"
 
 /* The Accents' level at the app's volume 100, in their drivers' percent (as_voice.h's asv_set): the engine volume
    times this over 100.  test_volume_headroom.py measures it against the Braille Lite's. */
@@ -150,6 +154,13 @@ int ssa_mockingboard_source(const ssa_engine *e, int voice);
    no SmarTalk).  And where its file comes from now: 1 imported, 2 built in, 0 neither. */
 int ssa_set_smartalk(ssa_engine *e, const unsigned char *exe, size_t n);
 int ssa_smartalk_source(const ssa_engine *e);
+
+/* The SynPhonix's built-in VEST.COM (the GitHub APK's assets/synphonix: Tomi, 2026-11-23, the repository's copy with
+   its serial set to 99999999 -- the Apple apps carry none), copied; used whenever the data folder has no imported copy,
+   which wins.  1, or 0 (not that copy by its sha256, sp_host.h's SPH_SHA256; empty, out of memory, or this build has
+   no SynPhonix).  And where its file comes from now: 1 imported, 2 built in, 0 neither. */
+int ssa_set_synphonix(ssa_engine *e, const unsigned char *com, size_t n);
+int ssa_synphonix_source(const ssa_engine *e);
 
 /* This build carries the voice's engine (every one but the Accent-mini and the Mockingboards always does). */
 int ssa_voice_built(int voice);
@@ -218,6 +229,8 @@ int ssa_mockingboard_pitch(int slider, int request);   /* ... with the Mockingbo
                                                           that has it; else the plain mapping */
 int ssa_smartalk_pitch(int slider, int request);       /* ... with the SmarTalk's ten (ESC P 0-9), in a build that has
                                                           it; else the plain mapping */
+int ssa_synphonix_pitch(int slider, int request);      /* ... with the SynPhonix's thirteen (VEST's pitch offset, 6
+                                                          each way), in a build that has it; else the plain mapping */
 
 /* The tests' controls (test_android_native.c sets them; the app never does): each puts back one bug the cases must
    catch.  ssa_accent_break -- 1: the request's pitch dropped; 2: the pitch sent as a setting, so it glides instead of
@@ -232,7 +245,9 @@ int ssa_smartalk_pitch(int slider, int request);       /* ... with the SmarTalk'
    line-start lift dropped; 11: the SmarTalk's request pitch dropped (no capital offset); 12: the SmarTalk's number
    words dropped (always off); 13: the SmarTalk's imported copy ignored (the built-in one used); 14: its built-in copy
    ignored (import only); 15: a mark's frame counted from its block's start, not the utterance's; 16: marks sent to
-   a voice that would estimate them. */
+   a voice that would estimate them; 17: the Braille Lite's trillions read as before (test_android_native.c); 18: the
+   SynPhonix's request pitch dropped (no capital offset); 19: its number words dropped (always off); 20: its imported
+   copy ignored (the built-in one used); 21: its built-in copy ignored (import only). */
 extern int ssa_accent_break;
 extern int ssa_voice_break;
 

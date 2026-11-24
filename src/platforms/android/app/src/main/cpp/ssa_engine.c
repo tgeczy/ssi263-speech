@@ -16,6 +16,7 @@
 #include "voices_blazie.h"             /* SSV_BLAZIE_RELEASE_VOICES */
 #include "blazie/bl_firmware.h"        /* the release table: blv_release_*; blv_sha256 */
 #include "smartalk/st_host.h"          /* STH_SHA256 */
+#include "synphonix/sp_host.h"         /* SPH_SHA256 */
 #include "accentpc/as_voice.h"
 #include "speakout/so_voice.h"
 #ifdef SSV_HAVE_MOCKINGBOARD
@@ -23,6 +24,9 @@
 #endif
 #ifdef SSV_HAVE_SMARTALK
 #include "smartalk/st_voice.h"         /* stv_step */
+#endif
+#ifdef SSV_HAVE_SYNPHONIX
+#include "synphonix/sp_voice.h"        /* spv_pitch_offset */
 #endif
 #include "ssa_engine.h"
 #include "ssa_map.h"
@@ -54,14 +58,16 @@ static const voice_def VOICES[SSA_RELEASE_FIRST] = {
 static const voice_def AFTER_RELEASES[SSA_ALL_VOICES - SSA_VOICES] = {
     {"speakout:soundingboard", {SSA_SBLOAD_FILE, SSA_SB_FILE, NULL}},
     {"smartalk:smartalk", {SSA_SMARTALK_FILE, NULL}},
+    {"synphonix:vest", {SSA_SYNPHONIX_FILE, NULL}},
 };
 static const size_t ROM_SIZES[3] = {0x10000, 0x8000, 0x8000};
 
 /* ssa_engine.h's count of the release voices is the generated table's, the Sounding Board comes right after them and
-   the SmarTalk after it */
+   the SmarTalk after it, the SynPhonix after that */
 typedef char release_voices_match[SSA_RELEASE_VOICES == SSV_BLAZIE_RELEASE_VOICES ? 1 : -1];
 typedef char soundingboard_after_releases[SSA_SOUNDINGBOARD == SSA_VOICES ? 1 : -1];
 typedef char smartalk_after_soundingboard[SSA_SMARTALK == SSA_SOUNDINGBOARD + 1 ? 1 : -1];
+typedef char synphonix_after_smartalk[SSA_SYNPHONIX == SSA_SMARTALK + 1 ? 1 : -1];
 
 static int after_releases(int voice) { return voice >= SSA_VOICES && voice < SSA_ALL_VOICES; }
 
@@ -124,6 +130,8 @@ struct ssa_engine {
     size_t mb_n[2];
     unsigned char *st;                 /* the SmarTalk's built-in S_TALK.EXE, from ssa_set_smartalk */
     size_t st_n;
+    unsigned char *sp;                 /* the SynPhonix's built-in VEST.COM, from ssa_set_synphonix */
+    size_t sp_n;
     ssv_voice *spare;                 /* the Accent-PC's next unit: booted, not yet spoken on */
     ssv_voice *accent;                 /* the unit speaking the current utterance */
     int cur;                           /* the utterance's voice; -1 when none is running */
@@ -194,6 +202,12 @@ int ssa_smartalk_source(const ssa_engine *e)
     return e->st && ssa_voice_break != 14 ? 2 : 0;
 }
 
+int ssa_synphonix_source(const ssa_engine *e)
+{
+    if (imported(e, SSA_SYNPHONIX) && ssa_voice_break != 20) return 1;
+    return e->sp && ssa_voice_break != 21 ? 2 : 0;
+}
+
 /* A unit of the voice, made by voices.c from where the app keeps its files. */
 static ssv_voice *make_unit(ssa_engine *e, int voice, char *err, int errlen)
 {
@@ -213,6 +227,9 @@ static ssv_voice *make_unit(ssa_engine *e, int voice, char *err, int errlen)
     } else if (voice == SSA_SMARTALK && ssa_smartalk_source(e) == 2) {     /* no imported copy: the built-in one */
         src.data[0] = e->st;
         src.size[0] = e->st_n;
+    } else if (voice == SSA_SYNPHONIX && ssa_synphonix_source(e) == 2) {   /* no imported copy: the built-in one */
+        src.data[0] = e->sp;
+        src.size[0] = e->sp_n;
     } else
         for (k = 0; k < 3 && ssa_voice_file(voice, k, name, sizeof name); k++) {
             path(e, name, paths[k], sizeof paths[k]);
@@ -309,6 +326,13 @@ static void settings_for(const ssa_engine *e, int voice, const ssa_settings *s, 
         o->inflection = e->inflection ? 100 : 0;
         o->numbers = s->numbers && ssa_voice_break != 12;
         break;
+    case SSA_SYNPHONIX:                /* as the SmarTalk, with VEST's thirteen pitch steps for the capital's move; its
+                                          inflection the app's (on: VEST's own, off: flat) */
+        o->pitch = clamp100(s->pitch);
+        *offset = ssa_synphonix_pitch(s->pitch, ssa_voice_break == 18 ? 100 : request_pitch) - o->pitch;
+        o->inflection = e->inflection ? 100 : 0;
+        o->numbers = s->numbers && ssa_voice_break != 19;
+        break;
     }
 }
 
@@ -327,6 +351,15 @@ int ssa_smartalk_pitch(int slider, int request)
 {
 #ifdef SSV_HAVE_SMARTALK
     return ssa_step_pitch(slider, request, stv_step);
+#else
+    return ssa_pitch(slider, request);
+#endif
+}
+
+int ssa_synphonix_pitch(int slider, int request)
+{
+#ifdef SSV_HAVE_SYNPHONIX
+    return ssa_step_pitch(slider, request, spv_pitch_offset);
 #else
     return ssa_pitch(slider, request);
 #endif
@@ -375,6 +408,7 @@ void ssa_free(ssa_engine *e)
     free(e->mb[0]);
     free(e->mb[1]);
     free(e->st);
+    free(e->sp);
     free(e->reach);
     free(e->datadir);
     free(e);
@@ -468,6 +502,33 @@ int ssa_set_smartalk(ssa_engine *e, const unsigned char *exe, size_t n)
     return 1;
 }
 
+int ssa_set_synphonix(ssa_engine *e, const unsigned char *com, size_t n)
+{
+    static const char HEXD[] = "0123456789abcdef";
+    unsigned char *p, digest[32];
+    char got[65];
+    int i;
+    if (!ssa_voice_built(SSA_SYNPHONIX) || !com || !n) return 0;
+    blv_sha256(com, (long)n, digest);
+    for (i = 0; i < 32; i++) {
+        got[2 * i] = HEXD[digest[i] >> 4];
+        got[2 * i + 1] = HEXD[digest[i] & 15];
+    }
+    got[64] = 0;
+    if (strcmp(got, SPH_SHA256)) return 0;             /* not the repository's copy (its serial 99999999) */
+    if (!(p = (unsigned char *)malloc(n))) return 0;
+    memcpy(p, com, n);
+    if (e->units[SSA_SYNPHONIX]) {     /* a unit made from another copy is let go: the next use makes it again */
+        if (e->cur == SSA_SYNPHONIX) ssa_cancel(e);
+        ssv_destroy(e->units[SSA_SYNPHONIX]);
+        e->units[SSA_SYNPHONIX] = NULL;
+    }
+    free(e->sp);
+    e->sp = p;
+    e->sp_n = n;
+    return 1;
+}
+
 int ssa_has_voice(const ssa_engine *e, int voice)
 {
     if (!ssa_voice_built(voice)) return 0;
@@ -475,6 +536,7 @@ int ssa_has_voice(const ssa_engine *e, int voice)
     if (voice == SSA_ACCENT_MINI) return e->mini != NULL;
     if (is_mb(voice)) return ssa_mockingboard_source(e, voice) != 0;
     if (voice == SSA_SMARTALK) return ssa_smartalk_source(e) != 0;
+    if (voice == SSA_SYNPHONIX) return ssa_synphonix_source(e) != 0;
     return imported(e, voice);
 }
 
@@ -515,6 +577,10 @@ int ssa_load(ssa_engine *e, int voice, char *err, int errlen)
     }
     if (voice == SSA_SMARTALK && !ssa_smartalk_source(e)) {
         snprintf(err, (size_t)errlen, "the SmarTalk's %s is neither imported nor built in", SSA_SMARTALK_FILE);
+        return -1;
+    }
+    if (voice == SSA_SYNPHONIX && !ssa_synphonix_source(e)) {
+        snprintf(err, (size_t)errlen, "the SynPhonix's %s is neither imported nor built in", SSA_SYNPHONIX_FILE);
         return -1;
     }
     e->units[voice] = make_unit(e, voice, err, errlen);
