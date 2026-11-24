@@ -273,8 +273,8 @@ is in [`firmware/automated-functions-smartalk/README.txt`](../firmware/automated
 The host is `src/hosts/synphonix.py`, in Python on MAME's 8086 (`pc86`). It is a research host only: no C port, no
 voice and no front end lists it yet. It runs Artic's own DOS text-to-speech for its internal cards, `VEST.COM`
 ("Visions Enhanced Speech Translator", version 1.60 English, the "Special Release For Artic Visions" that Business
-Vision 3.08 loads first), unchanged. `VEST.COM` is not in the repository; its drop-in folder's README
-([`firmware/artic-synphonix/README.txt`](../firmware/artic-synphonix/README.txt)) says what goes there. Its first
+Vision 3.08 loads first), unchanged. `VEST.COM` is in the repository with its serial set to 99999999,
+under its own notice ([`firmware/artic-synphonix/README.txt`](../firmware/artic-synphonix/README.txt)). Its first
 clips were heard on 22 November 2026: at XCK = 1 MHz the speed sounded close to a real TransPort's, whose own VEST
 should be much the same program. That is an ear, not a measurement.
 

@@ -3,7 +3,8 @@
 Research scripts for Artic Technologies' SynPhonix and TransPort, run on the SynPhonix research host's machinery
 (`src/hosts/synphonix.py`, MAME's 8086 through `libpc86`). No test rests on them; `tools/check_synphonix_host.py`
 is the host's test. What they found is in [`docs/front-ends.md`](../../docs/front-ends.md), "Artic SynPhonix 215".
-Artic's programs are not in the repository: both look in `firmware/artic-synphonix/`.
+Both look in `firmware/artic-synphonix/`: `VEST.COM` is kept there under its notice; `TVISION.COM` is not in the
+repository and goes there as a local copy.
 
 | File | What it is for |
 |---|---|

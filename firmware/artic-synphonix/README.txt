@@ -1,24 +1,40 @@
-Artic Technologies' SynPhonix 215 -- VEST.COM goes here; it is NOT in this repository
-====================================================================================
+Artic Technologies' SynPhonix -- VEST.COM, Artic's own, with its serial set to 99999999
+=======================================================================================
 
-The SynPhonix research host (src/hosts/synphonix.py) runs Artic's own DOS text-to-speech for its internal speech
-cards, VEST ("Visions Enhanced Speech Translator"), unchanged, on MAME's 8086 and our chip:
+The Artic SynPhonix voice (src/csrc/synphonix/, and the research host src/hosts/synphonix.py) runs Artic's own DOS
+text-to-speech for its internal speech cards, VEST ("Visions Enhanced Speech Translator"), on MAME's 8086 and our
+chip:
 
   VEST.COM   41,920 bytes   "VEST Ver 1.60 ENGLISH", "Special Release For Artic Visions", (C) 1984-92
+             sha256 4d74b00d8541bbe1c8ca4ec21c8bb3632f054c28d6fead97ce452679db0cdb49
 
-That is the VEST that Business Vision 3.08 loads first (its BV.BAT runs \ARTIC\VISION\VEST, then BVISION /M3).  Put
-your copy in this folder under that name.  The tests that need it (tools/check_synphonix_host.py) skip without it.
-TVISION.COM from the same disk (Business Vision for the TransPort, 45,277 bytes) may go beside it, for the research
-script tools/artic/tvision_serial.py only.
+That is the VEST that Business Vision 3.08 loads first (its BV.BAT runs \ARTIC\VISION\VEST, then BVISION /M3).
 
-Each copy of VEST was sold with one card and holds that card's serial number, so copies differ by a few bytes and no
-one sha256 names them all.  The copy the host was written on has
+Each copy of VEST was sold with one card and holds that card's serial number. In this copy the serial is 99999999,
+in both places it is kept (the encoded key and the banner's S/N), so it names no card and no owner. That is the only
+change: 14 bytes, and VEST writes exactly the same to the chip as the copy it came from. (It cannot be all zeros:
+VEST refuses such a key.) Any other copy of VEST 1.60 works here too: the host reads the serial check's own code to
+give the card the key that copy expects, and refuses a file in which it cannot find that code.
 
-  sha256 e0994d955a810537214f30c773e45b6c0e6f32d5876937120b882f118c2f8039
+TVISION.COM from the same disk (Business Vision for the TransPort) is not kept here. It may go beside VEST.COM for
+the research script tools/artic/tvision_serial.py only.
 
-and any VEST 1.60 should do: the host reads the serial check's own code to give the card the key that copy expects,
-and refuses a file in which it cannot find that code.  The host uses nothing else of the Business Vision disk.
+Its notice -- this file is NOT under the repository's MIT licence:
 
-Why it is not here: VEST.COM is Artic Technologies' software, with "All Rights Reserved" in its banner, and this
-repository does not take firmware from contributors.  The maintainers alone decide what, if anything, is shipped, and
-under which notice (AGENTS.md).
+  VEST.COM is Copyright 1984, 1985, 1988, 1989, 1990, 1992, Artic Technologies, All Rights Reserved.
+
+No licence to share it has been granted. Artic sells nothing today and seems to have closed long ago, and no one we
+know of has taken its programs on (docs/history.md, "Who speaks for Artic"). We include it so that Artic's own voice
+can be heard again, the way the SynPhonix and the TransPort spoke to their users. Calling it abandoned describes the
+preservation problem; it is not a licence.
+
+If you hold rights to VEST -- one of Artic's founders, or whoever took on its work -- we would be glad to hear from
+you, whatever you would like done: open an issue on this repository, or write to the maintainer at the e-mail address
+on his GitHub profile. If you want it removed, it will be removed.
+
+The NVDA add-on carries VEST.COM with this notice (nvda/build_ssi263.py), as will the SAPI voices, the Linux package
+and the GitHub Android APK. The Apple apps never do: they stay free of firmware, and VEST.COM is imported there like
+the others.
+
+Not to be confused with the Virginia Embedded Systems Toolkit (VEST, University of Virginia, about 2001), a design
+tool for embedded software with nothing to do with speech.

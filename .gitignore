@@ -48,10 +48,12 @@ firmware/speech-systems-super-voice/*
 firmware/aicom-accent-sa-z80/*
 !firmware/aicom-accent-sa-z80/README.txt
 
-# Artic's VEST.COM (and TVISION.COM) for the SynPhonix research host: a drop-in folder while Artic's founders are
-# asked (docs/history.md, "Who speaks for Artic"); each copy carries its card's serial
+# Artic's VEST.COM for the SynPhonix voice: kept, its serial set to 99999999, with its notice in README.txt
+# (Tomi, 2026-11-23; docs/history.md, "Who speaks for Artic").  Any other copy (TVISION.COM, a copy with a real
+# serial) stays local
 firmware/artic-synphonix/*
 !firmware/artic-synphonix/README.txt
+!firmware/artic-synphonix/VEST.COM
 
 # The exception: Aicom's software, kept in the tree with its notice (firmware/AICOM.txt).
 !firmware/aicom-accent-sa/*.BIN

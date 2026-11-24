@@ -639,9 +639,11 @@ reading. What it rests on, and what is left:
 **Who speaks for Artic.** VEST is Artic Technologies' work ("(C)Copyright 1984,85,88,89,90,92 ... All Rights
 Reserved"). Artic sells nothing today and seems to have closed long ago (see 1997 to 2003), and no one we know of
 has taken its programs on. The people who could say yes or no to sharing VEST are its founders, Tim Gargagliano and
-Dale McDaniel (see 1984), and we have written to ask. Until one of them answers, `VEST.COM` is not in this
-repository; `firmware/artic-synphonix/README.txt` says what goes there. If you speak for Artic, please open an issue
-or write to the maintainer: we will do as you ask.
+Dale McDaniel (see 1984). We have tried to reach Tim Gargagliano and had no answer. On 23 November 2026 `VEST.COM`
+came into the repository with its serial set to 99999999, so that it names no card and no owner, and with its
+notice (`firmware/artic-synphonix/README.txt`), as Aicom's software is kept. If you speak for Artic, we would be glad
+to hear from you: open an issue, or write to the maintainer at the e-mail address on his GitHub profile. We will do
+as you ask, and remove it if you want it removed.
 
 ## Engine versions at a glance
 

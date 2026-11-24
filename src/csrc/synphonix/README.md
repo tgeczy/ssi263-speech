@@ -6,9 +6,10 @@ TSR `VEST.COM` 1.60 ("Visions Enhanced Speech Translator", the "Special Release 
 research host it ports, `src/hosts/synphonix.py`. How the card and VEST work, as read from VEST's code:
 [`docs/front-ends.md`](../../../docs/front-ends.md), "Artic SynPhonix 215".
 
-`VEST.COM` is Artic's work: it goes in `firmware/artic-synphonix/` (its README says which file), and nothing here
-builds it in. Each copy holds the serial of the card it was sold with; the host reads the key that copy expects from
-the copy's own serial check, so any copy of VEST 1.60 finds its card and no serial is written here.
+`VEST.COM` is Artic's work, kept in `firmware/artic-synphonix/` under its own notice (its README), with its serial
+set to 99999999; nothing here builds it in. Each copy holds the serial of the card it was sold with; the host reads
+the key that copy expects from the copy's own serial check, so any copy of VEST 1.60 finds its card and no serial is
+written here.
 
 | File | What it does |
 |---|---|

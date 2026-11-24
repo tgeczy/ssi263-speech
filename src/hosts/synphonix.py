@@ -38,7 +38,8 @@ vectors at 60h-67h) is not installed by this special release.
 Its own start-up speaks "Visions Enhanced Speech Translator. 1 point 6 0" (9EA9) with CX = 0200h, DX = 00E6h; say()
 uses the same offsets unless given others.  boot() lets that announcement play out silently.
 
-The software is NOT part of this repository: pass the path of your own VEST.COM (firmware/artic-synphonix/README.txt).
+The software is Artic's, under its own notice: firmware/artic-synphonix/VEST.COM (its serial set to 99999999; README.txt
+there), or pass the path of another copy.
 
 Must-fail controls (SYNPHONIX_HOST_BREAK, tools/check_synphonix_host.py): "key" makes the key with one serial
 digit changed; "rotate" writes the PC's bytes to the chip unrotated; "eoi" ignores the specific EOI; "cancel" cuts

@@ -2972,8 +2972,8 @@ if os.path.isfile(os.path.join(SV_FW, "SUPERTOK.BIN")):
                         and bool(re.search(r"^controls: all as expected$", out, re.M))))
 # Artic's SynPhonix 215 (src/hosts/synphonix.py, the research host): Artic's VEST.COM on MAME's 8086 (pc86.dll) --
 # it loads and finds its card, speaks its announcement and a sentence with their golden phonemes, finds the card of a
-# copy with another serial, and cuts speech; each control puts one of the host's rules back wrong.  VEST.COM is a
-# local copy (firmware/artic-synphonix, never committed).
+# copy with another serial, and cuts speech; each control puts one of the host's rules back wrong.  VEST.COM is
+# firmware/artic-synphonix's (its serial set to 99999999, under its notice).
 SPX_COM = os.path.join(REPO, "firmware", "artic-synphonix", "VEST.COM")
 SPX_PC86 = os.path.join(os.path.dirname(HERE), "dist", "blazie-lib", "x64", "pc86.dll")
 if os.path.isfile(SPX_COM) and os.path.isfile(SPX_PC86):
