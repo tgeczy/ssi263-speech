@@ -55,6 +55,7 @@ struct sp_host {
     int pic_mask, in_service, irq_latched, last_req;     /* in_service: the IRQs in service, a bit each */
     double timer_due;
     double last_speech;
+    double last_write;                                    /* any chip write: the card at work (sp_voice.c's stall) */
     /* the program */
     long resident;                                        /* bytes once it has gone resident, else -1 */
     int seg, entry;
@@ -444,6 +445,7 @@ static void on_out(void *user, int port, int value)
         int reg = port - CHIP_BASE;
         int v = h->brk_rotate ? value : ror1(value);
         ssi263_write(h->chip, reg, v);
+        h->last_write = ssi263_time(h->chip);
         if (h->log_on && grow((void **)&h->wl, &h->cap_wl, h->n_wl + 1, sizeof *h->wl)) {
             h->wl[h->n_wl].t = ssi263_time(h->chip);
             h->wl[h->n_wl].reg = reg;
@@ -864,6 +866,7 @@ SP_API sp_host *sph_create(const unsigned char *com, size_t n, ssi263 *chip, dou
     /* the card and the PIC */
     h->pic_mask = 0xB8;                                 /* as the BIOS leaves it: the timer, keyboard, IRQ2, floppy */
     h->last_speech = -1.0;
+    h->last_write = -1.0;
     h->resident = -1;
     pc86_set_hooks(h->p, on_in, on_out, on_int, h);
     if (exec_com(h, com, n, err, errlen) < 0) {
@@ -901,6 +904,7 @@ SP_API double sph_get_double(const sp_host *h, const char *name)
 {
     if (!strcmp(name, "cpu_ips")) return h->cpu_ips;
     if (!strcmp(name, "last_speech")) return h->last_speech;
+    if (!strcmp(name, "last_write")) return h->last_write;
     if (!strcmp(name, "time")) return ssi263_time(h->chip);
     return -1.0;
 }

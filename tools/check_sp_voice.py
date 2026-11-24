@@ -18,6 +18,7 @@ Controls (each must fail its own checks, and only them):
   SPV_CUT_BREAK=1      the cut left as it was, not played out (sp_voice.c play_out): "a cancel: the next text starts
                        as after an end" fails
   SPV_SPEAK_FAULT_BREAK=1    spv_speak's fault not looked at again after its own cancel: "a cancel that faults" fails
+  SPV_STALL_BREAK=1          a stall judged by silence, as it was: "sentence marks alone" fails
   SSV_BANK_BREAK=synphonix   a bank keeps the SynPhonix's unit on a boot change: the bank check fails
 """
 import ctypes
@@ -278,6 +279,22 @@ def main():
     ph, _w, _n = v.say("Said after the cancel, whole.")
     ok(len(ph) > 0 and abs(len(pf) - len(ph)) <= 0.2 * len(ph), "a cancel that faults: the next text said whole",
        "%.2f s against %.2f s" % (len(pf) / 2.0 / RATE, len(ph) / 2.0 / RATE))
+
+    # sentence marks alone keep VEST busy writing pauses and saying nothing for longer than the stall limit (4 s): that
+    # is the card at work, not a stall.  It was cut and the card booted again: a row of dots faulted at every rate, and
+    # "Hi. . . . there." lost "there" at rate 0 (the 0.9.5 audit's question, measured; SPV_STALL_BREAK=1, the control,
+    # fails this alone)
+    v.set(rate=0)
+    _p, w_dots, _n = v.say(". " * 60)
+    dots_fault = v.v.fault
+    _p, w_hi, _n = v.say("Hi. . . . . . . . . . . . . . . . . . . . . . there.")
+    hi_fault = v.v.fault
+    _p, w_both, _n = v.say("Hi there.")
+    v.set()
+    ok(not dots_fault and not hi_fault and said(w_hi) == said(w_both),
+       "sentence marks alone: no stall, the text said whole",
+       "a row of dots: %s; 'Hi. . . there.': %s, %d phonemes against 'Hi there.' %d" % (
+           "a fault" if dots_fault else "said", "a fault" if hi_fault else "said", len(said(w_hi)), len(said(w_both))))
     # ... and started as after a natural end: its first phoneme at once, VEST's writes the same, none of the cut text's
     # sound at its head.  VEST's cut leaves the chip on a pause with the cut phoneme fading into it and its own closing
     # frames to come, and the card's time stands still between texts, so those came at the next text's head: it started

@@ -934,6 +934,9 @@ control "SynPhonix voice CONTROL (a bank keeps its unit on a boot change, must f
 control "SynPhonix voice CONTROL (a speak's own cancel faulting, the text lost, must fail)" \
     "^FAIL  a cancel that faults: the next text said whole " "^ok    a cancel: the next text said whole " \
     "^sp voice: 2 FAILED$" -- env SPV_SPEAK_FAULT_BREAK=1 python3 tools/check_sp_voice.py build/linux/libssi263_voices.so
+control "SynPhonix voice CONTROL (a stall judged by silence, must fail)" \
+    "^FAIL  sentence marks alone: " "^ok    a cancel: the next text said whole " "^sp voice: 2 FAILED$" -- \
+    env SPV_STALL_BREAK=1 python3 tools/check_sp_voice.py build/linux/libssi263_voices.so
 control "SynPhonix voice CONTROL (the cut not played out, must fail)" \
     "^FAIL  a cancel: the next text starts as after an end " "^ok    a cancel: the next text said whole " \
     "^sp voice: 1 FAILED$" -- env SPV_CUT_BREAK=1 python3 tools/check_sp_voice.py build/linux/libssi263_voices.so

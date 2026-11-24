@@ -11,7 +11,7 @@
 #define BLOCK_S 0.03
 #define STEP_S 0.0005
 #define QUIET 0.05                          /* synphonix.py's busy() */
-#define STALL_S 4.0                         /* busy and silent this long: the card has stalled */
+#define STALL_S 4.0                         /* busy and writing nothing this long: the card has stalled */
 #define CUT_LIMIT 0.5                       /* chip seconds a cut may take to play out (play_out) */
 #define LEAD_THRESHOLD 0.003                /* the silence before the first phoneme left out (am_voice.c's) */
 #define LEAD_PREROLL 220
@@ -491,10 +491,14 @@ SP_API int spv_render(sp_voice *v, const short **pcm, int *done)
         v->active = 0;                                /* the parts stay until the next speak: spv_get_int counts them */
         *done = 1;
     } else {
-        double last = sph_get_double(v->h, "last_speech");
+        /* stalled: busy and writing nothing to the chip for STALL_S.  It was busy and SAYING nothing: a text of sentence
+           marks alone (a row of dots, a table of contents' leaders) has VEST write a pause every 66 ms or so, speaking
+           none, and past 4 s it was cut and the card booted again -- "Hi. . . . there." lost "there" at rate 0 (the 0.9.5
+           audit's question, measured).  SPV_STALL_BREAK=1, the tests' control: silence counted, as it was */
+        double last = sph_get_double(v->h, getenv("SPV_STALL_BREAK") ? "last_speech" : "last_write");
         double now = sph_get_double(v->h, "time");
         if (now - (last > v->t_start ? last : v->t_start) > STALL_S) {
-            v->fault = 1;                             /* busy and silent: the card has stalled */
+            v->fault = 1;                             /* busy and writing nothing: the card has stalled */
             v->active = 0;
             *done = 1;
         }

@@ -3228,6 +3228,9 @@ if os.path.isfile(SPX_COM) and os.path.isfile(SPX_PC86):
             ("SPV_SPEAK_FAULT_BREAK", "1", "a speak's own cancel faulting, the text lost",
              [r"^FAIL  a cancel that faults: the next text said whole ", r"^ok    a cancel: the next text said whole ",
               r"^sp voice: 2 FAILED$"]),
+            # a stall judged by the chip's writes, not by silence: sentence marks alone are VEST at work (the 0.9.5 audit)
+            ("SPV_STALL_BREAK", "1", "a stall judged by silence",
+             [r"^FAIL  sentence marks alone: ", r"^ok    a cancel: the next text said whole ", r"^sp voice: 2 FAILED$"]),
             ("SPV_CUT_BREAK", "1", "the cut not played out",
              [r"^FAIL  a cancel: the next text starts as after an end ", r"^ok    a cancel: the next text said whole ",
               r"^sp voice: 1 FAILED$"])):
