@@ -155,6 +155,24 @@ def load(path):
         _sig(lib, "sph_set_int", None, [_P, _S, _I])
         _sig(lib, "sph_writes", _I, [_P, wl])
         _sig(lib, "sph_clear_writes", None, [_P])
+    if hasattr(lib, "svv_create"):                        # the Super Voice: sv_voice.h's one-text API, sv_dsk.h
+        _sig(lib, "svv_create", _P, [_S, ctypes.c_size_t, _D] + err)
+        _sig(lib, "svv_destroy", None, [_P])
+        _sig(lib, "svv_set", None, [_P] + [_I] * 4)
+        _sig(lib, "svv_speak", _I, [_P, _S, _I])
+        _sig(lib, "svv_render", _I, [_P, ctypes.POINTER(_SHORTS), ctypes.POINTER(_I)])
+        _sig(lib, "svv_cancel", None, [_P])
+        _sig(lib, "svv_get_int", _I, [_P, _S])
+        _sig(lib, "svv_parts", _I, [_S, _I, _S, _I])
+        _sig(lib, "svv_host", _P, [_P])
+        _sig(lib, "svh_chip", _P, [_P])
+        _sig(lib, "svh_get_int", _I, [_P, _S])
+        _sig(lib, "svh_set_int", None, [_P, _S, _I])
+        _sig(lib, "svh_writes", _I, [_P, wl])
+        _sig(lib, "svh_clear_writes", None, [_P])
+        _sig(lib, "sv_firmware_from", _I, [_S, ctypes.c_size_t, ctypes.POINTER(ctypes.c_void_p),
+                                            ctypes.POINTER(ctypes.c_size_t)] + err)
+        _sig(lib, "sv_free", None, [_P])
     _libs[path] = lib
     return lib
 
@@ -668,6 +686,97 @@ class SynPhonixC:
         v, self._v = self._v, None
         if v:
             self._lib.spv_destroy(v)
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+def supervoice_firmware(lib_path, data):
+    """SUPERTOK.BIN from `data`: the program itself, or the Color Computer disk image holding it (sv_dsk.h) -- the
+    known file only, by its sha256.  Raises NativeVoiceError with the reason otherwise."""
+    lib = load(lib_path)
+    if not hasattr(lib, "sv_firmware_from"):
+        raise NativeVoiceError("this ssi263speech.dll has no Super Voice")
+    out, n = ctypes.c_void_p(), ctypes.c_size_t()
+    err = ctypes.create_string_buffer(300)
+    if not lib.sv_firmware_from(bytes(data), len(data), ctypes.byref(out), ctypes.byref(n), err, 300):
+        raise NativeVoiceError(err.value.decode("latin-1", "replace"))
+    try:
+        return ctypes.string_at(out, n.value)
+    finally:
+        lib.sv_free(out)
+
+
+class SuperVoiceC:
+    """Speech Systems' Super Voice (1984): the cartridge's own Color Computer text-to-speech (SUPERTOK.BIN) on MAME's
+    6809 and the chip, and the voice's text path (supervoice/sv_voice.h).  The SynPhonix's API without inflection (the
+    program has no switch for it): one text at a time, said in parts, a capital as that text's pitch offset; render()
+    until done."""
+
+    def __init__(self, lib_path, firmware, out_rate):
+        self._lib = load(lib_path)
+        if not hasattr(self._lib, "svv_create"):
+            raise NativeVoiceError("SuperVoiceC: this ssi263speech.dll has no Super Voice")
+        self.out_rate = out_rate
+        self._pcm = _SHORTS()
+        self._done = _I(0)
+        self._v = None
+        data = _read(firmware)
+        err = ctypes.create_string_buffer(300)
+        v = self._lib.svv_create(data, len(data), float(out_rate), err, 300)
+        if not v:
+            raise NativeVoiceError("SuperVoiceC: %s" % err.value.decode("latin-1", "replace"))
+        self._v = v
+
+    def set(self, rate, pitch, volume, numbers):
+        """NVDA's scales (sv_voice.h); used from the next say()"""
+        self._lib.svv_set(self._v, int(rate), int(pitch), int(volume), 1 if numbers else 0)
+
+    def say(self, text, pitch_offset=0):
+        """one text item, with a capital's offset; False when there is nothing to say"""
+        data = text.encode("utf-8", "replace")
+        return bool(self._lib.svv_speak(self._v, data, int(pitch_offset or 0)))
+
+    def render(self):
+        """the next 30 ms block: (16-bit PCM bytes, done)"""
+        n = self._lib.svv_render(self._v, ctypes.byref(self._pcm), ctypes.byref(self._done))
+        data = ctypes.string_at(self._pcm, 2 * n) if n > 0 else b""
+        return data, bool(self._done.value)
+
+    def cancel(self):
+        self._lib.svv_cancel(self._v)
+
+    @property
+    def fault(self):
+        """the program waited for ever or left its own code: the driver boots a new one"""
+        return bool(self._lib.svh_get_int(self._lib.svv_host(self._v), b"fault"))
+
+    @property
+    def regs(self):
+        """the chip's five registers, for the tests"""
+        chip = self._lib.svh_chip(self._lib.svv_host(self._v))
+        return [self._lib.ssi263_reg(chip, i) for i in range(5)]
+
+    def log_writes(self, on):
+        """keep every chip write for writes() (the tests)"""
+        self._lib.svh_set_int(self._lib.svv_host(self._v), b"log_writes", 1 if on else 0)
+
+    def writes(self):
+        """the chip writes kept since the last call, as (chip time, register, value)"""
+        h = self._lib.svv_host(self._v)
+        p = ctypes.POINTER(_Write)()
+        n = self._lib.svh_writes(h, ctypes.byref(p))
+        out = [(p[i].t, p[i].reg, p[i].val) for i in range(n)]
+        self._lib.svh_clear_writes(h)
+        return out
+
+    def close(self):
+        v, self._v = self._v, None
+        if v:
+            self._lib.svv_destroy(v)
 
     def __del__(self):
         try:

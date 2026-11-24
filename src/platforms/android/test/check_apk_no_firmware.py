@@ -120,10 +120,17 @@ if MOCKINGBOARD:
     LICENSES.update({"Fake6502-6502-core.txt": os.path.join("src", "csrc", "cpu", "fake6502", "PINNED.txt"),
                      "EchoTalk-BSD-3-Clause.txt": os.path.join("src", "csrc", "cpu", "fake6502",
                                                                "LICENSE-EchoTalk-BSD-3-Clause.txt")})
+# the Super Voice's 6809 (build_android.sh stages it when src/csrc/supervoice/sv_voice.c is there; the program never)
+if os.path.isfile(os.path.join(REPO, "src", "csrc", "supervoice", "sv_voice.c")):
+    LICENSES["MAME-6809-core-BSD-3-Clause.txt"] = os.path.join("src", "csrc", "cpu", "mame_m6809",
+                                                               "LICENSE-BSD-3-Clause.txt")
 REFUSED = {"1c6930c8c6aed0550bc267c14032f9195b450ed95de606f2fa9727e2b7eb1eb1": "the Speak-Out's SPEAKOUT.HEX",
            # the Sounding Board's two drivers (0.8.5, imported only; .COM files no name rule here catches)
            "f821c9c28180cfcecc0e5b422bb30b1b8a97d37bac7188405f066baa56cd7b72": "the Sounding Board's SBLOAD.COM",
-           "0946a2f2caa5acad54ef2113d1ebb5f40f686219eea0b3697e478dce19c9158e": "the Sounding Board's SB.COM"}
+           "0946a2f2caa5acad54ef2113d1ebb5f40f686219eea0b3697e478dce19c9158e": "the Sounding Board's SB.COM",
+           # the Super Voice's program and the disk it comes off (0.9.5): imported only, never in any package
+           "4de0d8f369cf3b0cc4f0b01cfc6061f4882118098158a4bca233ce8fbe86155c": "the Super Voice's SUPERTOK.BIN",
+           "7dda3902a42cdc189096e023a0ad27ca6f3aba50c76a38a883892f969987b784": "the Super Voice's disk, SUPERV.DSK"}
 # the SmarTalk's TSR (Automated Functions', its disk says to share it; in the repository and the NVDA add-on): the
 # GitHub APK carries it as it carries the Mockingboards' files (Tomi, 2026-10-24), in SMARTALK_DIR only, with its
 # notice.  The Apple apps never do (their audit refuses it: check_archive_no_firmware.py)
@@ -153,7 +160,8 @@ SWEET_NOTICE_SRC = os.path.join("src", "platforms", "android", "notices", SWEET_
 FIRMWARE_MB = os.path.join(REPO, "firmware", "sweet-micro-mockingboard")
 # Apple II disk images: never in the APK, whatever disk (Tomi, 2026-10-10)
 DISK_NAMES = re.compile(r"(?i)\.(dsk|do|po|nib|woz|2mg)$")
-DISK_SIZES = {143360: "a 140 KB Apple II disk image (DOS or ProDOS order)", 232960: "an Apple II .nib disk image"}
+DISK_SIZES = {143360: "a 140 KB Apple II disk image (DOS or ProDOS order)", 232960: "an Apple II .nib disk image",
+              161280: "a Color Computer disk image (the Super Voice's is one)"}
 
 
 def disk_image(data):

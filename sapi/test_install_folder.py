@@ -71,9 +71,11 @@ def main():
             tsr.BREAK = "ansi-path" if BREAK == "ansi" else BREAK           # the request lines' break field
         tmp = tempfile.mkdtemp(prefix="ssi263_sapi_out_")
         try:
-            # every voice the stage has: each engine opens its own firmware files (bl_fopen.h)
+            # every voice the stage has: each engine opens its own firmware files (bl_fopen.h); a voice no package
+            # carries (voices.txt's "data:" rows) speaks from its data folder instead: test_sapi_datapath.py, a name
+            # outside the code page included
             voices = [ln.split("\t")[0] for ln in open(os.path.join(tsr.STAGE, "voices.txt"), encoding="utf-8")
-                      .read().splitlines() if ln.strip()]
+                      .read().splitlines() if ln.strip() and ln.count("\t") == 2]
             for arch in ARCHES:
                 for voice in voices:
                     lines = [tsr.req([tsr.S("Hello there.")], voice=voice)]

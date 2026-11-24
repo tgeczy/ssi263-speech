@@ -16,6 +16,11 @@
 #include "../../csrc/voices.h"
 #include "../../csrc/voices_blazie.h"   /* the release table's Braille Lite voices (blazie/bl_languages.txt) */
 #include "sd_voices.h"
+#include <errno.h>
+#include <sys/stat.h>
+#ifdef SSV_HAVE_SUPERVOICE
+#include "../../csrc/supervoice/sv_dsk.h"
+#endif
 
 void sdv_defaults(sd_settings *s)
 {
@@ -73,6 +78,10 @@ static const voice_def ALL[] = {
      {"automated-functions-smartalk/S_TALK.EXE", NULL}},
     /* 0.9.5: the Artic SynPhonix, Artic's own VEST.COM 1.60 (voices.c, last) */
     {"synphonix:vest", "Artic SynPhonix", "en-US", "synphonix", {"artic-synphonix/VEST.COM", NULL}},
+    /* 0.9.5: Speech Systems' Super Voice, its Color Computer program SUPERTOK.BIN (voices.c, last) -- never packaged:
+       the user imports it (sd_ssi263 --import) into their own data folder, sdv_user_dir */
+    {"supervoice:supertok", "Speech Systems Super Voice", "en-US", "supervoice",
+     {"speech-systems-super-voice/SUPERTOK.BIN", NULL}},
 };
 #define N_ALL ((int)(sizeof ALL / sizeof ALL[0]))
 
@@ -118,9 +127,87 @@ int sdv_find(const char *name)
     return -1;
 }
 
+int sdv_user_dir(char *out, size_t cap)
+{
+    const char *xdg = getenv("XDG_DATA_HOME"), *home = getenv("HOME");
+    if (xdg && *xdg) snprintf(out, cap, "%s/ssi263-speech", xdg);
+    else if (home && *home) snprintf(out, cap, "%s/.local/share/ssi263-speech", home);
+    else return 0;
+    return 1;
+}
+
+/* a voice's file: in the data folder, or -- a voice no package carries (voices.h SSV_USER_DATA), not found there --
+   in this user's own (SD_SSI263_TEST_NO_USER_DIR: the tests' control, the user's folder never looked in) */
 static void path(const sd_settings *s, const char *name, char *out, size_t cap)
 {
+    char user[1100];
     snprintf(out, cap, "%s/%s", s->datadir, name);
+    if (access(out, R_OK) != 0 && !strncmp(name, "speech-systems-super-voice/", 27)
+            && !getenv("SD_SSI263_TEST_NO_USER_DIR") && sdv_user_dir(user, sizeof user))
+        snprintf(out, cap, "%s/%s", user, name);
+}
+
+/* every folder of `dir` made, as mkdir -p */
+static int make_dirs(char *dir)
+{
+    char *p;
+    for (p = dir + 1; *p; p++)
+        if (*p == '/') {
+            *p = 0;
+            if (mkdir(dir, 0755) != 0 && errno != EEXIST) { *p = '/'; return -1; }
+            *p = '/';
+        }
+    return mkdir(dir, 0755) != 0 && errno != EEXIST ? -1 : 0;
+}
+
+int sdv_import(const char *file, char *msg, int cap)
+{
+#ifdef SSV_HAVE_SUPERVOICE
+    FILE *f = fopen(file, "rb");
+    unsigned char *data = NULL, *prog = NULL;
+    size_t prog_n = 0;
+    long n = -1;
+    char dir[1100], dest[1200], tmp[1300], why[300];
+    int ok = 0;
+    if (f && fseek(f, 0, SEEK_END) == 0 && (n = ftell(f)) > 0 && n <= (64L << 20) && fseek(f, 0, SEEK_SET) == 0
+            && (data = (unsigned char *)malloc((size_t)n)) != NULL && fread(data, 1, (size_t)n, f) == (size_t)n)
+        ok = 1;
+    if (f) fclose(f);
+    if (!ok) {
+        free(data);
+        snprintf(msg, (size_t)cap, "%s could not be read%s", file, n > (64L << 20) ? " (too large)" : "");
+        return -1;
+    }
+    ok = sv_firmware_from(data, (size_t)n, &prog, &prog_n, why, sizeof why);
+    free(data);
+    if (!ok) {
+        snprintf(msg, (size_t)cap, "%s: %s (a zip: unzip it first, then import SUPERV.DSK)", file, why);
+        return -1;
+    }
+    if (!sdv_user_dir(dir, sizeof dir)) {
+        sv_free(prog);
+        snprintf(msg, (size_t)cap, "neither XDG_DATA_HOME nor HOME is set: no data folder to put it in");
+        return -1;
+    }
+    strncat(dir, "/speech-systems-super-voice", sizeof dir - strlen(dir) - 1);
+    snprintf(dest, sizeof dest, "%s/SUPERTOK.BIN", dir);
+    snprintf(tmp, sizeof tmp, "%s.tmp", dest);
+    f = make_dirs(dir) == 0 ? fopen(tmp, "wb") : NULL;
+    ok = f && fwrite(prog, 1, prog_n, f) == prog_n;
+    if (f && fclose(f) != 0) ok = 0;
+    sv_free(prog);
+    if (!ok || rename(tmp, dest) != 0) {
+        remove(tmp);
+        snprintf(msg, (size_t)cap, "%s could not be written", dest);
+        return -1;
+    }
+    snprintf(msg, (size_t)cap, "the Super Voice's SUPERTOK.BIN is in %s", dest);
+    return 0;
+#else
+    (void)file;
+    snprintf(msg, (size_t)cap, "this module was built without the Super Voice");
+    return -1;
+#endif
 }
 
 int sdv_available(int i, const sd_settings *s)
@@ -202,6 +289,8 @@ static void settings_for(int i, const sd_settings *s, int rate, int pitch, int v
                                           (its defaults) */
     case SSV_SYNPHONIX:                /* spv_set: rate, pitch, volume; inflection and number words on (its
                                           defaults) */
+    case SSV_SUPERVOICE:               /* svv_set: rate, pitch, volume; its own numbers (number words off: its
+                                          default) */
         break;
     }
 }

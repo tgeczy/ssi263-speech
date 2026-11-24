@@ -125,6 +125,13 @@ It takes:
   (`_ssi263_synphonix/`). The sliders set its rate, pitch and volume (VEST's own offsets, thirteen pitch steps), the
   Inflection switch its inflection (off: VEST's flat), and "Read numbers as words" its number words. The Apple apps
   carry none.
+- Speech Systems' Super Voice (0.9.5): the Color Computer cartridge's own text-to-speech, `SUPERTOK.BIN`, on MAME's
+  6809 (`supervoice/sv_voice.h`), after the SynPhonix (`SSA_SUPERVOICE`, 30). **Imported only** (Tomi, 2026-11-23: the
+  Color Computer Archive keeps its disk; no APK carries it, and `check_apk_no_firmware.py` refuses the program and the
+  disk): the archive's zip, its `SUPERV.DSK`, or the program itself, read by the library's own `sv_firmware_from`
+  (`ssa_import_supervoice`); only the program is kept. The sliders set its rate, pitch (the program's inflection
+  levels, `svv_pitch_step`) and volume; its numbers are its own (it reads money and numbers up to the trillions), so
+  "Read numbers as words" does not reach it.
 
 ### The Mockingboards: Sweet Micro's text-to-speech, one file each
 
@@ -340,6 +347,7 @@ shipped in the APK. The Setup page's "Licenses and source" shows them all and po
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=smartalk              # control: the SmarTalk's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=synphonix             # control: the SynPhonix's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=same                  # control: a unit already here taken again: must FAIL
+    ./gradlew testDebugUnitTest -Pssi263ImportBreak=supervoice            # control: the Super Voice's cases must FAIL
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=flash                 # control: the unit screen's large file must FAIL (#50)
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=dosnames              # control: the DOS-named zips must FAIL (#54)
     ./gradlew testDebugUnitTest -Pssi263ImportBreak=hooks                 # control: the exported screens' hooks must FAIL (P40)

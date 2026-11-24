@@ -42,7 +42,9 @@ object SsiNative {
                                             // after the Sounding Board
     const val SYNPHONIX = 29                // ssa_engine.h's SSA_SYNPHONIX: the Artic SynPhonix (imported or built in;
                                             // 0.9.5), after the SmarTalk
-    const val ALL_VOICES = 30               // ssa_engine.h's SSA_ALL_VOICES: every index is below it
+    const val SUPERVOICE = 30               // ssa_engine.h's SSA_SUPERVOICE: Speech Systems' Super Voice (imported
+                                            // only; 0.9.5), after the SynPhonix
+    const val ALL_VOICES = 31               // ssa_engine.h's SSA_ALL_VOICES: every index is below it
 
     /** Open the engine on the folder holding the unit's files (once per process; later calls keep it). */
     external fun nativeOpen(dataDir: String): Boolean

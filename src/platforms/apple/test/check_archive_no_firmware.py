@@ -130,6 +130,10 @@ def synthetic(tmp):
         com = open(apk.SYNPHONIX_COM, "rb").read()
         controls += [("the SynPhonix's VEST.COM", com),
                      ("a VEST.COM with another card's serial", com.replace(b"S/N 999999", b"S/N 123456"))]
+    sv = os.path.join(REPO, "firmware", "speech-systems-super-voice", "SUPERTOK.BIN")
+    if os.path.isfile(sv):                  # the Super Voice's program (0.9.5): imported only (apk.REFUSED)
+        controls.append(("the Super Voice's SUPERTOK.BIN", open(sv, "rb").read()))
+    controls.append(("a Color Computer disk image", bytes(161280)))
     for label, content in controls:
         d = tempfile.mkdtemp(dir=tmp)
         print("control: %s added" % label)

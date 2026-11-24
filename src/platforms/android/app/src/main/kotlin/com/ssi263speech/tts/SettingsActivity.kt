@@ -270,8 +270,9 @@ class SettingsActivity : Activity() {
             "in English, Spanish, German and Italian, and with its language updates in many more (the list below); " +
             "the Blazie Braille 'n Speak 2000 the same way, in Slovak; and " +
             "the GW Micro Speak-Out, its own firmware on an emulated V40, in English; GW Micro's Sounding " +
-            "Board, the same voice on the card's own DOS drivers. Each language is offered to " +
-            "TalkBack and the system once its unit is imported."))
+            "Board, the same voice on the card's own DOS drivers; and Speech Systems' Super Voice, a speech " +
+            "cartridge for the Tandy Color Computer, its own text-to-speech on an emulated 6809, in English. Each " +
+            "language is offered to TalkBack and the system once its unit is imported."))
 
         root.addView(ui.heading("Firmware to import"))
         root.addView(ui.body(
@@ -296,7 +297,10 @@ class SettingsActivity : Activity() {
             "Functions let it be shared); a copy you import, from the SmarTalk's disk or the NVDA add-on, is used " +
             "instead. The SynPhonix's VEST.COM comes with this app as well (Artic is long gone, and no one we know " +
             "of speaks for it; its card's serial number is set to 99999999); your own copy, from a Business Vision " +
-            "or SynPhonix disk or the NVDA add-on, whatever its serial, is used instead. The Mockingboards " +
+            "or SynPhonix disk or the NVDA add-on, whatever its serial, is used instead. For the Super Voice, " +
+            "choose its disk as the Color Computer Archive keeps it: the zip \"Super Voice (Speech Systems).zip\", " +
+            "the SUPERV.DSK inside it, or the SUPERTOK.BIN program taken from it; only the program is kept. " +
+            "The Mockingboards " +
             "can be imported too, in place of the copies built in, or when this copy of the app has none: the " +
             "Mockingboard Developers Toolkit's disk image (.dsk) or the mockingboard-tts-1.1.bin made from it, and " +
             "Mockingboard disk 1's image or mockingboard-tts-early.bin for the early one; each is checked and ready " +

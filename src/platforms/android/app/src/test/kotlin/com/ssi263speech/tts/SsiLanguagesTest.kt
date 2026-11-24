@@ -94,19 +94,22 @@ class SsiLanguagesTest {
     @Test fun everyVoiceIsListedOnceWithAnIndexBelowVoices() {
         // the shipped ones and the release voices from 0, then the Sounding Board (0.8.5) at SSA_VOICES -- right after
         // the library's release voices (ssa_engine.c checks that when compiled; this fake lists fewer) -- and the
-        // SmarTalk after it, then the SynPhonix (0.9.5): no index moved
-        assertEquals(SsiNative.RELEASE_FIRST + RELEASES.size + 3, known.size)
-        val before = known.filter { it.index !in setOf(SsiNative.SOUNDINGBOARD, SsiNative.SMARTALK, SsiNative.SYNPHONIX) }
+        // SmarTalk after it, then the SynPhonix and the Super Voice (0.9.5): no index moved
+        assertEquals(SsiNative.RELEASE_FIRST + RELEASES.size + 4, known.size)
+        val before = known.filter { it.index !in setOf(SsiNative.SOUNDINGBOARD, SsiNative.SMARTALK, SsiNative.SYNPHONIX,
+                                                       SsiNative.SUPERVOICE) }
         assertEquals((0 until SsiNative.RELEASE_FIRST + RELEASES.size).toSet(), before.map { it.index }.toSet())
         assertTrue(known.all { it.index < SsiNative.ALL_VOICES })
         assertEquals(SsiNative.VOICES, SsiNative.SOUNDINGBOARD)
         assertEquals(SsiNative.SOUNDINGBOARD + 1, SsiNative.SMARTALK)
         assertEquals(SsiNative.SMARTALK + 1, SsiNative.SYNPHONIX)
-        assertEquals(SsiNative.SYNPHONIX + 1, SsiNative.ALL_VOICES)
+        assertEquals(SsiNative.SYNPHONIX + 1, SsiNative.SUPERVOICE)
+        assertEquals(SsiNative.SUPERVOICE + 1, SsiNative.ALL_VOICES)
         assertEquals("en-US-soundingboard", known.single { it.index == SsiNative.SOUNDINGBOARD }.name)
         assertEquals("en-US-smartalk", known.single { it.index == SsiNative.SMARTALK }.name)
         assertEquals("en-US-synphonix", known.single { it.index == SsiNative.SYNPHONIX }.name)
         assertEquals("Artic SynPhonix", known.single { it.index == SsiNative.SYNPHONIX }.label)
+        assertEquals("Speech Systems Super Voice", known.single { it.index == SsiNative.SUPERVOICE }.label)
         assertEquals(known.size, known.map { it.name }.toSet().size)
     }
 
@@ -117,7 +120,7 @@ class SsiLanguagesTest {
         assertEquals(SsiNative.SOUNDINGBOARD, voices[voices.indexOf(SsiNative.SPEAKOUT) + 1])
         val imported = FirmwareImport.imported()
         assertEquals(FirmwareImport.SOUNDINGBOARD, imported[imported.indexOf(FirmwareImport.SPEAKOUT) + 1])
-        assertEquals(SsiNative.SYNPHONIX, voices.last())
+        assertEquals(SsiNative.SUPERVOICE, voices.last())
     }
 
     // ---- the release voices (the library's table) --------------------------------------------------------------

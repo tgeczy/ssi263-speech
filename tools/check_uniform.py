@@ -225,6 +225,9 @@ mod("logHandler", log=Log())
 cmds = mod("speech.commands", IndexCommand=type("IndexCommand", (Cmd,), {}), PitchCommand=type("PitchCommand", (Cmd,), {}),
            LangChangeCommand=type("LangChangeCommand", (Cmd,), {}))
 mod("speech", commands=cmds)
+# NVDA's configuration folder, where a voice no package carries finds its file (ssi263_userfw.py): a stand-in holding a
+# placeholder, so the add-on is seen to offer the voice once its user has the program (no package may carry it)
+mod("globalVars", appArgs=types.SimpleNamespace(configPath=os.environ.get("UNIFORM_NVDA_CONFIG", ""), secure=False))
 unified = dirs[0] == "--unified"
 if unified:
     dirs = dirs[1:]
@@ -283,9 +286,14 @@ def nvda(voices, p):
             with zipfile.ZipFile(b) as z:
                 z.extractall(d)
             dirs.append(os.path.join(d, "synthDrivers"))
+        conf = os.path.join(tmp, "userConfig")
+        sv = os.path.join(conf, "ssi263-speech", "firmware", "speech-systems-super-voice")
+        os.makedirs(sv)
+        with open(os.path.join(sv, "SUPERTOK.BIN"), "wb") as f:
+            f.write(b"a placeholder: the user's own copy goes here")
         r = subprocess.run([sys.executable, "-S", "-c", PROBE] + (["--unified"] if unified else []) + dirs,
-                           capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1", UNIFORM_NVDA_CONFIG=conf))
         line = [ln for ln in r.stdout.splitlines() if ln.startswith("PROBE ")]
         if r.returncode or not line:
             p.errors.append("the add-ons' drivers could not be read: %s" % (r.stderr.strip().splitlines() or ["?"])[-1])
@@ -341,7 +349,11 @@ def sapi(voices, p, stage=None):
         return
     p.source = rel(stage)
     with open(os.path.join(stage, "voices.txt"), encoding="utf-8-sig") as f:
-        listed = {ln.split("\t")[0]: ln.split("\t")[1] for ln in f.read().splitlines() if "\t" in ln}
+        rows = [ln.split("\t") for ln in f.read().splitlines() if "\t" in ln]
+    listed = {r[0]: r[1] for r in rows}
+    # a voice no package carries (voices.h SSV_USER_DATA): listed with "data:<its file>", offered where a user's data
+    # folder holds it (register.ps1) -- its engine in the DLL is what the stage can promise
+    user = {r[0] for r in rows if len(r) > 3 and r[3].startswith("data:")}
     lib = ctypes.CDLL(lib_path)
     lib.ssv_voice_info.restype = ctypes.POINTER(SsvInfo)
     lib.ssv_available.argtypes = [ctypes.c_int, ctypes.c_char_p]
@@ -349,7 +361,7 @@ def sapi(voices, p, stage=None):
     native = {}
     for i in range(lib.ssv_count()):
         info = lib.ssv_voice_info(i).contents
-        if lib.ssv_engine_built(i) and lib.ssv_available(i, fw):
+        if lib.ssv_engine_built(i) and (lib.ssv_available(i, fw) or info.id.decode("utf-8") in user):
             native[info.id.decode("utf-8")] = info.name.decode("utf-8")
     if set(listed) != set(native):
         p.errors.append("voices.txt lists %s, the stage's ssi263speech.dll can make %s" % (sorted(listed), sorted(native)))
@@ -576,6 +588,8 @@ PENDING = {
     # the Artic SynPhonix (0.9.5, Tomi): in the voice table and the NVDA add-on first, then Tomi's ears, then the rest
     ("synphonix:vest", "sapi"): "ported (build.ps1 stages it; --sapi-stage nvda/dist/sapi-dev shows it); the 0.9.2 "
                                 "final stage predates it -- this entry is reported once the 0.9.5 stage is built",
+    ("supervoice:supertok", "sapi"): "ported (its token from a data folder; --sapi-stage nvda/dist/sapi-dev shows "
+                                     "it); the 0.9.2 final stage predates it -- reported once the 0.9.5 stage is built",
 }
 
 

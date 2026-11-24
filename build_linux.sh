@@ -305,6 +305,13 @@ if [ -f "$SRC/synphonix/sp_voice.c" ] && [ -f "$SRC/accentmini/am_voice.c" ]; th
     C99_SRCS="$C99_SRCS $SRC/synphonix/sp_host.c $SRC/synphonix/sp_voice.c"
     SD_DEFS="$SD_DEFS -DSSV_HAVE_SYNPHONIX"
 fi
+# Speech Systems' Super Voice (0.9.5): SUPERTOK.BIN on MAME's 6809 (sv_voice.h), its disk reader (sv_dsk.h); C99 as
+# well.  Its program is never packaged: the user imports it (sd_ssi263 --import) into their own data folder
+if [ -f "$SRC/supervoice/sv_voice.c" ]; then
+    C99_SRCS="$C99_SRCS $SRC/supervoice/sv_host.c $SRC/supervoice/sv_voice.c $SRC/supervoice/sv_dsk.c"
+    $CXX $MAMET -fPIC -c -o "$OUT/obj_voices/m6809_mame.o" "$SRC/cpu/m6809_mame.cpp"
+    SD_DEFS="$SD_DEFS -DSSV_HAVE_SUPERVOICE"
+fi
 if [ -f "$SRC/mockingboard/mb_voice.c" ]; then     # the Mockingboard (0.8): Fake6502, the board, the host, the voice
     VOICE_SRCS="$VOICE_SRCS $SRC/cpu/m6502.c $SRC/mockingboard/mb_board.c $SRC/mockingboard/mb_host.c $SRC/mockingboard/mb_voice.c $SRC/mockingboard/mb_dsk.c"
     SD_DEFS="$SD_DEFS -DSSV_HAVE_MOCKINGBOARD"
@@ -317,7 +324,7 @@ for f in $C99_SRCS; do
 done
 ENGINE_OBJS="$ENGINE_OBJS $OUT/obj_voices/*.o"
 $CC $BOARD -c -o "$OUT/sd_ssi263.o" "$ROOT/src/platforms/speechd/sd_ssi263.c"
-$CC $BOARD -c -o "$OUT/sd_voices.o" "$ROOT/src/platforms/speechd/sd_voices.c"
+$CC $BOARD $SD_DEFS -c -o "$OUT/sd_voices.o" "$ROOT/src/platforms/speechd/sd_voices.c"
 $CC $VOICE $SD_DEFS -c -o "$OUT/sd_ssv.o" "$SRC/voices.c"
 $CXX $SHARED_CXX -o "$OUT/sd_ssi263" "$OUT/sd_ssi263.o" "$OUT/sd_voices.o" "$OUT/sd_ssv.o" $LIB_OBJS $ENGINE_OBJS -lm
 # ... and, in the reference only, the Accent SA's unit under the Accent voice (src/csrc/accentz80): it is not in the

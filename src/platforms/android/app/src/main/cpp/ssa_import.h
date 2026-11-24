@@ -83,6 +83,12 @@ int ssa_import_smartalk(const unsigned char *data, long n, const char *out, char
    From the person's own copy (a Business Vision or SynPhonix disk) or the NVDA add-on that has it. */
 int ssa_import_synphonix(const unsigned char *data, long n, const char *out, char *msg, int msglen);
 
+/* Speech Systems' Super Voice (0.9.5): its program SUPERTOK.BIN, or the Color Computer disk image holding it (the
+   Color Computer Archive's SUPERV.DSK), read by the library itself (supervoice/sv_dsk.h sv_firmware_from: the known
+   program only, by its sha256).  The program alone is written to out, with its label in msg: the voice SSA_SUPERVOICE
+   (ssa_engine.h).  Else BLV_FW_NONE.  Import only: no app carries it (Tomi, 2026-11-23). */
+int ssa_import_supervoice(const unsigned char *data, long n, const char *out, char *msg, int msglen);
+
 /* A Blazie release's language (bl_firmware.h's BLV_FW_*, which is not a voice index: German's 2 would be the Accent
    SA's) as the app's voice, SSA_ENGLISH ... SSA_SLOVAK; -1 for none.  And back: the state recipe a Blazie voice's
    unit is made with (blv_firmware_recipe of its language, for blv_make_state: the Slovak unit's is the English
@@ -96,6 +102,7 @@ int ssa_blazie_recipe(int voice);
 #define SSA_SB_LABEL "GW Micro Sounding Board 2.7: SB.COM"
 #define SSA_SMARTALK_LABEL "SmarTalk: Automated Functions' S_TALK.EXE 1.21"
 #define SSA_SYNPHONIX_LABEL "Artic SynPhonix: Artic's VEST.COM 1.60"
+#define SSA_SUPERVOICE_LABEL "Speech Systems Super Voice: SUPERTOK.BIN"
 #define SSA_MOCKINGBOARD_LABEL "Mockingboard: Sweet Micro Systems' text-to-speech 1.1"
 #define SSA_MOCKINGBOARD_EARLY_LABEL "Mockingboard, early: Sweet Micro Systems' text-to-speech of Mockingboard disk 1"
 
@@ -108,7 +115,8 @@ int ssa_blazie_recipe(int voice);
    ...) must fail.  5: a release no voice speaks is dropped, as before 0.8.5 (BLV_FW_UNKNOWN, out removed), so the
    unit screen's imports (the 640, Japanese) must fail.  6: the Sounding Board's drivers are never known, so its
    imports must fail.  7: the SmarTalk's S_TALK.EXE is never known, so its import must fail.  8: the SynPhonix's
-   VEST.COM is never known, so its imports must fail. */
+   VEST.COM is never known, so its imports must fail.  9: the Super Voice's program and disk are never known, so its
+   imports must fail. */
 extern int ssa_import_break;
 
 #ifdef __cplusplus

@@ -210,6 +210,13 @@ static ssi_api g_api;
 static ssv_bank *g_bank;
 static char g_fwdir[MAX_PATH * 2];
 static bool g_failed;              /* the library would not load: said once in the log, never retried per keystroke */
+/* A voice no package carries (voices.h SSV_USER_DATA: the Super Voice) speaks from its token's DataPath -- the data
+ * folder its program was downloaded or imported into, written at registration by register.ps1 (Panthera's system:
+ * the token carries the folder, the engine never searches; at the sign-in screen SYSTEM's %APPDATA% is not the
+ * user's).  Its own bank on that folder, made again when a token names another. */
+static ssv_bank *g_userBank;
+static std::wstring g_userRoot;
+static char g_userDir[MAX_PATH * 2];
 
 /* Scoped, so an exception unwinding out of the speak path releases the lock
  * instead of abandoning it -- an abandoned critical section turns the next
@@ -245,6 +252,18 @@ static bool voices_ready() {
         memset(&g_api, 0, sizeof g_api);
         return false;
     }
+    return true;
+}
+
+/* The bank on a token's DataPath (under g_lock, after voices_ready): made, or made again for another folder. */
+static bool user_bank(const std::wstring &root) {
+    if (g_userBank && root == g_userRoot) return true;
+    if (g_userBank) { g_api.bank_free(g_userBank); g_userBank = 0; g_userRoot.clear(); }
+    if (!ssi_lib_path(root.c_str(), g_userDir, sizeof g_userDir) || !(g_userBank = g_api.bank_new(g_userDir))) {
+        logline(L"the data folder %ls cannot be opened", root.c_str());
+        return false;
+    }
+    g_userRoot = root;
     return true;
 }
 
@@ -338,7 +357,27 @@ public:
     }
     STDMETHODIMP_(ULONG) AddRef(){return InterlockedIncrement(&refs);}
     STDMETHODIMP_(ULONG) Release(){ULONG n=InterlockedDecrement(&refs);if(!n)delete this;return n;}
-    STDMETHODIMP SetObjectToken(ISpObjectToken *t){if(!t)return E_INVALIDARG;if(token)return E_UNEXPECTED;token=t;t->AddRef();return S_OK;}
+    STDMETHODIMP SetObjectToken(ISpObjectToken *t){
+        if(!t)return E_INVALIDARG;if(token)return E_UNEXPECTED;
+        /* A token with a DataPath (a voice no package carries) whose program is no longer there is refused, so the
+         * screen reader takes another voice; spoken, it would have been ssi_voice's fallback, a Braille Lite under the
+         * Super Voice's name.  (Panthera's SetObjectToken.)  The development build's control takes it unchecked. */
+        std::wstring dataPath=token_string(t,L"DataPath");
+        if(!dataPath.empty()){
+#ifdef SSI263_SAPI_DEV
+            char tb[32]={0}; GetEnvironmentVariableA("SSI263_SAPI_TEST_BREAK",tb,sizeof tb);
+            const bool unchecked=!strcmp(tb,"datapath");
+#else
+            const bool unchecked=false;
+#endif
+            std::string id=utf8(token_string(t,L"VoiceId"));
+            bool here=false;
+            {CsLock lock(&g_lock); here=voices_ready()&&user_bank(dataPath)&&g_api.find(id.c_str())>=0
+                                         &&g_api.available(g_api.find(id.c_str()),g_userDir);}
+            if(!here&&!unchecked){logline(L"%hs: its program is not in %ls",id.c_str(),dataPath.c_str());
+                                  return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);}
+        }
+        token=t;t->AddRef();return S_OK;}
     STDMETHODIMP GetObjectToken(ISpObjectToken **t){if(!t)return E_POINTER;*t=token;if(token)token->AddRef();return token?S_OK:S_FALSE;}
     STDMETHODIMP GetOutputFormat(const GUID*,const WAVEFORMATEX*,GUID *id,WAVEFORMATEX **wf){
         if(!id||!wf)return E_POINTER; *id=Ssi263WaveFormatEx;
@@ -430,6 +469,7 @@ public:
         for(size_t i=0;i<segs.size();i++){nchars+=segs[i].text.size();nmarks+=segs[i].marks.size();anyText|=!segs[i].text.empty();}
         if(segs.empty())return S_OK;
         std::string voiceId=utf8(token_string(token,L"VoiceId"));
+        std::wstring dataPath=token_string(token,L"DataPath");   /* a voice no package carries: its data folder */
         /* The program's own rate and volume (ISpVoice::SetRate, SetVolume) come from the site, and a fragment's
          * markup combines with them: the rate adds, the volume is a share of the program's.  Volume is the engine's
          * to apply -- SAPI hands the samples on as they are (measured: SetVolume 30 left this engine's samples as
@@ -458,10 +498,12 @@ public:
         unsigned long long total=0;
         int idx=-1; ssv_voice *v=0;
         if(anyText){
-            ok=voices_ready();
+            ok=voices_ready()&&(dataPath.empty()||user_bank(dataPath));
             char err[256]={0};
+            ssv_bank *bank=dataPath.empty()?g_bank:g_userBank;
+            const char *dir=dataPath.empty()?g_fwdir:g_userDir;
             if(ok){
-                idx=ssi_voice(&g_api,voiceId.c_str(),g_fwdir);
+                idx=ssi_voice(&g_api,voiceId.c_str(),dir);
 #ifdef SSI263_SAPI_DEV
                 if(idx>=0&&!strcmp(brk,"voice")){                     /* a control: English and Spanish swapped, */
                     int e=g_api.find("blazie:blazie"),s=g_api.find("blazie:blazie_es");
@@ -480,8 +522,8 @@ public:
                                                          would speak them: the English Braille Lite */
                 }
 #endif
-                ssv_boot b; ssi_boot(&o,&b); g_api.bank_boot(g_bank,&b);
-                if(idx<0||!(v=g_api.bank_voice(g_bank,idx,err,sizeof err))){
+                ssv_boot b; ssi_boot(&o,&b); g_api.bank_boot(bank,&b);
+                if(idx<0||!(v=g_api.bank_voice(bank,idx,err,sizeof err))){
                     logline(L"no voice for %hs: %hs",voiceId.c_str(),err);
                     ok=false;
                 }

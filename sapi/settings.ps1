@@ -9,7 +9,12 @@
 #
 # PowerShell 2.0's dialect, like register.ps1: stock Windows 7 has no newer engine.
 # -Check: build the dialog and fill it, print what it shows, and exit without showing it (the tests).
-param([switch]$Check)
+# -ShowDataPlan: print the data root (dataroot.ps1), whether it holds a voice's file, and what "Move voices for all
+#   users" would do, then exit (sapi\test_sapi_data.py).
+# -ExtractFrom <file> -ExtractTo <file>: the Super Voice's program from a file as Import a file reads it (sapi\
+#   test_sapi_data.py); -DownloadTo <file>: from its disk as Download fetches it, the sources SSI263_SAPI_DATA_TEST_SOURCES
+#   names when it is set ("url|size|sha256|kind;...", a test's file: URLs), else the pinned ones.
+param([switch]$Check, [switch]$ShowDataPlan, [string]$ExtractFrom = '', [string]$ExtractTo = '', [string]$DownloadTo = '')
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
@@ -17,6 +22,29 @@ Add-Type -AssemblyName System.Drawing
 $stage = Split-Path -Parent $MyInvocation.MyCommand.Path
 $registerScript = Join-Path $stage 'register.ps1'
 . (Join-Path $stage 'updates.ps1')     # Check for updates, by hand only
+. (Join-Path $stage 'dataroot.ps1')    # where the voices no package carries find their files (Panthera's system)
+$userVoices = Get-UserDataVoices $stage
+if ($env:SSI263_SAPI_DATA_TEST_SOURCES) {
+    $SuperVoiceSources = @(foreach ($s in $env:SSI263_SAPI_DATA_TEST_SOURCES.Split(';')) {
+        $f = $s.Split('|'); ,@('test', $f[0], [int]$f[1], $f[2], $f[3]) })
+}
+if ($ShowDataPlan) {
+    $root = Resolve-DataRoot $userVoices
+    $plan = Get-MigrationPlan $root $userVoices
+    Write-Output ('root: ' + $root)
+    Write-Output ('has data: ' + (Test-RootHasData $root $userVoices))
+    Write-Output ('plan: {0} | {1} | {2} | {3}' -f $plan.Action, $plan.From, $plan.To, $plan.Reason)
+    exit 0
+}
+if ($ExtractFrom -or $DownloadTo) {
+    try {
+        if ($DownloadTo) { $data = (Get-SuperVoiceDisk $null).Bytes; $ExtractTo = $DownloadTo }
+        else { $data = [System.IO.File]::ReadAllBytes($ExtractFrom) }
+        [System.IO.File]::WriteAllBytes($ExtractTo, (Get-SuperVoiceProgram $stage $data))
+        Write-Output 'extracted'
+        exit 0
+    } catch { Write-Output ('refused: ' + $_.Exception.Message); exit 1 }
+}
 $prefKey = 'HKCU:\Software\SSI-263 SAPI'
 $tokenRoots = @('HKLM:\SOFTWARE\Microsoft\Speech\Voices\Tokens', 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Speech\Voices\Tokens')
 
@@ -50,6 +78,12 @@ function Test-Registered([string]$id) {
     $false
 }
 
+# A path as one argument: quoted, a trailing backslash doubled so it does not escape the closing quote (Panthera #35:
+# a drive root's own backslash swallowed the quote, and the rest of the line came with it).
+function ConvertTo-Argument([string]$value) {
+    '"' + ($value -replace '(\\+)$', '$1$1') + '"'
+}
+
 # A cancelled elevation prompt is not a yes: -1, and the caller says nothing (outspoken's lesson).
 function Invoke-Elevated([string]$switches) {
     $arguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" {1}' -f $registerScript, $switches
@@ -62,7 +96,7 @@ function Invoke-Elevated([string]$switches) {
 }
 
 $form = New-Object Windows.Forms.Form
-$form.Text = 'SSI-263 SAPI settings'; $form.Size = New-Object Drawing.Size(640, 678)
+$form.Text = 'SSI-263 SAPI settings'; $form.Size = New-Object Drawing.Size(640, 808)
 $form.StartPosition = 'CenterScreen'
 $label = New-Object Windows.Forms.Label
 $label.Text = '&Voices:'; $label.AutoSize = $true; $label.Location = New-Object Drawing.Point(12, 14)
@@ -168,6 +202,33 @@ $diagnostics.AccessibleName = 'Write a diagnostic log'
 $diagnostics.AccessibleDescription = 'Off by default. Records what the engine did, not what was spoken, to a file in your temp folder. Turn it on only if a bug report asks for it.'
 $diagnostics.Location = New-Object Drawing.Point(12, 574); $diagnostics.AutoSize = $true
 
+# Speech data: the voices no package carries (Speech Systems' Super Voice), from a data folder (dataroot.ps1).
+$dataGroup = New-Object Windows.Forms.GroupBox
+$dataGroup.Text = 'Speech data (voices no package carries)'
+$dataGroup.Location = New-Object Drawing.Point(12, 606); $dataGroup.Size = New-Object Drawing.Size(600, 150)
+$dataInfo = New-Object Windows.Forms.TextBox
+$dataInfo.Name = 'dataInfo'; $dataInfo.AccessibleName = 'Speech data'
+$dataInfo.Multiline = $true; $dataInfo.ReadOnly = $true
+$dataInfo.Location = New-Object Drawing.Point(12, 22); $dataInfo.Size = New-Object Drawing.Size(576, 56)
+$svDownload = New-Object Windows.Forms.Button; $svDownload.Text = 'Download the Su&per Voice...'; $svDownload.AutoSize = $true
+$svDownload.AccessibleName = 'Download the Super Voice'
+$svDownload.AccessibleDescription = 'Fetches Speech Systems'' Super Voice disk from the Color Computer Archive, checks it, and keeps only its program in the data folder.'
+$svDownload.Location = New-Object Drawing.Point(12, 84)
+$svImport = New-Object Windows.Forms.Button; $svImport.Text = 'Import a &file...'; $svImport.AutoSize = $true
+$svImport.AccessibleName = 'Import a file'
+$svImport.AccessibleDescription = 'Your own copy: SUPERTOK.BIN, the disk image SUPERV.DSK, or a zip holding either.'
+$svImport.Location = New-Object Drawing.Point(200, 84)
+$dataLocation = New-Object Windows.Forms.Button; $dataLocation.Text = 'Data l&ocation...'; $dataLocation.AutoSize = $true
+$dataLocation.AccessibleName = 'Data location'
+$dataLocation.Location = New-Object Drawing.Point(320, 84)
+$dataMove = New-Object Windows.Forms.Button; $dataMove.Text = '&Move voices for all users...'; $dataMove.AutoSize = $true
+$dataMove.AccessibleName = 'Move voices for all users'
+$dataMove.Location = New-Object Drawing.Point(12, 116)
+$dataOpen = New-Object Windows.Forms.Button; $dataOpen.Text = 'Open data fold&er'; $dataOpen.AutoSize = $true
+$dataOpen.AccessibleName = 'Open data folder'
+$dataOpen.Location = New-Object Drawing.Point(200, 116)
+$dataGroup.Controls.AddRange(@($dataInfo, $svDownload, $svImport, $dataLocation, $dataMove, $dataOpen))
+
 $inflection.Checked = [bool](Load-Setting 'Inflection' 1)
 $whine.SelectedIndex = [Math]::Max(0, [Math]::Min(2, (Load-Setting 'Whine' 0)))
 $runAhead.Checked = [bool](Load-Setting 'RunAhead' 0)
@@ -236,18 +297,147 @@ $updates.Add_Click({
         [Windows.Forms.MessageBox]::Show($form, ("The update was downloaded and checked, but its installer could not be started. It is saved at:`n`n{0}" -f $file), $title, 'OK', 'Warning') | Out-Null
     }
 })
+# ---- speech data (dataroot.ps1) ---------------------------------------------------------------------------------------
+function Refresh-Data {
+    $root = Resolve-DataRoot $userVoices
+    $lines = @('Data folder: ' + $root)
+    foreach ($v in $userVoices) {
+        $here = Test-Path -LiteralPath (Join-Path $root $v.File)
+        $state = if ($here -and (Test-Registered $v.Id)) { 'here, and registered' }
+                 elseif ($here) { 'here, not registered yet (Register)' }
+                 else { 'not here: download it or import your own copy' }
+        $lines += ('{0}: {1}' -f $v.Name, $state)
+    }
+    $dataInfo.Text = $lines -join "`r`n"
+}
+
+# The program, read and checked here (the library's own reader), into the data folder and registered: one elevated
+# trip, which checks it once more (register.ps1 -ImportFile).
+function Install-SuperVoice([byte[]]$prog, [string]$from) {
+    $root = Resolve-DataRoot $userVoices
+    $tmp = Join-Path $env:TEMP ('ssi263-supertok-{0}.bin' -f [guid]::NewGuid())
+    [System.IO.File]::WriteAllBytes($tmp, $prog)
+    try {
+        $code = Invoke-Elevated ('-ImportFile {0} -DataRoot {1} -Register' -f (ConvertTo-Argument $tmp), (ConvertTo-Argument $root))
+    } finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+    Refresh-Voices; Refresh-Data
+    if ($code -lt 0) { return }
+    if ($code -ne 0) {
+        [Windows.Forms.MessageBox]::Show($form, ("The Super Voice's program could not be put in {0} (code {1})." -f $root, $code), 'SSI-263 SAPI', 'OK', 'Error') | Out-Null
+        return
+    }
+    [Windows.Forms.MessageBox]::Show($form, ("Speech Systems Super Voice is installed (from {0}) and registered: choose it in your program's voice list. Its program is in {1}." -f $from, $root), 'SSI-263 SAPI') | Out-Null
+}
+
+$svDownload.Add_Click({
+    $title = 'SSI-263 SAPI'
+    $answer = [Windows.Forms.MessageBox]::Show($form, "Download Speech Systems' Super Voice disk from the Color Computer Archive (about 28 KB)? It is checked against its known checksum, and only its program, SUPERTOK.BIN, is kept. Nothing about you is sent with the request.", $title, 'YesNo', 'Question')
+    if ($answer -ne 'Yes') { return }
+    $status.Text = 'Downloading the Super Voice''s disk...'; $form.Refresh()
+    try {
+        $disk = Get-SuperVoiceDisk $null
+        $prog = Get-SuperVoiceProgram $stage $disk.Bytes
+    } catch {
+        Refresh-Voices
+        [Windows.Forms.MessageBox]::Show($form, ("Nothing was installed. {0}" -f $_.Exception.Message), $title, 'OK', 'Warning') | Out-Null
+        return
+    }
+    Install-SuperVoice $prog $disk.Where
+})
+$svImport.Add_Click({
+    $dlg = New-Object Windows.Forms.OpenFileDialog
+    $dlg.Title = 'Choose the Super Voice''s program, its disk image, or a zip holding either'
+    $dlg.Filter = 'Super Voice files (*.bin;*.dsk;*.zip)|*.bin;*.dsk;*.zip|All files (*.*)|*.*'
+    if ($dlg.ShowDialog($form) -ne 'OK') { return }
+    try {
+        if ((Get-Item -LiteralPath $dlg.FileName).Length -gt 64MB) { throw 'it is too large to be the disk or a zip holding it' }
+        $prog = Get-SuperVoiceProgram $stage ([System.IO.File]::ReadAllBytes($dlg.FileName))
+    } catch {
+        [Windows.Forms.MessageBox]::Show($form, ("Nothing was installed from {0}. {1}" -f $dlg.FileName, $_.Exception.Message), 'SSI-263 SAPI', 'OK', 'Warning') | Out-Null
+        return
+    }
+    Install-SuperVoice $prog ([System.IO.Path]::GetFileName($dlg.FileName))
+})
+# Data location (Panthera's Invoke-ChooseRoot): this person's choice; the registered voices follow it when it holds them.
+$dataLocation.Add_Click({
+    $dlg = New-Object Windows.Forms.FolderBrowserDialog
+    $dlg.Description = 'Choose the folder that holds the voices no package carries (speech-systems-super-voice\SUPERTOK.BIN below it).'
+    if ($dlg.ShowDialog($form) -ne 'OK') { return }
+    $chosen = $dlg.SelectedPath
+    if (-not (Test-RootHasData $chosen $userVoices)) {
+        $a = [Windows.Forms.MessageBox]::Show($form, ("{0} holds no voice's file yet. Use it anyway? Downloads and imports will go there." -f $chosen), 'SSI-263 SAPI', 'YesNo', 'Question')
+        if ($a -ne 'Yes') { return }
+    }
+    Set-ChosenDataPath $chosen
+    if (@($userVoices | Where-Object { Test-Registered $_.Id }).Count -and (Test-RootHasData $chosen $userVoices)) {
+        Invoke-Elevated ('-Register -DataRoot {0}' -f (ConvertTo-Argument $chosen)) | Out-Null
+    }
+    Refresh-Voices; Refresh-Data
+})
+# Move voices for all users (Panthera's Invoke-Migration): a button, never a prompt; each refusal says why.
+$dataMove.Add_Click({
+    $root = Resolve-DataRoot $userVoices
+    $plan = Get-MigrationPlan $root $userVoices
+    if ($plan.Action -ne 'migrate') {
+        [Windows.Forms.MessageBox]::Show($form, ("Nothing was moved: {0}." -f $plan.Reason), 'SSI-263 SAPI', 'OK', 'Information') | Out-Null
+        return
+    }
+    $a = [Windows.Forms.MessageBox]::Show($form, ("Move the voices from {0} to {1}, where every account on this computer and the sign-in screen read them?" -f $plan.From, $plan.To), 'SSI-263 SAPI', 'YesNo', 'Question')
+    if ($a -ne 'Yes') { return }
+    $code = Invoke-Elevated ('-MigrateData -MigrateFrom {0} -DataRoot {1}' -f (ConvertTo-Argument $plan.From), (ConvertTo-Argument $plan.To))
+    Refresh-Voices; Refresh-Data
+    if ($code -gt 0) { [Windows.Forms.MessageBox]::Show($form, ("The move did not finish (code {0}); nothing you had is lost." -f $code), 'SSI-263 SAPI', 'OK', 'Error') | Out-Null }
+    elseif ($code -eq 0) { [Windows.Forms.MessageBox]::Show($form, ("The voices are in {0} now, for every account." -f $plan.To), 'SSI-263 SAPI') | Out-Null }
+})
+$dataOpen.Add_Click({
+    $root = Resolve-DataRoot $userVoices
+    try {
+        if (-not (Test-Path -LiteralPath $root)) { New-Item -ItemType Directory -Force -Path $root | Out-Null }
+        Invoke-Item -LiteralPath $root
+    } catch {
+        [Windows.Forms.MessageBox]::Show($form, ("The folder could not be opened: {0}" -f $_.Exception.Message), 'SSI-263 SAPI', 'OK', 'Error') | Out-Null
+    }
+})
+
+# A registered voice whose folder lost its file (Panthera's Offer-Rebind): registered again from where it is now, or
+# its token taken away -- spoken, SetObjectToken refuses it anyway.
+function Offer-Rebind {
+    $lost = @($userVoices | Where-Object { Test-Registered $_.Id })
+    if (-not $lost.Count) { return }
+    $root = Resolve-DataRoot $userVoices
+    $gone = @()
+    foreach ($v in $lost) {
+        $key = 'SSI263_' + ($v.Id -replace '[^A-Za-z0-9]', '_')
+        $had = ''
+        foreach ($r in $tokenRoots) { try { $had = [string](Get-ItemProperty -Path (Join-Path $r $key) -Name DataPath -ErrorAction Stop).DataPath; if ($had) { break } } catch {} }
+        if ($had -and -not (Test-Path -LiteralPath (Join-Path $had $v.File))) { $gone += $v }
+    }
+    if (-not $gone.Count) { return }
+    $names = ($gone | ForEach-Object { $_.Name }) -join ', '
+    if (Test-RootHasData $root $gone) {
+        $a = [Windows.Forms.MessageBox]::Show($form, ("{0}: its program is no longer where it was registered from, but it is in {1}. Register it from there?" -f $names, $root), 'SSI-263 SAPI', 'YesNo', 'Question')
+        if ($a -eq 'Yes') { Invoke-Elevated ('-Register -DataRoot {0}' -f (ConvertTo-Argument $root)) | Out-Null }
+    } else {
+        $a = [Windows.Forms.MessageBox]::Show($form, ("{0}: its program is gone from every data folder, so the voice cannot speak. Take it out of the voice list? Download or import it again to bring it back." -f $names), 'SSI-263 SAPI', 'YesNo', 'Warning')
+        if ($a -eq 'Yes') { Invoke-Elevated '-Register' | Out-Null }
+    }
+    Refresh-Voices; Refresh-Data
+}
+
 $close.Add_Click({ $form.Close() })
 $form.CancelButton = $close
 $group.Controls.AddRange(@($inflection, $whineLabel, $whine, $runAhead, $numbers, $lineLift))
 $accentGroup.Controls.AddRange(@($accentLabel, $accentInfl))
-$form.Controls.AddRange(@($label, $list, $status, $register, $unregister, $updates, $close, $group, $accentGroup, $rateLabel, $rate, $diagnostics))
+$form.Controls.AddRange(@($label, $list, $status, $register, $unregister, $updates, $close, $group, $accentGroup, $rateLabel, $rate, $diagnostics, $dataGroup))
 Refresh-Voices
+Refresh-Data
 if ($Check) {
     foreach ($item in $list.Items) { Write-Output ('voice: ' + $item) }
     Write-Output ('status: ' + $status.Text)
+    Write-Output ('data: ' + ($dataInfo.Text -replace "`r`n", ' / '))
     Write-Output ('updates: ' + $updates.Text + ' (installed: ' + $(if (Get-InstalledSapiVersion) { Get-InstalledSapiVersion } else { 'none' }) + ')')
     Write-Output ('inflection: {0}; whine: {1}; run ahead: {2}; numbers as words: {3}; accent inflection: {4}; sample rate: {5}; diagnostics: {6}; line lift: {7}' -f $inflection.Checked, $whine.SelectedItem, $runAhead.Checked, $numbers.Checked, $accentInfl.SelectedItem, $rate.SelectedItem, $diagnostics.Checked, $lineLift.Checked)
     exit 0
 }
-$form.Add_Shown({ $list.Focus() })
+$form.Add_Shown({ $list.Focus(); Offer-Rebind })
 [void]$form.ShowDialog()

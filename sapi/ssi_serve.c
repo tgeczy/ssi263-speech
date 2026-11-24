@@ -16,6 +16,7 @@
  *                    [--whine off|hiss|whine] [--accent-inflection 0..100] [--run-ahead 1|0] [--bl-numbers 1|0]
  *   ssi263_serve.exe --list [--firmware <dir>]        one voice per line: "id<TAB>name<TAB>language", UTF-8
  *   ssi263_serve.exe --files [--firmware <dir>]       the firmware those voices need, one path per line (the stage)
+ *   ssi263_serve.exe --user-voices                    the voices no package carries, each with its file (voices.txt)
  *
  * The firmware folder defaults to ..\firmware beside this program's folder (the installed layout: {app}\x64\, and
  * {app}\firmware).  Test hooks, for test_native.py's must-fail controls only: SSI263_SERVE_BREAK=setting drops the
@@ -194,6 +195,7 @@ int wmain(int argc, wchar_t **argv)
         if (!wcscmp(a, L"--serve")) serve = 1;
         else if (!wcscmp(a, L"--list")) list = 1;
         else if (!wcscmp(a, L"--files")) list = 2;
+        else if (!wcscmp(a, L"--user-voices")) list = 3;
         else if (!wcscmp(a, L"--firmware")) { wcsncpy(fwdir_w, v, MAX_PATH * 2 - 1); k++; }
         else if (!wcscmp(a, L"--inflection")) { o.inflection = wcscmp(v, L"0") && wcscmp(v, L"off") && wcscmp(v, L"false"); k++; }
         else if (!wcscmp(a, L"--whine")) {
@@ -221,6 +223,17 @@ int wmain(int argc, wchar_t **argv)
     if (!ssi_lib_path(fwdir_w, fwdir, sizeof fwdir)) { fputs("the firmware folder's name cannot be opened\n", stderr); return 1; }
     out_h = GetStdHandle(STD_OUTPUT_HANDLE);
     in_h = GetStdHandle(STD_INPUT_HANDLE);
+    if (list == 3) {               /* the voices no package carries: "id<TAB>name<TAB>language<TAB>data:<file>", each
+                                      registered only where a user's data folder holds its file (register.ps1) */
+        for (k = 0; k < api.count(); k++)
+            if (SSV_USER_DATA(api.info(k))) {
+                const ssv_info *in = api.info(k);
+                char line[512];
+                int n = snprintf(line, sizeof line, "%s\t%s\t%s\tdata:%s\n", in->id, in->name, in->lang, in->files[0]);
+                write_all(line, (DWORD)n);
+            }
+        return 0;
+    }
     if (list) {
         for (k = 0; k < api.count(); k++)
             if (api.available(k, fwdir)) {
@@ -228,6 +241,10 @@ int wmain(int argc, wchar_t **argv)
                 char line[512];
                 int n = snprintf(line, sizeof line, "%s\t%s\t%s\n", in->id, in->name, in->lang), j;
                 if (list == 1) write_all(line, (DWORD)n);
+                /* a voice no package carries (voices.h SSV_USER_DATA): never in the stage, whatever the folder holds;
+                   SSI263_SERVE_BREAK=userdata, build.ps1's control, lists it as the others */
+                if (list == 2 && SSV_USER_DATA(in) && !(brk && !strcmp(brk, "userdata")))
+                    continue;
                 for (j = 0; list == 2 && in->files[j]; j++) {
                     n = snprintf(line, sizeof line, "%s\n", in->files[j]);
                     write_all(line, (DWORD)n);

@@ -51,10 +51,11 @@ object SsiEngine {
             AFTER_RELEASES
 
     /** The voices after the release table's: Automated Functions' SmarTalk and the Artic SynPhonix (0.9.5), each
-     * imported or built in (S_TALK.EXE, VEST.COM). */
+     * imported or built in (S_TALK.EXE, VEST.COM); Speech Systems' Super Voice (0.9.5), imported only (SUPERTOK.BIN). */
     private val AFTER_RELEASES = listOf(
         VoiceInfo(SsiNative.SMARTALK, "en-US-smartalk", "SmarTalk (Automated Functions)", Locale("en", "US")),
-        VoiceInfo(SsiNative.SYNPHONIX, "en-US-synphonix", "Artic SynPhonix", Locale("en", "US")))
+        VoiceInfo(SsiNative.SYNPHONIX, "en-US-synphonix", "Artic SynPhonix", Locale("en", "US")),
+        VoiceInfo(SsiNative.SUPERVOICE, "en-US-supervoice", "Speech Systems Super Voice", Locale("en", "US")))
 
     /** Every voice this app has, whether or not it can speak now (SsiLanguages: a language whose firmware is not here
      * is missing data, not unsupported). */

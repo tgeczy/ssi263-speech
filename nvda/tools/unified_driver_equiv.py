@@ -4,7 +4,7 @@ and the order of the index and done notifications must be equal, and every notif
 was given (NVDA drops one whose synth is not getSynth(): the units' notifySynth).
 
     python unified_driver_equiv.py [braillelite2000 braillelite2000-es speakout accentsa accentmini mockingboard
-                                    mockingboardearly smartalk synphonix]
+                                    mockingboardearly smartalk synphonix supervoice]
     UNIFIED_EQUIV_BREAK=notify    control: the units report as themselves (notifySynth ignored) -- every case with
                                   a notification must fail on the synth, the PCM still equal
     UNIFIED_EQUIV_BREAK=memory    control: the wrapper does not forward the variant -- the variant cases must DIFFER
@@ -15,6 +15,7 @@ Braille Lite: its COMMON ones and its own tones), cancels made at a fixed count 
 side runs in its own process (the units' module names).  Build first: nvda/build_ssi263.py.
 """
 import os
+import shutil
 import pickle
 import subprocess
 import sys
@@ -38,6 +39,9 @@ def L(lang):
 
 
 # firmware type -> (the reference add-on, its driver module, the reference driver's voice, the wrapper's language)
+SV_BIN = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "speech-systems-super-voice",
+                      "SUPERTOK.BIN")
+
 UNITS = {
     "braillelite2000": ("blazie", "blazie", "blazie", "en"),
     "braillelite2000-es": ("blazie", "blazie", "blazie_es", "es"),
@@ -53,6 +57,7 @@ UNITS = {
     "mockingboardearly": (None, "mockingboard", "early", "en"),
     "smartalk": (None, "smartalk", None, "en"),
     "synphonix": (None, "synphonix", None, "en"),
+    "supervoice": (None, "supervoice", None, "en"),
 }
 BRAILLE_LITE = [c for c in nde.COMMON if "sr" not in c["settings"]] + [
     case("tone 0", [T("Tone zero, the lowest.")], variant="0"),
@@ -77,6 +82,13 @@ SMARTALK = [c for c in nde.COMMON] + [
     case("long text in parts", [T(nde.LONG + " " + nde.LONG + " And then some more words to say.")]),
 ]
 
+# the Super Voice: its program reads its own numbers (numbers off by default), no inflection switch
+SUPERVOICE = [c for c in nde.COMMON] + [
+    case("numbers on", [T("Room 100, the 1st and the 3rd, and $6723.")], numbers=True),
+    case("defaults again", [T("Back to the program's own numbers: 1999.")], numbers=False),
+    case("long text in parts", [T(nde.LONG + " " + nde.LONG + " And then some more words to say.")]),
+]
+
 SYNPHONIX = [c for c in nde.COMMON] + [
     case("inflection off", [T("A monotone sentence, is it not?")], voiceInflection=False),
     case("numbers off", [T("Room 100, 45000 and $6723.")], numbers=False),
@@ -94,6 +106,8 @@ def cases(fw):
         return MOCKINGBOARD
     if fw == "smartalk":
         return SMARTALK
+    if fw == "supervoice":
+        return SUPERVOICE
     if fw == "synphonix":
         return SYNPHONIX
     return nde.ACCENT
@@ -102,6 +116,14 @@ def cases(fw):
 # ---- one side, in its own process -------------------------------------------------------------------------------
 def child(fw, side, out):
     addon, module, voice, lang = UNITS[fw]
+    if fw == "supervoice":
+        # no package carries its program: NVDA's configuration folder does (ssi263_userfw.py), here a stand-in one
+        import types
+        conf = os.path.join(os.path.dirname(out), "userConfig-%s" % side)
+        dest = os.path.join(conf, "ssi263-speech", "firmware", "speech-systems-super-voice")
+        os.makedirs(dest, exist_ok=True)
+        shutil.copy2(SV_BIN, dest)
+        sys.modules["globalVars"] = types.SimpleNamespace(appArgs=types.SimpleNamespace(configPath=conf, secure=False))
     if side == "unit":
         which = module
         os.environ["SSI263_SYNTH_DRIVERS"] = (os.path.join(DIST, "%s-build" % addon, "synthDrivers") if addon else
@@ -275,6 +297,9 @@ def main():
     if not os.path.isfile(st) and "smartalk" in fws:
         fws = [x for x in fws if x != "smartalk"]
         print("note: the build has no S_TALK.EXE: the SmarTalk not compared")
+    if not os.path.isfile(SV_BIN) and "supervoice" in fws:
+        fws = [x for x in fws if x != "supervoice"]
+        print("note: no firmware/speech-systems-super-voice/SUPERTOK.BIN: the Super Voice not compared")
     sp = os.path.join(DIST, "ssi263-build", "synthDrivers", "_ssi263_unified", "_ssi263_synphonix", "VEST.COM")
     if not os.path.isfile(sp) and "synphonix" in fws:
         fws = [x for x in fws if x != "synphonix"]

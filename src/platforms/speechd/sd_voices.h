@@ -21,6 +21,8 @@
 #ifndef SD_VOICES_H
 #define SD_VOICES_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -57,6 +59,13 @@ const char *sdv_language(int i);       /* SSIP's: en-US, es-ES */
 const char *sdv_engine(int i);         /* braille-lite, accent-sa, accent-mini, speakout */
 int sdv_find(const char *name);        /* by name; -1 if none */
 int sdv_available(int i, const sd_settings *s);    /* its files are in the data folder */
+/* This user's own data folder, for a voice no package carries (the Super Voice): $XDG_DATA_HOME/ssi263-speech, else
+   ~/.local/share/ssi263-speech.  0 when neither can be named. */
+int sdv_user_dir(char *out, size_t cap);
+/* `sd_ssi263 --import FILE`: the Super Voice's SUPERTOK.BIN from FILE (the program, or the disk image SUPERV.DSK) into
+   this user's data folder, once the library has found it the known program (supervoice/sv_dsk.h).  0 with where it
+   went in msg, or -1 with why not. */
+int sdv_import(const char *file, char *msg, int cap);
 
 /* Makes the voice's unit if it has none yet.  0, or -1 with the reason in err. */
 int sdv_load(int i, const sd_settings *s, char *err, int errlen);

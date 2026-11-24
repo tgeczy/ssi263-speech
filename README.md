@@ -17,6 +17,7 @@ talking devices that drove it, running unchanged and driving the emulated chip, 
 | **Aicom Accent-PC** | the card's own 8085 firmware and dictionary ROMs (1986–1989), driven through its serial port | MAME's 8085 |
 | **Automated Functions SmarTalk** (1995), a small box on the parallel port | its DOS text-to-speech program `S_TALK.EXE` (version 1.21) | MAME's 8086 |
 | **Artic SynPhonix**, a speech card inside the PC (Artic Technologies) | its DOS text-to-speech program `VEST.COM` (version 1.60, 1992) | MAME's 8086 |
+| **Speech Systems Super Voice** (1984), a speech cartridge for the Tandy Color Computer | its text-to-speech program `SUPERTOK.BIN` (Del Software for Speech Systems), from the disk the Color Computer Archive keeps | MAME's 6809 |
 
 The pronunciation rules, the number reading, the intonation and the timing are all the
 devices' own. The chip model makes every sample: nothing is recorded or concatenated.
@@ -93,6 +94,13 @@ no owner.
 notice and checksum, and how to reach us if you hold its rights. The Apple apps don't
 carry it either.
 
+The Super Voice's program is in no package at all. Its manual says it is for the purchaser's
+personal use, and the [Color Computer Archive](https://colorcomputerarchive.com) has kept its disk
+since 2016, so each of you gets it from there: in NVDA, **SSI-263 speech data** in the Tools menu
+downloads it (or imports your own copy); the SAPI settings program does the same; on Linux,
+Android and the Apple apps you import the disk. Only its program, `SUPERTOK.BIN`, is kept, and only
+when it is the known one. [docs/super-voice.md](docs/super-voice.md) has the details.
+
 ## Documentation
 
 - [How the SSI-263 learned to speak again](docs/history.md): the whole story, day by day,
@@ -110,9 +118,8 @@ carry it either.
   answer would come from, and how you can help.
 - [Sources and credits](docs/sources.md): every data sheet, paper, patent, program and
   person this work stands on.
-- [Speech Systems' Super Voice](docs/super-voice.md): it speaks in the workshop, but no
-  add-on or app offers it yet. Where its disk is kept, by exact link and checksum, and
-  what it still needs.
+- [Speech Systems' Super Voice](docs/super-voice.md): where its disk is kept, by exact link
+  and checksum, and how each platform downloads or imports it.
 
 ## Layout
 
@@ -126,7 +133,7 @@ carry it either.
 | `docs/` | The documentation (see above) |
 | `tools/` | Research and check tools: comparisons against the recordings, the C/Python gate, renders |
 | `nvda/` | The three NVDA drivers, their builds, and the driver test rig |
-| `firmware/` | Aicom's software, the SmarTalk's, Artic's VEST, and the places the other firmware goes |
+| `firmware/` | Aicom's software, the SmarTalk's, Artic's VEST, and the places the other firmware goes (the Super Voice's for building from source only: no package carries it) |
 | `third_party/casso/` | From Rob Elmer's Casso (MIT): the ROM extraction the die reading was checked against |
 
 ## Building

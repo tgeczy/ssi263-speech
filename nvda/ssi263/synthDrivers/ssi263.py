@@ -2,13 +2,13 @@
 """NVDA synthesizer driver: Votrax SC-02 / SSI-263 (emulated) -- every unit of this project in one driver (0.8).
 
 The units are the 0.7 add-ons' own drivers, unchanged, in this add-on's private package (synthDrivers/_ssi263_unified:
-blazie.py, speakout.py, accentmini.py, mockingboard.py, smartalk.py and synphonix.py, each with its engine; NVDA lists no module whose
+blazie.py, speakout.py, accentmini.py, mockingboard.py, smartalk.py, synphonix.py and supervoice.py, each with its engine; NVDA lists no module whose
 name starts with "_").  This driver runs ONE of them at a time, chosen by the firmware type, and passes NVDA's speech,
 settings and notifications through: what you hear is that driver's, byte for byte (nvda/tools/unified_driver_equiv.py).
 
 Settings (investigation/design-0.8-nvda-addon.md, its revisions after Astra's Reply 161, and Reply 163):
   firmware type  the units whose firmware is here (Braille Lite 2000, Speak-Out, Accent-PC, Accent-mini, Mockingboard,
-                 Mockingboard early, SmarTalk, Artic SynPhonix)
+                 Mockingboard early, SmarTalk, Artic SynPhonix, Speech Systems Super Voice)
   voice          that firmware's languages, with their language codes, so NVDA's language switching works
   the rest       the unit's own settings, as its 0.7 add-on had them
 Each firmware type keeps its own values (Tomi).  Where they are kept is ONE place: NVDA's config, this driver's
@@ -47,6 +47,10 @@ try:
     from ._ssi263_unified import synphonix
 except ImportError:              # staged only with its VEST.COM (build_ssi263.py)
     synphonix = None
+try:
+    from ._ssi263_unified import supervoice
+except ImportError:              # an add-on built without it (build_ssi263.py stages it always: no firmware in it)
+    supervoice = None
 
 # firmware type: (its name, the unit's driver module, {language: that driver's voice})
 FIRMWARE_TYPES = OrderedDict([
@@ -76,6 +80,11 @@ if smartalk is not None:
 # 0.9.5: Artic's SynPhonix 215, its text-to-speech Artic's own VEST.COM 1.60, after the SmarTalk
 if synphonix is not None:
     FIRMWARE_TYPES["synphonix"] = ("Artic SynPhonix", synphonix, OrderedDict([("en", "vest")]))
+# 0.9.5: Speech Systems' Super Voice (1984), its Color Computer text-to-speech SUPERTOK.BIN, after the SynPhonix.  Always
+# registered: no package carries its program, and the user's copy (downloaded or imported through "SSI-263 speech
+# data", in NVDA's configuration folder) is looked for every time the types are listed, so it appears without a restart
+if supervoice is not None:
+    FIRMWARE_TYPES["supervoice"] = ("Speech Systems Super Voice", supervoice, OrderedDict([("en", "supertok")]))
 LANGUAGES = {"en": "English", "es": "Spanish", "de": "German", "it": "Italian", "sk": "Slovak"}
 # firmware types that are gone, and where their users land: (the type now, the language it was).  A saved one loads as
 # that type in that language, its own saved values filling in only what the new type has none of (_saved); the next

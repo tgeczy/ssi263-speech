@@ -4,16 +4,17 @@ The Super Voice was a speech cartridge for the Tandy Color Computer with an SSI-
 runs its own text-to-speech, SUPERTOK ("V5.0A", by Del Software for Speech Systems), unchanged, on MAME's 6809
 (`../cpu/m6809_mame.cpp`) and our chip.
 
-**It is not in the voice table yet.** The host (a text in, the chip's audio out) and the voice layer on it
-(settings, the text path, long text in parts) are here and tested; no front end lists it. Tomi has heard its
-first clips (19 November 2026: close to the Mockingboard in sound, and a first word that climbed in pitch, remedied
-below); nobody has judged it as a voice.
+**It is in the voice table** (0.9.5): `supervoice:supertok`, "Speech Systems Super Voice", engine `SSV_SUPERVOICE`,
+on every platform -- and no package carries its program (`voices.h`'s `SSV_USER_DATA`): each person downloads or
+imports it, `sv_dsk.h` taking it off the disk ([docs/super-voice.md](../../../docs/super-voice.md) says how, platform by
+platform). Tomi has heard its first clips (19 November 2026: close to the Mockingboard in sound, and a first word that
+climbed in pitch, remedied below); nobody has judged it as a voice through a screen reader yet.
 
 Nothing of the Color Computer is used: no BASIC ROM, no boot. The program was run with every instruction outside it
 trapped, and on the path the host uses it calls no ROM routine and reads none of BASIC's variables.
 
-The program file is not in the repository. `../../../firmware/speech-systems-super-voice/README.txt` says which file
-goes there and why it is not here; `../../../docs/super-voice.md` says where the disk is kept.
+The program file is not in the repository, nor in any package. `../../../firmware/speech-systems-super-voice/README.txt`
+says which file goes there and why it is not here; `../../../docs/super-voice.md` says where the disk is kept.
 
 | File | What it is for |
 |---|---|
@@ -21,6 +22,7 @@ goes there and why it is not here; `../../../docs/super-voice.md` says where the
 | `sv_voice.h`, `sv_voice.c` | The voice: NVDA's rate and pitch onto the program's own control codes (`^S` 1-16, `^IT` 1-32; at 50 and 50 nothing is added, so the default voice is the cartridge's own), the volume as gain, a capital's pitch; the shared 7-bit text path (`../accent_text.c`); four rules for what this program does with a screen reader's text (its control character `^` and its "quote" taken out, a hyphen made a space unless a digit follows, a space before a period that follows a digit, or it says "point"); long text in parts of at most 200 characters, cut at sentence ends, then clause marks, then spaces. Numbers are the program's own by default. |
 | `test_sv_voice.c` | The voice on the real program (12 tests): the setting steps, the text path, the four rules, the splitting, nothing added at the defaults, rate, pitch and a capital at the chip, speaking, 600 characters in parts, "Page 1." without "point", cancel then speak, speaking over a text, the volume. |
 | `sv_render.c` | The C API alone: the firmware folder and a text into a WAV (`sv_render <folder> "text" out.wav [--log]`). |
+| `sv_dsk.h`, `sv_dsk.c` | The program from what a person brings: `SUPERTOK.BIN` itself, or the Disk BASIC image holding it (the Color Computer Archive's `SUPERV.DSK`) -- the directory read, the granules followed through the allocation table (track 17 skipped), the last sector's length from the directory; accepted only when it is the known program, by its sha256. Every platform's download and import goes through it (`tools/check_sv_voice.py` tests it on a disk laid out around the program; its controls `SV_DSK_BREAK=track17` and `=last`). |
 | `test_sv_host.c` | The host on the real program (10 tests): the golden phonemes of two texts with the program's opening and closing writes, speech starting at once (and at the machine's 103 ms with the skip off), a text after another one the same as on a new host, the program's control codes reaching the chip, a sentence cut at eleven places and the text after each (whole, on time, nothing of the cut phoneme before it), a text's first phoneme on its pitch (no climb), the same writes whatever the block size, the guard on a chip that never requests, the refusals and the 240 characters, a changed byte refused. Skips (77) without the file. |
 | `sv_controls.py` | Both tests as they are, then their must-fail controls (11 host rules, 11 voice rules): each rule undone in a scratch copy of its file, exactly its tests must fail. Run by `nvda/tools/run_tests.py` and `tools/linux_tests.sh` when the file is in its drop-in folder. |
 

@@ -55,12 +55,18 @@ extern "C" {
 #define SSV_SOUNDINGBOARD 5        /* GW Micro's Sounding Board: the Speak-Out's voice on its DOS drivers (so_voice.h) */
 #define SSV_SMARTALK 6             /* Automated Functions' SmarTalk: its DOS text-to-speech (smartalk/st_voice.h) */
 #define SSV_SYNPHONIX 7            /* Artic's SynPhonix 215: Artic's own DOS text-to-speech, VEST (synphonix/sp_voice.h) */
+#define SSV_SUPERVOICE 8           /* Speech Systems' Super Voice: its Color Computer text-to-speech, SUPERTOK
+                                      (supervoice/sv_voice.h) */
+/* A voice whose files no package ever carries (0.9.5: the Super Voice, whose disk the Color Computer Archive keeps):
+   each user downloads or imports them into their own data folder.  A packager that stages firmware from the table's
+   list (sapi/ssi_serve.c --files) leaves these out. */
+#define SSV_USER_DATA(info) ((info)->engine == SSV_SUPERVOICE)
 
 typedef struct {
     const char *id;                /* "blazie:blazie": the NVDA driver module and its voice, as the SAPI tokens carry it */
     const char *name;              /* the NVDA driver's name for it, UTF-8 */
     const char *lang;              /* "en", "es", "de", "it", "sk" */
-    int engine;                    /* SSV_BLAZIE ... SSV_SYNPHONIX */
+    int engine;                    /* SSV_BLAZIE ... SSV_SUPERVOICE */
     int slot;                      /* voices of one slot share one unit in a bank (the two Accents: one card) */
     const char *files[4];          /* its firmware, relative to the firmware folder, "/"-separated; NULL after the last */
 } ssv_info;
@@ -94,7 +100,8 @@ typedef struct {
     int join;                      /* "Join phrases": the Speak-Out's word delay (1) */
     int inflection;                /* the Accents' intonation 0-100 (100 = full); the SmarTalk's inflection is on from
                                       50 (below: monotone) */
-    int numbers;                   /* "Custom number processing": the Braille Lite, the Accents (1) */
+    int numbers;                   /* "Custom number processing": the Braille Lite, the Accents (1); the Super Voice (0:
+                                      its program reads money and numbers itself) */
     int run_ahead;                 /* the Braille Lite's "Run the unit ahead", EXPERIMENTAL (0) */
     int line_lift;                 /* the Braille Lite's "Lift line starts (as note-taking mode)" (0): the first
                                       line after a cancel lifted as the unit lifts a line moved to (bl_voice.h) */

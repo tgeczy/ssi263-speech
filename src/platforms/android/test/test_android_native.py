@@ -108,12 +108,16 @@ ssa_map.c and ssa_import.c, on the same chip, boards, hosts and voices), every c
                              synphonix-numbers    ssa_voice_break 19: its number words dropped (always off)
                              synphonix-import-ignored  20: its imported copy ignored (the built-in one used)
                              synphonix-builtin-ignored 21: its built-in copy ignored (import only)
+                             import-sv            ssa_import_break 9: the Super Voice's program and disk never
+                                                  known (its imports fail)
+                             supervoice-pitch     ssa_voice_break 22: the Super Voice's request pitch dropped
 
 SSI263_ANDROID_TEST_ONLY=<blocks>, a comma list of bl (the Braille Lite in lockstep, its Spanish unit and the probe),
 ra (run ahead), lift (the line-start lift), num (the number words), lang (0.8's German, Italian and Slovak units),
 rel (the release voices),
 accent (the Accent-PC and its text), so (the Speak-Out), mini (the
-Accent-mini), mb (the Mockingboard), st (the SmarTalk), sp (the SynPhonix), import (every import case): only those
+Accent-mini), mb (the Mockingboard), st (the SmarTalk), sp (the SynPhonix), sv (the Super Voice), import (every
+import case): only those
 blocks, on
 both sides -- for the controls, so each runs what
 its bug touches (the 3-minute gate).
@@ -201,6 +205,9 @@ ST_EXE = os.path.join(REPO, "firmware", "automated-functions-smartalk", "S_TALK.
 # the SynPhonix's VEST.COM: the repository's copy (its serial 99999999), so its cases always run; imported here as the
 # app's data folder has it, and the same file handed over as the built-in copy (the APK's assets/synphonix)
 SP_COM = os.path.join(REPO, "firmware", "artic-synphonix", "VEST.COM")
+# the Super Voice's program: a local copy (never committed, never in the APK: imported only), imported here as the
+# app's data folder would have it
+SV_BIN = os.path.join(REPO, "firmware", "speech-systems-super-voice", "SUPERTOK.BIN")
 MB_BIN = os.path.join(MB_BUILTIN, "mockingboard-tts-1.1.bin")
 MB_BIN_EARLY = os.path.join(MB_BUILTIN, "mockingboard-tts-early.bin")
 MB_SHA256 = "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"    # mb_host.h's MB_SHA256
@@ -708,6 +715,60 @@ def st_import_cases(exe, tmp):
     return bad
 
 
+# ---- the Super Voice's reference: sv_voice driven directly ---------------------------------------------------------
+HELLO_SV = "Hello there. This is the Speech Systems Super Voice, speaking on a phone."
+# test_android_native.c's sv_cases, in the same order: the SynPhonix's, less its number cases (the program reads its
+# own numbers: the app sends it no number words)
+SV_CASES = [(c[0].replace("sp-", "sv-", 1), HELLO_SV if c[1] == HELLO_SP else c[1]) + tuple(c[2:]) for c in SP_CASES
+            if c[0] != "sp-num-off"]
+
+
+def sv_step(p):                                     # sv_voice.c's svv_pitch_step: the inflection level, ^IT 1-32
+    p = max(0, min(100, p))
+    return 1 + int(p * 13 / 50.0 + 0.5) if p <= 50 else 14 + int((p - 50) * 18 / 50.0 + 0.5)
+
+
+def sv_reference(exe, cases=None):
+    """The app's mapping, as the SynPhonix's: the request's rate on the slider, the slider's pitch as the setting and
+    the request's as a capital's offset, moved at least one of the program's inflection levels; its numbers its own."""
+    lines = []
+    for name, text, rate, pitch, rr, rp, volume, _numbers, sr, chunk, stop in cases or SV_CASES:
+        slider = max(0, min(100, pitch))
+        lines.append("%s %d %d %d %d 0 %d %d %s\n" % (name, sr, on_top(rate, rr), slider, volume,
+                                                      step_pitch(pitch, rp, sv_step) - slider, stop,
+                                                      text.encode("utf-8").hex()))
+    out = subprocess.run([exe, "--sv-direct", SV_BIN], input="".join(lines), capture_output=True, text=True)
+    if out.returncode:
+        sys.exit("test_android_native --sv-direct failed (%d): %s" % (out.returncode, out.stderr.strip()))
+    return parse(out.stdout)
+
+
+def sv_import_cases(exe, tmp):
+    """The Super Voice's program known (SSA_SUPERVOICE, 30) from itself and from a Color Computer disk holding it
+    (tools/check_sv_voice.py make_disk), the program alone written; a changed program, and the SynPhonix's VEST.COM,
+    not"""
+    sys.path.insert(0, os.path.join(REPO, "tools"))
+    from check_sv_voice import make_disk
+    bad = 0
+    out = os.path.join(tmp, "sv.out")
+    prog = open(SV_BIN, "rb").read()
+    for label, b, code in (("SUPERTOK.BIN", prog, 30), ("SUPERV.DSK (a disk holding it)", make_disk(prog, [33, 34, 5, 60, 41]), 30),
+                           ("SUPERTOK.BIN with a byte changed", prog[:9] + bytes([prog[9] ^ 1]) + prog[10:], None),
+                           ("VEST.COM (not the Super Voice)", open(SP_COM, "rb").read(), None)):
+        src = os.path.join(tmp, "sv.in")
+        open(src, "wb").write(b)
+        if os.path.exists(out):
+            os.remove(out)
+        r = subprocess.run([exe, "--import", src, out], capture_output=True, text=True)
+        m = re.match(r"^import (-?\d+) (.*)$", r.stdout.strip())
+        got = int(m.group(1)) if m else None
+        ok = got == code and open(out, "rb").read() == prog if code is not None else bool(m) and got != 30
+        print("%-5s import   %s (the Super Voice's): %s" % ("ok" if ok else "FAIL", label,
+                                                            m.group(0) if m else r.stdout + r.stderr))
+        bad += not ok
+    return bad
+
+
 # ---- the SynPhonix's reference: sp_voice driven directly --------------------------------------------------------
 def sp_step(p):                                     # sp_voice.c's spv_pitch_offset: VEST's step, 6 each way (50 = 0)
     p = max(0, min(100, p))
@@ -1106,6 +1167,11 @@ def build_into(exe):
             have.append("-DSSV_HAVE_SYNPHONIX")
             sp = front + ["-I" + os.path.join(SRC, "cpu"), "-I" + os.path.join(SRC, "pc86")]
             units += [(sp, os.path.join(SRC, "synphonix", n + ".c")) for n in ("sp_host", "sp_voice")]
+    if os.path.isfile(os.path.join(SRC, "supervoice", "sv_voice.c")):          # the Super Voice, on MAME's 6809
+        have.append("-DSSV_HAVE_SUPERVOICE")
+        sv = front + ["-I" + os.path.join(SRC, "cpu")]
+        units += [(mame, os.path.join(SRC, "cpu", "m6809_mame.cpp"))] + \
+                 [(sv, os.path.join(SRC, "supervoice", n + ".c")) for n in ("sv_host", "sv_voice", "sv_dsk")]
     if os.path.isfile(os.path.join(SRC, "mockingboard", "mb_voice.c")):
         have.append("-DSSV_HAVE_MOCKINGBOARD")
         mb = ["-O2", "-std=gnu99", "-ffp-contract=off", "-w", "-I" + os.path.join(SRC, "cpu"),
@@ -1217,7 +1283,7 @@ def data_folder(firmware, tmp):
     Speak-Out's HEX and the Mockingboard's file when they are in the repository's firmware folder)."""
     for f in FILES["en"]:
         shutil.copy2(os.path.join(firmware, f), tmp)
-    for f in (SPEAKOUT_HEX, MB_BIN, MB_BIN_EARLY, ST_EXE, SP_COM):
+    for f in (SPEAKOUT_HEX, MB_BIN, MB_BIN_EARLY, ST_EXE, SP_COM, SV_BIN):
         if os.path.isfile(f):
             shutil.copy2(f, tmp)
     for d in (firmware, os.path.join(firmware, "spanish")):
@@ -1289,7 +1355,7 @@ def capitals(label, got, p="a"):
         ok = got.get(name) is not None and got.get(name)[1] != (got.get(other) or (0, None))[1]
         print("%-5s %-8s %s sounds different from %s" % ("ok" if ok else "FAIL", label, name, other))
         bad += not ok
-    if p in ("s", "mb", "mbe", "st", "sp"):
+    if p in ("s", "mb", "mbe", "st", "sp", "sv"):
         return bad
     ok = base is not None and base == again
     print("%-5s %-8s %s-pitch-100-again = %s-pitch-100, byte for byte (the pitch came back)" % (
@@ -1455,6 +1521,11 @@ def main():
                                                                         1, 22050, 4096, 0)])["sp-probe"]
         elif not synphonix:
             print("skip  the SynPhonix: no firmware/artic-synphonix/VEST.COM")
+        supervoice = os.path.isfile(SV_BIN)
+        if supervoice and block("sv"):
+            want.update(sv_reference(exe))
+        elif not supervoice:
+            print("skip  the Super Voice: no firmware/speech-systems-super-voice/SUPERTOK.BIN")
         for f, what in ((MB_BIN, "Mockingboard"), (MB_BIN_EARLY, "early Mockingboard")):
             if not os.path.isfile(f):
                 print("skip  the %s: no firmware/sweet-micro-mockingboard/%s" % (what, os.path.basename(f)))
@@ -1481,6 +1552,8 @@ def main():
                 bad += st_heard(label, got)
             if synphonix and block("sp"):
                 bad += sp_heard(label, got)
+            if supervoice and block("sv"):
+                bad += capitals(label, got, "sv")
             if block("rel"):
                 bad += release_heard(label, data, got)
             return bad
@@ -1501,6 +1574,8 @@ def main():
             bad += st_import_cases(exe, data)
         if os.path.isfile(SP_COM) and os.path.isfile(ST_EXE) and block("import"):
             bad += sp_import_cases(exe, data)
+        if os.path.isfile(SV_BIN) and os.path.isfile(SP_COM) and block("import"):
+            bad += sv_import_cases(exe, data)
         if (mb or any(mb_disks())) and block("import"):
             bad += mb_import_cases(exe, data)
         if a.adb:

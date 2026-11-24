@@ -29,6 +29,9 @@
 #ifdef SSV_HAVE_SYNPHONIX
 #include "synphonix/sp_voice.h"
 #endif
+#ifdef SSV_HAVE_SUPERVOICE
+#include "supervoice/sv_voice.h"
+#endif
 #include "blazie/bl_fopen.h"
 
 /* ---- the table ---------------------------------------------------------------------------------------------------- */
@@ -36,6 +39,7 @@
 #define SLOT_SOUNDINGBOARD (9 + SSV_BLAZIE_RELEASE_VOICES)
 #define SLOT_SMARTALK (10 + SSV_BLAZIE_RELEASE_VOICES)
 #define SLOT_SYNPHONIX (11 + SSV_BLAZIE_RELEASE_VOICES)
+#define SLOT_SUPERVOICE (12 + SSV_BLAZIE_RELEASE_VOICES)
 static const ssv_info VOICES[] = {
     {"blazie:blazie", "Braille Lite 2000 (June 2003)", "en", SSV_BLAZIE, 0,
      {"blazie/BL2ENG.BNS", "blazie/bl2_2003_warm.state", NULL}},
@@ -72,6 +76,11 @@ static const ssv_info VOICES[] = {
     /* 0.9.5: Artic's SynPhonix 215, its text-to-speech Artic's own VEST.COM 1.60 (#90's research host, in C), on the
        Accent-mini's pc86.  After the SmarTalk, so no earlier voice's index or slot moves */
     {"synphonix:vest", "Artic SynPhonix", "en", SSV_SYNPHONIX, SLOT_SYNPHONIX, {"artic-synphonix/VEST.COM", NULL}},
+    /* 0.9.5: Speech Systems' Super Voice (1984), the Color Computer cartridge's own text-to-speech, SUPERTOK.BIN off
+       its disk, on MAME's 6809 -- never shipped: downloaded from the Color Computer Archive or imported.  Named maker
+       first, as the SynPhonix (Tomi).  After the SynPhonix, so no earlier voice's index or slot moves */
+    {"supervoice:supertok", "Speech Systems Super Voice", "en", SSV_SUPERVOICE, SLOT_SUPERVOICE,
+     {"speech-systems-super-voice/SUPERTOK.BIN", NULL}},
 };
 #define NVOICES ((int)(sizeof VOICES / sizeof VOICES[0]))
 
@@ -411,6 +420,36 @@ static void eng_sp_cancel(void *u) { spv_cancel((sp_voice *)u); }
 static void eng_sp_destroy(void *u) { spv_destroy((sp_voice *)u); }
 #endif
 
+#ifdef SSV_HAVE_SUPERVOICE
+/* the Super Voice: sv_voice.h (rate, pitch, volume, number words; no tone, no inflection switch, no index marks of its
+   own: SUPERTOK has none) */
+static void *eng_sv_create(const ssv_info *info, const ssv_source *src, const ssv_boot *b, char *err, int errlen)
+{
+    size_t n;
+    unsigned char *owned;
+    const unsigned char *d = source_bytes(src, 0, &n, &owned);
+    sv_voice *v = NULL;
+    if (d)
+        v = svv_create(d, n, (double)b->sample_rate, err, errlen);
+    else
+        snprintf(err, errlen, "could not read the Super Voice's %s", info->files[0]);
+    free(owned);
+    return v;
+}
+static void eng_sv_set(void *u, const ssv_settings *s)
+{
+    svv_set((sv_voice *)u, s->rate, s->pitch, s->volume, s->numbers);
+}
+static int eng_sv_speak(void *u, const char *utf8, int pitch_offset)
+{
+    int r = svv_speak((sv_voice *)u, utf8, pitch_offset);
+    return svh_get_int(svv_host((sv_voice *)u), "fault") ? -1 : r > 0;
+}
+static int eng_sv_render(void *u, const short **pcm, int *done) { return svv_render((sv_voice *)u, pcm, done); }
+static void eng_sv_cancel(void *u) { svv_cancel((sv_voice *)u); }
+static void eng_sv_destroy(void *u) { svv_destroy((sv_voice *)u); }
+#endif
+
 static const ssv_engine *engine(int kind)
 {
     static const ssv_engine bl = {eng_bl_create, eng_bl_set, eng_bl_speak, eng_bl_render, eng_bl_cancel, eng_bl_destroy,
@@ -439,6 +478,9 @@ static const ssv_engine *engine(int kind)
 #ifdef SSV_HAVE_SYNPHONIX
     static const ssv_engine sp = {eng_sp_create, eng_sp_set, eng_sp_speak, eng_sp_render, eng_sp_cancel, eng_sp_destroy};
 #endif
+#ifdef SSV_HAVE_SUPERVOICE
+    static const ssv_engine sv = {eng_sv_create, eng_sv_set, eng_sv_speak, eng_sv_render, eng_sv_cancel, eng_sv_destroy};
+#endif
     switch (kind) {
     case SSV_BLAZIE: return &bl;
     case SSV_ACCENT_PC: return &as;
@@ -459,6 +501,9 @@ static const ssv_engine *engine(int kind)
 #endif
 #ifdef SSV_HAVE_SYNPHONIX
     case SSV_SYNPHONIX: return &sp;
+#endif
+#ifdef SSV_HAVE_SUPERVOICE
+    case SSV_SUPERVOICE: return &sv;
 #endif
     default: return NULL;
     }
@@ -500,7 +545,9 @@ SSV_API void ssv_defaults(int i, ssv_settings *s)
     s->pack = 1;                   /* blazie.py, speakout.py: self._short = True */
     s->join = 1;                   /* speakout.py: self._join = True */
     s->inflection = 100;           /* accentmini.py: self._inflection = 100 */
-    s->numbers = 1;                /* blazie.py, accentmini.py: self._numbers = True */
+    /* blazie.py, accentmini.py: self._numbers = True; the Super Voice reads its own (money, up to the trillions:
+       sv_voice.h), so supervoice.py's is False */
+    s->numbers = kind != SSV_SUPERVOICE;
     s->run_ahead = 0;              /* blazie.py: self._run_ahead = False */
     s->line_lift = 0;              /* blazie.py: self._line_lift = False */
     s->tone = kind == SSV_BLAZIE ? 7          /* DEFAULT_TONE */
@@ -786,8 +833,9 @@ SSV_API void ssv_literal_next(ssv_voice *v)
 /* ---- a bank ---------------------------------------------------------------------------------------------------------- */
 /* the table's slots 0..8, one per release voice, the Sounding Board's and the SmarTalk's: the last slot + 1.  (It was
    the Sounding Board's + 1 when the SmarTalk came, so the SmarTalk's unit sat past the end of the bank and was never
-   let go on a boot change: the SAPI engine's test caught it.)  The SynPhonix's, after them, is the last now. */
-#define SLOTS (SLOT_SYNPHONIX + 1)
+   let go on a boot change: the SAPI engine's test caught it.)  The SynPhonix's, after them, then the Super Voice's,
+   the last now. */
+#define SLOTS (SLOT_SUPERVOICE + 1)
 
 struct ssv_bank {
     char *fwdir;
@@ -808,9 +856,11 @@ SSV_API ssv_bank *ssv_bank_new(const char *fwdir)
 static void bank_clear(ssv_bank *k)
 {
     /* the tests' controls: one slot kept, as the last one was when it sat past the bank's end -- SSV_BANK_BREAK=1 the
-       SmarTalk's (check_st_voice.py), =synphonix the SynPhonix's (check_sp_voice.py) */
+       SmarTalk's (check_st_voice.py), =synphonix the SynPhonix's (check_sp_voice.py), =supervoice the Super Voice's
+       (check_sv_voice.py) */
     const char *bb = getenv("SSV_BANK_BREAK");
-    int s, keep = !bb ? -1 : !strcmp(bb, "synphonix") ? SLOT_SYNPHONIX : SLOT_SMARTALK;
+    int s, keep = !bb ? -1 : !strcmp(bb, "synphonix") ? SLOT_SYNPHONIX
+                : !strcmp(bb, "supervoice") ? SLOT_SUPERVOICE : SLOT_SMARTALK;
     for (s = 0; s < SLOTS; s++) {
         if (s == keep)
             continue;

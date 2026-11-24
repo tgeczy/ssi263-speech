@@ -50,11 +50,15 @@ static std::wstring wide(const std::string &s) {
     return w;
 }
 
-/* A token that holds only a VoiceId. */
+/* A token that holds a VoiceId, and a DataPath when SSI263_HARNESS_DATAPATH names one (UTF-8): a voice no package
+   carries, as register.ps1 writes its token. */
 class Token : public ISpObjectToken {
-    LONG refs; std::wstring id;
+    LONG refs; std::wstring id, data;
 public:
-    Token(const std::wstring &v) : refs(1), id(v) {}
+    Token(const std::wstring &v) : refs(1), id(v) {
+        wchar_t d[1024]; DWORD n = GetEnvironmentVariableW(L"SSI263_HARNESS_DATAPATH", d, 1024);   /* any name */
+        if (n && n < 1024) data.assign(d, n);
+    }
     STDMETHODIMP QueryInterface(REFIID i, void **p) {
         if (!p) return E_POINTER;
         *p = 0;
@@ -67,11 +71,13 @@ public:
     STDMETHODIMP_(ULONG) Release() { ULONG n = InterlockedDecrement(&refs); if (!n) delete this; return n; }
     STDMETHODIMP GetStringValue(LPCWSTR name, LPWSTR *v) {
         if (!v) return E_POINTER;
-        if (!name || wcscmp(name, L"VoiceId")) return SPERR_NOT_FOUND;
-        size_t n = (id.size() + 1) * sizeof(wchar_t);
+        const std::wstring *s = !name ? 0 : !wcscmp(name, L"VoiceId") ? &id
+                              : !wcscmp(name, L"DataPath") && !data.empty() ? &data : 0;
+        if (!s) return SPERR_NOT_FOUND;
+        size_t n = (s->size() + 1) * sizeof(wchar_t);
         *v = (LPWSTR)CoTaskMemAlloc(n);
         if (!*v) return E_OUTOFMEMORY;
-        memcpy(*v, id.c_str(), n);
+        memcpy(*v, s->c_str(), n);
         return S_OK;
     }
     STDMETHODIMP SetData(LPCWSTR, ULONG, const BYTE *) { return E_NOTIMPL; }

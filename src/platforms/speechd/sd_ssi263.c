@@ -37,7 +37,9 @@
  *   SSI263SpeakOutJoin 1       the add-on's "Join phrases"
  *   SSI263SpeakOutShortPauses 1  the add-on's "Shorten pauses between sentences"
  * Rate, pitch and volume come from SSIP for every voice.  SSI263_DATADIR overrides the data folder.  The firmware is
- * not part of this program: it is loaded from there.  `sd_ssi263 --voices` lists the voices built in.
+ * not part of this program: it is loaded from there.  `sd_ssi263 --voices` lists the voices built in.  `sd_ssi263
+--import FILE` puts the Super Voice's program (FILE: SUPERTOK.BIN or the disk image SUPERV.DSK, from the Color Computer
+Archive) into this user's own data folder, ~/.local/share/ssi263-speech, where the module looks for it.
  *
  * Index marks: the message's <mark name="..."/> are reported (700) when speech reaches them, each between the audio
  * before it and the audio after it: where the unit's own index mark says on a Braille Lite whose release was measured
@@ -501,6 +503,12 @@ int main(int argc, char **argv)
         int i;
         for (i = 0; i < sdv_count(); i++) printf("%s\t%s\t%s\n", sdv_engine(i), sdv_language(i), sdv_name(i));
         return 0;
+    }
+    if (argc > 2 && !strcmp(argv[1], "--import")) {  /* the Super Voice's program into this user's data folder */
+        char msg[1500];
+        int r = sdv_import(argv[2], msg, sizeof msg);
+        fprintf(r ? stderr : stdout, "%s\n", msg);
+        return r ? 1 : 0;
     }
     if (argc > 1) read_config(argv[1]);
     read_user_config();

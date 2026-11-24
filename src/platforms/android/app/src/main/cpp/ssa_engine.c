@@ -25,6 +25,9 @@
 #ifdef SSV_HAVE_SMARTALK
 #include "smartalk/st_voice.h"         /* stv_step */
 #endif
+#ifdef SSV_HAVE_SUPERVOICE
+#include "supervoice/sv_voice.h"       /* svv_pitch_step */
+#endif
 #ifdef SSV_HAVE_SYNPHONIX
 #include "synphonix/sp_voice.h"        /* spv_pitch_offset */
 #endif
@@ -59,6 +62,7 @@ static const voice_def AFTER_RELEASES[SSA_ALL_VOICES - SSA_VOICES] = {
     {"speakout:soundingboard", {SSA_SBLOAD_FILE, SSA_SB_FILE, NULL}},
     {"smartalk:smartalk", {SSA_SMARTALK_FILE, NULL}},
     {"synphonix:vest", {SSA_SYNPHONIX_FILE, NULL}},
+    {"supervoice:supertok", {SSA_SUPERVOICE_FILE, NULL}},             /* imported only */
 };
 static const size_t ROM_SIZES[3] = {0x10000, 0x8000, 0x8000};
 
@@ -68,6 +72,7 @@ typedef char release_voices_match[SSA_RELEASE_VOICES == SSV_BLAZIE_RELEASE_VOICE
 typedef char soundingboard_after_releases[SSA_SOUNDINGBOARD == SSA_VOICES ? 1 : -1];
 typedef char smartalk_after_soundingboard[SSA_SMARTALK == SSA_SOUNDINGBOARD + 1 ? 1 : -1];
 typedef char synphonix_after_smartalk[SSA_SYNPHONIX == SSA_SMARTALK + 1 ? 1 : -1];
+typedef char supervoice_after_synphonix[SSA_SUPERVOICE == SSA_SYNPHONIX + 1 ? 1 : -1];
 
 static int after_releases(int voice) { return voice >= SSA_VOICES && voice < SSA_ALL_VOICES; }
 
@@ -333,6 +338,12 @@ static void settings_for(const ssa_engine *e, int voice, const ssa_settings *s, 
         o->inflection = e->inflection ? 100 : 0;
         o->numbers = s->numbers && ssa_voice_break != 19;
         break;
+    case SSA_SUPERVOICE:               /* as the SynPhonix, with the program's inflection levels for the capital's
+                                          move; its numbers its own (voices.c's default: it reads money and numbers
+                                          up to the trillions itself, as on NVDA) */
+        o->pitch = clamp100(s->pitch);
+        *offset = ssa_supervoice_pitch(s->pitch, ssa_voice_break == 22 ? 100 : request_pitch) - o->pitch;
+        break;
     }
 }
 
@@ -351,6 +362,15 @@ int ssa_smartalk_pitch(int slider, int request)
 {
 #ifdef SSV_HAVE_SMARTALK
     return ssa_step_pitch(slider, request, stv_step);
+#else
+    return ssa_pitch(slider, request);
+#endif
+}
+
+int ssa_supervoice_pitch(int slider, int request)
+{
+#ifdef SSV_HAVE_SUPERVOICE
+    return ssa_step_pitch(slider, request, svv_pitch_step);
 #else
     return ssa_pitch(slider, request);
 #endif

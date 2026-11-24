@@ -64,6 +64,9 @@ class FirmwareImportTest {
                                    "Braille Lite 2000 (Türkçe)", "tr"))
         val MOCKINGBOARD_FILE = "SWEETMICRO".toByteArray() + ByteArray(2000) { (it * 5).toByte() }
         val EARLY_FILE = "SWEETEARLY".toByteArray() + ByteArray(1900) { (it * 3).toByte() }
+        // the Super Voice's program, and a made-up Color Computer disk holding it (161,280 bytes, as SUPERV.DSK)
+        val SUPERTOK = "SUPERTOKBN".toByteArray() + ByteArray(10225) { (it * 11).toByte() }
+        val COCO_DISK = "COCODISKSV".toByteArray() + ByteArray(161270)
         const val EARLY_LABEL = "Mockingboard, early: Sweet Micro Systems' text-to-speech of Mockingboard disk 1"
         const val JAPANESE_ROW = 20         // release table rows no voice speaks (the fake's)
         const val BNS640_ROW = 30
@@ -104,6 +107,14 @@ class FirmwareImportTest {
             if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "SBDRIVER.C") {
                 out.writeBytes(data)
                 return FirmwareImport.SB_COM to "GW Micro Sounding Board 2.7: SB.COM"
+            }
+            if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "SUPERTOKBN") {   // by sha256 there
+                out.writeBytes(data)
+                return FirmwareImport.SUPERVOICE to "Speech Systems Super Voice: SUPERTOK.BIN"
+            }
+            if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "COCODISKSV") {   // sv_dsk.h there
+                out.writeBytes(SUPERTOK)                     // the program alone, off the disk
+                return FirmwareImport.SUPERVOICE to "Speech Systems Super Voice: SUPERTOK.BIN"
             }
             if (String(data, 0, minOf(10, data.size), Charsets.ISO_8859_1) == "VESTCOM160") {   // by content there
                 out.writeBytes(data)
@@ -890,6 +901,26 @@ class FirmwareImportTest {
         assertTrue(FirmwareImport.WHAT_TO_CHOOSE.contains("the Mockingboard's: mockingboard-tts-1.1.bin"))
         assertEquals("This is a state file, not firmware. Please import only firmware files, or zips containing " +
             "them, with this tool.", FirmwareImport.STATE_FILE)
+    }
+
+    // ---- Speech Systems' Super Voice (0.9.5): imported only, from the Color Computer Archive's disk ------------------
+    // The control, -Pssi263ImportBreak=supervoice, drops what the native side says is the Super Voice's: these FAIL.
+
+    @Test fun theColorComputerArchivesZipBringsTheSuperVoice() {
+        // the archive's zip as it is: the disk one folder down; only the program is kept, under its own name
+        val plan = inspect("Super Voice (Speech Systems).zip", zip("Super Voice (Speech Systems)/SUPERV.DSK" to COCO_DISK))
+        assertNull(plan.refusal)
+        assertEquals(listOf(FirmwareImport.SUPERVOICE), languages(plan))
+        assertTrue(plan.found[0].firmware.readBytes().contentEquals(SUPERTOK))
+        assertEquals(listOf("SUPERTOK.BIN"), FirmwareImport.files(FirmwareImport.SUPERVOICE))
+        assertTrue(FirmwareImport.SUPERVOICE in FirmwareImport.NO_STATE)
+        assertFalse("imported only", FirmwareImport.SUPERVOICE in FirmwareImport.BUILT_IN)
+    }
+
+    @Test fun theSuperVoicesDiskOrProgramAlone() {
+        assertEquals(listOf(FirmwareImport.SUPERVOICE), languages(inspect("SUPERV.DSK", COCO_DISK)))
+        assertEquals(listOf(FirmwareImport.SUPERVOICE), languages(inspect("SUPERTOK.BIN", SUPERTOK)))
+        assertEquals("Speech Systems Super Voice", FirmwareImport.languageName(FirmwareImport.SUPERVOICE))
     }
 
     // ---- a unit already here (0.9.5): left as it is, never prepared again -----------------------------------------

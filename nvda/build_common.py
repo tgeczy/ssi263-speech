@@ -119,7 +119,7 @@ def copy_native_voices(eng):
         dll = os.path.join(REPO, "build", "win", arch, "ssi263speech.dll")
         check_native(dll, arch)
         shutil.copy2(dll, dest)
-    copy_mame_notices(eng, "z180", "nec", "i86", "i8085")
+    copy_mame_notices(eng, "z180", "nec", "i86", "i8085", "m6809")     # (the 6809: the Super Voice, 0.9.5)
 
 
 def copy_native_binding(eng):

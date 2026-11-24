@@ -232,7 +232,8 @@ FW_DIRS = {"aicom-accent-sa": ("u2.BIN", "u3.BIN", "u4.BIN"), "aicom-accent-mini
            "gw-micro-speakout": ("SPEAKOUT.HEX",),
            "sweet-micro-mockingboard": ("mockingboard-tts-1.1.bin", "mockingboard-tts-early.bin"),
            "automated-functions-smartalk": ("S_TALK.EXE",),       # in the repository: always here
-           "artic-synphonix": ("VEST.COM",)}                      # in the repository too (its serial 99999999)
+           "artic-synphonix": ("VEST.COM",),                      # in the repository too (its serial 99999999)
+           "speech-systems-super-voice": ("SUPERTOK.BIN",)}       # a local copy only (no package carries it)
 FW_EACH = {"sweet-micro-mockingboard"}      # folders whose files are separate voices: each file found on its own
 
 
@@ -241,6 +242,9 @@ def voices_data():
     all its files -- <data folder>/<sub>, the repository's firmware/<sub>, <data folder>/../speakout-firmware; in a
     FW_EACH folder, each file from the first place that has it (the Mockingboard's two versions are two voices)."""
     out = tempfile.mkdtemp(prefix="sd_ssi263_data_")
+    # this user's own data folder (sd_voices.c sdv_user_dir: the Super Voice's import) left out: the module sees this
+    # folder alone, whoever runs the test
+    os.environ["XDG_DATA_HOME"] = os.path.join(out, "no-user-data")
     for name in os.listdir(DATA):
         if name not in FW_DIRS:
             os.symlink(os.path.join(DATA, name), os.path.join(out, name))
@@ -526,6 +530,8 @@ EXPECTED += [(r["vname"], r["tag"], ("bl2000/" + r["file"], "bl2000/%s.state" % 
 EXPECTED += [("SmarTalk (Automated Functions)", "en-US", ("automated-functions-smartalk/S_TALK.EXE",))]
 # and the Artic SynPhonix (0.9.5, sd_voices.c, last), its VEST.COM in the data folder
 EXPECTED += [("Artic SynPhonix", "en-US", ("artic-synphonix/VEST.COM",))]
+# and Speech Systems' Super Voice (0.9.5, sd_voices.c, last), its SUPERTOK.BIN in the data folder when a local copy is
+EXPECTED += [("Speech Systems Super Voice", "en-US", ("speech-systems-super-voice/SUPERTOK.BIN",))]
 want = ["200-%s\t%s\t" % (n, lang) for n, lang, files in EXPECTED       # the variant empty: no "MALE1" (PR 29)
         if n in BUILT_NAMES and all(os.path.isfile(os.path.join(VDATA, f)) for f in files)] + ["249 OK VOICES LISTED"]
 ok = voices == want and "Accent-PC" in listed and set(BUILT_NAMES) <= {e[0] for e in EXPECTED}

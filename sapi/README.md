@@ -15,18 +15,35 @@ its own DOS text-to-speech `S_TALK.EXE` (in the repository, staged with its noti
 are SAPI's, its inflection follows the dialog's Accent intonation (monotone below 50), its tone and number words are its
 own.
 
+**Speech Systems' Super Voice (0.9.5) is the one voice no package carries** (`voices.h` `SSV_USER_DATA`): the settings
+program downloads its disk from the Color Computer Archive or imports a file you have, keeps only its program
+(`SUPERTOK.BIN`, read by the library's own `sv_firmware_from`), and registers its token with the folder it is in
+(`DataPath`); the engine speaks it from there through a bank of its own, and refuses the token (SetObjectToken,
+`ERROR_FILE_NOT_FOUND`) when the program has gone, so the screen reader takes another voice. Where that folder is,
+Panthera SAPI's system, ported (`dataroot.ps1`): the folder you chose (**Data location**), the machine's
+(`HKLM\SOFTWARE\SSI-263 SAPI\DataPath`, both registry views), NVDA's own (`%APPDATA%\nvda\ssi263-speech\firmware`, where
+the add-on downloads it: nothing copied twice), `%ProgramData%\ssi263-speech\firmware`, then yours
+(`%APPDATA%\ssi263-speech\firmware`) -- a folder holding a voice's file first, one that merely exists second. **Move
+voices for all users** moves your own folder (never NVDA's, never one you chose) to `%ProgramData%`, its permissions
+reset to Users read, SYSTEM and the Administrators full. Setup never touches these folders. The build refuses to stage
+the program or the disk, by name and sha256.
+
 | File | What it is |
 | --- | --- |
 | `ssi263_sapi.cpp`, `.def` | The engine DLL (x86, x64; MSVC `/MT`): COM class, SAPI's fragments and bookmarks, the settings from HKCU, the voices in-process. |
 | `ssi_native.c`, `.h` | Loads `ssi263speech.dll` and maps the dialog's settings and SAPI's rate and pitch onto the voice table. Shared by the DLL and `ssi_serve.c`. |
-| `ssi_serve.c` | `ssi263_serve.exe`: the old pipe protocol over the native voices, a test and build tool (`--list` and `--files` make the stage's `voices.txt` and firmware). Never installed. |
+| `ssi_serve.c` | `ssi263_serve.exe`: the old pipe protocol over the native voices, a test and build tool (`--list`, `--files` and `--user-voices` make the stage's `voices.txt` and firmware; `--files` never names a voice no package carries). Never installed. |
 | `ssi_serve.py` | 0.7.0's Python server over the NVDA drivers. It is no longer shipped and stays as the reference the native voices are held to. |
 | `reference_drivers.py` | The tests' reference: `ssi_serve.py` on 0.7.0's Python drivers (`nvda/tools/legacy_drivers.py`, by `SSI263_SAPI_DRIVERS`), never `nvda/dist`'s native ones, checked by `ssi_serve.py --drivers` before each test (control: `SSI263_SAPI_REF_BREAK=dist`). |
 | `sapi_harness.cpp` | Drives the development DLL through `ISpTTSEngine` with nothing registered (`build.ps1 -Dev`): its own engine site, which can take part of a Write or none, ask for a skip or an abort, and notes when each bookmark's event arrives. |
 | `build.ps1` | The stage, `nvda\dist\sapi` (`-Dev`: `nvda\dist\sapi-dev`). Build `python src\csrc\build_ssi263speech.py` first. |
 | `installer.iss` | The Inno Setup installer: DLLs, firmware, licences, `voices.txt`, settings. |
-| `register.ps1` | The COM class and one token per voice in `voices.txt`, in both registry views (run elevated). |
-| `settings.ps1`, `settings_launcher.c` | The settings dialog and its console-free launcher. |
+| `register.ps1` | The COM class and one token per voice in `voices.txt`, in both registry views (run elevated); a voice no package carries only where a data folder holds its file, its token carrying that folder; the elevated steps of the data folders (`-ImportFile`, `-MigrateData`). |
+| `settings.ps1`, `settings_launcher.c` | The settings dialog and its console-free launcher; its **Speech data** group (download, import, data location, move for all users, open the folder). |
+| `dataroot.ps1` | The data folders (Panthera's system): the root's order and two passes, the move's plan, the Super Voice's program read through the library and its disk downloaded and checked. Dot-sourced by both scripts above. |
+| `test_sapi_data.py` | The data folders through `settings.ps1`'s own switches, registry and folders isolated, no network: the order, the two passes, the plans, the program from itself, a disk, a zip and a download. `SSI263_SAPI_DATA_BREAK=onepass`, `movenvda` and `nozip` are its must-fail controls (run_tests). |
+| `test_sapi_datapath.py` | The engine and a token with a `DataPath` (the harness's), x64 and x86, under a name outside the code page: the voice table's samples, and the token refused without its program (`--control`: taken unchecked). |
+| `test_stage_files.py` | The stage's firmware list never names the Super Voice's program (control: `SSI263_SERVE_BREAK=userdata`). |
 | `updates.ps1` | The dialog's Check for updates, by hand only: the NVDA add-on's rules (`updates.py`) -- drafts and prereleases skipped, the version from the installer's own name, the newest across the releases -- and the download checked against its release's SHA256SUMS.txt before it runs (fails closed). |
 | `test_updates.ps1` | Its tests on GitHub's shapes, no network; `SSI263_UPDATES_BREAK=drafts` and `=hash` are its must-fail controls (run_tests). |
 | `test_native.py` | The native voices against `ssi_serve.py`, byte for byte over the wire, 64- and 32-bit; every voice listed on both widths; the Mockingboard (1.1 and early), which `ssi_serve.py` never had, held to itself (run_tests). |

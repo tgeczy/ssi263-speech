@@ -117,6 +117,13 @@ if [ "$MINI" = 1 ] && [ -f "$SRC/synphonix/sp_voice.c" ]; then
     SP=1
     HAVE="$HAVE -DSSV_HAVE_SYNPHONIX"
 fi
+# Speech Systems' Super Voice (0.9.5): SUPERTOK.BIN on MAME's 6809 (sv_voice.h) and its disk reader (sv_dsk.h, the
+# import's); imported only, never in the APK (check_apk_no_firmware.py refuses its program and its disk)
+SV=0
+if [ -f "$SRC/supervoice/sv_voice.c" ]; then
+    SV=1
+    HAVE="$HAVE -DSSV_HAVE_SUPERVOICE"
+fi
 
 target() {
     case "$1" in
@@ -194,6 +201,12 @@ objects() {
     if [ "$SP" = 1 ]; then                           # the SynPhonix's host and voice, on the same pc86
         for f in sp_host sp_voice; do
             cc --target="$TARGET" $FRONT -I$SRC/cpu -I$SRC/pc86 -c -o "$O/$f.o" "$SRC/synphonix/$f.c"
+        done
+    fi
+    if [ "$SV" = 1 ]; then                           # the Super Voice: MAME's 6809, its host, voice and disk reader
+        cxx --target="$TARGET" $MAME -c -o "$O/m6809_mame.o" "$SRC/cpu/m6809_mame.cpp"
+        for f in sv_host sv_voice sv_dsk; do
+            cc --target="$TARGET" $FRONT -I$SRC/cpu -c -o "$O/$f.o" "$SRC/supervoice/$f.c"
         done
     fi
     # The Mockingboard (the 6502, src/csrc/mockingboard's board, host and voice, and the disk reader the import uses),
@@ -335,6 +348,9 @@ stage_assets() {
     fi
     if [ "$SP" = 1 ]; then                           # the SynPhonix's notice, its README in the repository
         cp "$ROOT/firmware/artic-synphonix/README.txt" "$A/licenses/Artic-VEST-notice.txt"
+    fi
+    if [ "$SV" = 1 ]; then                           # the Super Voice's 6809 (its program never: imported only)
+        cp "$SRC/cpu/mame_m6809/LICENSE-BSD-3-Clause.txt" "$A/licenses/MAME-6809-core-BSD-3-Clause.txt"
     fi
     cp "$ROOT/third_party/casso/LICENSE" "$A/licenses/Casso-MIT.txt"
     ls -R "$A" | head -20

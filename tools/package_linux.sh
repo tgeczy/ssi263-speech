@@ -138,6 +138,12 @@ if has synphonix; then
     cp "$SP/README.txt" "$STAGE/licenses/Artic-VEST-notice.txt"
     cp "$ROOT/src/csrc/cpu/mame_i86/LICENSE-BSD-3-Clause.txt" "$STAGE/licenses/MAME-8086-core-BSD-3-Clause.txt"
 fi
+# Speech Systems' Super Voice (0.9.5): the 6809 core is in the module; its program, SUPERTOK.BIN, is NEVER packaged --
+# each user imports it (sd_ssi263 --import SUPERV.DSK) into ~/.local/share/ssi263-speech, from the Color Computer
+# Archive's disk.  The package is refused at its end if it holds the program or the disk, by name or content.
+if has supervoice; then
+    cp "$ROOT/src/csrc/cpu/mame_m6809/LICENSE-BSD-3-Clause.txt" "$STAGE/licenses/MAME-6809-core-BSD-3-Clause.txt"
+fi
 if has mockingboard; then
     # the 6502 core is in the module whether or not the firmware ships
     cp "$ROOT/src/csrc/cpu/fake6502/PINNED.txt" "$STAGE/licenses/Fake6502-6502-core.txt"
@@ -311,5 +317,13 @@ cp "$ROOT/LICENSE" "$STAGE/LICENSE"
 cp "$ROOT/src/csrc/cpu/mame_z180/LICENSE-BSD-3-Clause.txt" "$STAGE/licenses/MAME-Z180-core-BSD-3-Clause.txt"
 cp "$ROOT/third_party/casso/LICENSE" "$STAGE/licenses/Casso-MIT.txt"
 chmod +x "$STAGE/install.sh" "$STAGE/uninstall.sh" "$STAGE/bin/sd_ssi263"
+# never shipped: the Super Voice's program and its disk (voices.h SSV_USER_DATA), by name or by content
+for f in $(find "$STAGE" -type f); do
+    case "$(basename "$f")" in SUPERTOK.BIN|SUPERV.DSK) echo "package_linux.sh: $f must never ship" >&2; exit 1;; esac
+    case "$(sha256sum "$f" | cut -c1-64)" in
+        4de0d8f369cf3b0cc4f0b01cfc6061f4882118098158a4bca233ce8fbe86155c|7dda3902a42cdc189096e023a0ad27ca6f3aba50c76a38a883892f969987b784)
+            echo "package_linux.sh: $f is the Super Voice's program or disk, which must never ship" >&2; exit 1;;
+    esac
+done
 (cd "$ROOT/build/package" && tar -czf "$ROOT/build/$NAME.tar.gz" "$NAME")
 echo "packaged build/$NAME.tar.gz"

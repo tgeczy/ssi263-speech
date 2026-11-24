@@ -273,8 +273,10 @@ def main():
     # server (not the harness), checked first (reference_drivers.py; SSI263_SAPI_REF_BREAK=dist must fail here)
     ref_env = reference_drivers.env()
     reference_drivers.guard(sys.executable, os.path.join(HERE, "ssi_serve.py"), ref_env, "sapi engine")
+    # the voices the stage carries: a voice no package carries ("data:", its fourth field: the Super Voice) has no file
+    # in the stage, and its own test (test_sapi_datapath.py)
     voices = [ln.split("\t") for ln in open(os.path.join(STAGE, "voices.txt"), encoding="utf-8").read().splitlines()
-              if "\t" in ln]
+              if "\t" in ln and ln.count("\t") == 2]
     todo = cases(voices)
     if "--bookmarks" in ARGS:
         # (each voice's default case stays in front of its bookmark: a unit's first utterance after its boot is

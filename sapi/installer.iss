@@ -41,6 +41,7 @@ Source: "{#StageDir}\voices.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StageDir}\register.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StageDir}\settings.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StageDir}\updates.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StageDir}\dataroot.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StageDir}\settings.cmd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StageDir}\ssi263_settings.exe"; DestDir: "{app}"; Flags: ignoreversion; Check: Is64BitInstallMode
 Source: "{#StageDir}\ssi263_settings_x86.exe"; DestDir: "{app}"; DestName: "ssi263_settings.exe"; Flags: ignoreversion; Check: not Is64BitInstallMode
@@ -61,8 +62,10 @@ Type: files; Name: "{app}\ssi_serve.py"
 Name: "{autoprograms}\SSI-263 SAPI settings"; Filename: "{app}\ssi263_settings.exe"; WorkingDir: "{app}"
 
 [Run]
-; regsvr32 for both registry views, then one token per voice in voices.txt.  Every install re-registers: these
-; voices carry their firmware, so there is no data folder or choice of voices to preserve.
+; regsvr32 for both registry views, then one token per voice in voices.txt.  Every install re-registers the voices
+; this installation carries ({app}\firmware); a voice no package carries (the Super Voice) keeps the data folder its
+; token had while that still holds its program, else the first data folder that does (register.ps1, dataroot.ps1).
+; The data folders themselves are never touched by Setup: not made, not deleted.
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\register.ps1"" -Register"; StatusMsg: "Registering the SSI-263 voices..."; Flags: runhidden
 Filename: "{app}\ssi263_settings.exe"; Description: "Open SSI-263 SAPI settings"; Flags: postinstall nowait skipifsilent
 

@@ -15,6 +15,7 @@ rules, number reading and inflection are the firmware's own, live. Nothing is re
 | Mockingboard, early | English | the same card, the earlier text-to-speech of Mockingboard disk 1 with its own rules (when the package has it) |
 | SmarTalk (Automated Functions) | English | Automated Functions' 1995 parallel-port box, its own DOS text-to-speech on an emulated PC |
 | Artic SynPhonix | English | Artic Technologies' internal speech card, its own DOS text-to-speech VEST on an emulated PC |
+| Speech Systems Super Voice | English | Speech Systems' 1984 cartridge for the Tandy Color Computer, its own text-to-speech on an emulated 6809 (once you import it: below) |
 
 This is a speech-dispatcher module, so Orca and anything else that speaks through speech-dispatcher can use it.
 Each voice is the same voice as in its NVDA add-on.
@@ -31,6 +32,17 @@ Each voice is the same voice as in its NVDA add-on.
 `install.sh` adds the voices and leaves your default synthesizer alone: speech-dispatcher finds the module by itself, so `speechd.conf` isn't changed (an `AddModule` line there would turn that off and leave this the only synthesizer; thanks, Garrett). Only if your `speechd.conf` already lists its modules with `AddModule` lines, as Raspberry Pi OS does, is this one added to the list. Installing over 0.7.6 or earlier removes the line those added. `sudo ./install.sh --default` also makes it
 the default. In Orca: Preferences, Speech, Speech synthesizer: ssi263, then the voice (`spd-say -o ssi263 -L` lists them).
 `sudo ./uninstall.sh` removes everything it added.
+
+The Super Voice is the one voice the package does not carry: its disk is kept by the Color Computer Archive
+(`docs/super-voice.md` in the source has the link and checksum). Download "Super Voice (Speech Systems).zip" there,
+unzip it, and give the module the disk:
+
+    ./bin/sd_ssi263 --import "Super Voice (Speech Systems)/SUPERV.DSK"
+    killall speech-dispatcher
+
+It takes only the program, `SUPERTOK.BIN`, off the disk, checks it, and keeps it in your own data folder,
+`~/.local/share/ssi263-speech/speech-systems-super-voice/` (no root needed); then "Speech Systems Super Voice" is in
+the voice list.
 
 Settings are in `ssi263.conf` beside speech-dispatcher's other module settings (the installer prints where), each
 explained in the file: the sample rate (11, 22 or 44 kHz) for every voice; the Braille Lite's voice inflection, hiss
@@ -88,6 +100,6 @@ card can speak again, and it will be removed if its rights holders ask (`license
 
 The program and library are MIT (`LICENSE`; the chip model draws on Casso's, also MIT:
 `licenses/Casso-MIT.txt`), except the CPU cores, which are MAME's and keep their BSD-3-Clause licences
-(`licenses/MAME-Z180-core-BSD-3-Clause.txt`, `licenses/MAME-8085-core-BSD-3-Clause.txt`, and the 8086's and V40's
-with those voices). The source and how to build it:
+(`licenses/MAME-Z180-core-BSD-3-Clause.txt`, `licenses/MAME-8085-core-BSD-3-Clause.txt`, and the 8086's, V40's and
+6809's with those voices). The source and how to build it:
 https://github.com/tgeczy/ssi263-speech

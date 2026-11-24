@@ -1,13 +1,20 @@
-Speech Systems' Super Voice (1984) -- SUPERTOK.BIN goes here; it is NOT in this repository
-==========================================================================================
+Speech Systems' Super Voice (1984) -- SUPERTOK.BIN goes here; it is NOT in this repository, nor in any package
+=============================================================================================================
 
 The Super Voice host (src/csrc/supervoice/sv_host.c) runs the cartridge's own text-to-speech for the Tandy Color
 Computer, SUPERTOK ("V5.0A", Del Software for Speech Systems), exactly as it is on the Super Voice disk:
 
   SUPERTOK.BIN   10,235 bytes   sha256 4de0d8f369cf3b0cc4f0b01cfc6061f4882118098158a4bca233ce8fbe86155c
 
-Put your copy in this folder under that name.  The host accepts only that file (by its sha256) and says so when it is
-missing or different; the tests that need it skip without it.
+For building and testing from source, put your copy in this folder under that name.  The host accepts only that file
+(by its sha256) and says so when it is missing or different; the tests that need it skip without it.
+
+Since 0.9.5 the Super Voice is a voice on every platform ("Speech Systems Super Voice"), and every package leaves this
+file out -- each build refuses it, and the disk, by name and by checksum (voices.h SSV_USER_DATA).  Each person gets
+it from the disk the Color Computer Archive keeps: the NVDA add-on and the SAPI settings program download it on a
+button, checked against its sha256; Linux (sd_ssi263 --import), Android and the Apple apps import it.  Only
+SUPERTOK.BIN is ever kept, taken off the disk by the library's own reader (src/csrc/supervoice/sv_dsk.h).
+docs/super-voice.md says where each platform keeps it.
 
 Where the disk is: docs/super-voice.md gives the two places that keep the disk image (SUPERV.DSK, 161,280 bytes,
 sha256 7dda3902a42cdc189096e023a0ad27ca6f3aba50c76a38a883892f969987b784) and its manual.  SUPERTOK.BIN is one of the

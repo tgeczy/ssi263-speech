@@ -11,7 +11,9 @@ has it -- only the copy whose serial is replaced by 99999999 (SP_SHA256: the arc
 the SmarTalk's (nvda/smartalk), with Automated Functions' S_TALK.EXE when
 firmware/automated-functions-smartalk has it -- optional in a release too: whether a release carries it is decided for
 the release, never by default here.  GW Micro's Sounding Board drivers (SBLOAD.COM, SB.COM 2.7) go with the Speak-Out's unit,
-as its SPEAKOUT.HEX does (Tomi, 2026-10-18: bundled on the desktop, imported on the phones).
+as its SPEAKOUT.HEX does (Tomi, 2026-10-18: bundled on the desktop, imported on the phones).  Speech Systems' Super
+Voice's (nvda/supervoice) is staged always and never with its program: each user downloads or imports SUPERTOK.BIN
+into NVDA's configuration folder (nvda/shared/ssi263_userfw.py), and the archive check refuses it by name and sha256.
 
     python nvda/build_ssi263.py                # a release: every unit built fresh, every voice required
     python nvda/build_ssi263.py --dev [--reuse] # development: a missing Mockingboard file allowed; --reuse takes
@@ -94,6 +96,16 @@ def stage_synphonix(unified):
     return True
 
 
+def stage_supervoice(unified):
+    """the Super Voice's driver and engine, always, with NO firmware: no package carries its program (SV_SHA256, the
+    archive check refuses it); the user downloads or imports it into NVDA's configuration folder (ssi263_userfw.py)"""
+    shutil.copy2(os.path.join(HERE, "supervoice", "synthDrivers", "supervoice.py"), unified)
+    eng = os.path.join(unified, "_ssi263_supervoice")
+    os.makedirs(eng)
+    copy_native_binding(eng)
+    shutil.copy2(os.path.join(HERE, "shared", "ssi263_userfw.py"), eng)
+
+
 def stage_smartalk(unified):
     """the SmarTalk's driver and engine, with S_TALK.EXE and its notice; False (nothing staged) without it"""
     if not os.path.isfile(ST_FILE):
@@ -139,6 +151,7 @@ ST_SHA256 = "6cef7bc467959960505bfd771d07f387b7bdfad25bad2b51801ae56bb8d78e6c"
 # VEST.COM with its card's serial replaced by 99999999 (SP_NOTICE): the only copy an add-on may carry -- one built with
 # anyone's own copy fails its archive check
 SP_SHA256 = "4d74b00d8541bbe1c8ca4ec21c8bb3632f054c28d6fead97ce452679db0cdb49"
+SV_SHA256 = "4de0d8f369cf3b0cc4f0b01cfc6061f4882118098158a4bca233ce8fbe86155c"   # never in the archive
 MB_SHA256 = "88e1e90f1e76b7afa2f370db3c3bf34892c9621b5360304359242570b41bdfae"
 MB_SHA256_EARLY = "c7c049b1b61792719e21e461a2a8c25fc32c12882c81305814a3dc67af6e5835"
 
@@ -180,6 +193,9 @@ def expected_files():
         out[U + "synphonix.py"] = os.path.join(HERE, "synphonix", "synthDrivers", "synphonix.py")
         out[U + "_ssi263_synphonix/VEST.COM"] = SP_SHA256
         out[U + "_ssi263_synphonix/licenses/SynPhonix-software-notice.txt"] = None
+    units.append("supervoice")               # always, its program never (stage_supervoice)
+    out[U + "supervoice.py"] = os.path.join(HERE, "supervoice", "synthDrivers", "supervoice.py")
+    out[U + "_ssi263_supervoice/ssi263_userfw.py"] = os.path.join(HERE, "shared", "ssi263_userfw.py")
     for unit in units:
         for n in ("ssi263speech.py", "ssi263_rates.py", "ssi263_flow.py", "ssi263_feed.py"):
             out[U + "_ssi263_%s/%s" % (unit, n)] = os.path.join(HERE, "shared", n)
@@ -216,6 +232,10 @@ def verify_archive(path):
             if not ok:
                 problems.append("differs from its source: %s" % arc)
         problems += ["a disk image: %s" % n for n in names if n.lower().endswith(DISK_IMAGES)]
+        # the Super Voice's program: each user downloads or imports it (voices.h SSV_USER_DATA), by name and content
+        problems += ["the Super Voice's program, which no package carries: %s" % n for n in names
+                     if os.path.basename(n).upper() == "SUPERTOK.BIN"
+                     or hashlib.sha256(z.read(n)).hexdigest() == SV_SHA256]
     return problems
 
 
@@ -257,6 +277,7 @@ def main():
         rm(os.path.join(unified, "_ssi263_mockingboard"))
     stage_smartalk(unified)
     stage_synphonix(unified)
+    stage_supervoice(unified)
     shutil.copy2(os.path.join(HERE, "ssi263", "synthDrivers", "ssi263.py"), sd)
     shutil.copytree(os.path.join(HERE, "ssi263", "globalPlugins"), os.path.join(BUILD, "globalPlugins"),
                     ignore=shutil.ignore_patterns("__pycache__"))

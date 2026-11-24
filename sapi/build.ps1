@@ -69,6 +69,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File "%~dp0settings.ps1"
   Copy-Item (Join-Path $PSScriptRoot "register.ps1") $Stage
   Copy-Item (Join-Path $PSScriptRoot "settings.ps1") $Stage
   Copy-Item (Join-Path $PSScriptRoot "updates.ps1") $Stage
+  Copy-Item (Join-Path $PSScriptRoot "dataroot.ps1") $Stage    # the data folders (Panthera's system)
 }
 # The firmware the voices need, as the library itself lists it (the serve host's --files), in the repository's
 # firmware\ layout under {app}\firmware; and the voices it can make from it (--list), for register.ps1.  Each
@@ -86,6 +87,18 @@ foreach ($rel in $files) {
   $dst = Join-Path $fw $rel
   New-Item -ItemType Directory -Force (Split-Path -Parent $dst) | Out-Null
   Copy-Item (Join-Path $fwSrc $rel) $dst
+}
+# What no package may carry (voices.h SSV_USER_DATA: the Super Voice's SUPERTOK.BIN, and the disk it comes off), by
+# name and by content, whatever the list said: the build stops rather than stage it.  The serve host leaves the voice
+# out of --files; its control (SSI263_SERVE_BREAK=userdata) must end here.
+$neverShipped = @{ "4de0d8f369cf3b0cc4f0b01cfc6061f4882118098158a4bca233ce8fbe86155c" = "SUPERTOK.BIN";
+                   "7dda3902a42cdc189096e023a0ad27ca6f3aba50c76a38a883892f969987b784" = "SUPERV.DSK" }
+$sha = [System.Security.Cryptography.SHA256]::Create()
+foreach ($f in Get-ChildItem $fw -Recurse | Where-Object { -not $_.PSIsContainer }) {
+  $hex = -join ($sha.ComputeHash([System.IO.File]::ReadAllBytes($f.FullName)) | ForEach-Object { $_.ToString("x2") })
+  if ($neverShipped.ContainsKey($hex) -or $f.Name -match '^(SUPERTOK\.BIN|SUPERV\.DSK)$') {
+    throw "the stage holds $($f.Name), which no package may carry (the user downloads or imports it): $($f.FullName)"
+  }
 }
 foreach ($rel in "AICOM.txt", "blazie/README.txt", "gw-micro-speakout/README.txt", "gw-micro-sounding-board/README.txt",
                  "automated-functions-smartalk/README.txt") {   # beside the files they speak of (the SmarTalk's: its notice)
@@ -113,6 +126,14 @@ if ($sb -and @($rows | Where-Object { $_.StartsWith("speakout:speakout`t") })) {
   $rows = @(foreach ($r in $rows) { if ($sb -notcontains $r) { $r; if ($r.StartsWith("speakout:speakout`t")) { $sb } } })
   $listing = ($rows -join "`n") + "`n"
 }
+# ... then the voices no package carries (voices.h SSV_USER_DATA: the Super Voice), each with its file: register.ps1
+# registers one only where a user's data folder holds that file, its token carrying the folder (DataPath)
+$psi.Arguments = "--user-voices"
+$proc = [System.Diagnostics.Process]::Start($psi)
+$user = $proc.StandardOutput.ReadToEnd()
+$proc.WaitForExit()
+if ($proc.ExitCode) { throw "the native voices did not list the voices no package carries" }
+foreach ($row in @($user -split "`r?`n" | Where-Object { $_ })) { $listing = $listing.TrimEnd("`r", "`n") + "`n" + $row + "`n" }
 [System.IO.File]::WriteAllText((Join-Path $Stage "voices.txt"), $listing, (New-Object System.Text.UTF8Encoding($false)))
 # The licences: ours (MIT), Casso's (MIT) and each extracted MAME core's BSD notice with its provenance, as the
 # add-ons carry them (nvda/build_common.py); the 6502's; the Mockingboard firmware's notice.
@@ -120,7 +141,7 @@ $lic = Join-Path $Stage "licenses"
 New-Item -ItemType Directory -Force $lic | Out-Null
 Copy-Item (Join-Path $repo "LICENSE") (Join-Path $lic "LICENSE-MIT.txt")
 Copy-Item (Join-Path $repo "third_party\casso\LICENSE") (Join-Path $lic "LICENSE-Casso-MIT.txt")
-foreach ($core in "z180","i8085","nec","i86") {
+foreach ($core in "z180","i8085","nec","i86","m6809") {     # (the 6809: the Super Voice, 0.9.5)
   $d = Join-Path $repo "src\csrc\cpu\mame_$core"
   Copy-Item (Join-Path $d "LICENSE-BSD-3-Clause.txt") (Join-Path $lic "LICENSE-$core-BSD-3-Clause.txt")
   Copy-Item (Join-Path $d "PINNED.txt") (Join-Path $lic "MAME-$core-provenance.txt")

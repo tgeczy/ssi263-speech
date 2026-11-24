@@ -22,7 +22,7 @@ def check(name, ok, detail):
     print("%s %-14s %s" % ("ok  " if ok else "FAIL", name, detail))
 
 
-def variant(tmp, name, change, add=None):
+def variant(tmp, name, change, add=None, add_data=b"a disk"):
     out = os.path.join(tmp, name + ".nvda-addon")
     with zipfile.ZipFile(b.OUT) as zi, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zo:
         for item in zi.infolist():
@@ -30,7 +30,7 @@ def variant(tmp, name, change, add=None):
             if data is not None:
                 zo.writestr(item, data)
         if add:
-            zo.writestr(add, b"a disk")
+            zo.writestr(add, add_data)
     return b.verify_archive(out)
 
 
@@ -53,6 +53,15 @@ def main():
         check("driver_changed", got == ["differs from its source: " + drv], "; ".join(got) or "NOT caught")
         got = variant(tmp, "dsk", lambda n, d: d, add=b.U + "_ssi263_mockingboard/toolkit.dsk")
         check("disk_image", any("disk image" in g for g in got), "; ".join(got) or "NOT caught")
+        # the Super Voice's program, never carried (each user downloads or imports it): by its name, and -- with the
+        # local copy -- by its content under another name
+        got = variant(tmp, "svname", lambda n, d: d, add=b.U + "_ssi263_supervoice/SUPERTOK.BIN")
+        check("supervoice_name", any("Super Voice" in g for g in got), "; ".join(got) or "NOT caught")
+        sv = os.path.join(b.REPO, "firmware", "speech-systems-super-voice", "SUPERTOK.BIN")
+        if os.path.isfile(sv):
+            with open(sv, "rb") as f:
+                got = variant(tmp, "svdata", lambda n, d: d, add=b.U + "_ssi263_blazie/notes.bin", add_data=f.read())
+            check("supervoice_data", any("Super Voice" in g for g in got), "; ".join(got) or "NOT caught")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("addon archive: %s" % ("all passed" if all(results) else "%d FAILED" % results.count(False)))

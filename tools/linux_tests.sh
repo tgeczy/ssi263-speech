@@ -917,6 +917,29 @@ control "SynPhonix voice CONTROL (the apostrophes as they are, must fail)" "^FAI
 control "SynPhonix voice CONTROL (a bank keeps its unit on a boot change, must fail)" \
     "^FAIL  a bank's unit made again on a boot change" "^sp voice: 1 FAILED$" -- \
     env SSV_BANK_BREAK=synphonix python3 tools/check_sp_voice.py build/linux/libssi263_voices.so
+# Speech Systems' Super Voice as a voice and its disk reader (tools/check_sv_voice.py), when the program is in its
+# drop-in folder (never committed); its controls, as nvda/tools/run_tests.py's.  And the module's import of it
+# (sd_ssi263 --import) into a stand-in home, the voice then offered; its control: the user's folder never looked in
+if [ -f "$ROOT/firmware/speech-systems-super-voice/SUPERTOK.BIN" ]; then
+    check "Super Voice voice: table, settings, bank, cancel, disk reader" python3 tools/check_sv_voice.py \
+        build/linux/libssi263_voices.so
+    control "Super Voice voice CONTROL (a bank keeps its unit on a boot change, must fail)" \
+        "^FAIL  a bank's unit made again on a boot change" "^sv voice: 1 FAILED$" -- \
+        env SSV_BANK_BREAK=supervoice python3 tools/check_sv_voice.py build/linux/libssi263_voices.so
+    control "Super Voice voice CONTROL (granules read from the directory's track, must fail)" \
+        "^FAIL  a disk image: SUPERTOK.BIN taken" "^sv voice: 1 FAILED$" -- \
+        env SV_DSK_BREAK=track17 python3 tools/check_sv_voice.py build/linux/libssi263_voices.so
+    control "Super Voice voice CONTROL (the last sector taken whole, must fail)" \
+        "^FAIL  a disk image: SUPERTOK.BIN taken" "^sv voice: 1 FAILED$" -- \
+        env SV_DSK_BREAK=last python3 tools/check_sv_voice.py build/linux/libssi263_voices.so
+    check "Super Voice: sd_ssi263 --import puts it in the user's folder, the voice then offered" \
+        python3 src/platforms/speechd/test_sd_import.py build/linux/sd_ssi263
+    control "Super Voice import CONTROL (the user's folder never looked in, must fail)" \
+        "^ok    imported" "^FAIL  offered" "^sd import: 1 FAILED$" -- \
+        env SD_SSI263_TEST_NO_USER_DIR=1 python3 src/platforms/speechd/test_sd_import.py build/linux/sd_ssi263
+else
+    echo "skip  Super Voice voice and import: no firmware/speech-systems-super-voice/SUPERTOK.BIN"
+fi
 control "SmarTalk voice CONTROL (\$.00 dropped, must fail)" "^FAIL  said as: [$][.]00 +''$" \
     "^FAIL  said as: [$][.]00% +'percent'$" "^st voice: 2 FAILED$" \
     -- env ST_DOLLAR_BREAK=1 python3 tools/check_st_voice.py build/linux/libssi263_voices.so
@@ -1056,6 +1079,12 @@ if ./build/linux/sd_ssi263 --voices | grep -q '^synphonix'; then
     check "the SynPhonix in the package, with its notices" sh -c "tar -tzf build/ssi263-speech-*-linux-$(uname -m).tar.gz | \
         grep -c -E '/(share/ssi263-speech/artic-synphonix/VEST\.COM|licenses/MAME-8086-core-BSD-3-Clause\.txt|licenses/Artic-VEST-notice\.txt)\$' | \
         grep -qx 3 && echo 'VEST.COM, its notice, MAME 8086 BSD-3-Clause: in the package'"
+fi
+# Speech Systems' Super Voice: the 6809's notice in the package, its program and disk never (package_linux.sh refuses)
+if ./build/linux/sd_ssi263 --voices | grep -q '^supervoice'; then
+    check "the Super Voice's 6809 notice in the package, its program never" sh -c "T=\$(tar -tzf build/ssi263-speech-*-linux-$(uname -m).tar.gz); \
+        echo \"\$T\" | grep -q '/licenses/MAME-6809-core-BSD-3-Clause\.txt\$' && ! echo \"\$T\" | grep -q -E 'SUPERTOK\.BIN|SUPERV\.DSK' && \
+        echo 'MAME 6809 BSD-3-Clause in the package; no SUPERTOK.BIN, no disk'"
 fi
 check "no-GPL audit: comments and MAME compatibility names are not evidence" python3 tools/check_no_gpl.py \
     --clean-sample

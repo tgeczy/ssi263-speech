@@ -83,7 +83,11 @@ typedef struct ssa_engine ssa_engine;
 /* 0.9.5: the Artic SynPhonix: Artic's own DOS text-to-speech for its internal cards, VEST.COM 1.60, on the
    Accent-mini's 8086 (sp_voice.h), imported or built in -- right after the SmarTalk (checked when compiled). */
 #define SSA_SYNPHONIX 29
-#define SSA_ALL_VOICES (SSA_SYNPHONIX + 1)
+/* 0.9.5: Speech Systems' Super Voice: the Color Computer cartridge's own text-to-speech, SUPERTOK.BIN, on MAME's 6809
+   (sv_voice.h), imported only (the Color Computer Archive keeps its disk; no app carries it) -- right after the
+   SynPhonix (checked when compiled). */
+#define SSA_SUPERVOICE 30
+#define SSA_ALL_VOICES (SSA_SUPERVOICE + 1)
 /* A release voice's row in the release table (bl_firmware.h blv_release_*), or -1; and back: a row's voice, or -1
    (a release that names no new voice: a shipped voice's, or the emulator's only). */
 int ssa_voice_release(int voice);
@@ -101,6 +105,7 @@ int ssa_voice_file(int voice, int i, char *out, int cap);
 #define SSA_MOCKINGBOARD_EARLY_FILE "mockingboard-tts-early.bin"
 #define SSA_SMARTALK_FILE "S_TALK.EXE"
 #define SSA_SYNPHONIX_FILE "VEST.COM"
+#define SSA_SUPERVOICE_FILE "SUPERTOK.BIN"
 
 /* The Accents' level at the app's volume 100, in their drivers' percent (as_voice.h's asv_set): the engine volume
    times this over 100.  test_volume_headroom.py measures it against the Braille Lite's. */
@@ -231,6 +236,8 @@ int ssa_smartalk_pitch(int slider, int request);       /* ... with the SmarTalk'
                                                           it; else the plain mapping */
 int ssa_synphonix_pitch(int slider, int request);      /* ... with the SynPhonix's thirteen (VEST's pitch offset, 6
                                                           each way), in a build that has it; else the plain mapping */
+int ssa_supervoice_pitch(int slider, int request);     /* ... with the Super Voice's inflection levels (^IT 1-32,
+                                                          svv_pitch_step), in a build that has it; else the plain one */
 
 /* The tests' controls (test_android_native.c sets them; the app never does): each puts back one bug the cases must
    catch.  ssa_accent_break -- 1: the request's pitch dropped; 2: the pitch sent as a setting, so it glides instead of
@@ -247,7 +254,8 @@ int ssa_synphonix_pitch(int slider, int request);      /* ... with the SynPhonix
    ignored (import only); 15: a mark's frame counted from its block's start, not the utterance's; 16: marks sent to
    a voice that would estimate them; 17: the Braille Lite's trillions read as before (test_android_native.c); 18: the
    SynPhonix's request pitch dropped (no capital offset); 19: its number words dropped (always off); 20: its imported
-   copy ignored (the built-in one used); 21: its built-in copy ignored (import only). */
+   copy ignored (the built-in one used); 21: its built-in copy ignored (import only); 22: the Super Voice's request
+   pitch dropped (no capital offset). */
 extern int ssa_accent_break;
 extern int ssa_voice_break;
 

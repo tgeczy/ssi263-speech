@@ -196,6 +196,16 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
     # Mockingboard file, a changed driver and an added disk image each caught by name (addon_archive_test.py)
     CHECKS.append(check("0.8 archive check sees a changed, missing or added file", [PY, "addon_archive_test.py"],
                         ok=lambda out: bool(re.search(r"^addon archive: all passed$", out, re.M))))
+    # the Super Voice's program, fetched or imported by hand into NVDA's configuration folder (userdata_test.py,
+    # nvda/shared/ssi263_userfw.py): no network, the pinned sources swapped for a disk made here; one control per rule
+    CHECKS.append(check("0.8 user firmware: the Super Voice's download and import", [PY, "userdata_test.py"],
+                        ok=lambda out: bool(re.search(r"^user data: all passed$", out, re.M))))
+    for brk, cases in (("appdata", ["portable"]), ("hash", ["pinned"]), ("nomirror", ["mirror"]),
+                       ("noverify", ["download", "verified"])):
+        CHECKS.append(check("0.8 user firmware CONTROL (%s, must fail)" % brk, [PY, "userdata_test.py"],
+                            env={"SSI263_USERDATA_BREAK": brk}, expect_fail=True,
+                            fail_marks=[r"^FAIL  %s " % c for c in cases]
+                            + [r"^ok    same ", r"^user data: %d FAILED$" % len(cases)]))
     # its global plugin (unified_plugin_test.py): the manual update check and its SHA256SUMS check, the 0.7 add-ons'
     # settings migrated profile by profile, the Voice panel refreshed after a firmware change; one control per rule
     CHECKS.append(check("0.8 plugin: updates, migration, panel refresh", [PY, "unified_plugin_test.py"],
@@ -379,6 +389,31 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "blazie-build")):
 SAPI_NATIVE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_native.py")
 if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", "win", "x86", "ssi263_serve.exe")):
     CHECKS.append(check("SAPI native voices = the Python server, byte for byte", [PY, SAPI_NATIVE]))
+    # a voice no package carries (the Super Voice): its token's DataPath spoken from, a token whose program is gone
+    # refused (test_sapi_datapath.py, the -Dev stage's harness); and the settings program's data folders, Panthera's
+    # system (test_sapi_data.py: the root's order and two passes, the move's plans, the program read from a file,
+    # a disk, a zip and a download).  One control per rule
+    SAPI_DP = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_sapi_datapath.py")
+    SAPI_DATA = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_sapi_data.py")
+    if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "nvda", "dist", "sapi-dev", "x64",
+                                   "sapi_harness.exe")):
+        CHECKS.append(check("SAPI: a voice no package carries, spoken from its token's DataPath", [PY, SAPI_DP]))
+        CHECKS.append(check("SAPI DataPath CONTROL (a token without its program taken, must fail)",
+                            [PY, SAPI_DP, "--control"], expect_fail=True,
+                            fail_marks=[r"^FAIL  x64: refused without its program", r"^ok    x64: speaks from its DataPath",
+                                        r"^sapi datapath: 2 FAILED$"]))
+        CHECKS.append(check("SAPI data folders: order, two passes, moves, the program read", [PY, SAPI_DATA]))
+        for brk, case in (("onepass", "twopass"), ("movenvda", "plans"), ("nozip", "extract")):
+            CHECKS.append(check("SAPI data folders CONTROL (%s, must fail)" % brk, [PY, SAPI_DATA],
+                                env={"SSI263_SAPI_DATA_BREAK": brk}, expect_fail=True,
+                                fail_marks=[r"^FAIL  %s " % case, r"^ok    order ", r"^sapi data: 1 FAILED$"]))
+    # the stage's firmware list never names a file no package carries (the Super Voice's); its control lists it
+    SAPI_STAGE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_stage_files.py")
+    CHECKS.append(check("SAPI stage: no never-shipped firmware listed", [PY, SAPI_STAGE]))
+    CHECKS.append(check("SAPI stage CONTROL (the Super Voice's file listed, must fail)", [PY, SAPI_STAGE],
+                        env={"SSI263_SERVE_BREAK": "userdata"}, expect_fail=True,
+                        fail_marks=[r"^FAIL  never staged: the Super Voice's file +speech-systems-super-voice/",
+                                    r"^ok    the shipped voices' files listed", r"^stage files: 1 FAILED$"]))
     CHECKS.append(check("SAPI native voices CONTROL (the reference on nvda/dist's native drivers, must fail)",
                         [PY, SAPI_NATIVE, "--only", "rate11", "--arch", "x64"], env={"SSI263_SAPI_REF_BREAK": "dist"},
                         expect_fail=True, fail_marks=[REF_MARK, r"^native: 1 FAILED$"]))
@@ -1730,6 +1765,7 @@ if os.path.isfile(ANDROID_TEST):
     ANDROID_FW = os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware")
     ANDROID_SO = os.path.isfile(os.path.join(ANDROID_FW, "gw-micro-speakout", "SPEAKOUT.HEX"))
     ANDROID_MINI = os.path.isfile(os.path.join(ANDROID_FW, "aicom-accent-mini", "SPKEMS.DVC"))
+    ANDROID_SV = os.path.isfile(os.path.join(ANDROID_FW, "speech-systems-super-voice", "SUPERTOK.BIN"))
     # the Mockingboards' files (local copies, never committed; the GitHub APK carries both): their cases run where
     # both are, the controls' counts being for the two voices
     _MBFW = os.path.join(ANDROID_FW, "sweet-micro-mockingboard")
@@ -1879,7 +1915,16 @@ if os.path.isfile(ANDROID_TEST):
              [r"^FAIL +import +the toolkit's \.dsk: ", r"^FAIL +import +a zip's toolkit \.dsk: "] +
              ([r"^FAIL +import +Mockingboard disk 1's \.dsk: "] if ANDROID_DSK1 else []) +
              ([r"^ok +import +mockingboard-tts-1\.1\.bin: "] if ANDROID_MB else []) +
-             [r"^FAILED: %d case\(s\) differ$" % (4 + 3 * ANDROID_DSK1 + ANDROID_DSK2)]),) if ANDROID_DSK else ()):
+             [r"^FAILED: %d case\(s\) differ$" % (4 + 3 * ANDROID_DSK1 + ANDROID_DSK2)]),) if ANDROID_DSK else ()) + ((
+            # Speech Systems' Super Voice (0.9.5; its program a local copy): never known, from itself or its disk; a
+            # capital's pitch dropped
+            ("import-sv", "Super Voice import: its program and disk never known",
+             [r"^FAIL +import +SUPERTOK\.BIN \(the Super Voice's\): import -1 ",
+              r"^FAIL +import +SUPERV\.DSK \(a disk holding it\) \(the Super Voice's\): import -1 ",
+              r"^ok +import +SUPERTOK\.BIN with a byte changed", r"^FAILED: 2 case\(s\) differ$"]),
+            ("supervoice-pitch", "Super Voice: the request's pitch dropped",
+             [r"^FAIL +desktop +sv-pitch-150 +got ", r"^ok +desktop +sv-pitch-100 ", r"^FAILED: 8 case\(s\) differ$"]))
+            if ANDROID_SV else ()):
         # each control runs the blocks its bug touches (SSI263_ANDROID_TEST_ONLY), not all seven voices: the gate's time
         only = {"1": "bl,accent", "accent-pitch": "accent,mini", "run-ahead": "bl,ra", "line-lift": "bl,lift",
                 "numbers": "num",
@@ -1889,6 +1934,7 @@ if os.path.isfile(ANDROID_TEST):
                 "smartalk-import-ignored": "st", "smartalk-builtin-ignored": "st",
                 "import-sp": "import", "synphonix-pitch": "sp", "synphonix-numbers": "sp",
                 "synphonix-import-ignored": "sp", "synphonix-builtin-ignored": "sp",
+                "import-sv": "import", "supervoice-pitch": "sv",
                 "marks-frames": "marks", "marks-estimate": "marks"}.get(
                     brk, "mb" if brk.startswith("mockingboard-") else "accent")
         CHECKS.append(check("Android engine CONTROL (%s, must fail)" % what, [PY, ANDROID_TEST],
@@ -2028,6 +2074,13 @@ if os.path.isfile(ANDROID_TEST):
                         [PY, APK_CHECK, "--control-synphonix-serial", "--synthetic"], expect_fail=True,
                         fail_marks=[r"^synthetic\.apk: \d+ entries, FIRMWARE: ",
                                     r"unit\.dat: a copy of Artic's VEST\.COM that is not the repository's"]))
+    # the Super Voice's program, imported only (0.9.5): refused by its content under a bland name
+    if os.path.isfile(os.path.join(ROOT_FW, "speech-systems-super-voice", "SUPERTOK.BIN")):
+        CHECKS.append(check("Android APK check CONTROL (the Super Voice's SUPERTOK.BIN, must fail)",
+                            [PY, APK_CHECK, "--control", os.path.join(ROOT_FW, "speech-systems-super-voice",
+                                                                      "SUPERTOK.BIN"), "--synthetic"],
+                            expect_fail=True, fail_marks=[r"^synthetic\.apk: \d+ entries, FIRMWARE: ",
+                                                          r"unit\.dat: the Super Voice's SUPERTOK\.BIN"]))
 # ... its firmware import (src/csrc/blazie/bl_firmware.c, bl_state.c): files found and refused by content, only the
 # releases on the list taken, and the states made from the firmware alone = the listed ones (MAME-made, 0.7), byte
 # for byte, the z180emu-made shipped states refused; one control holds the wrong chord at the English warm reset and
@@ -3020,6 +3073,21 @@ if os.path.isfile(os.path.join(SV_FW, "SUPERTOK.BIN")):
                         and bool(re.search(r"^ok +the voice as it is -> 12 tests, failing: none$", out, re.M))
                         and len(re.findall(r"^ok +undone: ", out, re.M)) == 22
                         and bool(re.search(r"^controls: all as expected$", out, re.M))))
+    # the voice in the voice table (supervoice:supertok) and the NVDA binding, and its disk reader (sv_dsk.h): each
+    # control fails its own check alone
+    SV_VOICE = os.path.join(REPO, "tools", "check_sv_voice.py")
+    CHECKS.append(check("Super Voice voice: table, settings, bank, cancel, disk reader", [PY, SV_VOICE]))
+    for env_name, value, what, marks in (
+            ("SSV_BANK_BREAK", "supervoice", "a bank keeps its unit on a boot change",
+             [r"^FAIL  a bank's unit made again on a boot change", r"^ok    a disk image: SUPERTOK.BIN taken",
+              r"^sv voice: 1 FAILED$"]),
+            ("SV_DSK_BREAK", "track17", "granules read from the directory's track",
+             [r"^FAIL  a disk image: SUPERTOK.BIN taken", r"^ok    a bank's unit", r"^sv voice: 1 FAILED$"]),
+            ("SV_DSK_BREAK", "last", "the last sector taken whole",
+             [r"^FAIL  a disk image: SUPERTOK.BIN taken", r"^ok    the program itself is taken",
+              r"^sv voice: 1 FAILED$"])):
+        CHECKS.append(check("Super Voice voice CONTROL (%s, must fail)" % what, [PY, SV_VOICE],
+                            env={env_name: value}, expect_fail=True, fail_marks=marks))
 # Artic's SynPhonix 215 (src/hosts/synphonix.py, the research host): Artic's VEST.COM on MAME's 8086 (pc86.dll) --
 # it loads and finds its card, speaks its announcement and a sentence with their golden phonemes, finds the card of a
 # copy with another serial, and cuts speech; each control puts one of the host's rules back wrong.  VEST.COM is

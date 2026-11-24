@@ -89,6 +89,11 @@ def units():
         sp = FRONT + inc("cpu", "pc86", "synphonix")
         u += [(sp, "synphonix/%s.c" % n) for n in ("sp_host", "sp_voice")]
         have.append("-DSSV_HAVE_SYNPHONIX")
+    # the Super Voice: Speech Systems' SUPERTOK.BIN on MAME's 6809 (sv_voice.h), and its disk reader (sv_dsk.h)
+    if os.path.isfile(os.path.join(SRC, "supervoice", "sv_voice.c")):
+        sv = FRONT + inc("cpu", "supervoice")
+        u += [(MAME, "cpu/m6809_mame.cpp")] + [(sv, "supervoice/%s.c" % n) for n in ("sv_host", "sv_voice", "sv_dsk")]
+        have.append("-DSSV_HAVE_SUPERVOICE")
     if os.path.isfile(os.path.join(SRC, "mockingboard", "mb_voice.c")):      # mb-voice's sources (mb_voice.h, 0.8)
         mb = ["-O2", "-std=gnu99", "-ffp-contract=off", "-w"] + inc("cpu", "mockingboard", "")
         u += [(mb, "cpu/m6502.c")] + [(mb, "mockingboard/%s.c" % n)

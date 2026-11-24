@@ -379,6 +379,8 @@ def _panel_class():
                                 value=text, style=wx.TE_MULTILINE | wx.TE_READONLY, size=(600, 150))
             check = h.addItem(wx.Button(self, label="&Check for updates..."))
             check.Bind(wx.EVT_BUTTON, lambda evt: check_for_updates(self))
+            speechData = h.addItem(wx.Button(self, label="Speech &data (the Super Voice's download)..."))
+            speechData.Bind(wx.EVT_BUTTON, lambda evt: _openData(self))
             if _old_addons():
                 remove = h.addItem(wx.Button(self, label="&Remove the 0.7 SSI-263 add-ons..."))
                 remove.Bind(wx.EVT_BUTTON, lambda evt: offer_removal(self))
@@ -389,10 +391,16 @@ def _panel_class():
     return SSI263Panel
 
 
+def _openData(parent=None):
+    """SSI-263 speech data (data.py): imported only when opened -- it needs wx and the add-on's driver"""
+    from . import data
+    data.show(parent)
+
+
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     def __init__(self):
         super().__init__()
-        self._hook = self._ringHook = self._panel = self._menuItem = None
+        self._hook = self._ringHook = self._panel = self._menuItem = self._dataItem = None
         if globalVars.appArgs.secure:
             return
         try:
@@ -426,6 +434,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         tools = gui.mainFrame.sysTrayIcon.toolsMenu
         self._menuItem = tools.Append(wx.ID_ANY, "%s..." % TITLE)
         gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self._openPanel, self._menuItem)
+        # the firmware types and the Super Voice's download or import (data.py), as outSPOKEN's and Panthera's
+        self._dataItem = tools.Append(wx.ID_ANY, "SSI-263 speech &data...")
+        gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, lambda evt: _openData(), self._dataItem)
 
     def _openPanel(self, evt):
         import gui
@@ -461,9 +472,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             import gui
             if self._panel in gui.settingsDialogs.NVDASettingsDialog.categoryClasses:
                 gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(self._panel)
-            if self._menuItem is not None:
-                gui.mainFrame.sysTrayIcon.toolsMenu.Remove(self._menuItem)
-                self._menuItem.Destroy()
+            for item in (self._menuItem, self._dataItem):
+                if item is not None:
+                    gui.mainFrame.sysTrayIcon.toolsMenu.Remove(item)
+                    item.Destroy()
         except Exception:
             log.debugWarning("SSI-263: the settings page was not removed cleanly", exc_info=True)
         super().terminate()

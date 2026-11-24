@@ -32,6 +32,8 @@ object FirmwareImport {
     const val SB_COM = 91                   // ... SB.COM (SSA_FW_SB): found apart, imported only together
     const val SMARTALK = 28                 // Automated Functions' SmarTalk (SsiNative.SMARTALK): its S_TALK.EXE
     const val SYNPHONIX = 29                // the Artic SynPhonix (SsiNative.SYNPHONIX; 0.9.5): Artic's VEST.COM
+    const val SUPERVOICE = 30               // Speech Systems' Super Voice (SsiNative.SUPERVOICE; 0.9.5): SUPERTOK.BIN,
+                                            // from itself or the Color Computer disk holding it; imported only
     const val NONE = -1                     // no firmware in the bytes
     const val REFUSED = -2                  // Blazie firmware, but another unit's: not one the voice can run
     const val UNKNOWN = -4                  // Braille Lite 2000 firmware, but not a release on the list
@@ -64,15 +66,16 @@ object FirmwareImport {
                       MOCKINGBOARD_EARLY to listOf("mockingboard-tts-early.bin"),
                       SOUNDINGBOARD to listOf("SBLOAD.COM", "SB.COM"),
                       SMARTALK to listOf("S_TALK.EXE"),
-                      SYNPHONIX to listOf("VEST.COM"))
+                      SYNPHONIX to listOf("VEST.COM"),
+                      SUPERVOICE to listOf("SUPERTOK.BIN"))
     /** The imported voices, in the order an import takes them and Settings lists them: the Sounding Board right
      * after the Speak-Out (Tomi, 2026-10-25), whatever its index. */
     val IMPORTED = listOf(ENGLISH, SPANISH, GERMAN, ITALIAN, SLOVAK, SPEAKOUT, SOUNDINGBOARD, MOCKINGBOARD,
-                          MOCKINGBOARD_EARLY, SMARTALK, SYNPHONIX)
+                          MOCKINGBOARD_EARLY, SMARTALK, SYNPHONIX, SUPERVOICE)
     /** The Blazie units: a state made from each one's firmware. */
     val BLAZIE = setOf(ENGLISH, SPANISH, GERMAN, ITALIAN, SLOVAK)
     /** The voices whose firmware is taken as it is, with no state to make. */
-    val NO_STATE = setOf(SPEAKOUT, MOCKINGBOARD, MOCKINGBOARD_EARLY, SOUNDINGBOARD, SMARTALK, SYNPHONIX)
+    val NO_STATE = setOf(SPEAKOUT, MOCKINGBOARD, MOCKINGBOARD_EARLY, SOUNDINGBOARD, SMARTALK, SYNPHONIX, SUPERVOICE)
     /** A voice of two files (the Sounding Board's drivers): each file's code, in [FILES]' order. */
     val PARTS = mapOf(SOUNDINGBOARD to listOf(SB_LOAD, SB_COM))
     const val SOUNDINGBOARD_LABEL = "GW Micro Sounding Board 2.7: SBLOAD.COM and SB.COM"
@@ -111,7 +114,8 @@ object FirmwareImport {
                               MOCKINGBOARD to "the Mockingboard Developers Toolkit disk",
                               MOCKINGBOARD_EARLY to "Mockingboard disk 1",
                               SOUNDINGBOARD to "GW Micro's sb.zip (SBLOAD.COM and SB.COM)",
-                              SMARTALK to "S_TALK.EXE", SYNPHONIX to "VEST.COM (Business Vision's or a SynPhonix disk's)")
+                              SMARTALK to "S_TALK.EXE", SYNPHONIX to "VEST.COM (Business Vision's or a SynPhonix disk's)",
+                              SUPERVOICE to "the Color Computer Archive's Super Voice disk (SUPERV.DSK, or its zip)")
 
     fun bring(voice: Int): String? = release(voice)?.file ?: BRING[voice]
 
@@ -131,7 +135,8 @@ object FirmwareImport {
      * the release voices out of the import, so their tests must fail; `units` drops a release no voice speaks (the
      * 640, Japanese) as before 0.8.5, so the unit screen's import tests must fail; `soundingboard` drops what the native
      * side says are the Sounding Board's two drivers, so its tests must fail; `smartalk` the same for the SmarTalk's
-     * S_TALK.EXE; `synphonix` the same for the SynPhonix's VEST.COM; `same` takes a unit already here again, as before
+     * S_TALK.EXE; `synphonix` the same for the SynPhonix's VEST.COM; `supervoice` the same for the Super Voice's
+     * program or disk; `same` takes a unit already here again, as before
      * 0.9.5, so the already-here tests must fail; `voice-order` lists the Sounding Board after the release voices again, not under the Speak-Out
      * (SsiEngine's voices, [imported]). */
     internal val CONTROL = System.getProperty("ssi263.import.break") ?: ""
@@ -200,6 +205,7 @@ object FirmwareImport {
         SPEAKOUT -> "Speak-Out"; MOCKINGBOARD -> "Mockingboard"
         MOCKINGBOARD_EARLY -> "early Mockingboard"; SOUNDINGBOARD -> "Sounding Board"; SMARTALK -> "SmarTalk"
         SYNPHONIX -> "Artic SynPhonix"
+        SUPERVOICE -> "Speech Systems Super Voice"
         else -> "English" }
 
     /** The unit's name in words: "German Braille Lite", "Slovak Braille 'n Speak 2000", a release voice's as the
@@ -328,7 +334,8 @@ object FirmwareImport {
                     (CONTROL == "mockingboard" && it.first in setOf(MOCKINGBOARD, MOCKINGBOARD_EARLY)) ||
                     (CONTROL == "soundingboard" && it.first in PARTS.getValue(SOUNDINGBOARD)) ||
                     (CONTROL == "smartalk" && it.first == SMARTALK) ||
-                    (CONTROL == "synphonix" && it.first == SYNPHONIX)) NONE to "" else it
+                    (CONTROL == "synphonix" && it.first == SYNPHONIX) ||
+                    (CONTROL == "supervoice" && it.first == SUPERVOICE)) NONE to "" else it
             }
             when {
                 isUnitRelease(language) -> {

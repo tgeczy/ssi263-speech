@@ -9,6 +9,9 @@
 #include "soundingboard/sb_host.h"     /* SBH_SBLOAD_SHA256, SBH_SB_SHA256 */
 #include "smartalk/st_host.h"          /* STH_SHA256 */
 #include "synphonix/sp_host.h"         /* SPH_BANNER, sph_card_key */
+#ifdef SSV_HAVE_SUPERVOICE
+#include "supervoice/sv_dsk.h"         /* sv_firmware_from */
+#endif
 #include "ssa_engine.h"                /* ssa_voice_built */
 #include "ssa_import.h"
 
@@ -135,6 +138,36 @@ int ssa_import_synphonix(const unsigned char *data, long n, const char *out, cha
     }
     snprintf(msg, (size_t)msglen, "%s", SSA_SYNPHONIX_LABEL);
     return SSA_SYNPHONIX;
+#else
+    (void)data; (void)n; (void)out; (void)msg; (void)msglen;
+    return BLV_FW_NONE;
+#endif
+}
+
+int ssa_import_supervoice(const unsigned char *data, long n, const char *out, char *msg, int msglen)
+{
+#ifdef SSV_HAVE_SUPERVOICE
+    unsigned char *prog = NULL;
+    size_t prog_n = 0;
+    char why[200];
+    FILE *f;
+    /* the program (10,235 bytes) or a Disk BASIC image of 35 to 80 tracks: nothing larger is looked at */
+    if (!data || n <= 0 || n > 80L * 18 * 256 || ssa_import_break == 9)   /* (9: the control, never known) */
+        return BLV_FW_NONE;
+    if (!sv_firmware_from(data, (size_t)n, &prog, &prog_n, why, sizeof why))
+        return BLV_FW_NONE;
+    if (out) {
+        if (!(f = fopen(out, "wb")) || fwrite(prog, 1, prog_n, f) != prog_n) {
+            if (f) fclose(f);
+            remove(out);
+            sv_free(prog);
+            return fail(msg, msglen, BLV_FW_WRITE, "could not write the Super Voice's SUPERTOK.BIN");
+        }
+        fclose(f);
+    }
+    sv_free(prog);
+    snprintf(msg, (size_t)msglen, "%s", SSA_SUPERVOICE_LABEL);
+    return SSA_SUPERVOICE;
 #else
     (void)data; (void)n; (void)out; (void)msg; (void)msglen;
     return BLV_FW_NONE;
@@ -341,6 +374,8 @@ int ssa_import_firmware(const unsigned char *data, long n, const char *out, char
         r = ssa_import_smartalk(data, n, out, msg, msglen);
     if (r == BLV_FW_NONE && ssa_voice_built(SSA_SYNPHONIX))      /* the SynPhonix's VEST.COM (0.9.5) */
         r = ssa_import_synphonix(data, n, out, msg, msglen);
+    if (r == BLV_FW_NONE && ssa_voice_built(SSA_SUPERVOICE))     /* the Super Voice's SUPERTOK.BIN or its disk (0.9.5) */
+        r = ssa_import_supervoice(data, n, out, msg, msglen);
     if (r == BLV_FW_NONE)
         return ssa_import_speakout(data, n, out, msg, msglen);
     if (r != SSA_FW_MB_DISK)
