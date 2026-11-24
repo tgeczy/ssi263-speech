@@ -124,7 +124,7 @@ enum FirmwareImport {
     /// `speakout` drops what the native side says is the Speak-Out's; `mockingboard` both Mockingboards'; `accent`
     /// drops Aicom's files; `release` the releases with no shipped voice; `soundingboard` the Sounding Board's two
     /// drivers; `smartalk` the SmarTalk's S_TALK.EXE; `smartalkname` the words for another file called S_TALK.EXE;
-    /// `synphonix` the SynPhonix's VEST.COM.
+    /// `synphonix` the SynPhonix's VEST.COM; `same` takes a unit already here again, as before 0.9.5 (`leaveAlone`).
     static var control = ProcessInfo.processInfo.environment["SSI263_IMPORT_BREAK"] ?? ""
 
     /// What the native side says about some bytes: the app's NativeIdentify, a fake in the tests.
@@ -139,6 +139,11 @@ enum FirmwareImport {
         /// The sha256 (hex) of the one S_TALK.EXE the SmarTalk runs (ssp_smartalk_sha256), for the words when another
         /// file of its name is chosen.
         func smartalkSha256() -> String
+        /// The file kept under `name` in the unit folder (`keptAs`' names, a two-file voice's `partFiles`), or nil
+        /// when there is none: what a unit found is compared with, to tell one already here.
+        func kept(_ name: String) -> URL?
+        /// A Blazie unit's kept state is the one its kept release makes (blv_state_check).
+        func stateSound(firmware: URL, state: URL) -> Bool
     }
 
     /// A release with no shipped voice, as the table has it.
@@ -218,11 +223,70 @@ enum FirmwareImport {
     }
 
     /// Either `refusal` says why nothing can be imported, in words for the person holding the device, or `found`
-    /// lists what will be.  `notes` are things worth saying either way.
+    /// lists what will be.  `notes` are things worth saying either way.  `here` are the units found that are already
+    /// here as they are, left alone (`leaveAlone`): when `found` is empty and `here` is not, there is nothing new to
+    /// import.  `stateNotes` are the notes that name state files, said only beside something imported.
     struct Plan {
-        let found: [Found]
+        var found: [Found]
         let refusal: String?
         var notes: [String] = []
+        var here: [Found] = []
+        var stateNotes: [String] = []
+    }
+
+    /// A unit found that is here already (Android's alreadyHere, Tomi for 0.9.5: importing the NVDA add-on a second
+    /// time prepared every unit in it again, Spanish's for a minute, and said each "will be replaced"): its firmware
+    /// the same, byte for byte, as the copy kept -- each of a two-file voice's files, both kept -- and a Blazie unit's
+    /// state kept beside it the one its release makes.  A unit whose state is missing or not its release's is not
+    /// here: importing it again prepares it again, a repair.  The Apple apps carry no firmware, so there is no
+    /// built-in copy to compare with.
+    static func alreadyHere(_ f: Found, _ id: Identify) -> Bool {
+        guard let (file, state) = keptAs(f.kind, id) else { return false }
+        let names = partFiles[f.kind] ?? [file]
+        let mine = [f.firmware] + f.parts
+        guard names.count == mine.count else { return false }
+        for (name, url) in zip(names, mine) {
+            guard let k = id.kept(name), same(url, k) else { return false }
+        }
+        guard let state = state else { return true }        // taken as it is, or a release for the unit tab alone
+        guard let bns = id.kept(file), let s = id.kept(state) else { return false }
+        return id.stateSound(firmware: bns, state: s)
+    }
+
+    private static func same(_ a: URL, _ b: URL) -> Bool {
+        let size = { (u: URL) in (try? u.resourceValues(forKeys: [.fileSizeKey]))?.fileSize }
+        guard let n = size(a), n == size(b) else { return false }
+        return (try? Data(contentsOf: a)) == (try? Data(contentsOf: b))
+    }
+
+    /// The plan with the units already here as they are taken out of `found` into `here`, their staged files
+    /// deleted, and said: beside something new, a note names them; with nothing new, `found` is empty and the
+    /// state files' note is not said (`nothingNew` says the rest).  Once, on the plan an import will put to the
+    /// person (FirmwareInstaller.inspect: one source's, or several merged).  The `same` control takes them all again.
+    static func leaveAlone(_ plan: Plan, _ id: Identify) -> Plan {
+        guard plan.refusal == nil, control != "same" else { return plan }
+        var p = plan
+        p.here = plan.found.filter { alreadyHere($0, id) }
+        guard !p.here.isEmpty else { return plan }
+        let here = Set(p.here.map { $0.firmware })
+        p.found = plan.found.filter { !here.contains($0.firmware) }
+        for f in p.here {
+            for u in [f.firmware] + f.parts { try? FileManager.default.removeItem(at: u) }
+        }
+        if p.found.isEmpty {
+            p.notes = plan.notes.filter { !plan.stateNotes.contains($0) }
+        } else {
+            let labels = p.here.map { $0.label }
+            p.notes.insert(labels.count == 1 ? "\(labels[0]) is already here, unchanged, so it is left as it is."
+                           : "Already here, unchanged, and left as they are: \(and(labels)).", at: 0)
+        }
+        return p
+    }
+
+    /// What an import says when everything it found is already here (`Plan.here`), then its notes.
+    static func nothingNew(_ name: String, _ plan: Plan) -> String {
+        (["Everything in \(name) is already here, unchanged: \(and(plan.here.map { $0.label })). Nothing was " +
+          "imported."] + plan.notes).joined(separator: "\n\n")
     }
 
     /// A release kept for the unit tab alone: one no voice speaks (the Braille 'n Speak 640, Japanese, the betas).
@@ -436,6 +500,7 @@ enum FirmwareImport {
                 notes.append("\(from) is Braille Lite 2000 firmware of a release this app does not know; it is left out.")
             }
             for (from, why) in otherHex + withReason { notes.append("\(from) is \(why); it is left out.") }
+            let beforeStates = notes.count
             if states.count > 3 {           // the unified add-on's: one per unit and language, a wall to read
                 notes.append("\(states.count) state files (\(states[0]) and others) are not firmware, and are not " +
                     "used: this device prepares each unit's state itself from its firmware.")
@@ -445,11 +510,12 @@ enum FirmwareImport {
                     "firmware, and \(one ? "is" : "are") not used: this device prepares the unit's state itself " +
                     "from the firmware.")
             }
+            let stateNotes = Array(notes[beforeStates...])
             // a zip inside a zip in the source, beside what was taken: said, never dropped in silence
             if !found.isEmpty && !unopened.isEmpty {
                 notes.append(FirmwareImport.unopened(unopened.joined(separator: ", ")))
             }
-            if !found.isEmpty { return Plan(found: found, refusal: nil, notes: notes) }
+            if !found.isEmpty { return Plan(found: found, refusal: nil, notes: notes, stateNotes: stateNotes) }
 
             if !states.isEmpty && unknown.isEmpty && refused.isEmpty && unopened.isEmpty && otherHex.isEmpty
                 && withReason.isEmpty {

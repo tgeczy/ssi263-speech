@@ -33,6 +33,15 @@ struct NativeIdentify: FirmwareImport.Identify {
     }
 
     func smartalkSha256() -> String { String(cString: ssp_smartalk_sha256()) }
+
+    // this device's own units, so one already here is told apart (FirmwareImport.leaveAlone)
+    func kept(_ name: String) -> URL? {
+        guard let u = SsiShared.unitFolder?.appendingPathComponent(name) else { return nil }
+        var dir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: u.path, isDirectory: &dir) && !dir.boolValue ? u : nil
+    }
+
+    func stateSound(firmware: URL, state: URL) -> Bool { blv_state_check(firmware.path, state.path) == 1 }
 }
 
 enum FirmwareInstaller {
@@ -83,7 +92,8 @@ enum FirmwareInstaller {
                                               isDirectory: true), id: NativeIdentify(), ignored: &ignored)
             plans.append((loose.map { $0.name }.joined(separator: ", "), plan))
         }
-        if plans.count == 1 && loose.isEmpty { return plans[0].1 }
+        // the units already here as they are left alone, once, on the plan put to the person
+        if plans.count == 1 && loose.isEmpty { return FirmwareImport.leaveAlone(plans[0].1, NativeIdentify()) }
         var found: [FirmwareImport.Found] = []
         let releases = Set(plans.flatMap { $0.1.found.map { $0.kind } }.filter(FirmwareImport.isRelease)).sorted()
         for kind in FirmwareImport.order + releases {
@@ -98,7 +108,9 @@ enum FirmwareInstaller {
         let empty = (plans.prefix(plans.count - (loose.isEmpty ? 0 : 1)).filter { $0.1.found.isEmpty }.map { $0.0 }
                      + ignored)
             .map { "\($0) holds no firmware this app takes; it is left out." }
-        return FirmwareImport.Plan(found: found, refusal: nil, notes: notes + empty)
+        return FirmwareImport.leaveAlone(FirmwareImport.Plan(found: found, refusal: nil, notes: notes + empty,
+                                                             stateNotes: plans.flatMap { $0.1.stateNotes }),
+                                         NativeIdentify())
     }
 
     /// The probe each unit speaks before it is taken, in its own language (Android's SsiImport.probeText).

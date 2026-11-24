@@ -46,6 +46,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var pending: FirmwareImport.Plan?   // judged, waiting for the person's yes
     @Published var askingToImport = false                 // the confirmation shown; closing it is not a no
     @Published var message: String?                       // an import's or a removal's outcome, in words
+    @Published var alreadyImported: String?               // everything chosen already here: said, nothing asked
     @Published var previewStatus = ""
     @Published private(set) var exporting = false           // an export's render in flight
     @Published var exportDocument: WavDocument?             // iOS: the rendered WAV, for the file exporter
@@ -98,6 +99,11 @@ final class AppModel: ObservableObject {
                 case .success(let plan):
                     if let refusal = plan.refusal {
                         self.finish(refusal)
+                    } else if plan.found.isEmpty {      // every unit in it already here as it is: nothing to do
+                        let name = FirmwareImport.and(urls.map { $0.lastPathComponent })
+                        if let s = SsiShared.stagingFolder { try? FileManager.default.removeItem(at: s) }
+                        self.finish("Nothing imported: everything in \(name) is already here.")
+                        self.alreadyImported = FirmwareImport.nothingNew(name, plan)
                     } else {
                         self.pending = plan
                         self.askingToImport = true

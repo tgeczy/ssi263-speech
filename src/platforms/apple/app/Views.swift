@@ -195,6 +195,12 @@ struct SetupView: View {
         } message: {
             Text(model.pending.map(FirmwareInstaller.confirmation) ?? "")
         }
+        .alert("Already imported", isPresented: Binding(get: { model.alreadyImported != nil },
+                                                         set: { if !$0 { model.alreadyImported = nil } })) {
+            Button("Close", role: .cancel) {}
+        } message: {
+            Text(model.alreadyImported ?? "")
+        }
         .confirmationDialog("Remove all firmware?", isPresented: $confirmRemove, titleVisibility: .visible) {
             Button("Remove", role: .destructive) { model.removeAll() }
             Button("Cancel", role: .cancel) {}

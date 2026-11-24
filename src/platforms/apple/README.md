@@ -52,6 +52,15 @@ by choosing another voice for the next request. `<lang>` elements inside a reque
 language" (Voice settings) speaks every request with the voice chosen in the app, whatever the request names, for
 readers that always ask for the system's language.
 
+An import leaves a unit already here as it is (0.9.5, Android's rule; `FirmwareImport.leaveAlone`, once on the plan
+`FirmwareInstaller.inspect` puts to the person): a unit found is already here when its firmware is the same bytes as
+the copy in the unit folder -- each of a two-file voice's files, both kept -- and a Blazie unit's state there is the
+one its release makes (`blv_state_check`). Those are taken out of the import and named in a note ("... is already
+here, unchanged, so it is left as it is."); when nothing is new there is no confirmation, only an "Already imported"
+alert (`FirmwareImport.nothingNew`: "Everything in the-add-on.nvda-addon is already here, unchanged: ... Nothing was
+imported."). Importing the NVDA add-on a second time so prepares nothing again. Another release, another card's
+`VEST.COM`, or a missing or wrong state is imported as before: the last is the quiet repair.
+
 ## The app's pages, as Android's
 
 Setup and Voice settings follow the Android app's pages and words (`SettingsActivity.kt`), with VoiceOver in place of
@@ -146,7 +155,7 @@ carries no firmware at all (Android's checks, plus Aicom's files). The icon is d
     SSI263_UNIT_BREAK=factory|restart sh src/platforms/apple/test/test_installer.sh     controls: each FAILs
     sh src/platforms/apple/test/test_extension.sh                  the speech extension as the system drives it
     SSI263_EXTENSION_BREAK=silent|whine|stop sh src/platforms/apple/test/test_extension.sh   controls: each FAILs
-    SSI263_IMPORT_BREAK=1|unopened|state|state-sizes|speakout|mockingboard|accent|release|soundingboard|smartalk|smartalkname|synphonix|export|exportcancel sh .../run_swift_tests.sh   controls
+    SSI263_IMPORT_BREAK=1|unopened|state|state-sizes|speakout|mockingboard|accent|release|soundingboard|smartalk|smartalkname|synphonix|same|export|exportcancel sh .../run_swift_tests.sh   controls
 
 `test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's
 `libssi263core.a`, the library the apps link, and requires every case's samples and PCM hash to be the desktop
@@ -180,10 +189,14 @@ Accent add-on's `accent-sa/` ROMs and driver, loose and renamed), each zip form 
 the sizes in a data descriptor), and zips made by `ditto` (Finder's Compress), Info-ZIP's `zip` and Python's
 `zipfile`. `SSI263_IMPORT_BREAK=1` (a zip's top alone) fails 39 of its cases, `=unopened` the zip in a zip,
 `=smartalk` the SmarTalk's four (its file alone, in the add-on, in its disk's zip, under another name), `=smartalkname` the words for
-another `S_TALK.EXE`, `=synphonix` the SynPhonix's two (`VEST.COM` under any name and serial, the add-on's).
+another `S_TALK.EXE`, `=synphonix` the SynPhonix's two (`VEST.COM` under any name and serial, the add-on's), `=same` the four
+leave-alone cases (the add-on again, only the new unit, a two-file voice, a unit-tab release; another release and a
+missing or wrong state are imported again under it, as they should be).
 `test_installer.sh` imports the repository's `S_TALK.EXE` alone and in a zip, and refuses a copy
 with one byte changed, naming the file's own sha256 and size; the repository's `VEST.COM`, a copy with another card's
-serial and the add-on's, each heard and kept as it came (`SSI263_IMPORT_BREAK=synphonix` fails all three); it also judges a real Blazie firmware collection zip when `FIRMWARE_COLLECTION` (paths.local) names
+serial and the add-on's, each heard and kept as it came (`SSI263_IMPORT_BREAK=synphonix` fails all three); each
+unit imported again is already here, through the real `blv_state_check`, and the Hungarian with no state or a wrong
+one is prepared again (`=same` fails the six already-here lines); it also judges a real Blazie firmware collection zip when `FIRMWARE_COLLECTION` (paths.local) names
 one: every Blazie voice and unit-tab release in it, each once, the programs left out.
 
 On the Mac, `test_android_native.py` runs every block but the Accent-PC's, whose reference is the NVDA driver on the

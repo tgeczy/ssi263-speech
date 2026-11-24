@@ -203,14 +203,56 @@ func confirms(_ label: String, _ file: String, _ words: [String]) {
     print("\(ok ? "ok   " : "FAIL ") \(label): \(said)")
     if !ok { failures += 1 }
 }
-confirms("the Hungarian again: a few seconds, replacing the one here", "blazie/bl2000/BL2HUN.BNS",
-         ["takes a few seconds.", "The Braille Lite 2000 (Hungarian) firmware already here will be replaced."])
-confirms("the Japanese again: kept for the unit tab", "blazie/bl2000/BL2JPN.BNS",
-         ["for the Blazie Engineering unit tab alone", "already here will be replaced."])
+
+// a unit already here as it is is left alone (0.9.5, Android's rule): the same file again, with its state the one its
+// release makes (the real blv_state_check), prepares nothing and asks nothing -- a Blazie unit, a release voice, the
+// unit tab's alone, a voice taken as it is, a two-file voice, the add-on's folder.  SSI263_IMPORT_BREAK=same must
+// FAIL these.
+func alreadyHere(_ label: String, _ files: [String], from base: URL? = nil, count: Int = 1) {
+    let urls = files.map { (base ?? repo.appendingPathComponent("firmware")).appendingPathComponent($0) }
+    guard urls.allSatisfy({ FileManager.default.fileExists(atPath: $0.path) }),
+          let plan = try? FirmwareInstaller.inspect(urls) else {
+        print("skip  \(label): its firmware is not there")
+        return
+    }
+    let name = FirmwareImport.and(urls.map { $0.lastPathComponent })
+    let said = FirmwareImport.nothingNew(name, plan)
+    let ok = plan.refusal == nil && plan.found.isEmpty && plan.here.count == count
+        && said.hasPrefix("Everything in \(name) is already here, unchanged: ") && said.contains("Nothing was imported.")
+    print("\(ok ? "ok   " : "FAIL ") \(label): \(plan.found.isEmpty ? said : "found \(plan.found.map { $0.label })")")
+    if !ok { failures += 1 }
+}
+alreadyHere("the English Braille Lite again", ["blazie/BL2ENG.BNS"])
+alreadyHere("the Hungarian again (a release voice)", ["blazie/bl2000/BL2HUN.BNS"])
+alreadyHere("the Japanese again (the unit tab's alone)", ["blazie/bl2000/BL2JPN.BNS"])
+alreadyHere("the Speak-Out and the Accents again", ["gw-micro-speakout/SPEAKOUT.HEX", "aicom-accent-sa/u2.BIN",
+            "aicom-accent-sa/u3.BIN", "aicom-accent-sa/u4.BIN", "aicom-accent-mini/SPKEMS.DVC"], count: 5)
+alreadyHere("the Sounding Board's sb.zip again", [sbDir + "sb.zip"])
+alreadyHere("the SynPhonix from the add-on's folder again", ["synphonix.zip"], from: root)
+
+// ... and one whose state is missing, or not the one its release makes, is prepared again: a repair, which the
+// confirmation says replaces the one here
+if let unit = SsiShared.unitFolder {
+    let state = unit.appendingPathComponent("bl2_hu_1999_07.state")
+    let aside = root.appendingPathComponent("hu.state")
+    if (try? FileManager.default.moveItem(at: state, to: aside)) != nil {
+        confirms("the Hungarian with no state: prepared again, replacing the one here", "blazie/bl2000/BL2HUN.BNS",
+                 ["takes a few seconds.", "The Braille Lite 2000 (Hungarian) firmware already here will be replaced."])
+        if var bad = try? Data(contentsOf: aside) {
+            bad[bad.count / 2] ^= 1
+            try? bad.write(to: state)
+            confirms("the Hungarian with a state its release does not make: prepared again", "blazie/bl2000/BL2HUN.BNS",
+                     ["takes a few seconds.", "already here will be replaced."])
+        }
+        try? FileManager.default.removeItem(at: state)
+        try? FileManager.default.moveItem(at: aside, to: state)
+    }
+}
 
 // A Blazie firmware collection zip (FIRMWARE_COLLECTION, paths.local; never in the repository), judged as the app
 // judges it, every folder of it: every Blazie voice and every unit-tab release the table lists from one import,
-// each once, the units no app runs and the programs left out -- and no unit-tab release said to speak.
+// each once, the units no app runs and the programs left out -- and no unit-tab release said to speak.  The units
+// this run imported above are already here, so they are counted from `here` (0.9.5) beside those `found`.
 if let c = ProcessInfo.processInfo.environment["SSI263_FIRMWARE_COLLECTION"], !c.isEmpty,
    FileManager.default.fileExists(atPath: c) {
     do {
@@ -219,13 +261,14 @@ if let c = ProcessInfo.processInfo.environment["SSI263_FIRMWARE_COLLECTION"], !c
         let rows = (0..<blv_firmware_count()).filter { blv_firmware_language($0) == BLV_FW_NONE }
         let unitRows = Set(rows.filter { blv_release_voice_key($0) == nil }.map { FirmwareImport.release + Int($0) })
         let voiceRows = Set(rows.filter { blv_release_voice_key($0) != nil }.map { FirmwareImport.release + Int($0) })
-        let kinds = plan.found.map { $0.kind }
+        let all = plan.found + plan.here
+        let kinds = all.map { $0.kind }
         let units = kinds.filter { FirmwareImport.isUnitOnly($0, id) }
         let missing = FirmwareImport.blazie.subtracting(kinds)
         let ok = plan.refusal == nil && missing.isEmpty && kinds.count == Set(kinds).count
             && Set(units) == Set(kinds).intersection(unitRows) && Set(units).isSubset(of: unitRows)
-            && !plan.found.contains { $0.from.hasPrefix("programs/") }
-        print("\(ok ? "ok   " : "FAIL ") the firmware collection: \(kinds.count) found, " +
+            && !all.contains { $0.from.hasPrefix("programs/") }
+        print("\(ok ? "ok   " : "FAIL ") the firmware collection: \(kinds.count) found (\(plan.here.count) here), " +
               "\(kinds.filter { voiceRows.contains($0) }.count) of \(voiceRows.count) language rows, " +
               "\(units.count) of \(unitRows.count) unit-tab releases; missing \(missing.sorted()); " +
               "\(plan.notes.count) notes" + (plan.refusal.map { "; refused: " + $0 } ?? ""))

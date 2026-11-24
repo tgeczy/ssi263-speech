@@ -224,6 +224,17 @@ struct Fake: FirmwareImport.Identify {
 
     func smartalkSha256() -> String { Fake.smartalkSha256 }
     static let smartalkSha256 = String(repeating: "5a", count: 32)
+
+    /// The unit folder the units already here are in (`keep`); none by default, so nothing is here.
+    static var unit: URL?
+    func kept(_ name: String) -> URL? {
+        guard let u = Fake.unit?.appendingPathComponent(name), FileManager.default.fileExists(atPath: u.path) else {
+            return nil
+        }
+        return u
+    }
+    /// A made-up state is its release's when it says SOUND (the real check: blv_state_check).
+    func stateSound(firmware: URL, state: URL) -> Bool { (try? Data(contentsOf: state)) == bytes("SOUND") }
 }
 
 // ---- the harness ---------------------------------------------------------------------------------------------------
@@ -984,6 +995,109 @@ test("theAddOnBringsTheSynPhonixItCarries") {
     eq(plan.refusal, nil)
     eq(kinds(plan), [ST, SP])
     eq(plan.found.last?.from, u + "_ssi263_synphonix/VEST.COM")
+}
+
+// ---- a unit already here is left as it is (Android's FirmwareImportTest, "a unit already here"; 0.9.5) -------------
+
+/// A unit folder holding these files, as the units already here.
+func keep(_ files: [(String, Data)]) {
+    tmpCount += 1
+    let dir = tmpRoot.appendingPathComponent("unit\(tmpCount)")
+    for (name, data) in files {
+        let u = dir.appendingPathComponent(name)
+        try? FileManager.default.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? data.write(to: u)
+    }
+    Fake.unit = dir
+}
+
+/// The plan an import puts to the person: what is already here left alone (FirmwareInstaller.inspect's last step).
+func leave(_ name: String, _ data: Data) -> FirmwareImport.Plan { FirmwareImport.leaveAlone(inspect(name, data), Fake()) }
+
+let soundState = bytes("SOUND")
+let englishHere: [(String, Data)] = [("BL2ENG.BNS", image("E")), ("bl2_2003_warm.state", soundState)]
+let soLabel = "GW Micro Speak-Out: SPEAKOUT.HEX"
+let mbLabel = "Mockingboard: Sweet Micro Systems' text-to-speech 1.1"
+
+test("theAddOnAgainPreparesNothing") {
+    // the NVDA add-on imported a second time: every unit in it here as it is, so nothing is prepared or replaced, no
+    // confirmation; what was left out is still said, the state files are not
+    keep(englishHere + [("SPEAKOUT.HEX", hex(true)), ("S_TALK.EXE", sTalk)])
+    let u = "synthDrivers/_ssi263_unified/"
+    let plan = leave("ssi263.nvda-addon", zip([("manifest.ini", bytes("name = ssi263")),
+        (u + "_ssi263_blazie/BL2ENG.BNS", bns("E")), (u + "_ssi263_blazie/bl2_2003_warm.state", state()),
+        (u + "_ssi263_speakout/SPEAKOUT.HEX", hex(true)), (u + "_ssi263_smartalk/S_TALK.EXE", sTalk),
+        ("old/backup.zip", zip([("deep.zip", zip([("BL2ENG.BNS", bns("E"))]))]))]))
+    Fake.unit = nil
+    eq(plan.refusal, nil)
+    eq(kinds(plan), [])
+    eq(plan.here.map { $0.kind }, [E, SO, ST])
+    eq(plan.notes, [FirmwareImport.unopened("old/backup.zip, deep.zip")])
+    eq(FirmwareImport.nothingNew("ssi263.nvda-addon", plan), "Everything in ssi263.nvda-addon is already here, " +
+       "unchanged: English June 2003, \(soLabel) and \(sTalkLabel). Nothing was imported.\n\n" +
+       FirmwareImport.unopened("old/backup.zip, deep.zip"))
+    check(plan.here.allSatisfy { !FileManager.default.fileExists(atPath: $0.firmware.path) },
+          "the staged files of the units here are left behind")
+}
+
+test("onlyTheUnitNotHereIsImported") {
+    keep(englishHere)
+    let one = leave("mine.zip", zip([("BL2ENG.BNS", bns("E")), ("SPEAKOUT.HEX", hex(true)),
+                                     ("bl2_2003_warm.state", state())]))
+    eq(kinds(one), [SO])
+    eq(one.here.map { $0.kind }, [E])
+    eq(one.notes.first, "English June 2003 is already here, unchanged, so it is left as it is.")
+    check(one.notes.contains { $0.contains("is a state file") }, "the state file is not said beside an import")
+    // several here: named together
+    keep(englishHere + [("mockingboard-tts-1.1.bin", mockingboardFile)])
+    let two = leave("mine.zip", zip([("BL2ENG.BNS", bns("E")), ("SPEAKOUT.HEX", hex(true)),
+                                     ("speech.bin", mockingboardFile)]))
+    Fake.unit = nil
+    eq(kinds(two), [SO])
+    eq(two.notes.first, "Already here, unchanged, and left as they are: English June 2003 and \(mbLabel).")
+}
+
+test("anotherReleaseReplacesTheOneHere") {
+    // an older English release here: the newer one found is imported, as before; another card's VEST.COM too
+    keep([("BL2ENG.BNS", image("e")), ("bl2_2003_warm.state", soundState), ("VEST.COM", vest("11111111"))])
+    let plan = leave("mine.zip", zip([("BL2ENG.BNS", bns("E")), ("VEST.COM", vest("22222222"))]))
+    Fake.unit = nil
+    eq(kinds(plan), [E, SP])
+    eq(plan.here.count, 0)
+    eq(plan.notes, [])
+}
+
+test("aMissingOrUnsoundStateIsPreparedAgain") {
+    keep([("BL2ENG.BNS", image("E"))])
+    eq(kinds(leave("BL2ENG.BNS", bns("E"))), [E])
+    keep([("BL2ENG.BNS", image("E")), ("bl2_2003_warm.state", bytes("an earlier recipe's"))])
+    eq(kinds(leave("BL2ENG.BNS", bns("E"))), [E])
+    Fake.unit = nil
+}
+
+test("aTwoFileVoiceIsHereOnlyWithBothFiles") {
+    let sbZip = zip([("SBLOAD.COM", sbLoad), ("SB.COM", sbCom), ("README.TXT", bytes("Sounding Board"))])
+    keep([("SBLOAD.COM", sbLoad)])
+    eq(kinds(leave("sb.zip", sbZip)), [SB])
+    keep([("SBLOAD.COM", sbLoad), ("SB.COM", sbCom.dropLast() + Data([0]))])
+    eq(kinds(leave("sb.zip", sbZip)), [SB])
+    keep([("SBLOAD.COM", sbLoad), ("SB.COM", sbCom)])
+    let plan = leave("sb.zip", sbZip)
+    Fake.unit = nil
+    eq(kinds(plan), [])
+    eq(plan.here.map { $0.kind }, [SB])
+    check(!plan.here.flatMap { [$0.firmware] + $0.parts }.contains { FileManager.default.fileExists(atPath: $0.path) },
+          "the Sounding Board's staged files are left behind")
+}
+
+test("aUnitTabReleaseHereIsLeftAlone") {
+    // a release for the unit tab alone (units/<id>.BNS), and a release voice with its state, here as they are
+    let ja = FirmwareImport.release + Fake.japanese, hu = FirmwareImport.release + Fake.hungarian
+    keep([("units/bl2_ja.BNS", image("J")), ("BL2HUN.BNS", image("H")), ("bl2_hu_1999_07.state", soundState)])
+    let plan = leave("mine.zip", zip([("BL2JPN.BNS", bns("J")), ("BL2HUN.BNS", bns("H"))]))
+    Fake.unit = nil
+    eq(kinds(plan), [])
+    eq(plan.here.map { $0.kind }, [hu, ja])
 }
 
 // ---- any folder of a zip, and a zip in it (Android's 0.8.5 import, 2026-10-18) ------------------------------------
