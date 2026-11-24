@@ -428,6 +428,15 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
             CHECKS.append(check("SAPI data folders CONTROL (%s, must fail)" % brk, [PY, SAPI_DATA],
                                 env={"SSI263_SAPI_DATA_BREAK": brk}, expect_fail=True,
                                 fail_marks=[r"^FAIL  %s " % case, r"^ok    order ", r"^sapi data: 1 FAILED$"]))
+        # "Move voices for all users": register.ps1's real -MigrateData block on temporary folders (test_sapi_move.py)
+        SAPI_MOVE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_sapi_move.py")
+        CHECKS.append(check("SAPI move: into an empty folder, nothing moved refused, links refused", [PY, SAPI_MOVE],
+                            ok=lambda out: bool(re.search(r"^sapi move: all passed$", out, re.M))))
+        for brk, cases in (("move-skip", ["empty", "nothing"]), ("move-links", ["links"])):
+            CHECKS.append(check("SAPI move CONTROL (%s, must fail)" % brk, [PY, SAPI_MOVE],
+                                env={"SSI263_SAPI_REGISTER_BREAK": brk}, expect_fail=True,
+                                fail_marks=[r"^FAIL  %s " % c for c in cases]
+                                + [r"^ok    plain ", r"^sapi move: %d FAILED$" % len(cases)]))
         CHECKS.append(check("SAPI data folders CONTROL (the bare -Register it was, must fail)", [PY, SAPI_DATA],
                             env={"SSI263_SAPI_SETTINGS_BREAK": "register-root"}, expect_fail=True,
                             fail_marks=[r"^FAIL  register ", r"^ok    order ", r"^sapi data: 1 FAILED$"]))

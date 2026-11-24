@@ -131,14 +131,35 @@ if ($ImportFile) {
 
 if ($MigrateData) {
     if (-not $MigrateFrom -or -not (Test-Path -LiteralPath $MigrateFrom)) { Write-Host 'nothing to move from'; exit 3 }
-    # only the voices' own folders, by name (the first part of each file's path), never anything else of the source;
-    # a folder already at the target is left (a run cut short can run again)
+    # only the voices' own folders, by name (the first part of each file's path), never anything else of the source.
+    # A folder already at the target is kept (a run cut short can run again) -- but when it lacks the voice's file (an
+    # empty one, made by hand or by a run cut short) the file goes into it: the move used to skip such a folder, move
+    # nothing, switch the machine's data folder to it and re-register from it, and the Super Voice's token was gone
+    # though the move said it was done (the 0.9.5 audit).  Nothing changes below unless a voice's file reached the
+    # target: exit 5 first.  And this runs elevated on folders a standard account controls: a junction or a symbolic
+    # link anywhere in what would move (its target's permissions would be reset below) refuses the move, exit 6.
     try {
+        $brk = $env:SSI263_SAPI_REGISTER_BREAK
+        foreach ($v in $userVoices) {
+            $src = Join-Path $MigrateFrom $v.File.Split('\')[0]
+            if (-not (Test-Path -LiteralPath $src)) { continue }
+            $links = @(@(Get-Item -LiteralPath $src -Force) + @(Get-ChildItem -LiteralPath $src -Recurse -Force) |
+                       Where-Object { $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint })
+            if ($links.Count -and $brk -ne 'move-links') { Write-Host "refused: a link in $src ($($links[0].FullName))"; exit 6 }
+        }
         foreach ($v in $userVoices) {
             $sub = $v.File.Split('\')[0]
             $src = Join-Path $MigrateFrom $sub
             $dst = Join-Path $DataRoot $sub
-            if ((Test-Path -LiteralPath $src) -and -not (Test-Path -LiteralPath $dst)) { Move-Item -LiteralPath $src -Destination $dst }
+            if (-not (Test-Path -LiteralPath $src)) { continue }
+            if (-not (Test-Path -LiteralPath $dst)) { Move-Item -LiteralPath $src -Destination $dst }
+            elseif ($brk -ne 'move-skip' -and -not (Test-Path -LiteralPath (Join-Path $DataRoot $v.File)) -and
+                    (Test-Path -LiteralPath (Join-Path $MigrateFrom $v.File))) {
+                Move-Item -LiteralPath (Join-Path $MigrateFrom $v.File) -Destination (Join-Path $DataRoot $v.File)
+            }
+        }
+        if (-not (Test-RootHasData $DataRoot $userVoices) -and $brk -ne 'move-skip') {
+            Write-Host "nothing was moved: no voice's file is in $DataRoot"; exit 5
         }
         # read-only for Users, full for SYSTEM and the Administrators, by SID (group names are localised); a move within
         # a volume keeps the descriptor it had, and /reset on the root would give Users back %ProgramData%'s right to
