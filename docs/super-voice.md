@@ -48,14 +48,29 @@ The programs that do the talking are `TRNSLATE.BIN`, `SUPERTOK.BIN` and `HEADS.B
 `DICT32K.BIN`. They are by Del Software of Westford, Massachusetts, and carry dates from April 1984 to February
 1985.
 
-## Why it is not in our downloads
+## Why it is not in our downloads, and why we do not mirror it
 
-The manual's notice says the software is "for the personal use of the purchaser" and that "reproduction by any means
-is strictly prohibited". Its two sections are copyrighted separately: the first by Speech Systems (written by Rich
-Parry), the second by Del Software (written by Frank Delargy). So this project does not keep the disk, or any file of
-it, in its repository or in its releases: the Color Computer Archive has kept the disk since 2016, and the voice
-fetches it from there, or takes your own copy (Tomi, 2026-11-23). Every package's build refuses the program and the
-disk by name and by checksum. We are trying to reach both authors to ask.
+**The disk lives at the Color Computer Archive, and we keep it that way.** The archive added it on 3 July 2016, with
+the rest of Speech Systems' applications and their manuals. Its [2016 updates page](https://colorcomputerarchive.com/updates/2016)
+says so:
+
+> 2016/07/03 - Added the following Speech Systems applications: EARS (Speech Systems) [disk][pdf], Super Talking
+> Heads (Speech Systems) [disk][pdf], Super Voice (Speech Systems) [disk][pdf], Voice Control (Speech Systems)
+> [disk][pdf], Speech Systems Coco 3 compatibility [pdf]
+
+Nobody has asked for it to come down in the years since. Every copy of the program this project uses is fetched from
+there (or its mirror at apps.irata.online), by an exact link and checked against an exact checksum, or brought by its
+own user. If this project carried a copy of its own, that trail would blur: we would become a source of the disk
+instead of a player that points at where it lives. So we deliberately do not mirror it, in the repository, in a
+release, or anywhere else (Tomi, 2026-11-24).
+
+The manual says the same thing in its own way. Its notice says the software is "for the personal use of the
+purchaser" and that "reproduction by any means is strictly prohibited". Its two sections are copyrighted separately:
+the first by Speech Systems (written by Rich Parry), the second by Del Software (written by Frank Delargy). Every
+package's build refuses the program and the disk, by name and by checksum. We are trying to reach both authors to ask.
+
+If the archive and its mirror were ever gone, anyone who has the disk or the program can still import it: the
+checksums on this page say whether it is the right file.
 
 **If you are one of them, or know how to reach them, please write to us:** open an issue on this repository.
 We would like to ask who owns the software today, whether it may travel with a free program for blind users, and

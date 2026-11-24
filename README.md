@@ -94,12 +94,18 @@ no owner.
 notice and checksum, and how to reach us if you hold its rights. The Apple apps don't
 carry it either.
 
-The Super Voice's program is in no package at all. Its manual says it is for the purchaser's
-personal use, and the [Color Computer Archive](https://colorcomputerarchive.com) has kept its disk
-since 2016, so each of you gets it from there: in NVDA, **SSI-263 speech data** in the Tools menu
-downloads it (or imports your own copy); the SAPI settings program does the same; on Linux,
-Android and the Apple apps you import the disk. Only its program, `SUPERTOK.BIN`, is kept, and only
-when it is the known one. [docs/super-voice.md](docs/super-voice.md) has the details.
+Speech Systems' Super Voice is the one voice whose firmware we deliberately don't carry or
+mirror anywhere: not in the repository, not in any package. The
+[Color Computer Archive](https://colorcomputerarchive.com) has kept its disk since 3 July 2016,
+when it added Speech Systems' applications (EARS, Super Talking Heads, Super Voice and Voice
+Control) together with their manuals ([its 2016 updates](https://colorcomputerarchive.com/updates/2016)).
+That is where the disk lives, and we'd rather it stay clear that it comes from there than become
+a second copy of it ourselves; its manual also asks that it not be reproduced. So each of you
+gets it from the archive: in NVDA, **SSI-263 speech data** in the Tools menu downloads it (or
+imports your own copy); the SAPI settings program does the same; on Linux, Android and the Apple
+apps you import the disk. Only its program, `SUPERTOK.BIN`, is kept, and only when it is the known
+one, by its checksum. [Speech Systems' Super Voice](docs/super-voice.md) has the disk's exact
+links and checksums, and how each platform gets it.
 
 ## Documentation
 
@@ -118,8 +124,6 @@ when it is the known one. [docs/super-voice.md](docs/super-voice.md) has the det
   answer would come from, and how you can help.
 - [Sources and credits](docs/sources.md): every data sheet, paper, patent, program and
   person this work stands on.
-- [Speech Systems' Super Voice](docs/super-voice.md): where its disk is kept, by exact link
-  and checksum, and how each platform downloads or imports it.
 
 ## Layout
 

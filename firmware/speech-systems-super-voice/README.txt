@@ -21,6 +21,12 @@ sha256 7dda3902a42cdc189096e023a0ad27ca6f3aba50c76a38a883892f969987b784) and its
 files on that disk (a LOADM file: the program at 5800h with its dictionary at 7400h).  Nothing else of the disk is
 used.
 
-Why it is not here: the manual's notice says the software is "for the personal use of the purchaser" and that
-"reproduction by any means is strictly prohibited".  Its two sections are copyrighted separately, by Speech Systems
-and by Del Software.  The maintainers alone decide what, if anything, is shipped, and under which notice (AGENTS.md).
+Why it is not here, and why we do not mirror it: the disk lives at the Color Computer Archive, which added it on
+2016/07/03 with the rest of Speech Systems' applications and their manuals (EARS, Super Talking Heads, Super Voice,
+Voice Control; https://colorcomputerarchive.com/updates/2016).  Every copy this project uses is fetched from there or
+its mirror, by an exact link and checksum, or brought by its own user.  A copy of our own would blur that trail and
+make this project a source of the disk instead of a player that points at where it lives, so we deliberately keep
+none (Tomi, 2026-11-24).  The manual agrees in its own words: the software is "for the personal use of the
+purchaser", and "reproduction by any means is strictly prohibited".  Its two sections are copyrighted separately, by
+Speech Systems and by Del Software.  The maintainers alone decide what, if anything, is shipped, and under which
+notice (AGENTS.md).
