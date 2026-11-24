@@ -12,8 +12,8 @@ imports the firmware they own, recognised by content (SHA-256), never by name.
 
 Ten voices, each speaking one language, offered to the system only once their firmware is imported: the Braille
 Lite 2000 in English, Spanish, German and Italian, the Slovak Braille 'n Speak 2000, the Speak-Out, the Mockingboard
-(1.1 and early) and the two Accents; with them GW Micro's Sounding Board, Automated Functions' SmarTalk and the Artic
-SynPhonix (below). Then the Braille Lite 2000's language updates: one voice per language the
+(1.1 and early) and the two Accents; with them GW Micro's Sounding Board, Automated Functions' SmarTalk, the Artic
+SynPhonix and Speech Systems' Super Voice (below). Then the Braille Lite 2000's language updates: one voice per language the
 release table names a voice for (`src/csrc/blazie/bl_languages.txt`: Hungarian, Turkish, Polish and 14 more), read
 from the library (`blv_release_*`, `ssa_release_voice`), never listed in Swift. Each is offered under the system's
 own locale for its language (hu-HU; Arabic as ar-001, Norwegian as nb-NO, Portuguese as pt-PT beside Brazil's
@@ -27,25 +27,33 @@ screen", `FirmwareImport.doneMessage`, Android's). A zip is read in every folder
 archive of one's own, the emulator's download, the firmware collection, the add-on inside any of them); a zip in it
 is opened too, one level, and a zip in that one is named, never dropped in silence. An entry of the source is read up
 to 32 MB (a zip in it), anything else over 4 MB is skipped. Last, after the release voices so no voice before it
-moves (`ssa_engine.h`'s `SSA_SOUNDINGBOARD`, 27 of 30): GW Micro's Sounding Board, the Speak-Out's voice on the
+moves (`ssa_engine.h`'s `SSA_SOUNDINGBOARD`, 27 of 31): GW Micro's Sounding Board, the Speak-Out's voice on the
 card's own DOS drivers (`src/csrc/soundingboard`, on the Accent-mini's pc86), imported from `sb.zip`, from the 0.8.5
 add-on (`_ssi263_speakout/`, beside the Speak-Out's HEX) or as its `SBLOAD.COM` and `SB.COM` chosen together (several
 loose files are judged as one source): the voice needs both, so one alone is refused with why. It is always shown in
-the firmware list, listed right under the Speak-Out as the NVDA driver lists it (its index unchanged), and takes the Speak-Out's settings. After it (0.9.0, `SSA_SMARTALK`, 28 of 30): Automated
+the firmware list, listed right under the Speak-Out as the NVDA driver lists it (its index unchanged), and takes the Speak-Out's settings. After it (0.9.0, `SSA_SMARTALK`, 28 of 31): Automated
 Functions' SmarTalk, its own DOS text-to-speech `S_TALK.EXE` 1.21 on the same pc86 (`src/csrc/smartalk`), known by its
 sha256 alone (`ssa_import_smartalk`) and imported as the file, from the disk's zip or from any zip or add-on holding
 it; the app never carries it (the Android APK does), and `check_archive_no_firmware.py` refuses it by its sha256.
 Setup names the copy to bring by version and size, never where to get it; a file called `S_TALK.EXE` that is not it is
 told which copy the voice runs, with its sha256 (`ssp_smartalk_sha256`, the library's own), only at the import (the
 name words that alone: the firmware is found by its content). It is checked to speak, nothing prepared; rate, pitch, volume, inflection and "Read numbers as words" apply,
-its tone is the program's own. After it (0.9.5, `SSA_SYNPHONIX`, 29 of 30): the Artic SynPhonix, Artic's own DOS
+its tone is the program's own. After it (0.9.5, `SSA_SYNPHONIX`, 29 of 31): the Artic SynPhonix, Artic's own DOS
 text-to-speech `VEST.COM` 1.60 on the same pc86 (`src/csrc/synphonix`), import only, as the SmarTalk: the repository
 holds a copy (its card serial set to 99999999) that the Android APK carries, and the Apple apps never do --
 `check_archive_no_firmware.py` refuses it by its sha256 and any other copy by VEST's own banner. Every copy holds its
 own card's serial, so no hash can know them: `ssa_import_synphonix` knows VEST 1.60 by its content (its banner and the
 serial check the host reads the card's key from), from the person's own copy, a Business Vision or SynPhonix disk, or
 the NVDA add-on's `_ssi263_synphonix/`. It is checked to speak, nothing prepared; rate, pitch, volume, inflection and
-"Read numbers as words" apply, its tone is the program's own. Languages work as in TGSpeechBox's speech extension, with Android's one locale
+"Read numbers as words" apply, its tone is the program's own. After it (0.9.5, `SSA_SUPERVOICE`, 30 of 31): Speech
+Systems' Super Voice, the Tandy Color Computer cartridge's own text-to-speech `SUPERTOK.BIN` on MAME's 6809
+(`src/csrc/supervoice`), import only and carried by no package at all: the person's own copy of the program, the
+Color Computer disk image holding it (`SUPERV.DSK`) or a zip holding that, read by the library itself
+(`ssa_import_supervoice`, `sv_firmware_from`: the known program by its sha256, the program alone kept). The app names
+the files, never where they are kept (`docs/super-voice.md` does). `check_archive_no_firmware.py` refuses the program
+and a Color Computer disk image. It is checked to speak, nothing prepared; rate, pitch and volume apply, its
+inflection, tone and numbers are the program's own (it reads money, decimals and numbers up to the trillions itself).
+The 6809's BSD-3-Clause notice is among the app's licenses. Languages work as in TGSpeechBox's speech extension, with Android's one locale
 per voice: the units have no dialect firmware, so the English voices are en-US only and the Spanish Braille Lite es-ES
 only (0.8's first builds also offered en-GB, en-AU, en-CA and es-MX copies; their identifiers still name the voice). The locale ends the voice's identifier (`com.ssi263speech.braillelite.de-de`), and VoiceOver switches language
 by choosing another voice for the next request. `<lang>` elements inside a request are not switched on. "Lock
@@ -147,15 +155,15 @@ carries no firmware at all (Android's checks, plus Aicom's files). The icon is d
     python src/platforms/apple/test/test_apple_core.py [--simulator]
     SSI263_APPLE_TEST_BREAK=1 python src/platforms/apple/test/test_apple_core.py      control: must FAIL
     python src/platforms/apple/test/test_apple_speech.py
-    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|ssml-3|speech-1|speech-2|import|import-2|synphonix|synphonix-import
-        python ...                                                                       controls: each FAILs
+    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|ssml-3|speech-1|speech-2|import|import-2|synphonix|synphonix-import|
+        supervoice|supervoice-import python ...                                                                       controls: each FAILs
     sh src/platforms/apple/test/run_swift_tests.sh                                     the import, in Swift
     sh src/platforms/apple/test/test_installer.sh                  the app's import on the real firmware, as the app runs it,
                                                                    then the unit tab's catalog and two units started
     SSI263_UNIT_BREAK=factory|restart sh src/platforms/apple/test/test_installer.sh     controls: each FAILs
     sh src/platforms/apple/test/test_extension.sh                  the speech extension as the system drives it
     SSI263_EXTENSION_BREAK=silent|whine|stop sh src/platforms/apple/test/test_extension.sh   controls: each FAILs
-    SSI263_IMPORT_BREAK=1|unopened|state|state-sizes|speakout|mockingboard|accent|release|soundingboard|smartalk|smartalkname|synphonix|same|export|exportcancel sh .../run_swift_tests.sh   controls
+    SSI263_IMPORT_BREAK=1|unopened|state|state-sizes|speakout|mockingboard|accent|release|soundingboard|smartalk|smartalkname|synphonix|supervoice|same|export|exportcancel sh .../run_swift_tests.sh   controls
 
 `test_apple_core.py` links Android's host-side program (`test_android_native.c`) against each runnable slice's
 `libssi263core.a`, the library the apps link, and requires every case's samples and PCM hash to be the desktop
@@ -173,7 +181,12 @@ must fail.
   `ssa_start`/`ssa_pull` directly, with the pauses' zeros between them. A stop holds, and off, short and long differ
   in length.
 - **The SynPhonix:** the repository's `VEST.COM`, staged into the test's own data folder (never the app's), speaks
-  after the SmarTalk (`synphonix` drops the imported copy, so it must FAIL).
+  after the SmarTalk (`synphonix` drops the imported copy, so it must FAIL). "Spoke" means the request with no pauses
+  made samples and no request had an error.
+- **The Super Voice:** with the person's `SUPERTOK.BIN` in `firmware/speech-systems-super-voice/` (never committed),
+  staged into the test's data folder, it speaks after the SynPhonix (`supervoice` stages a copy with one byte changed,
+  which the host refuses); its program is known from itself, a disk laid out around it and the real `SUPERV.DSK`, the
+  program alone written, and a changed program is not (`supervoice-import`: ssa_import_break 9).
 - **Import:** each of Aicom's files is known by its sha256 under any name, but not with one byte changed; `VEST.COM`
   is known by its content, a copy with another card's serial as well, and written as it came (`synphonix-import`
   never knows it); a release
@@ -189,12 +202,15 @@ Accent add-on's `accent-sa/` ROMs and driver, loose and renamed), each zip form 
 the sizes in a data descriptor), and zips made by `ditto` (Finder's Compress), Info-ZIP's `zip` and Python's
 `zipfile`. `SSI263_IMPORT_BREAK=1` (a zip's top alone) fails 39 of its cases, `=unopened` the zip in a zip,
 `=smartalk` the SmarTalk's four (its file alone, in the add-on, in its disk's zip, under another name), `=smartalkname` the words for
-another `S_TALK.EXE`, `=synphonix` the SynPhonix's two (`VEST.COM` under any name and serial, the add-on's), `=same` the four
+another `S_TALK.EXE`, `=synphonix` the SynPhonix's two (`VEST.COM` under any name and serial, the add-on's), `=supervoice` the Super
+Voice's two (its program, disk and zip; its disk again with the program here), `=same` the four
 leave-alone cases (the add-on again, only the new unit, a two-file voice, a unit-tab release; another release and a
 missing or wrong state are imported again under it, as they should be).
 `test_installer.sh` imports the repository's `S_TALK.EXE` alone and in a zip, and refuses a copy
 with one byte changed, naming the file's own sha256 and size; the repository's `VEST.COM`, a copy with another card's
-serial and the add-on's, each heard and kept as it came (`SSI263_IMPORT_BREAK=synphonix` fails all three); each
+serial and the add-on's, each heard and kept as it came (`SSI263_IMPORT_BREAK=synphonix` fails all three); the
+Super Voice's program, real disk and zip, each heard and only the program kept, and the zip again already here
+(`=supervoice` fails those seven lines); each
 unit imported again is already here, through the real `blv_state_check`, and the Hungarian with no state or a wrong
 one is prepared again (`=same` fails the six already-here lines); it also judges a real Blazie firmware collection zip when `FIRMWARE_COLLECTION` (paths.local) names
 one: every Blazie voice and unit-tab release in it, each once, the programs left out.

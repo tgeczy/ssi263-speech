@@ -17,13 +17,18 @@
   Apple apps never carry it), speaking after the SmarTalk; VEST.COM known by its content (SSA_SYNPHONIX, 29), a copy
   with another card's serial as well, and written as it came (synphonix drops the imported copy, synphonix-import
   never knows it).
+- Speech Systems' Super Voice (0.9.5), when firmware/speech-systems-super-voice/SUPERTOK.BIN is there (never in the
+  repository): staged into the TEST data folder only, speaking after the SynPhonix (supervoice stages a copy with one
+  byte changed, which the host refuses, so it must FAIL); its program known from itself, from a disk laid out around it
+  (tools/check_sv_voice.py make_disk) and from the real SUPERV.DSK when it is there, the program alone written; a
+  changed program not (supervoice-import never knows it).
 - The release voices (release_voices.py: Hungarian, Turkish, ... whose firmware is in the firmware folder, their
   states made once and checked against the table): each one's requests as every voice's, and each one speaks.
 
     sh src/platforms/apple/build_apple.sh macos            first
     python src/platforms/apple/test/test_apple_speech.py
-    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|ssml-3|speech-1|speech-2|import|import-2|synphonix|synphonix-import
-        python ...                                                                              the controls:
+    SSI263_APPLE_SPEECH_BREAK=ssml-1|ssml-2|ssml-3|speech-1|speech-2|import|import-2|synphonix|synphonix-import|
+        supervoice|supervoice-import python ...                                                 the controls:
                                                                                                 each must FAIL
 
 Options: --firmware <folder> (default $SSI263_FIRMWARE, else firmware/blazie), --aicom <folder> (default
@@ -165,7 +170,7 @@ def check_speak(exe, data, aicom, env, releases=()):
             print("skip  speak  %s: its files are not there" % p[1])
         elif p[0] == "case":
             name, n, h, wn, wh, after, errors = p[1], int(p[2]), p[3], int(p[4]), p[5], int(p[6]), int(p[7])
-            rows[name] = (n, h)
+            rows[name] = (n, h, errors)
             cases += 1
             ok = (n, h) == (wn, wh) and n > 0 and errors == 0
             if name.endswith("-stopped"):
@@ -197,12 +202,24 @@ def check_speak(exe, data, aicom, env, releases=()):
         ok = rows.get("st-phrases", (0,))[0] > 0
         print("%-5s speak  the SmarTalk spoke, after the Sounding Board" % ("ok" if ok else "FAIL"))
         bad += not ok
+    def spoke(v):
+        """The voice's own sound: its request with no pauses (off) made samples, and no request had an error."""
+        return rows.get(v + "-off", (0,))[0] > 0 and all(r[2] == 0 for k, r in rows.items() if k.startswith(v + "-"))
+
     # the SynPhonix (voice 29, after the SmarTalk): the repository's VEST.COM, staged by data_folder into this test's
     # data folder alone -- never the app's
     if os.path.isfile(os.path.join(data, "VEST.COM")):
-        ok = rows.get("sp-phrases", (0,))[0] > 0
+        ok = spoke("sp")
         print("%-5s speak  the SynPhonix spoke, after the SmarTalk" % ("ok" if ok else "FAIL"))
         bad += not ok
+    # the Super Voice (voice 30, after the SynPhonix): the program staged by data_folder into this test's data folder
+    # alone, when the person's copy is in the firmware folder
+    if os.path.isfile(os.path.join(data, "SUPERTOK.BIN")):
+        ok = spoke("sv")
+        print("%-5s speak  the Super Voice spoke, after the SynPhonix" % ("ok" if ok else "FAIL"))
+        bad += not ok
+    else:
+        print("skip  speak  the Super Voice: no firmware/speech-systems-super-voice/SUPERTOK.BIN")
     print("%-5s speak  %d requests on %d voices: the segments' own PCM with the pauses between, a stop that holds" % (
         "ok" if not bad else "FAIL", cases, len({k.split("-")[0] for k in rows})))
     return bad
@@ -266,7 +283,7 @@ def check_import(exe, data, tmp, env, firmware=None):
     if firmware:
         for k, r, bns in release_voices.voices(firmware)[:1] + [u for u in [release_voices.unit_only(firmware)] if u]:
             cases.append(("%s (%s)" % (os.path.basename(bns), r["id"]), bns, SSP_FW_RELEASE + k))
-    bad = 0
+    bad = check_supervoice_import(exe, tmp, env)
     for label, path, want in cases:
         r = subprocess.run([exe, "--import", path, out], capture_output=True, text=True, env=env).stdout.strip()
         got = int(r.split()[0]) if r and r.split()[0].lstrip("-").isdigit() else None
@@ -277,6 +294,35 @@ def check_import(exe, data, tmp, env, firmware=None):
         bad += not ok
         if os.path.exists(out):
             os.remove(out)
+    return bad
+
+
+def check_supervoice_import(exe, tmp, env):
+    """The Super Voice's program known (SSA_SUPERVOICE, 30) from itself, from a disk laid out around it and from the
+    real SUPERV.DSK, the program alone written each time; one byte changed, not (as test_android_native's)."""
+    if not os.path.isfile(tan.SV_BIN):
+        print("skip  import the Super Voice: no firmware/speech-systems-super-voice/SUPERTOK.BIN")
+        return 0
+    sys.path.insert(0, os.path.join(REPO, "tools"))
+    from check_sv_voice import make_disk
+    prog = open(tan.SV_BIN, "rb").read()
+    cases = [("SUPERTOK.BIN", prog, 30), ("a disk laid out around it", make_disk(prog, [33, 34, 5, 60, 41]), 30),
+             ("SUPERTOK.BIN with a byte changed", prog[:9] + bytes([prog[9] ^ 1]) + prog[10:], -1)]
+    dsk = os.path.join(os.path.dirname(tan.SV_BIN), "SUPERV.DSK")
+    if os.path.isfile(dsk):
+        cases.append(("SUPERV.DSK, the real disk", open(dsk, "rb").read(), 30))
+    bad = 0
+    src, out = os.path.join(tmp, "sv.in"), os.path.join(tmp, "sv.out")
+    for label, b, want in cases:
+        with open(src, "wb") as f:
+            f.write(b)
+        if os.path.exists(out):
+            os.remove(out)
+        r = subprocess.run([exe, "--import", src, out], capture_output=True, text=True, env=env).stdout.strip()
+        got = int(r.split()[0]) if r and r.split()[0].lstrip("-").isdigit() else None
+        ok = got == want and (want < 0 or (os.path.isfile(out) and open(out, "rb").read() == prog))
+        print("%-5s import the Super Voice, %s: %s" % ("ok" if ok else "FAIL", label, r))
+        bad += not ok
     return bad
 
 
@@ -294,6 +340,14 @@ def main():
         if all(os.path.isfile(os.path.join(tan.SB_DIR, f)) for f in ("SBLOAD.COM", "SB.COM")):
             for f in ("SBLOAD.COM", "SB.COM"):
                 shutil.copy2(os.path.join(tan.SB_DIR, f), data)
+        if os.environ.get("SSI263_APPLE_SPEECH_BREAK") == "supervoice" and \
+                os.path.isfile(os.path.join(data, "SUPERTOK.BIN")):
+            # the control: a changed program in the voice's place, which the host refuses, so it must not speak
+            with open(os.path.join(data, "SUPERTOK.BIN"), "r+b") as f:
+                f.seek(9)
+                b = f.read(1)
+                f.seek(9)
+                f.write(bytes([b[0] ^ 1]))
         releases, bad = release_voices.add(data, a.firmware)
         bad += check_parse(exe, env) + check_speak(exe, data, a.aicom, env, releases) + \
             check_import(exe, data, tmp, env, a.firmware)

@@ -12,7 +12,8 @@
  * SSI263_APPLE_SPEECH_BREAK puts one bug back (test_apple_speech.py's controls): ssml-1, ssml-2, ssml-3
  * (ssp_ssml_break), speech-1, speech-2 (ssp_speech_break), import, import-2 (ssp_import_break 1, 2), synphonix (the
  * SynPhonix's imported VEST.COM ignored: ssa_voice_break 20, the built-in copy the Apple apps never have used
- * instead), synphonix-import (VEST.COM never known: ssa_import_break 8).
+ * instead), synphonix-import (VEST.COM never known: ssa_import_break 8), supervoice-import (the Super Voice's program
+ * and disk never known: ssa_import_break 9).  supervoice (a changed SUPERTOK.BIN staged) is test_apple_speech.py's.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,12 +144,13 @@ static void spoken(ssp_speech *p, int voice, const ssp_request *r, const ssa_set
 static const char *VOICE_NAMES[SSA_RELEASE_FIRST] = {"en", "es", "sa", "so", "mini", "mb", "mbe", "de", "it", "sk"};
 
 /* a voice's short name: the release voices' by their key (blazie_hu), the Sounding Board's, the SmarTalk's and the
-   SynPhonix's after them */
+   SynPhonix's and the Super Voice's after them */
 static const char *voice_name(int v)
 {
     if (v == SSA_SOUNDINGBOARD) return "sb";
     if (v == SSA_SMARTALK) return "st";
     if (v == SSA_SYNPHONIX) return "sp";
+    if (v == SSA_SUPERVOICE) return "sv";
     return v < SSA_RELEASE_FIRST ? VOICE_NAMES[v] : blv_release_voice_key(ssa_voice_release(v));
 }
 
@@ -257,6 +259,7 @@ int main(int argc, char **argv)
         else if (!strcmp(brk, "import-2")) ssp_import_break = 2;
         else if (!strcmp(brk, "synphonix")) ssa_voice_break = 20;
         else if (!strcmp(brk, "synphonix-import")) ssa_import_break = 8;
+        else if (!strcmp(brk, "supervoice-import")) ssa_import_break = 9;
     }
     if (argc >= 2 && !strcmp(argv[1], "--parse")) return parse();
     if (argc >= 4 && !strcmp(argv[1], "--speak")) return speak(argv[2], argv[3], argc >= 5 ? argv[4] : NULL);

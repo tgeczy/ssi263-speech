@@ -124,6 +124,12 @@ let sTalkLabel = "SmarTalk: Automated Functions' S_TALK.EXE 1.21"
 func vest(_ serial: String) -> Data { bytes("VESTCOM S/N " + serial) + filled(2900) { UInt8(($0 * 11) & 0xFF) } }
 let vestLabel = "Artic SynPhonix: Artic's VEST.COM 1.60"
 
+/// A made-up SUPERTOK.BIN, and a made-up Color Computer disk holding it: the native side knows the real program by
+/// its sha256, from itself or from the disk (sv_firmware_from), and writes the program alone.
+let superTok = bytes("SUPERTOKBN") + filled(2400) { UInt8(($0 * 17) & 0xFF) }
+func cocoDisk() -> Data { bytes("COCODISK") + superTok + Data(count: 5000) }
+let superLabel = "Speech Systems Super Voice: SUPERTOK.BIN"
+
 /// A made-up state: the size every state has, whatever is in it.
 func state() -> Data { filled(FirmwareImport.stateSize) { UInt8(($0 * 13) & 0xFF) } }
 
@@ -161,6 +167,10 @@ struct Fake: FirmwareImport.Identify {
         if text.hasPrefix("SMARTALKEX") {
             try? data.write(to: out)
             return (FirmwareImport.smartalk, sTalkLabel)
+        }
+        if text.hasPrefix("SUPERTOKBN") || text.hasPrefix("COCODISK") {
+            try? superTok.write(to: out)
+            return (FirmwareImport.supervoice, superLabel)
         }
         if text.hasPrefix("VESTCOM") {
             try? data.write(to: out)
@@ -821,7 +831,7 @@ for (label, tool) in [("ditto (Finder's Compress)", ["/usr/bin/ditto", "-c", "-k
 
 test("theWordsNameEveryUnit") {
     eq(FirmwareImport.noFirmwareFile, "This file does not contain Braille Lite, Braille 'n Speak, Speak-Out, " +
-        "Sounding Board, SmarTalk, SynPhonix, Mockingboard or Accent firmware.")
+        "Sounding Board, SmarTalk, SynPhonix, Super Voice, Mockingboard or Accent firmware.")
     check(FirmwareImport.whatToChoose.contains("Lite2000.BNS (German, Italian)"), "")
     check(FirmwareImport.whatToChoose.contains("For the Slovak Braille 'n Speak 2000: BS2SLL.BNS"), "")
     check(FirmwareImport.whatToChoose.contains("your own copy of Mockingboard disk 1"), "")
@@ -995,6 +1005,41 @@ test("theAddOnBringsTheSynPhonixItCarries") {
     eq(plan.refusal, nil)
     eq(kinds(plan), [ST, SP])
     eq(plan.found.last?.from, u + "_ssi263_synphonix/VEST.COM")
+}
+
+// ---- Speech Systems' Super Voice: SUPERTOK.BIN, from itself, its disk image or a zip holding that (0.9.5) ---------
+
+let SV = FirmwareImport.supervoice
+
+test("theSuperVoicesProgramOrDiskIsItsVoice") {
+    // the program, the disk image, and the disk in a zip's folder as the archive keeps it: the program alone is kept
+    for (name, data) in [("SUPERTOK.BIN", superTok), ("SUPERV.DSK", cocoDisk()),
+                         ("Super Voice (Speech Systems).zip",
+                          zip([("Super Voice (Speech Systems)/SUPERV.DSK", cocoDisk())]))] {
+        let plan = inspect(name, data)
+        eq(plan.refusal, nil)
+        eq(kinds(plan), [SV])
+        eq(plan.found.first?.label, superLabel)
+        eq(plan.found.first.flatMap { try? Data(contentsOf: $0.firmware) }, superTok)
+    }
+    eq(FirmwareImport.keptAs(SV, Fake())?.file, "SUPERTOK.BIN")
+    check(FirmwareImport.keptAs(SV, Fake())?.state == nil, "the Super Voice has a state")
+    eq(FirmwareImport.order.filter { $0 == SP || $0 == SV }, [SP, SV])
+    eq(FirmwareImport.name(of: SV), "Speech Systems Super Voice")
+    check(FirmwareImport.whatToChoose.contains("For the Super Voice: its Color Computer disk image (SUPERV.DSK), a " +
+                                               "zip holding it, or the SUPERTOK.BIN program from it; only the " +
+                                               "program is kept."), "")
+    // the app names no place to get it (Tomi: a store app names files, never where they come from)
+    check(!FirmwareImport.whatToChoose.lowercased().contains("archive"), "the words name a source")
+}
+
+test("theSuperVoiceHereAlreadyIsLeftAlone") {
+    // its disk again, with the program here: already here, though the disk is not the file kept
+    keep([("SUPERTOK.BIN", superTok)])
+    let plan = leave("SUPERV.DSK", cocoDisk())
+    Fake.unit = nil
+    eq(kinds(plan), [])
+    eq(plan.here.map { $0.kind }, [SV])
 }
 
 // ---- a unit already here is left as it is (Android's FirmwareImportTest, "a unit already here"; 0.9.5) -------------

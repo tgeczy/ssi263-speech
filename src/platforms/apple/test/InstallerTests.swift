@@ -18,11 +18,11 @@ var failures = 0
 
 let disks = CommandLine.arguments.count > 2 ? URL(fileURLWithPath: CommandLine.arguments[2]) : nil
 
-// every voice the library has (ssa_engine.h: 0 ..< SSA_ALL_VOICES, the SynPhonix's 29 last) is one of the app's,
+// every voice the library has (ssa_engine.h: 0 ..< SSA_ALL_VOICES, the Super Voice's 30 last) is one of the app's,
 // once: the Apple column of tools/check_uniform.py's matrix
 do {
     let indexes = SsiShared.voices.map { Int($0.index) }.sorted()
-    let ok = indexes == Array(0..<Int(SSA_ALL_VOICES)) && SsiShared.voices.last?.key == "synphonix"
+    let ok = indexes == Array(0..<Int(SSA_ALL_VOICES)) && SsiShared.voices.last?.key == "supervoice"
     print("\(ok ? "ok   " : "FAIL ") every voice of the library is the app's, once: \(indexes.count) of \(SSA_ALL_VOICES)")
     if !ok { failures += 1 }
     // listed as the NVDA driver lists them: GW Micro's Sounding Board right under the Speak-Out, its index unchanged
@@ -190,6 +190,32 @@ if let com = try? Data(contentsOf: spCom) {
     print("skip  the SynPhonix: firmware/artic-synphonix/VEST.COM is not there")
 }
 
+// Speech Systems' Super Voice (0.9.5), when the person's copy is in firmware/speech-systems-super-voice (never in the
+// repository): the program, the real disk image and the zip as the archive keeps it, each imported through the real
+// native side (sv_firmware_from), heard by ssa_probe, and the program alone kept
+let svDir = repo.appendingPathComponent("firmware/speech-systems-super-voice")
+let svZip = "Super Voice (Speech Systems).zip"
+if let prog = try? Data(contentsOf: svDir.appendingPathComponent("SUPERTOK.BIN")) {
+    for (label, file) in [("the Super Voice's SUPERTOK.BIN", "SUPERTOK.BIN"),
+                          ("the Super Voice from its disk image, SUPERV.DSK", "SUPERV.DSK"),
+                          ("the Super Voice from the zip holding its disk", svZip)] {
+        guard FileManager.default.fileExists(atPath: svDir.appendingPathComponent(file).path) else {
+            print("skip  \(label): no \(file)")
+            continue
+        }
+        for f in ["SUPERTOK.BIN", "SUPERTOK.BIN.label"] {
+            try? SsiShared.unitFolder.map { try FileManager.default.removeItem(at: $0.appendingPathComponent(f)) }
+        }
+        run(label, ["speech-systems-super-voice/" + file], expect: ["supervoice"],
+            kept: ["SUPERTOK.BIN", "SUPERTOK.BIN.label"])
+        let got = SsiShared.unitFolder.flatMap { try? Data(contentsOf: $0.appendingPathComponent("SUPERTOK.BIN")) }
+        print("\(got == prog ? "ok   " : "FAIL ") \(label): the program alone kept, byte for byte")
+        if got != prog { failures += 1 }
+    }
+} else {
+    print("skip  the Super Voice: no firmware/speech-systems-super-voice/SUPERTOK.BIN")
+}
+
 // the confirmation's words (Android's): a language update takes a few seconds, and one already here is replaced;
 // the unit tab's alone is kept for it
 func confirms(_ label: String, _ file: String, _ words: [String]) {
@@ -229,6 +255,7 @@ alreadyHere("the Speak-Out and the Accents again", ["gw-micro-speakout/SPEAKOUT.
             "aicom-accent-sa/u3.BIN", "aicom-accent-sa/u4.BIN", "aicom-accent-mini/SPKEMS.DVC"], count: 5)
 alreadyHere("the Sounding Board's sb.zip again", [sbDir + "sb.zip"])
 alreadyHere("the SynPhonix from the add-on's folder again", ["synphonix.zip"], from: root)
+alreadyHere("the Super Voice's zip again", ["speech-systems-super-voice/" + svZip])
 
 // ... and one whose state is missing, or not the one its release makes, is prepared again: a repair, which the
 // confirmation says replaces the one here
