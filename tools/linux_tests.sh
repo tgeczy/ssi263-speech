@@ -964,6 +964,12 @@ control "as_voice marks CONTROL (the marks left after a cancel, must fail)" "^FA
     "^as marks: 1 FAILED$" -- env AS_MARKS_BREAK=3 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
 control "as_voice marks CONTROL (the Ctrl-F inside its word, must fail)" "^FAIL frames .*phonemes DIFFER" \
     "^FAIL bytes " "^as marks: 5 FAILED$" -- env AS_MARKS_BREAK=4 python3 nvda/tools/as_marks.py build/linux/libssi263_voices.so
+# a number past the scale names (more than 18 digits: a tracking number) said digit by digit; the control: "large number"
+check "number words: past 18 digits, digit by digit (tracking numbers)" python3 nvda/tools/long_numbers.py \
+    build/linux/libssi263_voices.so
+control "number words: long numbers CONTROL (large number, as it was, must fail)" "^FAIL python en 'tracking " \
+    "^FAIL c +es '9400111899223397658538'" "^long numbers: 6 FAILED$" -- env NUMWORDS_LARGE_BREAK=1 \
+    python3 nvda/tools/long_numbers.py build/linux/libssi263_voices.so
 # a number written with leading zeros said digit by digit (#65): the Python and C number words; the control: the integer
 check "number words: leading zeros said, digit by digit (#65)" python3 nvda/tools/leading_zeros.py build/linux/libssi263_voices.so
 control "number words: leading zeros CONTROL (the integer, as it was, must fail)" "^FAIL python en 'code 047291'" \

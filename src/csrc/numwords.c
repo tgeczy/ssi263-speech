@@ -300,7 +300,9 @@ static int leading_zero(const char *s, int a, int e)
     return n > 1 && first == '0' && !getenv("NUMWORDS_ZERO_BREAK");
 }
 
-/* the digits s[a..b) (commas skipped), "large number" when more than 18 are left after the leading zeros (big()) */
+/* the digits s[a..b) (commas skipped); more than 18 left after the leading zeros (big()): digit by digit -- an
+   identifier, not an amount (a tracking number: 20 to 22 digits; ssi263_numwords.py the same) -- an ordinal that long
+   "large number".  NUMWORDS_LARGE_BREAK=1, the tests' control: "large number" for all of them, as it was */
 static void whole_words(sbuf *b, const char *s, int a, int e, int ord)
 {
     unsigned long long v = 0;
@@ -308,8 +310,8 @@ static void whole_words(sbuf *b, const char *s, int a, int e, int ord)
     for (k = a; k < e; k++)
         if (a_digit(s[k]) && (sig || s[k] != '0'))
             sig++;
-    if (sig > 18) { sb_puts(b, "large number"); return; }
-    if (!ord && leading_zero(s, a, e)) {
+    if (sig > 18 && (ord || getenv("NUMWORDS_LARGE_BREAK"))) { sb_puts(b, "large number"); return; }
+    if (sig > 18 || (!ord && leading_zero(s, a, e))) {
         /* a code, not an amount ("047291", "007", a ZIP code): digit by digit, the zeros said; as an integer they
            were dropped (#65, Tomi; ssi263_numwords.py the same) */
         int first = 1;

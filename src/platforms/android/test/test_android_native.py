@@ -1172,9 +1172,11 @@ def marks_cases(exe, aicom):
 def run_texts(exe):
     # the reference (accent_reference.py) is 0.7.0's driver, which dropped a number's leading zeros; since #65 the C
     # number words say them digit by digit (nvda/tools/leading_zeros.py holds that): against 0.7.0 the native side
-    # reads them as it did (numwords.c's switch)
+    # reads them as it did (numwords.c's switch); and a number past 18 digits, "large number" in 0.7.0, digit by digit
+    # since 0.9.5 (long_numbers.py): as it was, the same way
     r = subprocess.run([exe, "--texts"], input="".join(t.encode("utf-8").hex() + "\n" for t in TEXTS),
-                       capture_output=True, text=True, env=dict(os.environ, NUMWORDS_ZERO_BREAK="1"))
+                       capture_output=True, text=True,
+                       env=dict(os.environ, NUMWORDS_ZERO_BREAK="1", NUMWORDS_LARGE_BREAK="1"))
     if r.returncode:
         sys.exit("test_android_native --texts failed (%d): %s" % (r.returncode, r.stderr.strip()))
     return {int(k): v for k, v in re.findall(r"^text (\d+) ([0-9a-f]*)$", r.stdout, re.M)}

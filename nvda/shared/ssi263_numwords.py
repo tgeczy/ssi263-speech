@@ -28,9 +28,11 @@ times a day and needs to know what a given string will sound like, so there is
 no year heuristic and no attempt to guess that `1984` is a date rather than a
 count.  `read_year` exists for a caller that knows better.
 
-The scale names end at quadrillion.  From 10^18 up the whole part is said as
-"large number": nobody can verify "three quintillion" by ear, and admitting
-the size says more than a stack of scale words does.
+The scale names end at quadrillion.  From 10^18 up the whole part is said
+digit by digit: nobody can verify "three quintillion" by ear, and a number that
+long is an identifier -- a tracking number -- far more often than an amount
+(it was "large number" until 0.9.5, which hid the digits; an ordinal that long
+still is).
 
     py -3 addon/synthDrivers/_outspoken/numwords.py "you owe 1,234.50"
 """
@@ -352,7 +354,10 @@ def normalise(text, spell_out=False, lang="en", decimal_comma=False):
         if spell_out:
             out = digits(whole or "0", lang)
         elif big(whole):
-            out = large
+            # Past the scale names: an identifier, not an amount -- a USPS tracking number is 20 to 22 digits -- so
+            # digit by digit, as the programs themselves read it, never "large number" (Tomi, 2026-11-24; numwords.c
+            # and numwords_es.c the same.  NUMWORDS_LARGE_BREAK=1, the tests' control: "large number", as it was)
+            out = large if os.environ.get("NUMWORDS_LARGE_BREAK") else digits(whole, lang)
         elif len(whole) > 1 and whole[0] == "0" and not os.environ.get("NUMWORDS_ZERO_BREAK"):
             # A number written with leading zeros is a code, not an amount: "047291", "007", a ZIP code, "09:05".
             # Said digit by digit, the zeros with it; as an integer they were dropped (#65, Tomi; numwords.c and

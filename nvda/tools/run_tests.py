@@ -2692,6 +2692,13 @@ CHECKS.append(check("number words: currency amounts CONTROL (int(), as it was, m
                     env={"NUMWORDS_CURRENCY_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^FAIL .* ValueError: Exceeds the limit", r"^ok .*'5 euros'", r"^currency long: 4 FAILED$"]))
 CHECKS.append(check("number words: leading zeros said, digit by digit (#65)", [PY, "leading_zeros.py"]))
+# a number past the scale names (more than 18 digits: a tracking number) said digit by digit; the control: "large
+# number", as it was
+CHECKS.append(check("number words: past 18 digits, digit by digit (tracking numbers)", [PY, "long_numbers.py"]))
+CHECKS.append(check("number words: long numbers CONTROL (large number, as it was, must fail)", [PY, "long_numbers.py"],
+                    env={"NUMWORDS_LARGE_BREAK": "1"}, expect_fail=True,
+                    fail_marks=[r"^FAIL python en 'tracking ", r"^FAIL c +es '9400111899223397658538'",
+                                r"^ok   python en '100' ", r"^long numbers: 6 FAILED$"]))
 CHECKS.append(check("number words: leading zeros CONTROL (the integer, as it was, must fail)", [PY, "leading_zeros.py"],
                     env={"NUMWORDS_ZERO_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^FAIL python en 'code 047291'", r"^FAIL c +en 'code 047291'", r"^ok   python en '10' ",

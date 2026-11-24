@@ -134,13 +134,15 @@ static void whole_words(sbuf *b, const unsigned *t, int a, int e, int ord)
     for (k = a; k < e; k++)
         if (isdig(t[k]) && (sig || t[k] != '0'))
             sig++;
-    if (sig > 18) { sb_puts(b, LARGE_ES); return; }
+    /* past 18 significant digits: digit by digit, an identifier (numwords.c the same); an ordinal LARGE_ES.
+       NUMWORDS_LARGE_BREAK=1, the tests' control: LARGE_ES for all, as it was */
+    if (sig > 18 && (ord || getenv("NUMWORDS_LARGE_BREAK"))) { sb_puts(b, LARGE_ES); return; }
     for (k = a; k < e; k++)
         if (isdig(t[k])) {
             if (first < 0) first = (int)t[k];
             n++;
         }
-    if (!ord && n > 1 && first == '0' && !getenv("NUMWORDS_ZERO_BREAK")) {
+    if (sig > 18 || (!ord && n > 1 && first == '0' && !getenv("NUMWORDS_ZERO_BREAK"))) {
         /* a number written with leading zeros: digit by digit, the zeros said (#65; numwords.c the same) */
         int lead = 1;
         for (k = a; k < e; k++)
