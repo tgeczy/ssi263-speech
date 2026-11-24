@@ -41,15 +41,18 @@ repository or in its releases. We are trying to reach both authors to ask.
 We would like to ask who owns the software today, whether it may travel with a free program for blind users, and
 whether any source or later version survives.
 
-## Where the work stands (19 November 2026)
+## Where the work stands (23 November 2026)
 
 - **It speaks, in the workshop.** `SUPERTOK.BIN` runs unchanged on a 6809 core (MAME's, added for it) with our chip
   at $FF80 to $FF84: a text goes in, the chip's audio comes out. The code is in
   [`src/csrc/supervoice`](../src/csrc/supervoice/README.md).
 - **No Color Computer is needed.** The program was run with everything outside it trapped. On the path that speaks a
   line of text (the manual's `USR` call at $5805) it calls no BASIC routine and reads none of BASIC's variables.
-- **Still to do before it is a voice:** rate, pitch and volume through the program's own control codes, long text in
-  parts, the voice on each platform, and a listener's verdict. Only its first clips have been heard so far.
+- **The voice layer is written** (`sv_voice.h`): rate and pitch through the program's own control codes (^S, ^IT),
+  volume as gain, a capital's pitch, long text in parts, and four rules for what the program does with a screen
+  reader's text, each measured on the program.
+- **Still to do before it is a voice:** a place in the voice table, the voice on each platform, and a listener's
+  verdict. Only its first clips have been heard so far.
 - **Not known:** the cartridge's clock. 894,886 Hz (the Color Computer's own) is inferred from the program's table of
   musical notes, which is in tune at that clock and almost two semitones sharp at 1 MHz. That clock was at hand
   for a cartridge: Tandy's Color Computer Technical Reference Manual (1981), Table 5, has the E clock on pin 6 of

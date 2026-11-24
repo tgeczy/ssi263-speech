@@ -16,6 +16,7 @@ talking devices that drove it, running unchanged and driving the emulated chip, 
 | **Aicom Accent-mini** | Aicom's DOS device driver `SPKEMS.DVC` (Accent-EMS V4.5) | MAME's 8086, with emulated expanded memory |
 | **Aicom Accent-PC** | the card's own 8085 firmware and dictionary ROMs (1986–1989), driven through its serial port | MAME's 8085 |
 | **Automated Functions SmarTalk** (1995), a small box on the parallel port | its DOS text-to-speech program `S_TALK.EXE` (version 1.21) | MAME's 8086 |
+| **Artic SynPhonix**, a speech card inside the PC (Artic Technologies) | its DOS text-to-speech program `VEST.COM` (version 1.60, 1992) | MAME's 8086 |
 
 The pronunciation rules, the number reading, the intonation and the timing are all the
 devices' own. The chip model makes every sample: nothing is recorded or concatenated.
@@ -66,22 +67,31 @@ The released add-ons carry each device's firmware, because without it there's no
 It isn't ours. It's here so these machines can speak again, and any of it will come down
 if its rights holders ask.
 
-This repository only keeps Aicom's software in the tree. Aicom stopped making the Accent
+This repository keeps Aicom's software in the tree. Aicom stopped making the Accent
 line around 2000, and by 2001 even its own customers couldn't find anyone to ask.
 [`firmware/AICOM.txt`](firmware/AICOM.txt) has what we know and where each file came
 from. The Speak-Out and Braille Lite firmware stay out of git: to build those two add-ons
 yourself, put your own copies in `firmware/gw-micro-speakout/` and `firmware/blazie/`.
 The README in each folder says which files, with their checksums.
 
-The SmarTalk's software is the one other program in the tree, because it is freely
+The SmarTalk's software is in the tree as well, because it is freely
 shareable by its makers' own words: the README on Automated Functions' SmarTalk 1.21 disk
 says, "Please feel free to
 share the new version of the SmarTalk software with anyone who needs it." So `S_TALK.EXE`
 is here exactly as it is on that disk, never patched, under Automated Functions' own
 copyright (1995, all rights reserved), not our MIT licence.
 [`firmware/automated-functions-smartalk/README.txt`](firmware/automated-functions-smartalk/README.txt)
-has its notice and checksum. The phone apps don't carry it: like every other
-device's software, you import it there yourself.
+has its notice and checksum. The Android app from GitHub carries it; the Apple apps
+don't: like every other device's software, you import it there yourself.
+
+Artic's `VEST.COM`, the text-to-speech of its SynPhonix cards, is in the tree on the same
+footing as Aicom's software. Artic sells nothing today and seems to have closed long ago,
+and we tried to reach one of its founders, with no answer. Every copy of VEST carried the serial
+number of the card it was sold with; ours has it set to 99999999, so it names no card and
+no owner.
+[`firmware/artic-synphonix/README.txt`](firmware/artic-synphonix/README.txt) has its
+notice and checksum, and how to reach us if you hold its rights. The Apple apps don't
+carry it either.
 
 ## Documentation
 
@@ -100,8 +110,9 @@ device's software, you import it there yourself.
   answer would come from, and how you can help.
 - [Sources and credits](docs/sources.md): every data sheet, paper, patent, program and
   person this work stands on.
-- [Speech Systems' Super Voice](docs/super-voice.md): not a voice here yet. Where its disk
-  is kept, by exact link and checksum, and what it still needs.
+- [Speech Systems' Super Voice](docs/super-voice.md): it speaks in the workshop, but no
+  add-on or app offers it yet. Where its disk is kept, by exact link and checksum, and
+  what it still needs.
 
 ## Layout
 
@@ -115,7 +126,7 @@ device's software, you import it there yourself.
 | `docs/` | The documentation (see above) |
 | `tools/` | Research and check tools: comparisons against the recordings, the C/Python gate, renders |
 | `nvda/` | The three NVDA drivers, their builds, and the driver test rig |
-| `firmware/` | Aicom's software, the SmarTalk's, and the places the other firmware goes |
+| `firmware/` | Aicom's software, the SmarTalk's, Artic's VEST, and the places the other firmware goes |
 | `third_party/casso/` | From Rob Elmer's Casso (MIT): the ROM extraction the die reading was checked against |
 
 ## Building
@@ -167,7 +178,8 @@ they are not runtime payloads and no environment switch is needed for MAME.
 - **The Accent-PC ROMs** were shared by spacepup.
 - **The firmware belongs to its makers:** the Speak-Out to GW Micro (hardware by Daniel
   Weirich, software by Douglas Geoffray), the Accent to Aicom Corporation, the SmarTalk
-  to Automated Functions, Inc., who invited everyone to share its software. The Braille
+  to Automated Functions, Inc., who invited everyone to share its software, the
+  SynPhonix's VEST to Artic Technologies, founded by Tim Gargagliano and Dale McDaniel. The Braille
   Lite's firmware is shared with permission.
 - The whole story, day by day and with who found what, is in [docs/history.md](docs/history.md).
 - Thanks, Derek, for your contributions.
