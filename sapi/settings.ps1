@@ -11,10 +11,11 @@
 # -Check: build the dialog and fill it, print what it shows, and exit without showing it (the tests).
 # -ShowDataPlan: print the data root (dataroot.ps1), whether it holds a voice's file, and what "Move voices for all
 #   users" would do, then exit (sapi\test_sapi_data.py).
+# -ShowRegisterArguments: print what the Register button hands register.ps1, then exit (sapi\test_sapi_data.py).
 # -ExtractFrom <file> -ExtractTo <file>: the Super Voice's program from a file as Import a file reads it (sapi\
 #   test_sapi_data.py); -DownloadTo <file>: from its disk as Download fetches it, the sources SSI263_SAPI_DATA_TEST_SOURCES
 #   names when it is set ("url|size|sha256|kind;...", a test's file: URLs), else the pinned ones.
-param([switch]$Check, [switch]$ShowDataPlan, [string]$ExtractFrom = '', [string]$ExtractTo = '', [string]$DownloadTo = '')
+param([switch]$Check, [switch]$ShowDataPlan, [switch]$ShowRegisterArguments, [string]$ExtractFrom = '', [string]$ExtractTo = '', [string]$DownloadTo = '')
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
@@ -83,6 +84,19 @@ function Test-Registered([string]$id) {
 function ConvertTo-Argument([string]$value) {
     '"' + ($value -replace '(\\+)$', '$1$1') + '"'
 }
+# The Register button's arguments.  register.ps1 runs elevated, and that may be another account, whose HKCU and
+# %APPDATA% are not this person's: with no token left (after Unregister) it looked for the Super Voice's program in the
+# administrator's own folders, registered without it, and said the voices were registered (found by the 0.9.5 audit).
+# So the data root is resolved here, in this person's account, and handed over while it holds a voice's file, as
+# Import and Move do.  SSI263_SAPI_SETTINGS_BREAK=register-root, the tests' control: the bare -Register it was.
+function Get-RegisterArguments {
+    $root = Resolve-DataRoot $userVoices
+    if ($env:SSI263_SAPI_SETTINGS_BREAK -ne 'register-root' -and (Test-RootHasData $root $userVoices)) {
+        return ('-Register -DataRoot {0}' -f (ConvertTo-Argument $root))
+    }
+    '-Register'
+}
+if ($ShowRegisterArguments) { Write-Output ('register: ' + (Get-RegisterArguments)); exit 0 }
 
 # A cancelled elevation prompt is not a yes: -1, and the caller says nothing (outspoken's lesson).
 function Invoke-Elevated([string]$switches) {
@@ -249,7 +263,7 @@ $rate.Add_SelectedIndexChanged({ if ($rate.SelectedIndex -ge 0) { Save-Setting '
 $diagnostics.Add_CheckedChanged({ Save-Setting 'Diagnostics' ([int]$diagnostics.Checked) })
 
 $register.Add_Click({
-    $code = Invoke-Elevated '-Register'
+    $code = Invoke-Elevated (Get-RegisterArguments)
     if ($code -gt 0) { [Windows.Forms.MessageBox]::Show($form, 'Registration failed.', 'SSI-263 SAPI', 'OK', 'Error') | Out-Null }
     elseif ($code -eq 0) { [Windows.Forms.MessageBox]::Show($form, 'The SSI-263 voices were registered for 32-bit and 64-bit SAPI.', 'SSI-263 SAPI') | Out-Null }
     Refresh-Voices

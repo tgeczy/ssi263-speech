@@ -198,23 +198,27 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
                         ok=lambda out: bool(re.search(r"^addon archive: all passed$", out, re.M))))
     # the Super Voice's program, fetched or imported by hand into NVDA's configuration folder (userdata_test.py,
     # nvda/shared/ssi263_userfw.py): no network, the pinned sources swapped for a disk made here; one control per rule
-    CHECKS.append(check("0.8 user firmware: the Super Voice's download and import", [PY, "userdata_test.py"],
-                        ok=lambda out: bool(re.search(r"^user data: all passed$", out, re.M))))
-    for brk, cases in (("appdata", ["portable"]), ("hash", ["pinned"]), ("nomirror", ["mirror"]),
-                       ("noverify", ["download", "verified"])):
-        CHECKS.append(check("0.8 user firmware CONTROL (%s, must fail)" % brk, [PY, "userdata_test.py"],
-                            env={"SSI263_USERDATA_BREAK": brk}, expect_fail=True,
-                            fail_marks=[r"^FAIL  %s " % c for c in cases]
-                            + [r"^ok    same ", r"^user data: %d FAILED$" % len(cases)]))
-    # ... and its appdata control never reaches a person's real %APPDATA%: up to 0.9.5's draft it deleted the
-    # SUPERTOK.BIN a person had downloaded.  A sentinel where theirs would be must survive; its control leaves
-    # %APPDATA% as it was, and the sentinel is deleted
-    CHECKS.append(check("0.8 user firmware: the appdata control leaves the real %APPDATA% alone",
-                        [PY, "userdata_test.py", "--sentinel"],
-                        ok=lambda out: bool(re.search(r"^user data sentinel: all passed$", out, re.M))))
-    CHECKS.append(check("0.8 user firmware CONTROL (%APPDATA% as it was, must fail)", [PY, "userdata_test.py", "--sentinel"],
-                        env={"USERDATA_APPDATA_BREAK": "1"}, expect_fail=True,
-                        fail_marks=[r"^FAIL  sentinel .* DELETED or changed$", r"^user data sentinel: 1 FAILED$"]))
+    # (all of it needs SUPERTOK.BIN: without it the test skips and its controls -- which must fail -- would be counted
+    # failures, ten in a full run: the 0.9.5 audit)
+    if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware", "speech-systems-super-voice",
+                                   "SUPERTOK.BIN")):
+        CHECKS.append(check("0.8 user firmware: the Super Voice's download and import", [PY, "userdata_test.py"],
+                            ok=lambda out: bool(re.search(r"^user data: all passed$", out, re.M))))
+        for brk, cases in (("appdata", ["portable"]), ("hash", ["pinned"]), ("nomirror", ["mirror"]),
+                           ("noverify", ["download", "verified"])):
+            CHECKS.append(check("0.8 user firmware CONTROL (%s, must fail)" % brk, [PY, "userdata_test.py"],
+                                env={"SSI263_USERDATA_BREAK": brk}, expect_fail=True,
+                                fail_marks=[r"^FAIL  %s " % c for c in cases]
+                                + [r"^ok    same ", r"^user data: %d FAILED$" % len(cases)]))
+        # ... and its appdata control never reaches a person's real %APPDATA%: up to 0.9.5's draft it deleted the
+        # SUPERTOK.BIN a person had downloaded.  A sentinel where theirs would be must survive; its control leaves
+        # %APPDATA% as it was, and the sentinel is deleted
+        CHECKS.append(check("0.8 user firmware: the appdata control leaves the real %APPDATA% alone",
+                            [PY, "userdata_test.py", "--sentinel"],
+                            ok=lambda out: bool(re.search(r"^user data sentinel: all passed$", out, re.M))))
+        CHECKS.append(check("0.8 user firmware CONTROL (%APPDATA% as it was, must fail)", [PY, "userdata_test.py", "--sentinel"],
+                            env={"USERDATA_APPDATA_BREAK": "1"}, expect_fail=True,
+                            fail_marks=[r"^FAIL  sentinel .* DELETED or changed$", r"^user data sentinel: 1 FAILED$"]))
     # every C function the binding calls has its signature declared (binding_sigs.py): amv_end_dropped had none, and a
     # 64-bit handle above 2^31 raised ArgumentError on every cancelled Accent-mini utterance; its control takes it back
     CHECKS.append(check("binding: every C function called has its signature declared", [PY, "binding_sigs.py"],
@@ -413,18 +417,26 @@ if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "build", 
     # a disk, a zip and a download).  One control per rule
     SAPI_DP = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_sapi_datapath.py")
     SAPI_DATA = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_sapi_data.py")
+    # (the DataPath cases and the program's extraction need SUPERTOK.BIN: without it they skip, and their controls --
+    # which must fail -- would pass and be counted failures: gated on the file, as the Android and Super Voice ones are)
+    _sv_bin = os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "firmware",
+                                          "speech-systems-super-voice", "SUPERTOK.BIN"))
     if os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(HERE)), "nvda", "dist", "sapi-dev", "x64",
                                    "sapi_harness.exe")):
-        CHECKS.append(check("SAPI: a voice no package carries, spoken from its token's DataPath", [PY, SAPI_DP]))
-        CHECKS.append(check("SAPI DataPath CONTROL (a token without its program taken, must fail)",
-                            [PY, SAPI_DP, "--control"], expect_fail=True,
-                            fail_marks=[r"^FAIL  x64: refused without its program", r"^ok    x64: speaks from its DataPath",
-                                        r"^sapi datapath: 2 FAILED$"]))
         CHECKS.append(check("SAPI data folders: order, two passes, moves, the program read", [PY, SAPI_DATA]))
-        for brk, case in (("onepass", "twopass"), ("movenvda", "plans"), ("nozip", "extract")):
+        for brk, case in (("onepass", "twopass"), ("movenvda", "plans")) + ((("nozip", "extract"),) if _sv_bin else ()):
             CHECKS.append(check("SAPI data folders CONTROL (%s, must fail)" % brk, [PY, SAPI_DATA],
                                 env={"SSI263_SAPI_DATA_BREAK": brk}, expect_fail=True,
                                 fail_marks=[r"^FAIL  %s " % case, r"^ok    order ", r"^sapi data: 1 FAILED$"]))
+        CHECKS.append(check("SAPI data folders CONTROL (the bare -Register it was, must fail)", [PY, SAPI_DATA],
+                            env={"SSI263_SAPI_SETTINGS_BREAK": "register-root"}, expect_fail=True,
+                            fail_marks=[r"^FAIL  register ", r"^ok    order ", r"^sapi data: 1 FAILED$"]))
+        if _sv_bin:
+            CHECKS.append(check("SAPI: a voice no package carries, spoken from its token's DataPath", [PY, SAPI_DP]))
+            CHECKS.append(check("SAPI DataPath CONTROL (a token without its program taken, must fail)",
+                                [PY, SAPI_DP, "--control"], expect_fail=True,
+                                fail_marks=[r"^FAIL  x64: refused without its program",
+                                            r"^ok    x64: speaks from its DataPath", r"^sapi datapath: 2 FAILED$"]))
     # the stage's firmware list never names a file no package carries (the Super Voice's); its control lists it
     SAPI_STAGE = os.path.join(os.path.dirname(os.path.dirname(HERE)), "sapi", "test_stage_files.py")
     CHECKS.append(check("SAPI stage: no never-shipped firmware listed", [PY, SAPI_STAGE]))

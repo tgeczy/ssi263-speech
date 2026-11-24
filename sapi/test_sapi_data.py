@@ -13,8 +13,11 @@ Cases:
   plans       per-user -> migrate (to %ProgramData%); NVDA's -> nvda; %ProgramData%'s -> done; a chosen one -> chosen;
               an empty one -> none
   extract     the program from itself, from a disk image, and from a zip holding the disk; a changed one refused
+  register    the Register button hands register.ps1 this person's data root while it holds the program (elevated,
+              register.ps1 may be another account, whose folders are not this person's), the bare -Register otherwise
   download    the first source not its pinned file, the second taken
 Controls (SSI263_SAPI_DATA_BREAK, each must fail exactly these): onepass -> twopass; movenvda -> plans; nozip -> extract.
+SSI263_SAPI_SETTINGS_BREAK=register-root (settings.ps1: the bare -Register it was) -> register.
 """
 import hashlib
 import io
@@ -121,6 +124,19 @@ def main():
         os.makedirs(user)
         got.append(("none", plan()[1]))
         check("plans", all(a == b for a, b in got), ", ".join("%s=%s" % (a, b) for a, b in got))
+
+        # the Register button hands register.ps1 (elevated: maybe another account) this person's data root while it
+        # holds the program, and the bare -Register when nothing does
+        def register_args():
+            _c, out = ps("-ShowRegisterArguments")
+            return next((ln.split(": ", 1)[1] for ln in out.splitlines() if ln.startswith("register: ")), "?")
+        clean()
+        put(nvda)
+        with_data = register_args()
+        clean()
+        without = register_args()
+        check("register", with_data == '-Register -DataRoot "%s"' % nvda and without == "-Register",
+              "the program in NVDA's folder: %s; nowhere: %s" % (with_data, without))
 
         if not os.path.isfile(BIN):
             print("skip  extract, download: no SUPERTOK.BIN")
