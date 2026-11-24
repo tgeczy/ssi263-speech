@@ -14,7 +14,8 @@
 #              folder moved, the source left empty removed, Users read-only on the target (no write, by SID), the
 #              machine's DataPath written (to a test key: SSI263_SAPI_DATA_MACHINE_KEY), the token following it
 #   speaks2    SAPI speaks it again from the moved folder
-#   restored   the stage registered again with no data root holding the program: no Super Voice token
+#   restored   the stage registered again as the person would: a Super Voice token only when one of their own data
+#              roots holds the program
 # PowerShell 2.0's dialect, as the scripts it drives.
 #   -Control   SSI263_SAPI_REGISTER_BREAK=acl-t: the move's permissions granted down the tree, as Panthera's move does
 #              -- every file left with an empty ACL: "migrate" (the program unreadable) and "speaks2" must FAIL
@@ -113,9 +114,14 @@ try {
     Remove-Item env:SSI263_SAPI_REGISTER_BREAK -ErrorAction SilentlyContinue
     Remove-Item -Path ('HKCU:\' + $machineKey) -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item env:SSI263_SAPI_DATA_MACHINE_KEY -ErrorAction SilentlyContinue
+    # the stage registered as the person would register it: a Super Voice token exactly when one of THEIR data roots
+    # holds the program (dataroot.ps1, as register.ps1 decides) -- it expected none, and on a machine where the person
+    # keeps the Super Voice it said FAIL and left that token registered (the 0.9.5 audit)
+    . (Join-Path $Stage 'dataroot.ps1')
+    $theirs = @(Get-DataCandidates | Where-Object { Test-RootHasData $_ (Get-UserDataVoices $Stage) })
     $code = Invoke-Register '-Register'
     $left = @($views | Where-Object { Test-Path (Join-Path $_ $tokenKey) }).Count
-    Check 'restored' ($code -eq 0 -and $left -eq 0) ("exit $code; Super Voice tokens left: $left")
+    Check 'restored' ($code -eq 0 -and (($left -gt 0) -eq ($theirs.Count -gt 0))) ("exit $code; Super Voice tokens: $left; the person's roots holding it: " + $(if ($theirs.Count) { $theirs -join ', ' } else { 'none' }))
 }
 Write-Output ('sapi userdata: ' + $(if ($script:bad) { "$script:bad FAILED" } else { 'all passed' }))
 exit $(if ($script:bad) { 1 } else { 0 })
