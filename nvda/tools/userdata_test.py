@@ -14,6 +14,15 @@ Cases:
   verified    an imported program with one byte changed is refused by the library, and nothing is written
 Controls (SSI263_USERDATA_BREAK, each must fail exactly these): appdata -> portable, hash -> pinned,
 nomirror -> mirror, noverify -> verified and download (the disk itself is then written as the program).
+
+Everything is written under one temporary folder, %APPDATA% too: the appdata control names %APPDATA%\\nvda, and up to
+0.9.5's draft that was the person's REAL folder -- the test wrote and deleted SUPERTOK.BIN there, and the suite took
+the copy a person had downloaded (found by PR 91's author; Tomi's too).  A path outside the temporary folder now
+stops the test before anything is written.
+
+    python nvda/tools/userdata_test.py --sentinel     the appdata control run in a child with %APPDATA% holding a
+                                                      sentinel SUPERTOK.BIN where a person's would be: it must survive
+    USERDATA_APPDATA_BREAK=1   %APPDATA% left as it is, as it was: --sentinel must fail (the sentinel deleted)
 """
 import hashlib
 import io
@@ -62,6 +71,9 @@ def main():
                       ("second", "https://second.invalid/SUPERV.DSK", len(disk), sha(disk), "dsk"))
     extract = lambda d: ssi263speech.supervoice_firmware(DLL, d)    # noqa: E731
     tmp = tempfile.mkdtemp(prefix="ssi263-userdata-")
+    real_appdata = os.environ.get("APPDATA")
+    if not os.environ.get("USERDATA_APPDATA_BREAK"):
+        os.environ["APPDATA"] = os.path.join(tmp, "appdata")       # the appdata control's %APPDATA%\nvda: ours
     try:
         conf = os.path.join(tmp, "portable", "userConfig")
         sys.modules["globalVars"] = types.SimpleNamespace(appArgs=types.SimpleNamespace(configPath=conf))
@@ -71,6 +83,11 @@ def main():
         moved = userfw.supervoice_path()
         sys.modules["globalVars"].appArgs.configPath = conf
         check("portable", got == want and moved.startswith(conf2), got)
+        here = os.path.normcase(os.path.abspath(userfw.supervoice_path()))
+        if not here.startswith(os.path.normcase(os.path.abspath(tmp)) + os.sep) and not os.environ.get(
+                "USERDATA_APPDATA_BREAK"):
+            print("FAIL  stopped: the Super Voice's path is outside this test's folder: %s" % here)
+            return 1
 
         def serve(table):
             def fetch(url):
@@ -122,10 +139,39 @@ def main():
             check("verified", not userfw.has_supervoice() and "sha256" in str(e), str(e)[:110])
     finally:
         sys.modules.pop("globalVars", None)
+        if real_appdata is None:
+            os.environ.pop("APPDATA", None)
+        else:
+            os.environ["APPDATA"] = real_appdata
         shutil.rmtree(tmp, ignore_errors=True)
     print("user data: %s" % ("all passed" if all(results) else "%d FAILED" % results.count(False)))
     return 0 if all(results) else 1
 
 
+def sentinel():
+    """The appdata control in a child, %APPDATA% a folder holding a sentinel where a person's SUPERTOK.BIN would be."""
+    import subprocess
+    if not os.path.isfile(BIN):
+        print("skip  no SUPERTOK.BIN in firmware/speech-systems-super-voice")
+        return 0
+    fake = tempfile.mkdtemp(prefix="ssi263-appdata-")
+    try:
+        keep = os.path.join(fake, "nvda", "ssi263-speech", "firmware", "speech-systems-super-voice", "SUPERTOK.BIN")
+        os.makedirs(os.path.dirname(keep))
+        with open(keep, "wb") as f:
+            f.write(b"a person's own copy")
+        env = dict(os.environ, APPDATA=fake, SSI263_USERDATA_BREAK="appdata")
+        r = subprocess.run([sys.executable, os.path.abspath(__file__)], env=env, stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT, universal_newlines=True)
+        survived = os.path.isfile(keep) and open(keep, "rb").read() == b"a person's own copy"
+        print("%-5s %-10s %s" % ("ok" if survived else "FAIL", "sentinel",
+                                 "the appdata control (exit %d) left %%APPDATA%%'s SUPERTOK.BIN %s" % (
+                                     r.returncode, "as it was" if survived else "DELETED or changed")))
+        print("user data sentinel: %s" % ("all passed" if survived else "1 FAILED"))
+        return 0 if survived else 1
+    finally:
+        shutil.rmtree(fake, ignore_errors=True)
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(sentinel() if sys.argv[1:] == ["--sentinel"] else main())

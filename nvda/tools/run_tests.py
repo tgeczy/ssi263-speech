@@ -206,6 +206,23 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
                             env={"SSI263_USERDATA_BREAK": brk}, expect_fail=True,
                             fail_marks=[r"^FAIL  %s " % c for c in cases]
                             + [r"^ok    same ", r"^user data: %d FAILED$" % len(cases)]))
+    # ... and its appdata control never reaches a person's real %APPDATA%: up to 0.9.5's draft it deleted the
+    # SUPERTOK.BIN a person had downloaded.  A sentinel where theirs would be must survive; its control leaves
+    # %APPDATA% as it was, and the sentinel is deleted
+    CHECKS.append(check("0.8 user firmware: the appdata control leaves the real %APPDATA% alone",
+                        [PY, "userdata_test.py", "--sentinel"],
+                        ok=lambda out: bool(re.search(r"^user data sentinel: all passed$", out, re.M))))
+    CHECKS.append(check("0.8 user firmware CONTROL (%APPDATA% as it was, must fail)", [PY, "userdata_test.py", "--sentinel"],
+                        env={"USERDATA_APPDATA_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL  sentinel .* DELETED or changed$", r"^user data sentinel: 1 FAILED$"]))
+    # every C function the binding calls has its signature declared (binding_sigs.py): amv_end_dropped had none, and a
+    # 64-bit handle above 2^31 raised ArgumentError on every cancelled Accent-mini utterance; its control takes it back
+    CHECKS.append(check("binding: every C function called has its signature declared", [PY, "binding_sigs.py"],
+                        ok=lambda out: bool(re.search(r"^binding signatures: all declared$", out, re.M))))
+    CHECKS.append(check("binding CONTROL (amv_end_dropped undeclared, must fail)", [PY, "binding_sigs.py"],
+                        env={"BINDING_SIGS_BREAK": "1"}, expect_fail=True,
+                        fail_marks=[r"^FAIL  amv_end_dropped: called with no signature declared$",
+                                    r"^binding signatures: 1 FAILED$"]))
     # its global plugin (unified_plugin_test.py): the manual update check and its SHA256SUMS check, the 0.7 add-ons'
     # settings migrated profile by profile, the Voice panel refreshed after a firmware change; one control per rule
     CHECKS.append(check("0.8 plugin: updates, migration, panel refresh", [PY, "unified_plugin_test.py"],
