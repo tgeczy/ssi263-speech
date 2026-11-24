@@ -141,8 +141,20 @@ if ($MigrateData) {
             if ((Test-Path -LiteralPath $src) -and -not (Test-Path -LiteralPath $dst)) { Move-Item -LiteralPath $src -Destination $dst }
         }
         # read-only for Users, full for SYSTEM and the Administrators, by SID (group names are localised); a move within
-        # a volume keeps the descriptor it had, and /reset would give Users back the right to create files
-        & "$env:SystemRoot\System32\icacls.exe" $DataRoot /inheritance:r /grant '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-32-545:(OI)(CI)RX' /T /C /Q | Out-Null
+        # a volume keeps the descriptor it had, and /reset on the root would give Users back %ProgramData%'s right to
+        # create files.  So: the root's own ACL replaced, inheritance off -- then everything below reset to inherit
+        # from it.  The grant with /T, as Panthera's move runs it, left every FILE with an empty ACL (the (OI)(CI)
+        # inheritance flags take nothing on a file, after /inheritance:r had taken the inherited entries): nobody could
+        # read the program, SAPI refused the voice (sapi\test_sapi_userdata.ps1 found it, 2026-11-24)
+        & "$env:SystemRoot\System32\icacls.exe" $DataRoot /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-32-545:(OI)(CI)RX' /C /Q | Out-Null
+        if ($LASTEXITCODE) { throw "icacls could not set $DataRoot's permissions" }
+        foreach ($child in @(Get-ChildItem -LiteralPath $DataRoot -Force)) {
+            if ($env:SSI263_SAPI_REGISTER_BREAK -eq 'acl-t') { break }      # the control: the children left as moved
+            & "$env:SystemRoot\System32\icacls.exe" $child.FullName /reset /T /C /Q | Out-Null
+        }
+        if ($env:SSI263_SAPI_REGISTER_BREAK -eq 'acl-t') {                    # ... with the grant down the tree, as it was
+            & "$env:SystemRoot\System32\icacls.exe" $DataRoot /inheritance:r /grant '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-32-545:(OI)(CI)RX' /T /C /Q | Out-Null
+        }
         Set-MachineDataPath $DataRoot
         if (@(Get-ChildItem -LiteralPath $MigrateFrom -Force).Count -eq 0) { Remove-Item -LiteralPath $MigrateFrom -Force }
     } catch { Write-Host "the move failed: $($_.Exception.Message)"; exit 4 }
