@@ -231,7 +231,8 @@ if os.path.isdir(os.path.join(os.path.dirname(HERE), "dist", "ssi263-build", "sy
                          ("options", "stale_choices", 1), ("revert", "switch_failed", 2),
                          ("inherit", "inherited_accent", 1), ("rollback", "save_retry", 2), ("pending", "start_retry", 1),
                          ("ready", "manual_removal", 4), ("ringkey", "ring_key", 1),
-                         ("version", "preview_ledger", 1), ("context", "late_profile", 1), ("active", "other_synth", 2)):
+                         ("version", "preview_ledger", 1), ("context", "late_profile", 1), ("active", "other_synth", 2),
+                         ("menu", "menu_2021", 1)):
         CHECKS.append(check("0.8 plugin CONTROL (%s, must fail)" % brk, [PY, "unified_plugin_test.py"],
                             env={"UNIFIED_PLUGIN_BREAK": brk}, expect_fail=True,
                             fail_marks=[r"^FAIL %s " % case, r"^ok   newer ", r"^unified plugin: %d FAILED$" % n]))

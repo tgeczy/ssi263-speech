@@ -33,6 +33,9 @@ ring hook.
     UNIFIED_PLUGIN_BREAK=version   control: an unversioned (preview) ledger taken as done -- preview_ledger must FAIL
     UNIFIED_PLUGIN_BREAK=context   control: only the pending profiles given to the migration -- late_profile must FAIL
     UNIFIED_PLUGIN_BREAK=active    control: removal only while this driver speaks -- other_synth must FAIL
+  menu      Tools, "SSI-263 speech chip synthesizer...": the settings panel opened on NVDA 2021 (_popupSettingsDialog
+            only), 2023 (both) and newer (the public name)
+    UNIFIED_PLUGIN_BREAK=menu      control: the handler as it was, the public name only -- menu_2021 must FAIL
   install   the downloaded update handed to NVDA's own add-on install (its confirmation, then the restart
             prompt), which a portable NVDA has as well; on an NVDA without it, opened with os.startfile, and that
             failing (no file association: a portable NVDA) said in a message naming the file (#64)
@@ -608,6 +611,42 @@ def test_panel(pnl):
           and ch.container.updated == [], "restored %s; wrapped: kept theirs, ours passes through %s" % (restored, evt))
 
 
+# ---- the Tools menu item ------------------------------------------------------------------------------------------
+def test_menu(plugin):
+    """Tools, "SSI-263 speech chip synthesizer...": the settings panel opened on every NVDA the add-on runs on.  NVDA
+    2021's MainFrame has _popupSettingsDialog alone (nvda/tools/win7/nvda2021app's gui), newer ones the public name too;
+    the handler called the public name and raised AttributeError on 2021 (found by the 0.9.5 audit)."""
+    opened = []
+    handler = plugin.GlobalPlugin._openPanel
+    if BREAK == "menu":                              # control: the handler as it was
+        def handler(self, evt):
+            import gui
+            gui.mainFrame.popupSettingsDialog(gui.settingsDialogs.NVDASettingsDialog, self._panel)
+    saved = sys.modules.get("gui")
+    try:
+        for era, names in (("2021", ("_popupSettingsDialog",)), ("2023", ("popupSettingsDialog", "_popupSettingsDialog")),
+                           ("2025", ("popupSettingsDialog",))):
+            gui = types.ModuleType("gui")
+            gui.settingsDialogs = types.SimpleNamespace(NVDASettingsDialog="NVDASettingsDialog")
+            gui.mainFrame = types.SimpleNamespace(**{n: (lambda dlg, *a, _e=era, _n=n: opened.append((_e, _n, dlg) + a))
+                                                     for n in names})
+            sys.modules["gui"] = gui
+            try:
+                handler(types.SimpleNamespace(_panel="panel"), None)
+            except Exception as e:
+                opened.append((era, "raised " + type(e).__name__))
+    finally:
+        if saved is None:
+            sys.modules.pop("gui", None)
+        else:
+            sys.modules["gui"] = saved
+    got = {o[0]: o for o in opened}
+    check("menu_2021", got.get("2021") == ("2021", "_popupSettingsDialog", "NVDASettingsDialog", "panel"),
+          "NVDA 2021 (_popupSettingsDialog only): %s" % (got.get("2021"),))
+    check("menu_newer", got.get("2023", ())[1:2] == ("popupSettingsDialog",) and got.get("2025", ())[2:] == (
+        "NVDASettingsDialog", "panel"), "2023: %s; 2025: %s" % (got.get("2023"), got.get("2025")))
+
+
 def main():
     if not os.path.isdir(os.path.join(PLUGINS, "ssi263Speech")):
         print("no globalPlugins in nvda/dist/ssi263-build: run nvda/build_ssi263.py first")
@@ -619,6 +658,7 @@ def main():
         test_install(plugin)
         test_panel(plugin.panel)
         test_ring(plugin.ring)
+        test_menu(plugin)
         test_migrate(tmp)
         test_removal()
         test_upgrade()

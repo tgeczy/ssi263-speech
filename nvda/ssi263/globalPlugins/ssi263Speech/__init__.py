@@ -440,7 +440,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def _openPanel(self, evt):
         import gui
-        gui.mainFrame.popupSettingsDialog(gui.settingsDialogs.NVDASettingsDialog, self._panel)
+        # NVDA 2021's MainFrame has only _popupSettingsDialog (the public name came later, the private one is still
+        # there in 2023): the add-on runs on 2021.1 and later, and the Tools menu item raised AttributeError there
+        popup = getattr(gui.mainFrame, "popupSettingsDialog", None) or gui.mainFrame._popupSettingsDialog
+        popup(gui.settingsDialogs.NVDASettingsDialog, self._panel)
 
     def _start(self):
         try:
