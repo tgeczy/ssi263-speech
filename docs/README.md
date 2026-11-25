@@ -1,7 +1,7 @@
 # Documentation
 
-- [amplitude-zero-candidate.md](amplitude-zero-candidate.md): the research zero-volume
-  excitation rule, its checks and the timing evidence still required.
+- [amplitude-zero-candidate.md](amplitude-zero-candidate.md): the zero-volume excitation rule (0.9.6): a phoneme
+  loaded at amplitude zero is silent, as on the real chip; its evidence, checks, and what it leaves open.
 - [history.md](history.md): how the chip came to speak, day by day, and who found what; and every
   device known to have used the SSI-263, year by year.
 - [die.md](die.md): reading the phoneme ROM off the die photographs, and what it means.

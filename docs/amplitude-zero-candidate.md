@@ -1,6 +1,6 @@
-# Zero-amplitude excitation candidate
+# Zero-amplitude excitation (0.9.6)
 
-This research branch addresses the audible E prime written at amplitude zero by
+This change addresses the audible E prime written at amplitude zero by
 SynPhonix VEST and the Hungarian Braille Lite's zero-amplitude OU prime. Two real
 register sessions (`REG_vest_e` and `REG_vest_e2`) keep the E prime silent; the
 previous model lets it sound while master volume falls over a phoneme.
@@ -13,7 +13,7 @@ the previous interpolation, including zero-and-rise writes without a reload.
 The earlier candidate's write-time source clear and blanket precharge mute have
 been removed. Positive volume changes retain the smooth path introduced for Accent.
 
-This is a candidate, not a complete reconstruction of the amplitude scanner.
+It is not a complete reconstruction of the amplitude scanner.
 The volume follow-up establishes that R3 alone can silence and restore sound, but
 does not validate an instantaneous current-source clear. Its measured ordinary
 transition width also does not justify simply slowing the current ramp: that
@@ -31,19 +31,21 @@ guard. The checks and controls are registered in both suites.
 and stepped-volume control. `tools/check_native_core.py` covers both values of
 the new parameter as part of Python/C parity.
 
-The narrowed candidate passes both VEST replays, Hungarian and Slovak live prime
-checks, Python/C parity and the no-tick guard. The private review includes three
-Accent DEV comparisons and all 31 compiled voice-table entries before/after.
-Changed waveforms are not automatically improvements; listening remains required.
+The change passes both VEST replays, Hungarian and Slovak live prime checks,
+Python/C parity and the no-tick guard. Every voice-table voice was rendered old and
+new: the removed leading prime accounts for each changed duration (the SynPhonix
+E; the Hungarian, Slovak, Arabic, Croatian, Czech, Greek, Hebrew, Polish, Turkish
+and Russian Braille Lites, which write OU at zero before a word; smaller on
+Danish, Norwegian, Swedish, the Speak-Out, the Sounding Board, the Accents and
+English). Tomi approved it by ear on that set.
 
-The English Braille Lite golden audio still changes: its trace includes E loads
-at amplitude zero, not only a cancel's volume write. Disabling the fix for just
-those E loads restores the pipe golden exactly. All 3,709 writes match either way;
-the Spanish goldens match in both architectures. Existing golden files are kept
-unchanged pending review and listening of the intended audio difference.
+The English Braille Lite golden audio changes: its trace includes E loads at
+amplitude zero, not only a cancel's volume write. Disabling the fix for just those
+E loads restores the pipe golden exactly. All 3,709 writes match either way; the
+Spanish goldens match in both architectures. The two English golden fingerprints
+were updated after the listening approval, the writes unchanged.
 
-The isolated Windows full-suite attempt passed 211 of 328 checks. It lacks the
-complete add-on/reference-build environment; four English golden audio failures
-are explained above, while remaining failures are not all classified. This is not
-a green release run. Linux and installed-app listening remain outstanding. No
-hold-out recordings were used.
+Verified in the fully built tree: the Windows suite (778 of 778, every control) and
+the Linux suite on x86-64 and aarch64 (every check passed; the two tools above are
+plain Python, as the Linux suite runs on boxes without numpy). No hold-out
+recordings were used.

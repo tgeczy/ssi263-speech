@@ -96,7 +96,7 @@ DEFAULTS = {
                              "A: amplitude moves linearly 'at rate dependent on the phoneme "
                              "duration setting'; full scale per phoneme duration here"),
     "amp_zero_sources": (True, "REG",
-                         "Research candidate: a phoneme loaded at R3 amplitude zero has no excitation "
+                         "0.9.6: a phoneme loaded at R3 amplitude zero has no excitation "
                          "(REG_vest_e/REG_vest_e2). Writes without loads keep ordinary interpolation. "
                          "False restores the audible zero-volume prime for the must-fail control. "
                          "A positive write restores targets suppressed by a zero-volume load; "
