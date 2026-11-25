@@ -338,7 +338,7 @@ should be much the same program. That is an ear, not a measurement.
     the binary search's first step (word 2), then from index 1 four bytes an entry (the text's offset, the word's
     length, the replacement's length), the word in capitals followed by its replacement, which VEST reads through
     its rules. Only the first word of each call is looked up; Business Vision sends one word a call.
-  - *What its flat inflection leaves, and its dash (heard by a listener, Tom, 2026-11-25; measured, kept as VEST's
+  - *What its flat inflection leaves, and its dash (heard by a listener, 2026-11-25; measured, kept as VEST's
     own):* bit 6 flattens the intonation INSIDE a phrase only. VEST's punctuation still shapes the pitch: with it set,
     "Hello world." falls (R1 pitch 9 to 4), "Hello world?" rises (9 to 11), "!" falls, and a comma's phrase starts
     lower. Business Vision, sending one word a call, rarely reached those contours; the voice sends sentences, so a
