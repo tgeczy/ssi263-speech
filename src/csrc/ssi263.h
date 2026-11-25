@@ -106,7 +106,7 @@ typedef struct ssi263_params {
     double f4_C0;
     double f4_w[4];
     double f4_bw;                        /* B/fc of the tuned F4 */
-    double amp_zero_sources;             /* zero R3 amplitude stops excitation; false is the regression control */
+    double amp_zero_sources;             /* a zero-amplitude load stops excitation; false restores the prime leak */
 } ssi263_params;
 
 #define SSI263_GLOTTAL_MAX 64

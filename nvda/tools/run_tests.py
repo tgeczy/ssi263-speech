@@ -3038,6 +3038,10 @@ CHECKS.append(check("zero amplitude: silent voiced and noise primes (Python, C)"
 CHECKS.append(check("zero amplitude CONTROL (old slew, must fail)", [PY, AMP_ZERO],
                     env={"AMP_ZERO_BREAK": "slew"}, expect_fail=True,
                     fail_marks=[r"^FAIL ZERO Python E:", r"^FAIL ZERO C OU:", r"^FAIL ZERO C S:"]))
+CHECKS.append(check("zero amplitude: writes without loads unchanged", [PY, AMP_ZERO, "--scope"]))
+CHECKS.append(check("zero amplitude scope CONTROL (unwanted reload, must fail)", [PY, AMP_ZERO, "--scope"],
+                    env={"AMP_ZERO_BREAK": "reload"}, expect_fail=True,
+                    fail_marks=[r"^FAIL SCOPE Python AH:", r"^FAIL SCOPE C OU:", r"^FAIL SCOPE C S:"]))
 CHECKS.append(check("volume: the amplitude's slew, not whole-code steps (Python, C)", [PY, AMP_STEPS]))
 CHECKS.append(check("volume CONTROL (v0.18's whole-code steps, must fail)", [PY, AMP_STEPS],
                     env={"AMP_STEPS_BREAK": "code"}, expect_fail=True,

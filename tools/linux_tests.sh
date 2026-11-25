@@ -135,6 +135,9 @@ control "Braille Lite digit runs CONTROL (the bound put back, must fail)" \
 check "zero amplitude: silent voiced and noise primes (Python, C)" python3 tools/check_amp_zero.py
 control "zero amplitude CONTROL (old slew)" "^FAIL ZERO Python E:" "^FAIL ZERO C OU:" "^FAIL ZERO C S:" \
     -- env AMP_ZERO_BREAK=slew python3 tools/check_amp_zero.py
+check "zero amplitude: writes without loads unchanged" python3 tools/check_amp_zero.py --scope
+control "zero amplitude scope CONTROL (unwanted reload)" "^FAIL SCOPE Python AH:" "^FAIL SCOPE C OU:" "^FAIL SCOPE C S:" \
+    -- env AMP_ZERO_BREAK=reload python3 tools/check_amp_zero.py --scope
 check "volume: smooth positive transitions (Python, C)" python3 tools/check_amp_steps.py
 control "volume CONTROL (whole-code steps, must fail)" "^FAIL  RAMP py:" "^FAIL  RAMP C:" \
     "^amp steps: 2 FAILED$" -- env AMP_STEPS_BREAK=code python3 tools/check_amp_steps.py

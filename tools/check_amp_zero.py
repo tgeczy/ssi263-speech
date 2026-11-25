@@ -6,6 +6,8 @@ without resetting between speech and the prime. Existing filter tails may settle
 the test starts 10 ms after the load, following a settled PA.
 
 AMP_ZERO_BREAK=slew restores the old source behavior; every ZERO case must fail.
+--scope checks that writes without a new load keep the old audio exactly. Its
+AMP_ZERO_BREAK=reload control inserts an unwanted load at the zero write.
 """
 import os
 import sys
@@ -20,7 +22,7 @@ FS = 44100
 FAILURES = []
 
 
-def render(make, phone, zero):
+def render(make, phone, zero, recover=False):
     chip = make({"amp_zero_sources": os.environ.get("AMP_ZERO_BREAK") != "slew"})
     for r, v in ((3, 0xDF), (0, 0xC0), (3, 0x5F), (1, 0x80), (2, 0xCF), (4, 0xE7), (0, 0x0E)):
         chip.write(r, v)
@@ -30,10 +32,15 @@ def render(make, phone, zero):
     chip.write(3, 0x50 if zero else 0x5F)
     chip.write(0, phone)
     y = np.asarray(chip.run(.066), dtype=float)
+    if recover:
+        chip.write(3, 0x56)  # no R0: restore the held phoneme's targets, not a new load
+        y = np.asarray(chip.run(.30), dtype=float)
     return y
 
 
 def main():
+    if "--scope" in sys.argv:
+        return scope()
     for tag, make in (("Python", lambda p: SSI263(p, out_rate=FS)),
                       ("C", lambda p: SSI263C(p, out_rate=FS))):
         for name, phone in (("E", 1), ("OU", 0x12), ("S", 0x30)):
@@ -44,7 +51,40 @@ def main():
             print("%s ZERO %s %s: %.6f of nonzero control (limit .02)" % ("ok" if good else "FAIL", tag, name, ratio))
             if not good:
                 FAILURES.append((tag, name))
+            restored, reference = render(make, phone, True, True), render(make, phone, False, True)
+            ratio = np.linalg.norm(restored[-2205:]) / np.linalg.norm(reference[-2205:])
+            good = .9 < ratio < 1.1
+            print("%s RECOVER %s %s: %.6f of nonzero control (limit .9..1.1)" %
+                  ("ok" if good else "FAIL", tag, name, ratio))
+            if not good:
+                FAILURES.append((tag, name, "recovery"))
     return 1 if FAILURES else 0
+
+
+def scope():
+    failures = 0
+    for tag, make in (("Python", lambda p: SSI263(p, out_rate=FS)),
+                      ("C", lambda p: SSI263C(p, out_rate=FS))):
+        for name, phone in (("AH", 0x0E), ("OU", 0x12), ("S", 0x30)):
+            audio = []
+            for enabled in (False, True):
+                chip = make({"amp_zero_sources": enabled})
+                for r, v in ((3, 0xDF), (0, 0xC0), (3, 0x5F), (1, 0x80),
+                             (2, 0x8F), (4, 0xE7), (0, phone)):
+                    chip.write(r, v)
+                chip.run(.25)
+                chip.write(3, 0x50)
+                if enabled and os.environ.get("AMP_ZERO_BREAK") == "reload":
+                    chip.write(0, phone)  # control: wrongly treat the write as a new load
+                y = list(chip.run(.08))
+                chip.write(3, 0x59)
+                y.extend(chip.run(.15))
+                audio.append(np.asarray(y))
+            same = np.array_equal(*audio)
+            print("%s SCOPE %s %s: zero/rise without reload unchanged" %
+                  ("ok" if same else "FAIL", tag, name))
+            failures += not same
+    return int(bool(failures))
 
 
 if __name__ == "__main__":

@@ -41,6 +41,7 @@ struct ssi263 {
     int latch[NFIELDS];
     int amp_target;
     double amp_cur;
+    int amp_zero_loaded;              /* restore only targets suppressed by a zero-volume load */
     int closing, releases;
     int released, early_req, apply_due;   /* release_lookahead (as chip.py) */
     int onto_silence;                 /* loaded onto a silent tract (closure_onto_silence) */
@@ -370,7 +371,8 @@ static void load_phoneme(ssi263 *c)
     e = rom_entry(c, c->phoneme);
     for (f = 0; f < NFIELDS; f++)
         c->target[f] = e[f];
-    if (c->p.amp_zero_sources != 0.0 && !c->amp_target)
+    c->amp_zero_loaded = c->p.amp_zero_sources != 0.0 && !c->amp_target;
+    if (c->amp_zero_loaded)
         zero_sources(c);
     c->closing = c->p.closure_enable != 0.0 && !e[6];
     c->releases = c->closing && (e[7] == 1 || c->p.closure_release_b01 == 0.0);
@@ -570,14 +572,11 @@ SSI263_API void ssi263_write(ssi263 *c, int addr, int value)
             update_inflection(c);
         }
         c->amp_target = value & 0x0F;
-        if (c->p.amp_zero_sources != 0.0) {
-            if (!c->amp_target)
-                zero_sources(c);
-            else if (!(old & 0x0F)) {
-                const unsigned char *e = rom_entry(c, c->phoneme);
-                c->target[VA] = e[VA];
-                c->target[FA] = e[FA];
-            }
+        if (c->amp_zero_loaded && c->amp_target) {
+            const unsigned char *e = rom_entry(c, c->phoneme);
+            c->target[VA] = e[VA];
+            c->target[FA] = e[FA];
+            c->amp_zero_loaded = 0;
         }
         if (value & 0x80) {
             /* power-down, after any held writes have landed: the hard G's context and state end (as chip.py) */
@@ -864,8 +863,6 @@ static long chip_run(ssi263 *c, long max_out, int stop_on_request, double *out)
                 nn2 = c->nw2;
                 nn5 = c->nw5;
             }
-            if (p->amp_zero_sources != 0.0 && !c->amp_target)
-                nz = nzn = 0.0;                     /* pending precharge cannot bypass zero amplitude */
             if (swell != 0.0 && la[VA] > 0) {
                 /* the noise swells with each glottal pulse while voiced (chip.py noise_voice_swell, v0.14) */
                 double sw = 1.0 + swell * cos(2 * M_PI * c->phase);

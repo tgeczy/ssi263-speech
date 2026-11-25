@@ -146,6 +146,7 @@ class SSI263:
         self.latch = {f: -1 for f in FIELDS}
         self.amp_target = 0
         self.amp_cur = 0.0
+        self.amp_zero_loaded = False  # restore only targets suppressed by a zero-volume load
         self.closing = False
         self.releases = False
         self.released = False        # this closure has released before its end
@@ -274,12 +275,10 @@ class SSI263:
                 self.log.append((round(t, 6), "mode %d: %s" % (self.mode, MODE_NAMES[self.mode])))
                 self._update_inflection()
             self.amp_target = value & 0x0F
-            if self.p["amp_zero_sources"]:
-                if not self.amp_target:
-                    self._zero_sources()
-                elif not (old & 0x0F):
-                    e = self.rom.entry(self.phoneme)
-                    self.target["VA"], self.target["FA"] = e["VA"], e["FA"]
+            if self.amp_zero_loaded and self.amp_target:
+                e = self.rom.entry(self.phoneme)
+                self.target["VA"], self.target["FA"] = e["VA"], e["FA"]
+                self.amp_zero_loaded = False
             if value & 0x80:
                 # power-down, after any held writes have landed (above): the hard G's context and state end here --
                 # a K from before it is no K before the next HVC (lifecycle of our modelled rule, not a claim about
@@ -327,7 +326,8 @@ class SSI263:
         e = self.rom.entry(self.phoneme)
         for f in FIELDS:
             self.target[f] = e[f]
-        if self.p["amp_zero_sources"] and not self.amp_target:
+        self.amp_zero_loaded = bool(self.p["amp_zero_sources"] and not self.amp_target)
+        if self.amp_zero_loaded:
             self._zero_sources()
         self.closing = bool(self.p["closure_enable"]) and not e["closure_clear"]
         self.releases = self.closing and (e["class1"] == 1 or not self.p["closure_release_b01"])
@@ -810,9 +810,6 @@ class SSI263:
                     n2, n5 = self.w2, self.w5
                     nzn = self.noise_val * ngn * la["FA"] / 15.0
                     nn2, nn5 = self.nw2, self.nw5
-                if p["amp_zero_sources"] and not self.amp_target:
-                    # A pending stop's precharge must not bypass zero amplitude.
-                    nz = nzn = 0.0
                 if swell and la["VA"] > 0:
                     # the noise swells with each glottal pulse while voiced (params noise_voice_swell, v0.14)
                     sw = 1.0 + swell * math.cos(2 * math.pi * self.phase)
