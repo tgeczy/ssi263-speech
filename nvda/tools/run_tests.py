@@ -2177,6 +2177,11 @@ if os.path.isfile(IMPORT_TEST):
     CHECKS.append(check("Android import CONTROL (the list dropped, must fail)", [PY, IMPORT_TEST],
                         env={"SSI263_IMPORT_TEST_BREAK": "hash"}, expect_fail=True,
                         fail_marks=[r"^FAIL a release not on the list", r"^import: 2 FAILED$"]))
+    # ... and the speech comparison's leading bound dropped (same_speech): a delay past it must not pass
+    CHECKS.append(check("Android import CONTROL (the speech comparison's leading bound dropped, must fail)",
+                        [PY, IMPORT_TEST], env={"SSI263_IMPORT_TEST_BREAK": "lead"}, expect_fail=True,
+                        fail_marks=[r"^FAIL comparison control: leading delay past the bound",
+                                    r"^FAIL comparison control: audible head removed"]))
 # MAME's 8085 core (the Accent-PC's, src/csrc/cpu/i8085_mame.cpp; not yet in a board): CONTRACT.md's clauses
 # (src/csrc/cpu/test_i8085_contract.c; its must-fail controls: cpu/i8085_controls.py)
 if os.path.isfile(os.path.join(LIB, "test_i8085_contract.exe")):

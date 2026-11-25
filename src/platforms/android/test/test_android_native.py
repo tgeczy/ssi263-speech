@@ -476,12 +476,18 @@ def has_lang(data, lang):
     return all(os.path.isfile(os.path.join(data, f)) for f in FILES[lang])
 
 
-def reference(lib, data, run_ahead=True):
+def reference(lib, data, run_ahead=True, pcms=None):
+    """{case: (samples, fnv)}; with pcms (a dict), each case's PCM bytes are kept there too (test_import_native.py
+    compares the speech itself, not only its length)"""
     ref = Ref(lib, data, "en")
     got = {}
-    for name, text, rate, pitch, blocks in CASES if block("bl") else ():
-        pcm = ref.say(text, rate, pitch, blocks)
+
+    def keep(name, pcm):
         got[name] = (len(pcm) // 2, fnv(pcm))
+        if pcms is not None:
+            pcms[name] = pcm
+    for name, text, rate, pitch, blocks in CASES if block("bl") else ():
+        keep(name, ref.say(text, rate, pitch, blocks))
     lib.blv_destroy(ref.v)
     # 0.8's units, each on fresh units: the sentence (no number words: they read their own) and the import's probe
     for lang, text, probe in LANGS if block("lang") else ():
@@ -489,19 +495,16 @@ def reference(lib, data, run_ahead=True):
             continue
         for name, said in ((lang, text), (lang + "-probe", probe)):
             unit = Ref(lib, data, lang)
-            pcm = unit.say(said, 0, 0, None)
-            got[name] = (len(pcm) // 2, fnv(pcm))
+            keep(name, unit.say(said, 0, 0, None))
             lib.blv_destroy(unit.v)
     ra = Ref(lib, data, "en", run_ahead=1) if run_ahead and block("ra") else None
     for name, text, rate, pitch, blocks in RA_CASES if ra else ():
-        pcm = ra.say(text, rate, pitch, blocks)
-        got[name] = (len(pcm) // 2, fnv(pcm))
+        keep(name, ra.say(text, rate, pitch, blocks))
     if ra:
         lib.blv_destroy(ra.v)
     if block("bl") and has_lang(data, "es"):
         es = Ref(lib, data, "es")
-        pcm = es.say(SPANISH, 0, 0, None)
-        got["spanish"] = (len(pcm) // 2, fnv(pcm))
+        keep("spanish", es.say(SPANISH, 0, 0, None))
         lib.blv_destroy(es.v)
     return got
 
