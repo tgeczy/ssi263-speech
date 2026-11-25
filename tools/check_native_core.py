@@ -32,6 +32,7 @@ EXACT = ("elapsed", "duration", "time", "timer_done", "mode", "lfsr", "trans_tar
 
 SWITCHES = [
     {},
+    {"amp_zero_sources": False},
     # v0.17's noise path ('own', the default): v0.16's shared one, with its noise switches (the default now leaves
     # the shared shaper and routing untried), and the noise path's own alternatives
     {"noise_path": "shared"},

@@ -345,6 +345,15 @@ static void latch_all(ssi263 *c, int force)
     }
 }
 
+static void zero_sources(ssi263 *c)
+{
+    /* Source stop, not an output reset: preserve the tract/output tails (as chip.py). */
+    c->target[VA] = c->target[FA] = 0;
+    c->cur[VA] = c->cur[FA] = 0.0;
+    c->g2 = c->g5 = c->ng2 = c->ng5 = 0.0;
+    latch_all(c, 0);
+}
+
 static void load_phoneme(ssi263 *c)
 {
     const unsigned char *e;
@@ -361,6 +370,8 @@ static void load_phoneme(ssi263 *c)
     e = rom_entry(c, c->phoneme);
     for (f = 0; f < NFIELDS; f++)
         c->target[f] = e[f];
+    if (c->p.amp_zero_sources != 0.0 && !c->amp_target)
+        zero_sources(c);
     c->closing = c->p.closure_enable != 0.0 && !e[6];
     c->releases = c->closing && (e[7] == 1 || c->p.closure_release_b01 == 0.0);
     /* the hard G (as chip.py): a hold after K/KV, the firmware's PA prime between them or not; only the
@@ -559,6 +570,15 @@ SSI263_API void ssi263_write(ssi263 *c, int addr, int value)
             update_inflection(c);
         }
         c->amp_target = value & 0x0F;
+        if (c->p.amp_zero_sources != 0.0) {
+            if (!c->amp_target)
+                zero_sources(c);
+            else if (!(old & 0x0F)) {
+                const unsigned char *e = rom_entry(c, c->phoneme);
+                c->target[VA] = e[VA];
+                c->target[FA] = e[FA];
+            }
+        }
         if (value & 0x80) {
             /* power-down, after any held writes have landed: the hard G's context and state end (as chip.py) */
             c->last_real = -1;
@@ -844,6 +864,8 @@ static long chip_run(ssi263 *c, long max_out, int stop_on_request, double *out)
                 nn2 = c->nw2;
                 nn5 = c->nw5;
             }
+            if (p->amp_zero_sources != 0.0 && !c->amp_target)
+                nz = nzn = 0.0;                     /* pending precharge cannot bypass zero amplitude */
             if (swell != 0.0 && la[VA] > 0) {
                 /* the noise swells with each glottal pulse while voiced (chip.py noise_voice_swell, v0.14) */
                 double sw = 1.0 + swell * cos(2 * M_PI * c->phase);

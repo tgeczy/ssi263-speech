@@ -3033,6 +3033,11 @@ for brk, marks in (
 # as its slew -- a reload from 9 to 12 rises smoothly, Python and C, and a held amplitude renders as v0.18.  The control
 # puts back v0.18's whole-code steps: the ramp must fail in both engines
 AMP_STEPS = os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_amp_steps.py")
+AMP_ZERO = os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools", "check_amp_zero.py")
+CHECKS.append(check("zero amplitude: silent voiced and noise primes (Python, C)", [PY, AMP_ZERO]))
+CHECKS.append(check("zero amplitude CONTROL (old slew, must fail)", [PY, AMP_ZERO],
+                    env={"AMP_ZERO_BREAK": "slew"}, expect_fail=True,
+                    fail_marks=[r"^FAIL ZERO Python E:", r"^FAIL ZERO C OU:", r"^FAIL ZERO C S:"]))
 CHECKS.append(check("volume: the amplitude's slew, not whole-code steps (Python, C)", [PY, AMP_STEPS]))
 CHECKS.append(check("volume CONTROL (v0.18's whole-code steps, must fail)", [PY, AMP_STEPS],
                     env={"AMP_STEPS_BREAK": "code"}, expect_fail=True,

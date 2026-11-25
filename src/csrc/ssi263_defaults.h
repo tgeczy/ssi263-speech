@@ -2,7 +2,7 @@
 #ifndef SSI263_DEFAULTS_H
 #define SSI263_DEFAULTS_H
 
-#define SSI263_DEFAULT_PARAMS_N 202
+#define SSI263_DEFAULT_PARAMS_N 203
 
 static const double ssi263_default_params_d[SSI263_DEFAULT_PARAMS_N] = {
     1000000.0, 4096.0, 8.0, 128.0,
@@ -55,7 +55,7 @@ static const double ssi263_default_params_d[SSI263_DEFAULT_PARAMS_N] = {
     0.0, 1.0, 1.0, 0.5863636346382275,
     0.0012219982702749526, 1.0, 1.0, 0.0495,
     8.35, 1.0, 2.0, 4.1,
-    8.1, 0.0076,
+    8.1, 0.0076, 1.0,
 };
 
 static const unsigned char ssi263_default_rom_d[576] = {

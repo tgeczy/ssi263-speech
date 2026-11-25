@@ -1,5 +1,7 @@
 # Documentation
 
+- [amplitude-zero-candidate.md](amplitude-zero-candidate.md): the research zero-volume
+  excitation rule, its checks and the timing evidence still required.
 - [history.md](history.md): how the chip came to speak, day by day, and who found what; and every
   device known to have used the SSI-263, year by year.
 - [die.md](die.md): reading the phoneme ROM off the die photographs, and what it means.

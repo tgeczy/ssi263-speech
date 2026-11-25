@@ -61,6 +61,7 @@ class _Params(ctypes.Structure):
         ("amp_smooth", _c_double),
         ("f4_code", _c_double), ("f4_K", _c_double), ("f4_C0", _c_double), ("f4_w", _c_double * 4),
         ("f4_bw", _c_double),
+        ("amp_zero_sources", _c_double),
     ]
 
 
@@ -166,6 +167,7 @@ def params_struct(p):
     for i, v in enumerate(p["f4_w"]):
         s.f4_w[i] = v
     s.f4_bw = float(p["f4_bw"])
+    s.amp_zero_sources = 1.0 if p["amp_zero_sources"] else 0.0
     return s
 
 

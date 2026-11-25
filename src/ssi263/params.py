@@ -95,6 +95,11 @@ DEFAULTS = {
     "amp_slew_per_phoneme": (1.0, "GUESS",
                              "A: amplitude moves linearly 'at rate dependent on the phoneme "
                              "duration setting'; full scale per phoneme duration here"),
+    "amp_zero_sources": (True, "REG",
+                         "Research candidate: R3 amplitude zero silences excitation, including newly loaded "
+                         "phonemes (REG_vest_e/REG_vest_e2). Keep ordinary volume interpolation unchanged. "
+                         "False restores the audible zero-volume prime for the must-fail control. "
+                         "Mid-phoneme writes and recovery still require the dedicated hardware timing check"),
     "mode1_rate15_formants": ("pa_slew", "BL+EAR",
                               "the formant fields (F1 F2 F3 NAS) in mode 1 at speech rate 15 only -- the BASIC Sound "
                               "command's tones (chime.bas, the Pinball lesson; Astra, Replies 177-179).  'slew': as at "

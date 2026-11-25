@@ -131,6 +131,13 @@ check "Braille Lite text preparation: long digit runs under AddressSanitizer" py
 control "Braille Lite digit runs CONTROL (the bound put back, must fail)" \
     "^FAIL  Braille Lite digit runs: AddressSanitizer: stack-buffer-overflow" " in amounts .*bl_voice\.c:4[0-9][0-9]" \
     -- env BL_DIGIT_RUN_BREAK=1 python3 tools/check_bl_digit_run.py
+# Zero amplitude must suppress excitation without restoring the Accent's stepped volume.
+check "zero amplitude: silent voiced and noise primes (Python, C)" python3 tools/check_amp_zero.py
+control "zero amplitude CONTROL (old slew)" "^FAIL ZERO Python E:" "^FAIL ZERO C OU:" "^FAIL ZERO C S:" \
+    -- env AMP_ZERO_BREAK=slew python3 tools/check_amp_zero.py
+check "volume: smooth positive transitions (Python, C)" python3 tools/check_amp_steps.py
+control "volume CONTROL (whole-code steps, must fail)" "^FAIL  RAMP py:" "^FAIL  RAMP C:" \
+    "^amp steps: 2 FAILED$" -- env AMP_STEPS_BREAK=code python3 tools/check_amp_steps.py
 # engine v0.21's F4 (tools/check_f4_law.py: the voice path's F4 tuned by the latched F3 code on its own bank, retuned
 # with F3 through a transition and through PA, Python and C); its control puts back v0.20's fixed F4
 check "F4: tuned by the F3 code on its own bank, retuned with F3 (Python, C)" python3 tools/check_f4_law.py
