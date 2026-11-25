@@ -57,7 +57,7 @@ if [ "${1:-}" = --scan ]; then
     echo "none found"; exit 0
 fi
 FW="$(cd "$1" && pwd)"
-VERSION="${2:-0.9.5}"
+VERSION="${2:-0.9.6}"
 ARCH="$(uname -m)"
 NAME="ssi263-speech-$VERSION-linux-$ARCH"
 STAGE="$ROOT/build/package/$NAME"
