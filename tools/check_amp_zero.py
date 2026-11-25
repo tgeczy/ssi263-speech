@@ -8,11 +8,11 @@ the test starts 10 ms after the load, following a settled PA.
 AMP_ZERO_BREAK=slew restores the old source behavior; every ZERO case must fail.
 --scope checks that writes without a new load keep the old audio exactly. Its
 AMP_ZERO_BREAK=reload control inserts an unwanted load at the zero write.
+Plain Python (no numpy): the Linux suite runs on boxes without it (the Pi).
 """
+import math
 import os
 import sys
-
-import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 from ssi263.chip import SSI263
@@ -20,6 +20,10 @@ from ssi263.native import SSI263C
 
 FS = 44100
 FAILURES = []
+
+
+def norm(x):
+    return math.sqrt(sum(v * v for v in x))
 
 
 def render(make, phone, zero, recover=False):
@@ -31,10 +35,10 @@ def render(make, phone, zero, recover=False):
     chip.run(.30)
     chip.write(3, 0x50 if zero else 0x5F)
     chip.write(0, phone)
-    y = np.asarray(chip.run(.066), dtype=float)
+    y = [float(v) for v in chip.run(.066)]
     if recover:
         chip.write(3, 0x56)  # no R0: restore the held phoneme's targets, not a new load
-        y = np.asarray(chip.run(.30), dtype=float)
+        y = [float(v) for v in chip.run(.30)]
     return y
 
 
@@ -46,13 +50,13 @@ def main():
         for name, phone in (("E", 1), ("OU", 0x12), ("S", 0x30)):
             silent, loud = render(make, phone, True), render(make, phone, False)
             window = slice(int(.010 * FS), int(.055 * FS))
-            ratio = np.linalg.norm(silent[window]) / np.linalg.norm(loud[window])
+            ratio = norm(silent[window]) / norm(loud[window])
             good = ratio < .02
             print("%s ZERO %s %s: %.6f of nonzero control (limit .02)" % ("ok" if good else "FAIL", tag, name, ratio))
             if not good:
                 FAILURES.append((tag, name))
             restored, reference = render(make, phone, True, True), render(make, phone, False, True)
-            ratio = np.linalg.norm(restored[-2205:]) / np.linalg.norm(reference[-2205:])
+            ratio = norm(restored[-2205:]) / norm(reference[-2205:])
             good = .9 < ratio < 1.1
             print("%s RECOVER %s %s: %.6f of nonzero control (limit .9..1.1)" %
                   ("ok" if good else "FAIL", tag, name, ratio))
@@ -79,8 +83,8 @@ def scope():
                 y = list(chip.run(.08))
                 chip.write(3, 0x59)
                 y.extend(chip.run(.15))
-                audio.append(np.asarray(y))
-            same = np.array_equal(*audio)
+                audio.append([float(v) for v in y])
+            same = audio[0] == audio[1]
             print("%s SCOPE %s %s: zero/rise without reload unchanged" %
                   ("ok" if same else "FAIL", tag, name))
             failures += not same
