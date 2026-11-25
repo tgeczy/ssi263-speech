@@ -304,8 +304,10 @@ if os.path.isfile(PC86_FUZZ):
 # the replay is golden/premature_history_mame.jsonl, the same miscount found on MAME: premature_record.py): the cut
 # line must be spoken whole on both hosts; with 0.6.0's busy() put back it must end at its comma again
 CHECKS.append(check("premature completion replay", [PY, "premature_replay.py"]))
+# (with the kept-line release off: since 0.9.5 the native host's lockstep cancel releases a kept line, and the miscount
+# this replay recorded no longer arises there -- the control is about the old busy())
 CHECKS.append(check("premature completion replay CONTROL (0.6.0 busy, must be cut)", [PY, "premature_replay.py"],
-                    env={"PREMATURE_REPLAY_OLD": "1"}, expect_fail=True,
+                    env={"PREMATURE_REPLAY_OLD": "1", "BL_KEPT_LINE_BREAK": "1"}, expect_fail=True,
                     fail_marks=[r"^FAIL +native +30 ms blocks +CUT 3 of 13 phonemes at done, 8 MORE after: W UH1 N$",
                                 r"^FAIL +pipe +30 ms blocks +CUT 3 of 13 phonemes at done, 8 MORE after: W UH1 N$",
                                 r"^premature replay: 2 FAILED$"]))
@@ -1761,8 +1763,10 @@ if os.path.isfile(os.path.join(LIB, "x64", "bl.dll")):
                                     r"exactly$",
                                     r"^FAIL 1\.0480 s, cancel_settle 0 .*led by \[12, 56, 37, 8, 2\]; .* the retained "
                                     r"leak, exactly$", LC_SUM % (0, 0, 8)]))
+    # (with the kept-line release off: since 0.9.5 the lockstep cancel releases a kept line too, which clears these two
+    # leaks as well -- the control is about what the settle alone leaves)
     CHECKS.append(check("lockstep cancel race CONTROL (the settle alone, must fail)", [PY, "lockstep_cancel.py"],
-                        env={"SSI263_BLAZIE_CANCEL_SETTLE": "1"}, expect_fail=True,
+                        env={"SSI263_BLAZIE_CANCEL_SETTLE": "1", "BL_KEPT_LINE_BREAK": "1"}, expect_fail=True,
                         fail_marks=[r"^FAIL 1\.0380 s, cancel_settle 1 .*led by \[10\]; .* the retained leak, exactly$",
                                     r"^FAIL 1\.0385 s, cancel_settle 1 .*led by \[56\]; .* the retained leak, exactly$",
                                     r"^ok +1\.0480 s, cancel_settle 1 ", LC_SUM % (1, 1, 2)]))

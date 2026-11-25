@@ -760,7 +760,8 @@ BL_API double bh_cancel(bl_host *h, double limit, double quiet, double cut)
            above), but the French, Greek, Norwegian and Swedish units were caught at most cuts of a long text: 3.0-3.6 s
            of the cut text said before the next one (tools/check_cancel_head.py, every voice; the same on 0.9.2's
            library).  BL_KEPT_LINE_BREAK=1, the check's control: the lockstep cancel as it was */
-        ra_cut = !getenv("BL_KEPT_LINE_BREAK");
+        /* (RA_BRK_HELD, set by a tool comparing the two modes' cancels, leaves it out here as for run ahead) */
+        ra_cut = !getenv("BL_KEPT_LINE_BREAK") && h->ra.brk != RA_BRK_HELD;
     }
     /* the explicit recovery from a fault (Reply 112 item 2): the utterance, its held input and a failed script are
        abandoned here (ra_reset), the unit gets its ^X below */

@@ -144,6 +144,10 @@ def session(ahead, step=0.0005, extra_idle=0.0):
         # units' cancels as it did; what the CR does is run_ahead_kept_line.py's, and that the next utterance is its
         # own text with the CR in place is run_ahead_cancel.py's (English and Spanish)
         u.run_ahead_break = RA_BRK_HELD
+    else:
+        # ... and out of the lockstep unit too, which has had the same CR since 0.9.5 (bl_host.c bh_cancel): the two
+        # units' cancels compared as they were, the CR's own effect tested where it is
+        u.run_ahead_break = RA_BRK_HELD
     tx0 = [0]
 
     def idle(seconds):
