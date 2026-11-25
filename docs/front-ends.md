@@ -338,6 +338,15 @@ should be much the same program. That is an ear, not a measurement.
     the binary search's first step (word 2), then from index 1 four bytes an entry (the text's offset, the word's
     length, the replacement's length), the word in capitals followed by its replacement, which VEST reads through
     its rules. Only the first word of each call is looked up; Business Vision sends one word a call.
+  - *What its flat inflection leaves, and its dash (heard by a listener, Tom, 2026-11-25; measured, kept as VEST's
+    own):* bit 6 flattens the intonation INSIDE a phrase only. VEST's punctuation still shapes the pitch: with it set,
+    "Hello world." falls (R1 pitch 9 to 4), "Hello world?" rises (9 to 11), "!" falls, and a comma's phrase starts
+    lower. Business Vision, sending one word a call, rarely reached those contours; the voice sends sentences, so a
+    listener with inflection off hears them. (The Braille Lite's inflection off, its status menu's, is a different
+    switch and fully flat.) A dash standing on its own -- between spaces, or one character read alone -- is VEST's word
+    "minus", in its own clipped form (M AH1 Y N UH3 S, where the typed word loads M AH1 AE1 I Y N UH3 S); a hyphen
+    inside a word ("well-known") is a silent join. Neither comes from the voice's text path, whose number words say
+    "minus" only before a negative number.
 - **Its hooks:** INT 9 cuts speech on Alt (scan code 38h) or Ctrl then X (the words at 1E0h and 1E2h, which
   Business Vision rewrites with its own keys and also uses to find VEST); `/K-` leaves the keyboard alone. INT 8
   is a watchdog: after 10 timer ticks with no A/R it restarts the chip with its start-up writes.
