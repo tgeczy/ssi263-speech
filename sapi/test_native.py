@@ -327,9 +327,14 @@ def own_checks(voice, runs):
             else:
                 add(g[k] == r[k], a, "dialog settings, " + k, "the same as without them" if g[k] == r[k] else
                     "CHANGED by settings that are not its")
+        # 2%, plus one render block: a voice ends at its first quiet 30-ms block (bl_voice.c BLOCK_S), so its trailing
+        # silence can end a block apart at two rates -- the Slovak unit's "Hello, how are you??" at 11025 Hz is one
+        # block short of half its 22050 Hz length on 0.9.5 and since, both ending in the same smooth decay to zero
+        # (0.9.6: its start prime gone, that block became 2.2% of the shorter utterance).  A real cut is many blocks.
         for rate, f in (("11025", 0.5), ("44100", 2.0)):
             st, pcm = runs[a, rate]["default"]
-            ok = st == 0 and voiced(pcm) and abs(len(pcm) / 2 - f * n["default"]) <= 0.02 * f * n["default"]
+            ok = st == 0 and voiced(pcm) and \
+                abs(len(pcm) / 2 - f * n["default"]) <= 0.02 * f * n["default"] + 0.03 * int(rate)
             add(ok, a, "%s Hz" % rate, "%d samples against %d at 22050" % (len(pcm) // 2, n["default"]))
     if len(arches) == 2:
         for sess in ("own", "dialog", "11025", "44100"):
