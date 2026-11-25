@@ -330,7 +330,8 @@ def own_checks(voice, runs):
         # 2%, plus one render block: a voice ends at its first quiet 30-ms block (bl_voice.c BLOCK_S), so its trailing
         # silence can end a block apart at two rates -- the Slovak unit's "Hello, how are you??" at 11025 Hz is one
         # block short of half its 22050 Hz length on 0.9.5 and since, both ending in the same smooth decay to zero
-        # (0.9.6: its start prime gone, that block became 2.2% of the shorter utterance).  A real cut is many blocks.
+        # (0.9.6: its start prime gone, that block became 2.2% of the shorter utterance).  This is a duration sanity
+        # check, not a cut-off detector: a cut shorter than a block would fit inside it (Astra, Reply 270).
         for rate, f in (("11025", 0.5), ("44100", 2.0)):
             st, pcm = runs[a, rate]["default"]
             ok = st == 0 and voiced(pcm) and \

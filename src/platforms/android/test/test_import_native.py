@@ -14,6 +14,8 @@ through the desktop library (bl.dll + ssi263.dll on Windows, libssi263speech.so 
                                             image not on it is taken -- the unknown-release case must FAIL
     SSI263_IMPORT_TEST_BREAK=lead           control: the speech comparison's leading bound dropped (same_speech), so
                                             a delay past it is taken for the same speech -- its control must FAIL
+    SSI263_IMPORT_TEST_BREAK=prefix         control: the dropped-lead check off (same_speech), so a cut first sound is
+                                            taken for the same speech -- its controls must FAIL
 
 Every fixture is made here, at test time, from the unit's files in the firmware folder (--firmware, default
 $SSI263_FIRMWARE, else firmware/blazie): BL2ENG.BNS + bl2_2003_warm.state, spanish/BL2SPA.BNS + bl2spa_fresh.state,
@@ -42,7 +44,7 @@ import test_android_native as TAN  # noqa: E402
 
 WINDOWS = sys.platform == "win32"
 BREAK = os.environ.get("SSI263_IMPORT_TEST_BREAK", "")
-BREAK_STATE = bool(BREAK) and BREAK not in ("hash", "lead")
+BREAK_STATE = bool(BREAK) and BREAK not in ("hash", "lead", "prefix")
 BREAK_HASH = BREAK == "hash"
 ENGLISH, SPANISH, NONE, REFUSED, WRITE, UNKNOWN = 0, 1, -1, -2, -3, -4
 GERMAN, ITALIAN, SLOVAK = 2, 3, 4            # bl_firmware.h's BLV_FW_* (languages, not the app's voices: 7, 8, 9)
@@ -74,20 +76,30 @@ def result(ok, what, detail=""):
 
 
 # The speech from a generated state against the shipped state's (made on z180emu: other bytes, so a few samples
-# apart).  Equal lengths within SAME_SAMPLES pass as before; otherwise the speech must be the same behind ONE bounded
-# leading shift, its end and everything inside it still compared (Astra, Reply 269: no trailing trim, no stretching,
-# no per-word realignment; a relative-peak span alone could hide a quiet first or last phoneme).  The bound is the
-# voice's own: bl_voice.c keeps LEAD_PREROLL samples before the first sound but never reaches back before the first
-# sounding block, so two renders can open with up to that many samples' different silence.  Seen first in 0.9.6: with
-# the chip's zero-volume prime silent, slow-low's two states open 182 samples apart (the sound span within 25).
+# apart), EVERY case by one decision, same_speech -- equal lengths alone pass nothing (Astra, Reply 270: a silenced
+# head or tail, or a deletion padded back to length, kept the length).  The speech must be the same behind ONE
+# bounded leading shift, whatever that shift drops quiet, its end and everything inside it compared (Reply 269: no
+# trailing trim, no stretching, no per-word realignment; a relative-peak span alone could hide a quiet first or last
+# phoneme).  The bound is the voice's own: bl_voice.c keeps LEAD_PREROLL samples before the first sound but never
+# reaches back before the first sounding block, so two renders can open with up to that many samples' different
+# silence.  Seen first in 0.9.6: with the chip's zero-volume prime silent, slow-low's two states open about 214
+# samples apart; the bounded search stops at its limit (220), a wider diagnostic one at 234 (Astra) -- a passing
+# comparison here is not a measurement of the delay.
 SAME_SAMPLES = 64
 LEAD_MAX = 220                               # bl_voice.c LEAD_PREROLL, at the reference's 22050 Hz
 ENV = 220                                    # 10-ms envelope windows
 FLOOR_DB = -50.0                             # below this (re the shipped peak) in both: silence, not compared
 DIFF_DB = 10.0                               # a window differs when its level is this far off ...
 RUN_MAX = 2                                  # ... and more than two in a row (30 ms) are a changed sound
-CUT = 882                                    # the controls' edits: 40 ms, shorter than any phoneme
+# What the shift may drop: the renderer's own leading material -- every sample before its first above LEAD_THRESHOLD
+# (bl_voice.c _trim_lead), here in PCM: LEAD_THRESHOLD 0.003 x MAKEUP 2.0 x the volume (Ref.say's default, 100) x 32767,
+# truncated as ssi_pcm16 truncates: 196 (Astra, Reply 271).  It describes the renderer's permitted lead, not proof of
+# inaudibility; a case at another volume needs its own limit (25: 49, 50: 98).
+LEAD_THRESHOLD, MAKEUP, VOLUME = 0.003, 2.0, 100
+LEAD_PCM = int(LEAD_THRESHOLD * MAKEUP * VOLUME / 100.0 * 32767)
+CUT = 882                                    # the controls' edits: 40 ms
 BREAK_LEAD = BREAK == "lead"                 # control: the leading bound dropped, so an excessive delay passes
+BREAK_PREFIX = BREAK == "prefix"             # control: the dropped-lead check off, so a cut first sound passes
 
 
 def same_speech(a_bytes, b_bytes):
@@ -110,6 +122,14 @@ def same_speech(a_bytes, b_bytes):
     a2, b2 = a[max(0, -best):], b[max(0, best):]
     ends = len(b2) - len(a2)
     detail = "leading shift %+d samples (bound %d), aligned ends %+d" % (best, lead_max, ends)
+    # what the shift drops must be the renderer's leading material (Astra, Reply 270: else the first audible samples
+    # could go unseen; Reply 271: by the renderer's own threshold, LEAD_PCM)
+    dropped = a[:-best] if best < 0 else b[:best]
+    if len(dropped):
+        dropped_peak = int(np.max(np.abs(dropped)))
+        detail += ", dropped lead peak %d PCM (limit %d)" % (dropped_peak, LEAD_PCM)
+        if dropped_peak > LEAD_PCM and not BREAK_PREFIX:
+            return False, detail + " -- the dropped lead is not the renderer's lead"
     if abs(ends) > SAME_SAMPLES:
         return False, detail + " -- the ends differ"
     n = min(len(a2), len(b2)) // ENV
@@ -141,6 +161,9 @@ def comparison_controls(a_bytes):
         y = x.copy()
         y[at:at + CUT] = 0
         return y
+    # the start of the sound itself cut (Astra, Reply 270): on audio that begins AT its first sound, so the shift's
+    # dropped part is the cut sound -- with leading silence in front, a cut that short is absorbed by the shift
+    a_on = a[first:]
     cases = [("unchanged", a, True),
              ("leading silence added (150 samples)", np.concatenate([np.zeros(150, "<i2"), a]), True),
              ("leading silence added (the bound, %d)" % LEAD_MAX, np.concatenate([np.zeros(LEAD_MAX, "<i2"), a]), True),
@@ -151,9 +174,22 @@ def comparison_controls(a_bytes):
              ("audible tail silenced", silenced(a, last - CUT), False),
              ("internal deletion", np.concatenate([a[:mid], a[mid + CUT:]]), False),
              ("internal deletion, its length made up at the end", np.concatenate([a[:mid], a[mid + CUT:], z]), False)]
+    on_cases = [("its first 150 audible samples removed", a_on[150:], False),
+                ("its first %d audible samples removed" % LEAD_MAX, a_on[LEAD_MAX:], False)]
+
+    def lead_with(v):
+        """100 samples of added lead, silent but for one sample of v: the prefix limit's own edge"""
+        z = np.zeros(100, dtype="<i2")
+        z[50] = v
+        return np.concatenate([z, a])
+    cases += [("added lead with one sample at the limit (%d)" % LEAD_PCM, lead_with(LEAD_PCM), True),
+              ("added lead with one sample past the limit (%d)" % (LEAD_PCM + 1), lead_with(LEAD_PCM + 1), False)]
+    runs = [(name, a_bytes, b, want) for name, b, want in cases]
+    runs += [("audio from its first sound, " + name, a_on.astype("<i2").tobytes(), b, want)
+             for name, b, want in on_cases]
     ok_all = True
-    for name, b, want in cases:
-        got, detail = same_speech(a_bytes, b.astype("<i2").tobytes())
+    for name, ref, b, want in runs:
+        got, detail = same_speech(ref, b.astype("<i2").tobytes())
         result(got == want, "comparison control: %s" % name, "%s (%s)" % ("same" if got else "differs", detail))
         ok_all = ok_all and got == want
     return ok_all
@@ -420,11 +456,12 @@ def main():
         for name in want:
             n, want_n = got.get(name, (0, ""))[0], want[name][0]
             raw = "%d samples (the shipped state's: %d)" % (n, want_n)
-            if n > 0 and abs(n - want_n) <= SAME_SAMPLES:
-                result(True, "speech from the generated states: %s" % name, raw)
-                continue
-            same, how = (same_speech(want_pcm[name], got_pcm[name]) if trusted and n > 0 and name in got_pcm
-                         else (False, "lengths apart and the comparison not trusted"))
+            if not trusted:
+                same, how = False, "the comparison failed its own controls, so nothing is judged"
+            elif n <= 0 or name not in got_pcm:
+                same, how = False, "no speech from the generated state"
+            else:
+                same, how = same_speech(want_pcm[name], got_pcm[name])
             result(same, "speech from the generated states: %s" % name, "%s; %s" % (raw, how))
         if not BREAK_STATE:
             check_once_english(lib, fw, tmp, want)

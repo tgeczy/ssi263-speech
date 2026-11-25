@@ -2177,11 +2177,16 @@ if os.path.isfile(IMPORT_TEST):
     CHECKS.append(check("Android import CONTROL (the list dropped, must fail)", [PY, IMPORT_TEST],
                         env={"SSI263_IMPORT_TEST_BREAK": "hash"}, expect_fail=True,
                         fail_marks=[r"^FAIL a release not on the list", r"^import: 2 FAILED$"]))
-    # ... and the speech comparison's leading bound dropped (same_speech): a delay past it must not pass
+    # ... the speech comparison's leading bound dropped (same_speech): a delay past it must not pass (a removed head
+    # is still caught by the dropped-lead check, so only the delay is the control's)
     CHECKS.append(check("Android import CONTROL (the speech comparison's leading bound dropped, must fail)",
                         [PY, IMPORT_TEST], env={"SSI263_IMPORT_TEST_BREAK": "lead"}, expect_fail=True,
-                        fail_marks=[r"^FAIL comparison control: leading delay past the bound",
-                                    r"^FAIL comparison control: audible head removed"]))
+                        fail_marks=[r"^FAIL comparison control: leading delay past the bound"]))
+    # ... and its dropped-lead check off: the first sound cut by 150 or 220 samples must not pass (Astra, Reply 271)
+    CHECKS.append(check("Android import CONTROL (the dropped-lead check off, must fail)",
+                        [PY, IMPORT_TEST], env={"SSI263_IMPORT_TEST_BREAK": "prefix"}, expect_fail=True,
+                        fail_marks=[r"^FAIL comparison control: audio from its first sound, its first 150 audible",
+                                    r"^FAIL comparison control: audio from its first sound, its first 220 audible"]))
 # MAME's 8085 core (the Accent-PC's, src/csrc/cpu/i8085_mame.cpp; not yet in a board): CONTRACT.md's clauses
 # (src/csrc/cpu/test_i8085_contract.c; its must-fail controls: cpu/i8085_controls.py)
 if os.path.isfile(os.path.join(LIB, "test_i8085_contract.exe")):
