@@ -776,10 +776,12 @@ if os.path.isdir(_BREAK_UNITS):
         if os.path.isfile(os.path.join(_BREAK_UNITS, {"accent": "accentmini"}.get(_w, _w) + ".py")):
             CHECKS.append(check("NVDA's pause (BreakCommand): %s (#71)" % _w, [PY, "break_pause.py", _w],
                                 env={"SSI263_SYNTH_DRIVERS": _BREAK_UNITS}))
+    # "no more" is 0.00 s give or take one 10-ms block: since the chip's zero-volume prime is silent (0.9.6), the
+    # Braille Lite's break-dropped run ends a block sooner (-0.01 s) -- still no pause, which is what the control shows
     for _w in ("blazie", "accent"):
         CHECKS.append(check("NVDA's pause CONTROL (%s: the break dropped, must fail)" % _w, [PY, "break_pause.py", _w],
                             env={"SSI263_SYNTH_DRIVERS": _BREAK_UNITS, "BREAK_PAUSE_BREAK": "1"}, expect_fail=True,
-                            fail_marks=[r"^FAIL pause +%s: .*\(-?0\.00 s more\)" % _w, r"^FAIL mid +%s: " % _w,
+                            fail_marks=[r"^FAIL pause +%s: .*\(-?0\.0[01] s more\)" % _w, r"^FAIL mid +%s: " % _w,
                                         r"^break pause: 2 FAILED$"]))
     # ... and the pause stopped by a cancel (a move on to the next letter): its control feeds it to its end
     CHECKS.append(check("NVDA's pause CONTROL (accent: fed through a cancel, must fail)", [PY, "break_pause.py", "accent"],
