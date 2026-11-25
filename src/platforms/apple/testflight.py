@@ -148,11 +148,19 @@ def run(cmd, what, cwd=HERE):
     return r.stdout
 
 
+# Signing (the archive's cloud-managed distribution certificates) through the team's App Store Connect key, as the
+# upload does, never through an Apple ID signed in to Xcode: Xcode 27's update dropped that sign-in, and every export
+# then failed ("Unable to log in with account", no "Mac App Distribution" certificate).
+def key_flags():
+    return ["-authenticationKeyPath", KEY_FILE, "-authenticationKeyID", KEY_ID, "-authenticationKeyIssuerID", ISSUER_ID]
+
+
 def archive(name):
     scheme, dest, _, ext = PLATFORMS[name]
     path = os.path.join(OUT, name + ".xcarchive")
     run(["xcodebuild", "archive", "-project", XCODEPROJ, "-scheme", scheme, "-configuration", "Release",
-         "-destination", dest, "-archivePath", path, "-derivedDataPath", DERIVED, "-allowProvisioningUpdates"],
+         "-destination", dest, "-archivePath", path, "-derivedDataPath", DERIVED, "-allowProvisioningUpdates"]
+        + key_flags(),
         "archiving %s" % name)
     opts = os.path.join(OUT, "ExportOptions.plist")
     with open(opts, "wb") as f:
@@ -160,7 +168,7 @@ def archive(name):
                        "uploadSymbols": True, "destination": "export"}, f)
     export = os.path.join(OUT, name + "-export")
     run(["xcodebuild", "-exportArchive", "-archivePath", path, "-exportPath", export, "-exportOptionsPlist", opts,
-         "-allowProvisioningUpdates"], "exporting %s" % name)
+         "-allowProvisioningUpdates"] + key_flags(), "exporting %s" % name)
     artifacts = [f for f in os.listdir(export) if f.endswith(ext)]
     if len(artifacts) != 1:
         sys.exit("  %s: expected one %s in %s, found %s" % (name, ext, export, artifacts))
@@ -264,6 +272,9 @@ def cmd_build(a):
 
 # ---- upload -------------------------------------------------------------------------------------------------------
 
+ASC_PLATFORM = {"macOS": "MAC_OS", "iOS": "IOS"}     # App Store Connect's names for PLATFORMS' keys
+
+
 def cmd_upload(a):
     try:
         made = json.load(open(os.path.join(OUT, "made.json")))
@@ -272,15 +283,24 @@ def cmd_upload(a):
     if not made["ok"]:
         sys.exit("the last build failed its checks: build again")
     n = str(made["build"])
-    if builds(n):
+    # a platform App Store Connect already has this number for is never sent again (a number once used is gone); the
+    # other is (build 14: the macOS upload arrived, but was read as failed, and the iOS one never started)
+    there = {b["platform"] for b in builds(n)}
+    todo = {k: v for k, v in made["artifacts"].items() if ASC_PLATFORM[k] not in there}
+    if not todo:
         sys.exit("build %s is on App Store Connect already: never upload a number twice (build --bump)" % n)
-    for name, artifact in made["artifacts"].items():
+    for name in made["artifacts"]:
+        if name not in todo:
+            print("=== %s %s (%s) is on App Store Connect already: not sent again ===" % (name, made["version"], n))
+    for name, artifact in todo.items():
         print("=== uploading %s %s (%s) ===" % (name, made["version"], n))
         r = subprocess.run(["xcrun", "altool", "--upload-app", "-f", artifact, "-t", PLATFORMS[name][2],
                             "--apiKey", KEY_ID, "--apiIssuer", ISSUER_ID], capture_output=True, text=True)
         out = (r.stdout + "\n" + r.stderr).strip()
-        # altool exits 0 on failure: its words decide
-        if r.returncode or "UPLOAD FAILED" in out or "Failed to upload" in out or "ERROR" in out:
+        # altool exits 0 on failure: its words decide.  "UPLOAD SUCCEEDED" wins: Xcode 27's altool logs an ERROR line
+        # about its resume file (CDUploaderStateInfoResumeFilePath) on an upload that succeeded
+        ok = "UPLOAD SUCCEEDED" in out and "UPLOAD FAILED" not in out
+        if not ok and (r.returncode or "UPLOAD FAILED" in out or "Failed to upload" in out or "ERROR" in out):
             print("\n".join("    " + line for line in out.splitlines()[-15:]))
             sys.exit("%s: the upload says it failed. Do NOT retry: run `status` in a few minutes first -- a build "
                      "may have arrived anyway, and a number once used is gone." % name)
