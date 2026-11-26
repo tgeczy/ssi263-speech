@@ -170,13 +170,22 @@ can't say yet:
   chip; the Mini TransPort's manual says only that "Artic-263" is an Artic trade name, and the
   Spirit's speaks of "a TRUE phoneme speech synthesis chip". Artic's notetakers (the TransType,
   BrailleDesk, SQWERT, BraillePad and ErgoBraille) take the TransPort's commands; nothing we have
-  read names their chip either. The Mini TransPort's firmware is "user upgradeable via a
-  diskette", so an update disk may survive. Settled by: board photos, or that disk.
+  read names their chip either. One recording of a notetaker survives: Artic's own quick-start
+  tape for the ErgoBraille (1997 or later: its telephone numbers are in area code 248), on which
+  the unit signs on as "Model 663, TransOS, version 2.33". A Mini TransPort signs on with
+  "TransOS for MiniPort, version 1.22", so the notetakers and the Mini share their system
+  software. The tape is a microphone recording at 8 kHz with a narrator; nobody has yet judged
+  its voice by ear, as the BrailleMate's was. The Mini TransPort's firmware is "user upgradeable
+  via a diskette", so an update disk may survive. Settled by: board photos, or that disk.
 - **Artic's older text-to-speech on disk.** On the SynPhonix cards the text-to-speech was a DOS program. The
   latest, `VEST.COM` 1.60 (1992), has turned up on a Business Vision 3.08 disk and runs in the research host
   ([front-ends.md](front-ends.md), "Artic SynPhonix 215"), so how Artic drove the chip from 1992 on is now
   read from its own code. The older programs, `SONIX.COM` and `TTS.COM` and the 210's `SONIXTTS.COM`, are still
-  unseen; they would show whether VEST's rules and frames go back to 1984 or were new. This VEST special release
+  unseen; they would show whether VEST's rules and frames go back to 1984 or were new. They were still what other
+  makers' programs drove in 1995: the JAWS for Windows and Open Book driver for the 215 (`ARTIC215.DLL`, February
+  1995, in the vintage-access archive; it calls itself "Artic 263 Driver") needs "the SONIX-TTS module of the Artic
+  SONIX2 interface software" loaded first (`SONIXTTS /I=5`; 50 dollars from Artic then), and its notes say it sends
+  a word at a time, with "very small pauses between words", because of SONIX2's word indexing. This VEST special release
   does not install the SONIX interrupt, so whether it keeps SONIX's entry points is not shown either; the 1986
   thesis's listings (see 1986 in the history) give the signature and six of the entry points a SONIX caller looks
   for. Settled by: a SynPhonix 200 or 210 disk, or a full VEST release.
