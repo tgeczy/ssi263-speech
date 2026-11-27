@@ -262,7 +262,11 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   Heimsoeth. Its numbers, symbols and question rise are German, and its article says the chip "even does German
   umlauts". It also advises buying an SSI 263A if possible, "since it sounds a little better than the SSI 263,
   though the difference really isn't very large" (our translation): the only claim we know of, by ear, that sets
-  the two apart.
+  the two apart. It was not only a type-in: the program is on the magazine's own companion disk for that issue (the
+  "Databox", kept in the CPC wiki's archive of them) and on a second disk image kept by CPCrulez, the same bytes in
+  both. `SPRECHI.RSX` is 4,096 bytes of Z80 code loading at 8000h, with its generator listing, two demonstrations
+  and a song beside it; it reaches the chip through the PIO at F8F0h to F8F3h. The listings are dated 1987 and spell
+  the second author Heimsoth. Read from the disks, not run here.
 - **GW Micro's Sounding Board** (firmware). A PC card sold from 1988 to 1996, with LT and XE versions for Toshiba
   laptops; the text-to-speech ran on the PC, in two DOS programs by Douglas Geoffray. Version 2.7 runs in this
   project.
@@ -296,6 +300,15 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   rate, amplitude and inflection now set phoneme by phoneme. White recalled in 2015 that the message took some two
   hundred hours to get right, and ran only a few months before the voice hardware failed. Four seconds of it, as
   received on the ground, are kept on [DD1US's satellite sounds page](http://www.dd1us.de/spacesounds%202c.html).
+  The plan reached blind readers soon after the launch. Issue 3 of 1990 of Vakok Világa, the Hungarian
+  magazine for the blind, carried "A beszélő Galamb" ("The talking dove") by András Arató and Teréz Vaspöri
+  ([from page 21 of the scan](https://epa.oszk.hu/01400/01434/00253/pdf/EPA01434_vakok_vilaga_1990_03.pdf#page=21)).
+  It names the "Votrax SC-02" as the synthesizer that was to speak the telemetry, sets it apart from the recorder
+  that would play children's taped messages, and credits both to Bob McGwier, N4HY. The authors compare it with the
+  formant synthesizers of their own BraiLab talking computers, and add: "DOVE's designers also thought of blind
+  children listening to the messages. We think it likely that the Votrax circuit reporting the telemetry will be
+  familiar to them, since this circuit was built into a great many older American aids for the blind" (our
+  translation).
 - **A university teaching card** (document). A German university's microprocessor lab drove an SSI 263 from a 6802
   for its students; the card's schematic is dated April 1990 (Harald Brandau), the lab sheet 2003. It has no
   low-pass filter at all.
@@ -313,6 +326,17 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 
 ### 1991
 
+- **A repeater that says "nuk, nuk, nuk"** (firmware, document). Rick Swenton, WA1LMV, built an amateur radio
+  repeater controller on an 8085 board salvaged from a blood analyzer, with an SSI-263 on an expansion board of his
+  own at C000h. He has published its photographs, its story and its assembly source on
+  [his own page](https://www.swenton.com/ham-radio/my-ham-radio-page). A screen photographed on 23 February 1991,
+  version 1.0, already lists "Voice ID", "Voice Time" and "Nuk, Nuk"; the source is version 15, of October 1994.
+  Every word it speaks is a table tuned by hand, each phoneme with its own filter, inflection and amplitude (fifty
+  tables), which gave the repeater what he calls its "accent". At noon and midnight it played Curly's "nuk, nuk,
+  nuk, nuk" from the Three Stooges: twenty frames of the chip. The routine that plays a table sets every frame's
+  duration bits itself, so the tables' own duration bits are not what the chip was sent. The source is his, with all
+  rights reserved: we point to it and copy nothing from it. No recording has turned up, and he can no longer find
+  the expansion board's diagram, so the chip's clock is not known.
 - **The Braille 'n Speak 640**: see "Before this project".
 - **Artic's SynPhonix SP-21X** (marking). Revision 3, "COPYRIGHT 1987,91 BY ARTIC TECHNOLOGIES": an ISA card with
   the speaker on the card, treble and volume knobs, and a 15-pin socket for Artic's switches. Two photographed cards

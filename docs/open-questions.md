@@ -194,6 +194,14 @@ can't say yet:
   orbit (see 1990 in the history). That kit's disks, its phrase database, or the team's program that pulled the
   phrases out of it would show Sonix's own files, and the register values behind a phrase that was recorded off
   the air. Settled by: a SynPhonix 200 or 210 disk, a Sonix development disk, or a full VEST release.
+- **Reported, not yet shown: a second German voice.** The NDR-Klein-Computer, a German build-it-yourself computer,
+  had a speech board called SPRACHE. The ndr-nkc.de site did not answer when we looked; the Wayback Machine's
+  [copy of its page](http://web.archive.org/web/20230528134658/https://www.ndr-nkc.de/compo/io/sprache.htm)
+  (May 2023) describes an SSI 263 A at ports D8h to DFh, with the chip's clock from a 1.8432 MHz crystal. That is
+  the site's description: we have not read the board's two build manuals, which were not archived. A 1987 issue of
+  the computer's Loop newsletter is said to name two programs for it, VOICE2 for the JADOS system and ETSS2, a
+  stand-alone version in an EPROM; the one archived copy of that issue is cut short, so we have not read it, and we
+  have found neither program. Settled by: the build manual with its schematic, that issue of Loop, or either program.
 - **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real
   recordings, and 1 MHz on Arctec's Gemini, from its schematic (a 1 MHz crystal on the voice
@@ -204,7 +212,8 @@ can't say yet:
   divider, probably from the PC's bus clock; by ear, VEST in the research host at 1 MHz speaks at a real
   Mini TransPort's speed, heard side by side, with its pitch higher than the unit's after a reset, which a pitch
   setting explains and a clock would not: not a measurement), the HX-20 module (a 3.579545 MHz crystal, maybe
-  divided), the CPC's Sprechi board, and the Accent-PC's own CPU clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
+  divided), the CPC's Sprechi board, the WA1LMV repeater's expansion board (see 1991 in the history), and the
+  Accent-PC's own CPU clock (3.072 MHz is a guess). Settled by: tracing the boards, or the pitch of a real recording
   against the register values that made it.
 - **Sweet Micro's foreign-language rule tables.** Chip Talk (1987) says Sweet Micro sold
   "Foreign Language Rule Tables", German among them, for the Mockingboard's SSI-263. We haven't

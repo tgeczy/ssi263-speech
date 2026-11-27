@@ -48,6 +48,10 @@ The programs that do the talking are `TRNSLATE.BIN`, `SUPERTOK.BIN` and `HEADS.B
 `DICT32K.BIN`. They are by Del Software of Westford, Massachusetts, and carry dates from April 1984 to February
 1985.
 
+The archive also keeps Super Talking Heads as a disk of its own, with two pages of instructions. It adds nothing to the Super Voice disk: its three files, `TALKHEDS.BAS`, `HEADS.BIN` and
+`DEMO.DAT`, are on the Super Voice disk already, the same bytes. The instructions say what picks the head that
+speaks: "if you want the women's head to speak, you must specify a frequency parameter of 235 or greater".
+
 ## Why it is not in our downloads, and why we do not mirror it
 
 **The disk lives at the Color Computer Archive, and we keep it that way.** The archive added it on 3 July 2016, with

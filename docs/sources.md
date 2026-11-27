@@ -92,7 +92,12 @@
   ("Application Software Today") in a scan of that issue; Raised Dot Computing's BEX disks and programming notes, and the
   National Federation of the Blind's braille technology evaluation of December 1993, are kept in Duxbury Systems'
   library. Vila and DeKock's report on the Votalker IB (University of Missouri-Rolla, CSc-86-4, 1986) is in the
-  university's Scholars' Mine, read in the Internet Archive's copy, and the Sprechi article is kept by CPCrulez. The Internet Archive's scans
+  university's Scholars' Mine, read in the Internet Archive's copy, and the Sprechi article is kept by CPCrulez, with
+  a disk of the program; the magazine's own companion disk for that issue is disk D of `dbsh7.zip` in the CPC wiki's
+  [archive of CPC Amstrad International's disks](https://oldwiki.cpcwiki.eu/imgs/6/6f/Cpc_int.zip). Vakok Világa's
+  issue 3 of 1990 is in the Hungarian national library's Electronic Periodicals Archive (EPA, OSZK). The WA1LMV
+  repeater controller is known from Rick Swenton's own page, where he keeps its photographs and its source, and the
+  NDR-Klein-Computer's speech board from the Wayback Machine's copy of ndr-nkc.de. The Internet Archive's scans
   of PC Magazine (12 June 1984, 11 June 1985) and of the National Braille Press's Second Beginner's Guide to
   Personal Computers for the Blind and Visually Impaired (1987, ERIC ED285376) were found by its full-text search.
   Without people keeping these, much of
