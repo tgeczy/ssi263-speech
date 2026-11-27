@@ -73,7 +73,12 @@
   the Blind's NFBnet file areas keep Artic's 1997 catalogue and Business Vision demo with its TransPort manual, and
   the Internet Archive's Wayback Machine keeps Artic's website. A Business Vision 3.08 disk set (VEST 1.60, the screen
   reader for the SynPhonix and the TransPort, and the Version 3 manual as a text file) came from a user's copy; it has
-  not been compared with NFBnet's 1993 demo. The SpeechChips.com museum's SSI-263 exhibit
+  not been compared with NFBnet's 1993 demo. Artic's brochure for the SQWERT, BraillePAD and ErgoBraille is page 89
+  of "Accommodating Students with Disabilities: A Practical Guide for the Faculty" (Chang and others, 1996;
+  [ERIC ED404827](https://files.eric.ed.gov/fulltext/ED404827.pdf#page=90)). The DOVE satellite's speech module is
+  known from the AMSAT-NA Space Symposium proceedings of 1993 (Jim White, pages 73 to 87) and 1994 (Robert Diersing,
+  pages 40 to 47), kept in the [klofas.com archive of the proceedings](https://www.klofas.com/amsat_symposium/), and
+  from White's message to the amsat-bb mailing list of 27 July 2015. The SpeechChips.com museum's SSI-263 exhibit
   pointed us to Atari's 1984 voice handler specification (the Atari Museum's archive), Burke & Burke's
   advertisements (the Color Computer Archive), Artic's 1984 advertisement in PC Magazine (the Internet Archive),
   the Trace Center's resource books of 1987 and 1988 (ERIC ED283307 and ED297505) and Silicon Systems' 78A263A

@@ -284,6 +284,18 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
 
 ### 1990
 
+- **A 263 in orbit: DOVE** (document). The amateur radio satellite DOVE-OSCAR 17, the "Digital Orbiting Voice
+  Encoder", was launched on 22 January 1990 to speak to schoolchildren on 145.825 MHz. Its speech module holds "a
+  Votrax SC-02 phoneme speech synthesizer" and a digital-to-analog converter, run by a Motorola 68HC11 (Robert
+  Diersing, "1993-94 Report on DOVE Recovery Activities", AMSAT-NA Space Symposium, 1994). The chip was first tried
+  from orbit in 1992, with the phrase "You are listening to DOVE Microsat". By then the SC-02 was "now called the
+  Artic Technologies 263A" (Jim White, the 1993 symposium), and the team bought Artic's Sonix speech development
+  system, "an IBM-PC compatible card using the 263A and a speech file builder/editor". Diersing wrote a program to
+  pull the phrases out of the Sonix database into the 68HC11's program, and tested it on a 68HC11 board wired to a
+  263A as in the spacecraft. On 11 June 1994 the satellite repeated "Hi, this is DOVE in space" for a minute, with
+  rate, amplitude and inflection now set phoneme by phoneme. White recalled in 2015 that the message took some two
+  hundred hours to get right, and ran only a few months before the voice hardware failed. Four seconds of it, as
+  received on the ground, are kept on [DD1US's satellite sounds page](http://www.dd1us.de/spacesounds%202c.html).
 - **A university teaching card** (document). A German university's microprocessor lab drove an SSI 263 from a 6802
   for its students; the card's schematic is dated April 1990 (Harald Brandau), the lab sheet 2003. It has no
   low-pass filter at all.
@@ -379,6 +391,12 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   to-do lists and phone books. One unit, recorded from its line output, announces itself as "Mini TransPort Deluxe,
   Model 622, TransOS for MiniPort, version 1.22", the version Artic's site still listed as current in May 1998. Its system ROM
   isn't reachable by the user: updates came on disk and were written through Artic's `MINICOM` program.
+- **Artic's small notetakers** (document). A brochure page reproduced in a 1996 guide for university teachers
+  ([ERIC ED404827, page 89](https://files.eric.ed.gov/fulltext/ED404827.pdf#page=90)) pictures three together: the
+  SQWERT, "a speaking QWERTY notetaker synthesizer", the BraillePAD and the ErgoBraille, with "High Speed Artic
+  Speech" and over 700K of file space. "All three devices also act as a TURBO SPEECH SYNTHESIZER FOR USE WITH ANY PC
+  SCREEN ACCESS PROGRAM." It gives Artic's address as 55 Park Street, Troy, Michigan, with a telephone number in area
+  code 810, the one before 248. It doesn't name the chip. Their firmware and the one recording are under 1997.
 
 ### 1997 to 2003
 
@@ -397,7 +415,8 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   rather than playing samples; it takes the TransPort's commands and the Accent SA's. The manual doesn't name the
   chip. It also mentions Artic's "family of combination synthesizer notetakers for BRAILLE and QWERTY".
 - **Artic's notetakers** (document). Artic's 1997 catalogue sells the TransType 2000 and BrailleDesk 2000 and a "new
-  family of low cost talking note takers": the SQWERT (QWERTY), BraillePad and ErgoBraille. All five double as external
+  family of low cost talking note takers": the SQWERT (QWERTY), BraillePad and ErgoBraille (in a brochure by 1996:
+  see 1993 to 1996). All five double as external
   synthesizers with "TransPort and Accent emulation". Artic's site listed their firmware in May 1998: 2.17 for the
   TransType and BrailleDesk, 2.33 for the other three. Nothing we have read names their chip.
 - **Blazie's last updates.** The firmware this project runs comes from Blazie's updates of 1997 to June 2003, the

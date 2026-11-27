@@ -170,7 +170,8 @@ can't say yet:
   chip; the Mini TransPort's manual says only that "Artic-263" is an Artic trade name, and the
   Spirit's speaks of "a TRUE phoneme speech synthesis chip". Artic's notetakers (the TransType,
   BrailleDesk, SQWERT, BraillePad and ErgoBraille) take the TransPort's commands; nothing we have
-  read names their chip either. One recording of a notetaker survives: Artic's own quick-start
+  read names their chip either (a 1996 brochure for the last three says only "High Speed Artic
+  Speech"). One recording of a notetaker survives: Artic's own quick-start
   tape for the ErgoBraille (1997 or later: its telephone numbers are in area code 248), on which
   the unit signs on as "Model 663, TransOS, version 2.33". A Mini TransPort signs on with
   "TransOS for MiniPort, version 1.22", so the notetakers and the Mini share their system
@@ -188,7 +189,11 @@ can't say yet:
   a word at a time, with "very small pauses between words", because of SONIX2's word indexing. This VEST special release
   does not install the SONIX interrupt, so whether it keeps SONIX's entry points is not shown either; the 1986
   thesis's listings (see 1986 in the history) give the signature and six of the entry points a SONIX caller looks
-  for. Settled by: a SynPhonix 200 or 210 disk, or a full VEST release.
+  for. One Sonix kit went somewhere unexpected: the ground team of the DOVE satellite bought Artic's Sonix speech
+  development system, a 263A card and a "speech file builder/editor", to build the phrases its SC-02 spoke from
+  orbit (see 1990 in the history). That kit's disks, its phrase database, or the team's program that pulled the
+  phrases out of it would show Sonix's own files, and the register values behind a phrase that was recorded off
+  the air. Settled by: a SynPhonix 200 or 210 disk, a Sonix development disk, or a full VEST release.
 - **The clocks.** The chip's clock (XCK) sets both its pitch and its filters, so every board's
   clock matters. Known: 1 MHz on the Braille Lite and the Speak-Out, from the pitch of real
   recordings, and 1 MHz on Arctec's Gemini, from its schematic (a 1 MHz crystal on the voice
