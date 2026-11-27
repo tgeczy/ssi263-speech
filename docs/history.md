@@ -253,6 +253,24 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   ($179), Votalker C-64 and Votalker IB for the PC ($249), cards that speak text "according to the synthesizer's
   pre-programmed phonetic rules", again with no chip named (Votrax's own advertisements name it for the AP and
   the IB: see 1985).
+- **CHARLY, a Spanish voice for MSX** (firmware, document). The Spanish magazine MSX Extra reviewed "CHARLY, el
+  nuevo sintetizador de voz de Spectravídeo" in December 1987 (issue 38, page 13): a cartridge for MSX computers
+  with its program on cassette or disk and a bingo game that calls its numbers aloud, for 9,900 pesetas. The
+  advertisement in the same issue, from Control Time of Barcelona, calls it "el primer sintetizador de voz para
+  MSX". Neither names a chip. The files of the cartridge's disk survive beside a retyped instruction sheet signed
+  SVI España; what ties them to CHARLY is that the sheet and the review give the same three commands with the same
+  ranges, for speed (0 to 15), amplitude (0 to 15) and articulation (0 to 7). The disk's program, `SPA.SYN`, is
+  1,352 bytes of Z80 code and tables loading at 8100h. It writes five ports in a row, 08h to 0Ch, starts by
+  writing 80h to the fourth and C0h to the first, and feeds the chip from the MSX's interrupt, testing bit 7 of a
+  read of the first port. Its letter table holds the SSI-263's phoneme numbers, and the three commands set the
+  chip's rate, amplitude and articulation fields. The Spanish is spoken letter by letter with a handful of rules
+  (ce and ci, ge and gi, gue, güe, que, ch, ll, ñ, and a "México" said with a jota); z and the soft c are an S,
+  and Control with Stop silences it. The sheet and the disk differ in places: the sheet prints the entry address
+  as B100h where the disk's own BASIC program uses 8100h, both the sheet and the review give articulation's
+  starting value as 6 where the program starts at 5, and the disk's BASIC program is dated 1993 and has an error
+  trap the sheet doesn't show. The program also handles letters Spanish does not use: it upper-cases ö, and its
+  list of vowels includes Ä and Ö. Its demonstration is named `KOE.BAS`. We don't know who wrote it, or the
+  cartridge's clock. Read from the disk's files, not run here; we have not seen the chip on a board.
 - **An SSI 263 AP dated N8751** (marking), in a seller's photograph of six chips (see 1989).
 
 ### 1988
