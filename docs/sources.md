@@ -99,7 +99,10 @@
   repeater controller is known from Rick Swenton's own page, where he keeps its photographs and its source, and the
   NDR-Klein-Computer's speech board from the Wayback Machine's copy of ndr-nkc.de. MSX Extra's issue 38 (December
   1987), with its review and advertisement of CHARLY, is in the Internet Archive's
-  [collection of the magazine](https://archive.org/details/MSXExtra). The Internet Archive's scans
+  [collection of the magazine](https://archive.org/details/MSXExtra), and the cartridge's disk, its instruction
+  sheet (retyped) and photographs of its box are kept by the Z80ST-Software website, in its post
+  ["Sintetizador de voz de Spectravideo"](https://z80st.es/blog/2016/07/26-Sintetizador-de-voz-de-Spectravideo)
+  of 26 July 2016. The Internet Archive's scans
   of PC Magazine (12 June 1984, 11 June 1985) and of the National Braille Press's Second Beginner's Guide to
   Personal Computers for the Blind and Visually Impaired (1987, ERIC ED285376) were found by its full-text search.
   Without people keeping these, much of

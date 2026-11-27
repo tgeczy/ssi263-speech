@@ -258,7 +258,11 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   with its program on cassette or disk and a bingo game that calls its numbers aloud, for 9,900 pesetas. The
   advertisement in the same issue, from Control Time of Barcelona, calls it "el primer sintetizador de voz para
   MSX". Neither names a chip. The files of the cartridge's disk survive beside a retyped instruction sheet signed
-  SVI España; what ties them to CHARLY is that the sheet and the review give the same three commands with the same
+  SVI España: the Z80ST-Software website published both in July 2016, when its author had the cartridge on loan,
+  with photographs of the box, the cartridge and its 3.5-inch disk, and wrote that the cartridge holds an SSI263
+  and that the bingo is not on the disk. The box's front and the cartridge's label read "Sintetizador de voz", and
+  the post gives Charlie as the name it is commonly known by; the sheet and the review also give the same three
+  commands with the same
   ranges, for speed (0 to 15), amplitude (0 to 15) and articulation (0 to 7). The disk's program, `SPA.SYN`, is
   1,352 bytes of Z80 code and tables loading at 8100h. It writes five ports in a row, 08h to 0Ch, starts by
   writing 80h to the fourth and C0h to the first, and feeds the chip from the MSX's interrupt, testing bit 7 of a
@@ -269,8 +273,10 @@ listed under "The family of devices" in [open-questions.md](open-questions.md).
   as B100h where the disk's own BASIC program uses 8100h, both the sheet and the review give articulation's
   starting value as 6 where the program starts at 5, and the disk's BASIC program is dated 1993 and has an error
   trap the sheet doesn't show. The program also handles letters Spanish does not use: it upper-cases ö, and its
-  list of vowels includes Ä and Ö. Its demonstration is named `KOE.BAS`. We don't know who wrote it, or the
-  cartridge's clock. Read from the disk's files, not run here; we have not seen the chip on a board.
+  list of vowels includes Ä and Ö. Its demonstration is named `KOE.BAS`, and the post takes the `.SPA` extension
+  as a sign that modules for other languages may have existed, though none has been seen. We don't know who wrote
+  it, or the cartridge's clock. Read from the disk's files, not run here; the chip is named by the post and shown
+  by the program, and we have not seen the board.
 - **An SSI 263 AP dated N8751** (marking), in a seller's photograph of six chips (see 1989).
 
 ### 1988

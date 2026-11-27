@@ -144,7 +144,7 @@ can't say yet:
   scan's text needs proofreading against its pages: not tried. A second Spanish source is a program, not print:
   the MSX cartridge CHARLY's own 1,352-byte text-to-speech (see 1987 in the [history](history.md)), far simpler
   than the thesis's rules. Running it would need little more than a Z80, the MSX's interrupt hook and BASIC's way
-  of passing a string: not tried. We also haven't seen the cartridge, so its clock and output filter are unknown.
+  of passing a string: not tried. We also haven't seen the cartridge's board, so its clock and output filter are unknown.
 - **The Gemini robot's voice.** Arctec's Gemini has a whole text-to-speech of its own in four
   8 KB ROMs on its voice computer, with five voices and songs "with vocals", and a 65C02 at
   1 MHz writing the chip: everything a front end here needs is documented but the ROMs
